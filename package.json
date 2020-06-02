@@ -1,0 +1,22 @@
+{
+  "name": "cucumber-check",
+  "version": "1.0.0",
+  "description": "A cucumber property based testing framework",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "prepare": "tsc"
+  },
+  "keywords": [
+    "cucumber",
+    "testing",
+    "pbt",
+    "typescript"
+  ],
+  "author": "Hugo Sereno and Andre Restivo",
+  "license": "ISC",
+  "dependencies": {
+    "fast-check": "^1.24.2"
+  }
+}
