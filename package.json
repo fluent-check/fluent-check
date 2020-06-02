@@ -1,6 +1,6 @@
 {
   "name": "cucumber-check",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "A cucumber property based testing framework",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
