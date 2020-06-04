@@ -1,7 +1,9 @@
 import * as fc from 'fast-check'
 
-export class CucumberCheck<A extends {}, P extends Array<(sut: F, tc: A) => void>, F> {
-    constructor(public testFactory: () => F, private arbitraries: A = ({} as A), private properties: P = ([] as unknown as P)) { }
+export class CucumberCheck<A extends {}, F> {
+    constructor(public testFactory: () => F, 
+                private arbitraries: A = ({} as A), 
+                private properties: Array<(sut: F, tc: A) => void> = []) { }
     
     arbitrary<U, V extends string>(name: V, arbitrary: fc.Arbitrary<U>) {
         Object.defineProperty(this.arbitraries, name, { value: arbitrary, enumerable: true })
