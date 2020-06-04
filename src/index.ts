@@ -1,25 +1,25 @@
 import * as fc from 'fast-check'
 
-export class CucumberCheck<T extends {}, P extends Array<(sut: F, tc: T) => void>, F> {
-    constructor(public factory: () => F, public arbitraries: T = ({} as unknown as T), public properties: P = ([] as unknown as P)) { }
-
-    arbitrary<U, V extends string>(a: V, b: fc.Arbitrary<U>) {
-        Object.defineProperty(this.arbitraries, a, { value: b, enumerable: true })
-        return new CucumberCheck(this.factory, this.arbitraries as T & Record<V, U>, this.properties)
+export class CucumberCheck<A extends {}, P extends Array<(sut: F, tc: A) => void>, F> {
+    constructor(public testFactory: () => F, private arbitraries: A = ({} as A), private properties: P = ([] as unknown as P)) { }
+    
+    arbitrary<U, V extends string>(name: V, arbitrary: fc.Arbitrary<U>) {
+        Object.defineProperty(this.arbitraries, name, { value: arbitrary, enumerable: true })
+        return new CucumberCheck(this.testFactory, this.arbitraries as A & Record<V, U>, this.properties)
     }
 
-    property(f: (sut: F, tc: T) => void) {
-        this.properties.push(f)
+    property(property: (testObject: F, testCase: A) => void) {
+        this.properties.push(property)
         return this
     }
 
-    assert(assertion: (sut: F, tc: T) => void) {
+    assert(assertion: (testObject: F, testCase: A) => void) {
         const suite = fc.record(this.arbitraries)
 
-        fc.assert(fc.property(suite, tc => {
-            const sut = this.factory()
-            this.properties.forEach(f => f(sut, tc as T))
-            assertion(sut, tc as T)
+        fc.assert(fc.property(suite, testPoint => {
+            const sut = this.testFactory()
+            this.properties.forEach(f => f(sut, testPoint as A))
+            assertion(sut, testPoint as A)
         }))
     }
 }
