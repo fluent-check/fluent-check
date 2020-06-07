@@ -18,7 +18,7 @@ export class Stack<T> {
 */
 
 new CucumberCheck(() => new Stack())
-  .arbitrary('elements', () => fc.array(fc.nat(), 1, 100))
+  .arbitrary('elements', fc.array(fc.nat(), 1, 100))
   .property((s, as) => s.push(as.elements))
   .assert((s, _) => expect(s.size()).gt(0))
 
@@ -28,22 +28,22 @@ new CucumberCheck(() => new Stack())
 // might be scenarios where other independent arbitraries might be needed to be addressed.
 
 new CucumberCheck()
-  .arbitrary('base', () => fc.integer())
-  .chain('test', (arb) => fc.record({ a: fc.constant(arb.base), b: fc.integer(arb.base) }))
+  .arbitrary('base', fc.integer())
+  .chain('test', arb => fc.record({ a: fc.constant(arb.base), b: fc.integer(arb.base) }))
   .assert((_, { test }) => expect(test.a).gte(test.b))
 
 // As it stands, it also doesn't force chain to receive a function that returns a dictionary;
 // any Arbitrary will be considered valid. A tuple, for example, allows nice destructuring.
 
 new CucumberCheck()
-  .arbitrary('base', () => fc.integer())
-  .chain('pair', (arb) => fc.tuple(fc.constant(arb.base), fc.integer(arb.base)))
+  .arbitrary('base', fc.integer())
+  .chain('pair', arb => fc.tuple(fc.constant(arb.base), fc.integer(arb.base)))
   .assert((_, { pair: [a, b] }) => expect(a).gte(b))
 
 // And we can invoke multiple assertions
 const scenario = new CucumberCheck()
-  .arbitrary('base', () => fc.integer(100))
-  .chain('pair', (arb) => fc.tuple(fc.constant(arb.base), fc.integer(arb.base)))
+  .arbitrary('base', fc.integer(100))
+  .chain('pair', arb => fc.tuple(fc.constant(arb.base), fc.integer(arb.base)))
 
 scenario.assert((_, { pair: [a, b] }) => expect(a).gte(b))
 scenario.assert((_, { base }) => expect(base).lte(100))
