@@ -1,11 +1,11 @@
 {
   "name": "cucumber-check",
-  "version": "1.0.3",
+  "version": "1.0.2",
   "description": "A cucumber property based testing framework",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "ts-node src/notebook.ts",
     "prepare": "tsc"
   },
   "keywords": [
@@ -23,5 +23,10 @@
   "repository": {
     "type": "git",
     "url": "https://github.com/arestivo/cucumber-check"
+  },
+  "devDependencies": {
+    "@types/chai": "^4.2.11",
+    "chai": "^4.2.0",
+    "ts-node": "^8.10.2"
   }
 }
