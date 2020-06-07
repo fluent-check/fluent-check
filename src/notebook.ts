@@ -35,7 +35,7 @@ new CucumberCheck()
 // As it stands, it also doesn't force chain to receive a function that returns a dictionary;
 // any Arbitrary will be considered valid. A tuple, for example, allows nice destructuring.
 
-new CucumberCheck(() => {})
+new CucumberCheck()
   .arbitrary('base', () => fc.integer())
   .chain('pair', (arb) => fc.tuple(fc.constant(arb.base), fc.integer(arb.base)))
   .assert((_, { pair: [a, b] }) => expect(a).gte(b))
