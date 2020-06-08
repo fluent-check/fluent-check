@@ -5,16 +5,16 @@ export class CucumberCheck<AS extends {}, S, TC extends {}> {
                 private arbitraries: AS = ({} as AS), 
                 private properties: Array<(sut: S, tc: TC) => void> = []) { }
     
-    arbitrary<A, N extends string>(name: N, arbitrary: (arbs: AS) => fc.Arbitrary<A>) {
-        Object.defineProperty(this.arbitraries, name, { value: arbitrary(this.arbitraries), enumerable: true })
+    arbitrary<A, N extends string>(name: N, arbitrary: fc.Arbitrary<A>) {
+        Object.defineProperty(this.arbitraries, name, { value: arbitrary, enumerable: true })
         return new CucumberCheck<AS & Record<N, fc.Arbitrary<A>>, S, TC & Record<N, A>>(
             this.sutFactory, 
             this.arbitraries as AS & Record<N, fc.Arbitrary<A>>, 
             this.properties)
     }
 
-    chain<A, N extends string>(name: N, f: (tc: TC) => fc.Arbitrary<A>) {
-        return this.arbitrary(name, () => fc.record(this.arbitraries).chain(arbitraries => f(arbitraries as TC)))
+    chain<A>(name: string, f: (tc: TC) => fc.Arbitrary<A>) {
+        return this.arbitrary(name, fc.record(this.arbitraries).chain(arbitraries => f(arbitraries as TC)))
     }
 
     property(p: (sut: S, tc: TC) => void) {
