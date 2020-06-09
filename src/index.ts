@@ -1,6 +1,6 @@
 import * as fc from 'fast-check'
 
-export class CucumberCheck<AS extends {}, S, TC extends {}> {
+export class FluentCheck<AS extends {}, S, TC extends {}> {
     constructor(private sutFactory: () => S = Object, 
                 private arbitraries: AS = ({} as AS), 
                 private properties: Array<(sut: S, tc: TC) => void> = []) { }

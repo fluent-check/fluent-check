@@ -1,6 +1,6 @@
 import * as fc from 'fast-check'
 import { expect } from 'chai'
-import { CucumberCheck } from '.'
+import { FluentCheck } from '.'
 
 export class Stack<T> {
     elements: Array<T> = []
@@ -17,7 +17,7 @@ export class Stack<T> {
     Then the stack is not empty
 */
 
-new CucumberCheck(() => new Stack())
+new FluentCheck(() => new Stack())
   .arbitrary('elements', fc.array(fc.nat(), 1, 100))
   .property((s, as) => s.push(as.elements))
   .assert((s, _) => expect(s.size()).gt(0))
@@ -27,7 +27,7 @@ new CucumberCheck(() => new Stack())
 // from creating two independent arbitraries. The chained ones are *dependent*, and there
 // might be scenarios where other independent arbitraries might be needed to be addressed.
 
-new CucumberCheck()
+new FluentCheck()
   .arbitrary('base', fc.integer())
   .chain('test', arb => fc.record({ a: fc.constant(arb.base), b: fc.integer(arb.base) }))
   .assert((_, { test }) => expect(test.a).gte(test.b))
@@ -35,13 +35,13 @@ new CucumberCheck()
 // As it stands, it also doesn't force chain to receive a function that returns a dictionary;
 // any Arbitrary will be considered valid. A tuple, for example, allows nice destructuring.
 
-new CucumberCheck()
+new FluentCheck()
   .arbitrary('base', fc.integer())
   .chain('pair', arb => fc.tuple(fc.constant(arb.base), fc.integer(arb.base)))
   .assert((_, { pair: [a, b] }) => expect(a).gte(b))
 
 // And we can invoke multiple assertions
-const scenario = new CucumberCheck()
+const scenario = new FluentCheck()
   .arbitrary('base', fc.integer(100))
   .chain('pair', arb => fc.tuple(fc.constant(arb.base), fc.integer(arb.base)))
 
