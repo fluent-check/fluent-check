@@ -9,7 +9,6 @@
     "prepare": "tsc"
   },
   "keywords": [
-    "cucumber",
     "testing",
     "pbt",
     "typescript"
