@@ -19,8 +19,8 @@ export class Stack<T> {
 
 new FluentCheck(() => new Stack())
   .arbitrary('elements', fc.array(fc.nat(), 1, 100))
-  .property((s, as) => s.push(as.elements))
-  .assert((s, _) => expect(s.size()).gt(0))
+  .property((stack, tc) => stack.push(tc.elements))
+  .assert((stack, _) => expect(stack.size()).gt(0))
 
 // Chains must have a name, and I think that they shouldn't replace the "original" name.
 // My rationale is that it is different from chaining an arbitrary into two other arbitraries,
