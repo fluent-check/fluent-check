@@ -7,7 +7,7 @@ export class FluentCheck<AS extends {}, S, TC extends {}> {
     
     arbitrary<A, N extends string>(name: N, arbitrary: fc.Arbitrary<A>) {
         Object.defineProperty(this.arbitraries, name, { value: arbitrary, enumerable: true })
-        return new CucumberCheck<AS & Record<N, fc.Arbitrary<A>>, S, TC & Record<N, A>>(
+        return new FluentCheck<AS & Record<N, fc.Arbitrary<A>>, S, TC & Record<N, A>>(
             this.sutFactory, 
             this.arbitraries as AS & Record<N, fc.Arbitrary<A>>, 
             this.properties)
