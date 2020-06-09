@@ -1,5 +1,5 @@
 import * as fc from 'fast-check'
-import { expect } from 'chai'
+import { expect, assert } from 'chai'
 import { FluentCheck } from '.'
 
 export class Stack<T> {
@@ -45,5 +45,15 @@ const scenario = new FluentCheck()
   .arbitrary('base', fc.integer(100))
   .chain('pair', arb => fc.tuple(fc.constant(arb.base), fc.integer(arb.base)))
 
-scenario.assert((_, { pair: [a, b] }) => expect(a).gte(b))
-scenario.assert((_, { base }) => expect(base).lte(100))
+scenario.assert((_, { pair: [a, b] }) => expect(a).gte(b)) //?
+scenario.assert((_, { base }) => expect(base).lte(100))    //?
+
+// Existential Quantifiers FTW
+
+const r = new FluentCheck(() => ({ f: (a: number, b: number) => a + b }))
+  .arbitrary('a', fc.integer(0, 10))
+  .arbitrary('b', fc.integer(5, 10))
+  .exists('b')
+  .assert(({ f }, { a, b }) => assert(f(a, b) === a && f(b, a) === a)) //?
+
+  console.log(r)
