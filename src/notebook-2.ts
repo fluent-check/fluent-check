@@ -1,37 +1,75 @@
 import * as fc from 'fast-check'
 import { expect, assert } from 'chai'
+import { Arbitrary } from 'fast-check'
 
-// declare function describe(name: string, f: () => void): void;
-// declare function given(name: string, id: string, f: () => void): void;
-// declare function is(name: string, id: string, f: () => void): void;
+type Replace<R> = { [K in keyof R]: R[K] extends fc.Arbitrary<infer A> ? A : R[K] };
 
-// const sut = describe('A binary operation', (sut) => {
-//     given('An integer named a', 'a', () => fc.nat()),
-//     given('An integer named b', 'b', () => fc.nat()),
-//     is('Is associative', (sut, a, b) => sut(a, b).eq(sut(b, a))),
+export class FluentCheck<TP> {
+    constructor(private parent: FluentCheck<TP> | undefined = undefined) { }
+    
+    forall<K extends string, A>(name: K, a: fc.Arbitrary<A>): FluentCheck<TP & Record<K, fc.Arbitrary<A>>> {
+        return new FluentCheckUniversal<TP & Record<K, fc.Arbitrary<A>>, A>(this, name, a)
+    }
 
-//     // is('Has neutral', (sut, a, b) => forall(a).exists(b).suchThat(sut(a, b)).eq(a).and(sut(b, a)).eq(a),
-//     // is('Has neutral', (sut, a, b) => forall(a).exists(b).suchThat(sut(a, b)).eq(a).and(sut(b, a)).eq(a),    
-// })
-   
-function exists<A>(bs: fc.Arbitrary<A>, property: (a: number, b: A) => boolean) {
-    const as = fc.integer()
+    exists<K extends string, A>(name: K, a: fc.Arbitrary<A>): FluentCheck<TP & Record<K, fc.Arbitrary<A>>> {
+        return new FluentCheckExistential<TP & Record<K, fc.Arbitrary<A>>, A>(this, name, a)
+    }
 
-    const generatedBs: A[] = []    
-    fc.assert(fc.property(bs, b => { generatedBs.push(b) }), { numRuns: 1000 })
+    then<TC extends Replace<TP>>(f: (obj: TC) => void) {
+        return new FluentCheckAssert(this, f)
+    }
 
-    const b = [...new Set(generatedBs)].find(b => {
-        try {
-            fc.assert(fc.property(as, a => property(a, b)))
-            return true
-        } catch {
-            return false
-        }
-    })
+    run<TC extends TP>(parentArbitrary: fc.Arbitrary<TC>, callback: (childArbitrary: fc.Arbitrary<unknown>) => void) { 
+        callback(parentArbitrary)
+    } 
 
-    return b
+    check(child: (parentArbitrary: fc.Arbitrary<unknown>) => void = () => {}) { 
+        if (this.parent !== undefined) this.parent.check((parentArbitrary) => this.run(parentArbitrary, child))
+        this.run(fc.record({}) as Arbitrary<TP>, child)
+    }
 }
 
-const neutralElement = (a: number, b: number) => (a * b) === a && (b * a) === a
 
-exists(fc.integer(), neutralElement) //? 
+class FluentCheckUniversal<TP, A> extends FluentCheck<TP> {
+    constructor(parent: FluentCheck<TP>, private name: string, private a: Arbitrary<A>) { 
+        super(parent)
+    }
+
+    run<TC extends TP>(parentArbitrary: fc.Arbitrary<TC>, callback: (childArbitrary: fc.Arbitrary<unknown>) => void) { 
+        const newArbitrary = parentArbitrary.chain(e => fc.tuple(fc.constant(e), this.a))
+        callback(newArbitrary)
+    }
+}
+
+
+class FluentCheckExistential<TP, A> extends FluentCheck<TP> {
+    constructor(parent: FluentCheck<TP>, private name: string, private a: Arbitrary<A>) {
+        super(parent)
+    }
+
+    run<TC extends TP>(parentArbitrary: fc.Arbitrary<TC>, callback: (childArbitrary: fc.Arbitrary<unknown>) => void) { 
+        // const tps = fc.sample(this.a)
+        // tps.forEach(tp => {
+        //     callback(fc.record(tp, fc.constant(tp)))
+        // })
+    }
+}
+
+class FluentCheckAssert<TP, TC> extends FluentCheck<TP> {
+    constructor(parent: FluentCheck<TP>, private f: (obj: TC) => void) {
+        super(parent)
+    }
+
+    run<TC extends TP>(parentArbitrary: fc.Arbitrary<TC>, callback: (childArbitrary: fc.Arbitrary<unknown>) => void) { }
+}
+
+
+/* const c = new FluentCheck()
+            .exists('a', fc.nat())
+            .forall('b', fc.nat())
+            .then(({ a, b }) => (a * b) === a && (b * a) === a)
+            .check()
+            // .property(({ a, b }) => { fc.sample(a) }) //?
+*/
+
+const c = new FluentCheck().forall('a', fc.integer(1, 10)).then(({ a }) => a > 0).check()

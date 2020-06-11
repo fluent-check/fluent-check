@@ -57,3 +57,43 @@ const r = new FluentCheck(() => ({ f: (a: number, b: number) => a + b }))
   .assert(({ f }, { a, b }) => assert(f(a, b) === a && f(b, a) === a)) //?
 
   console.log(r)
+
+// declare function describe(name: string, f: () => void): void;
+// declare function given(name: string, id: string, f: () => void): void;
+// declare function is(name: string, id: string, f: () => void): void;
+
+// const sut = describe('A binary operation', (sut) => {
+//     given('An integer named a', 'a', () => fc.nat()),
+//     given('An integer named b', 'b', () => fc.nat()),
+//     is('Is associative', (sut, a, b) => sut(a, b).eq(sut(b, a))),
+
+//     // is('Has neutral', (sut, a, b) => forall(a).exists(b).suchThat(sut(a, b)).eq(a).and(sut(b, a)).eq(a),
+//     // is('Has neutral', (sut, a, b) => forall(a).exists(b).suchThat(sut(a, b)).eq(a).and(sut(b, a)).eq(a),    
+// })
+
+// Work in Progress
+
+new FluentCheck()
+  .exists('b', fc.integer())
+  .forall('a', fc.integer())
+  .then((_, { a, b }) => (a * b) === a && (b * a) === a)
+  .check()  // returns { satisfiable: true, example: { b: 1 } }
+
+new FluentCheck()
+  .exists('b', fc.integer())
+  .forall('a', fc.integer())
+  .then((_, { a, b }) => (a * b) === a && (b * a) === a)
+  .check()  // returns { satisfiable: false }
+
+new FluentCheck()
+  .forall('a', fc.integer())
+  .forall('b', fc.integer())
+  .then((_, { a, b }) => (a + b) === (b + a))
+  .check()  // returns { satisfiable: true }
+
+new FluentCheck()
+  .forall('a', fc.integer())
+  .forall('b', fc.integer())
+  .then((_, { a, b }) => (a - b) === (b - a))
+  .check()  // returns { satisfiable: false, counter-example: { a: 0, b: 1 } }
+
