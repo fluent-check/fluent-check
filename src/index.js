@@ -35,7 +35,7 @@ export class FluentCheck {
 
     check(child = () => { }) {
         if (this.parent !== undefined) return this.parent.check((parentArbitrary) => this.run(parentArbitrary, child))
-        else return this.run(fc.record({}), child)
+        else return this.run({}, child)
     }
 }
 
@@ -52,7 +52,7 @@ class FluentCheckUniversal extends FluentCheck {
         const newArbitrary = { ...parentArbitrary }
         const example = tps.map(tp => {
             try {
-                newArbitrary[this.name] = fc.constant(tp)
+                newArbitrary[this.name] = tp
                 return callback(newArbitrary).addExample(this.name, tp)
             } catch {
                 return new FluentResult(false).addExample(this.name, tp)
@@ -72,11 +72,12 @@ class FluentCheckExistential extends FluentCheck {
     }
 
     run(parentArbitrary, callback) {
-        const tps = [... new Set(fc.sample(this.a))]
+        const tps = [... new Set(fc.sample(this.a, 1000))]
         const newArbitrary = { ...parentArbitrary }
+
         const example = tps.map(tp => {
             try {
-                newArbitrary[this.name] = fc.constant(tp)
+                newArbitrary[this.name] = tp
                 return callback(newArbitrary).addExample(this.name, tp)
             } catch {
                 return new FluentResult(false)
@@ -94,12 +95,6 @@ class FluentCheckAssert extends FluentCheck {
     }
 
     run(parentArbitrary, callback) {
-        try {
-            // Replace this with fc.check
-            fc.assert(fc.property(fc.record(parentArbitrary), this.assertion))
-        } catch {
-            return new FluentResult(false)
-        }
-        return new FluentResult(true)
+        return this.assertion(parentArbitrary) ? new FluentResult(true) : new FluentResult(false)
     }
 }
