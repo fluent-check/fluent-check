@@ -51,7 +51,7 @@ class FluentCheckUniversal extends FluentCheck {
         const newArbitrary = { ...parentArbitrary }
 
         let example = new FluentResult(true)
-        for (const tp of new Set(fc.sample(this.a))) {
+        for (const tp of new Set(fc.sample(this.a, { numRuns: 100 }))) {
             newArbitrary[this.name] = tp
             const result = callback(newArbitrary).addExample(this.name, tp)
             if (!result.satisfiable) { example = result; break }
@@ -62,6 +62,8 @@ class FluentCheckUniversal extends FluentCheck {
 }
 
 class FluentCheckExistential extends FluentCheck {
+    tps = undefined
+
     constructor(parent, name, a) {
         super(parent)
 
@@ -71,9 +73,9 @@ class FluentCheckExistential extends FluentCheck {
 
     run(parentArbitrary, callback) {
         const newArbitrary = { ...parentArbitrary }
-
         let example = new FluentResult(false)
-        for (const tp of new Set(fc.sample(this.a, { numRuns: 1000 }))) {
+        if (this.tps == undefined) this.tps = new Set(fc.sample(this.a, { numRuns: 100 }))
+        for (const tp of this.tps) {
             newArbitrary[this.name] = tp
             const result = callback(newArbitrary).addExample(this.name, tp)
             if (result.satisfiable) { example = result; break }
