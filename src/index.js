@@ -51,7 +51,7 @@ class FluentCheckUniversal extends FluentCheck {
         const newArbitrary = { ...parentArbitrary }
 
         let example = initialValue || new FluentResult(true)
-        const collection = new Set(initialValue === undefined ? fc.sample(this.a, { numRuns: 100 }) : this.a.shrink(initialValue.example[this.name]))
+        const collection = new Set(initialValue === undefined ? fc.sample(this.a, { numRuns: 1000 }) : this.a.shrink(initialValue.example[this.name]))
         for (const tp of collection) {
             newArbitrary[this.name] = tp
             const result = callback(newArbitrary).addExample(this.name, tp)
@@ -72,14 +72,15 @@ class FluentCheckExistential extends FluentCheck {
         this.a = a
     }
 
-    run(parentArbitrary, callback) {
+    run(parentArbitrary, callback, initialValue = undefined) {
         const newArbitrary = { ...parentArbitrary }
-        let example = new FluentResult(false)
-        if (this.tps == undefined) this.tps = new Set(fc.sample(this.a, { numRuns: 100 }))
-        for (const tp of this.tps) {
+        if (this.tps == undefined) this.tps = new Set(fc.sample(this.a, { numRuns: 1000 }))
+        let example = initialValue || new FluentResult(true)
+        const collection = new Set(initialValue === undefined ? this.tps : this.a.shrink(initialValue.example[this.name]))
+        for (const tp of collection) {
             newArbitrary[this.name] = tp
             const result = callback(newArbitrary).addExample(this.name, tp)
-            if (result.satisfiable) { example = result; break }
+            if (result.satisfiable) { example = this.run(parentArbitrary, callback, result); break }
         }
 
         return example
