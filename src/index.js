@@ -47,14 +47,15 @@ class FluentCheckUniversal extends FluentCheck {
         this.a = a
     }
 
-    run(parentArbitrary, callback) {
+    run(parentArbitrary, callback, initialValue = undefined) {
         const newArbitrary = { ...parentArbitrary }
 
-        let example = new FluentResult(true)
-        for (const tp of new Set(fc.sample(this.a, { numRuns: 100 }))) {
+        let example = initialValue || new FluentResult(true)
+        const collection = new Set(initialValue === undefined ? fc.sample(this.a, { numRuns: 100 }) : this.a.shrink(initialValue.example[this.name]))
+        for (const tp of collection) {
             newArbitrary[this.name] = tp
             const result = callback(newArbitrary).addExample(this.name, tp)
-            if (!result.satisfiable) { example = result; break }
+            if (!result.satisfiable) { example = this.run(parentArbitrary, callback, result); break }
         }
 
         return example
