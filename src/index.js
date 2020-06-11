@@ -1,5 +1,3 @@
-import { textChangeRangeIsUnchanged } from 'typescript'
-
 const fc = require('fast-check')
 
 class FluentResult {
@@ -9,7 +7,7 @@ class FluentResult {
     }
 
     addExample(name, value) {
-        Object.defineProperty(this.example, name, { value, enumerable: true })
+        this.example[name] = value
         return this
     }
 }
@@ -51,17 +49,17 @@ class FluentCheckUniversal extends FluentCheck {
 
     run(parentArbitrary, callback) {
         const tps = [... new Set(fc.sample(this.a))]
+        const newArbitrary = { ...parentArbitrary }
         const example = tps.map(tp => {
             try {
-                const newArbitrary = { ...parentArbitrary }
-                Object.defineProperty(newArbitrary, this.name, { value: fc.constant(tp), enumerable: true })
+                newArbitrary[this.name] = fc.constant(tp)
                 return callback(newArbitrary).addExample(this.name, tp)
             } catch {
                 return new FluentResult(false).addExample(this.name, tp)
             }
         }).find(a => !a.satisfiable)
 
-        return (example !== undefined) ? example : new FluentResult(true)
+        return example || new FluentResult(true)
     }
 }
 
@@ -75,17 +73,17 @@ class FluentCheckExistential extends FluentCheck {
 
     run(parentArbitrary, callback) {
         const tps = [... new Set(fc.sample(this.a))]
+        const newArbitrary = { ...parentArbitrary }
         const example = tps.map(tp => {
             try {
-                const newArbitrary = { ...parentArbitrary }
-                Object.defineProperty(newArbitrary, this.name, { value: fc.constant(tp), enumerable: true })
+                newArbitrary[this.name] = fc.constant(tp)
                 return callback(newArbitrary).addExample(this.name, tp)
             } catch {
                 return new FluentResult(false)
             }
         }).find(a => a.satisfiable)
 
-        return (example !== undefined) ? example : new FluentResult(false)
+        return example || new FluentResult(false)
     }
 }
 
@@ -97,7 +95,8 @@ class FluentCheckAssert extends FluentCheck {
 
     run(parentArbitrary, callback) {
         try {
-            fc.assert(fc.property(fc.record(parentArbitrary), point => this.assertion(point)))
+            // Replace this with fc.check
+            fc.assert(fc.property(fc.record(parentArbitrary), this.assertion))
         } catch {
             return new FluentResult(false)
         }

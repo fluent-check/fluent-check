@@ -1,7 +1,7 @@
 const fc = require('fast-check')
 const FluentCheck = require('./index.js').FluentCheck
 
-const c = new FluentCheck()
+new FluentCheck()
     .forall('a', fc.integer(0, 2))
     .exists('b', fc.integer(-2, 0))
     .then(({ a, b }) => a + b == 0)
