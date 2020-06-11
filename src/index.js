@@ -48,14 +48,16 @@ class FluentCheckUniversal extends FluentCheck {
     }
 
     run(parentArbitrary, callback) {
-        const tps = [... new Set(fc.sample(this.a))]
         const newArbitrary = { ...parentArbitrary }
-        const example = tps.map(tp => {
-            newArbitrary[this.name] = tp
-            return callback(newArbitrary).addExample(this.name, tp)
-        }).find(a => !a.satisfiable)
 
-        return example || new FluentResult(true)
+        let example = new FluentResult(true)
+        for (const tp of new Set(fc.sample(this.a))) {
+            newArbitrary[this.name] = tp
+            const result = callback(newArbitrary).addExample(this.name, tp)
+            if (!result.satisfiable) { example = result; break }
+        }
+
+        return example
     }
 }
 
@@ -68,15 +70,16 @@ class FluentCheckExistential extends FluentCheck {
     }
 
     run(parentArbitrary, callback) {
-        const tps = [... new Set(fc.sample(this.a, 1000))]
         const newArbitrary = { ...parentArbitrary }
 
-        const example = tps.map(tp => {
+        let example = new FluentResult(false)
+        for (const tp of new Set(fc.sample(this.a, { numRuns: 1000 }))) {
             newArbitrary[this.name] = tp
-            return callback(newArbitrary).addExample(this.name, tp)
-        }).find(a => a.satisfiable)
+            const result = callback(newArbitrary).addExample(this.name, tp)
+            if (result.satisfiable) { example = result; break }
+        }
 
-        return example || new FluentResult(false)
+        return example
     }
 }
 
