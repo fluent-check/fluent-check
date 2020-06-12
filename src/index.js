@@ -1,5 +1,3 @@
-const fc = require('fast-check')
-
 class FluentResult {
     constructor(satisfiable = false, example = {}) {
         this.satisfiable = satisfiable
@@ -51,7 +49,7 @@ class FluentCheckUniversal extends FluentCheck {
         const newArbitrary = { ...parentArbitrary }
 
         let example = initialValue || new FluentResult(true)
-        const collection = new Set(initialValue === undefined ? fc.sample(this.a, { numRuns: 1000 }) : this.a.shrink(initialValue.example[this.name]))
+        const collection = new Set(initialValue === undefined ? this.a.sampleWithBias(1000) : this.a.shrink(initialValue.example[this.name]).sampleWithBias())
         for (const tp of collection) {
             newArbitrary[this.name] = tp
             const result = callback(newArbitrary).addExample(this.name, tp)
@@ -74,9 +72,9 @@ class FluentCheckExistential extends FluentCheck {
 
     run(parentArbitrary, callback, initialValue = undefined) {
         const newArbitrary = { ...parentArbitrary }
-        if (this.tps == undefined) this.tps = new Set(fc.sample(this.a, { numRuns: 1000 }))
-        let example = initialValue || new FluentResult(true)
-        const collection = new Set(initialValue === undefined ? this.tps : this.a.shrink(initialValue.example[this.name]))
+        if (this.tps == undefined) this.tps = new Set(this.a.sampleWithBias(1000))
+        let example = initialValue || new FluentResult(false)
+        const collection = new Set(initialValue === undefined ? this.tps : this.a.shrink(initialValue.example[this.name]).sampleWithBias())
         for (const tp of collection) {
             newArbitrary[this.name] = tp
             const result = callback(newArbitrary).addExample(this.name, tp)
