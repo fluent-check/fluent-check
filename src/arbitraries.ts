@@ -31,6 +31,7 @@ export class ArbitraryCollection extends Arbitrary {
 
     shrink() {
         if (this.arbitraries.length == 1) return new NoArbitrary()
+        if (this.arbitraries.length == 2) return this.arbitraries[0]
         return new ArbitraryCollection(this.arbitraries.slice(0, -1))
     }
 }
