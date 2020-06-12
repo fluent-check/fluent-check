@@ -18,6 +18,33 @@ export abstract class Arbitrary {
     }
 }
 
+export class ArbitraryString extends Arbitrary {
+    constructor(public min = 2, public max = 10, public chars = 'abcdefghijklmnopqrstuvwxyz') {
+        super()
+        this.min = min
+        this.max = max
+        this.chars = chars
+    }
+
+    pick(size = Math.floor(Math.random() * (this.max - this.min + 1)) + this.min) {
+        let string = ''
+        for (let i = 0; i < size; i++) string += this.chars.charAt(Math.floor(Math.random() * this.chars.length))
+        return string
+    }
+
+    sampleWithBias(size = 10) {
+        const ret = this.sample(size - 2)
+        ret.unshift(this.pick(this.min))
+        ret.unshift(this.pick(this.max))
+        return ret
+    }
+
+    shrink(initialValue) {
+        if (this.min == this.max) return new NoArbitrary
+        return new ArbitraryString(this.min, this.max - 1, initialValue)
+    }
+}
+
 export class ArbitraryBoolean extends Arbitrary {
     constructor() {
         super()
@@ -31,6 +58,8 @@ export class ArbitraryBoolean extends Arbitrary {
 export class ArbitraryInteger extends Arbitrary {
     constructor(public min = Number.MIN_SAFE_INTEGER, public max = Number.MAX_SAFE_INTEGER) {
         super()
+        this.min = min
+        this.max = max
     }
 
     pick() {
@@ -57,7 +86,7 @@ export class ArbitraryInteger extends Arbitrary {
 }
 
 export class ArbitraryReal extends ArbitraryInteger {
-    constructor(min = Number.MIN_SAFE_INTEGER, max = Number.MAX_SAFE_INTEGER) {
+    constructor(public min = Number.MIN_SAFE_INTEGER, public max = Number.MAX_SAFE_INTEGER) {
         super(min, max)
     }
 
