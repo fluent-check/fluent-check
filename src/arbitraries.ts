@@ -26,7 +26,7 @@ export class ArbitraryString extends Arbitrary {
         this.chars = chars
     }
 
-    pick(size = Math.floor(Math.random() * (this.max - this.min + 1)) + this.min) {
+    pick(size = Math.floor(Math.random() * (Math.max(0, this.max - this.min) + 1)) + this.min) {
         let string = ''
         for (let i = 0; i < size; i++) string += this.chars.charAt(Math.floor(Math.random() * this.chars.length))
         return string
@@ -40,8 +40,8 @@ export class ArbitraryString extends Arbitrary {
     }
 
     shrink(initialValue) {
-        if (this.min == this.max) return new NoArbitrary
-        return new ArbitraryString(this.min, this.max - 1, initialValue)
+        if (this.min > initialValue.length - 1) return new NoArbitrary()
+        return new ArbitraryString(this.min, initialValue.length - 1, initialValue)
     }
 }
 

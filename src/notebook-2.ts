@@ -99,10 +99,15 @@ new FluentCheck()
 new FluentCheck()
     .exists('a', new ArbitraryInteger())
     .then(({ a }) => a + 1000 > a)
-    .check() //?. $
+    .check() //?. $ 
 
 new FluentCheck()
     .forall('a', new ArbitraryString())
     .forall('b', new ArbitraryString())
     .then(({ a, b }) => a.length + b.length === (a + b).length)
+    .check() //?. $
+
+new FluentCheck()
+    .exists('a', new ArbitraryString())
+    .then(({ a }) => a.length  === 5)
     .check() //?. $
