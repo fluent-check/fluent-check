@@ -5,7 +5,7 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
-    "test": "ts-node src/notebook.ts",
+    "test": "mocha -r ts-node/register test/*.ts",
     "prepare": "tsc"
   },
   "keywords": [
@@ -25,7 +25,9 @@
   },
   "devDependencies": {
     "@types/chai": "^4.2.11",
+    "@types/mocha": "^7.0.2",
     "chai": "^4.2.0",
+    "mocha": "^8.0.1",
     "ts-node": "^8.10.2"
   }
 }
