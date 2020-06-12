@@ -67,7 +67,7 @@ it("finds that the multiplication has zero element in a range", () => {
   ).to.have.property('satisfiable', true)
 })
   
-it("finds that there is a number larger than any number in a range and shrink it", () => {
+it("finds that there is an integer larger than any number in a range and shrinks it", () => {
   expect(new FluentCheck() 
     .exists('a', new ArbitraryInteger())
     .forall('b', new ArbitraryInteger(-100, 100))
@@ -75,7 +75,17 @@ it("finds that there is a number larger than any number in a range and shrink it
     .check()
   ).to.deep.include({ satisfiable: true, example: { a: 101 } })
 })
-      
+
+it("finds that there is a real larger than any number in a range and shrinks it", () => {
+  expect(new FluentCheck() 
+    .exists('a', new ArbitraryReal())
+    .forall('b', new ArbitraryReal(-100, 100))
+    .then(({ a, b }) => a > b)
+    .check()
+  ).to.deep.include({ satisfiable: true, example: { a: 101 } })
+})
+
+
 it("finds two true booleans", () => {
   expect(new FluentCheck() 
     .exists('a', new ArbitraryBoolean())
