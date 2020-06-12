@@ -93,7 +93,6 @@ it("finds a number thar is divisble by 13 and shrinks it", () => {
   ).to.deep.include({ satisfiable: true, example: { a: 13 } })
 })
 
-
 it("finds two true booleans", () => {
   expect(new FluentCheck() 
     .exists('a', new ArbitraryBoolean())
