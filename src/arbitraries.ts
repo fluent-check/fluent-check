@@ -109,8 +109,14 @@ export class ArbitraryInteger extends Arbitrary {
     }
 
     shrink(initialValue) {
-        if (initialValue > 0) return new ArbitraryInteger(0, Math.max(0, Math.floor(initialValue / 2)))
-        else if (initialValue < 0) return new ArbitraryInteger(Math.min(0, Math.ceil(initialValue / 2), 0))
+        if (initialValue > 0) return new ArbitraryComposite([
+            new ArbitraryInteger(0, Math.max(0, Math.floor(initialValue / 2))),
+            new ArbitraryInteger(0, Math.max(Math.floor(initialValue / 2), initialValue - 1))
+        ])            
+        else if(initialValue < 0) return new ArbitraryComposite([
+            new ArbitraryInteger(0, Math.max(initialValue + 1, Math.floor(initialValue / 2))),
+            new ArbitraryInteger(0, Math.max(Math.floor(initialValue / 2), 0))
+        ])
         return new NoArbitrary()
     }
 }
@@ -125,8 +131,14 @@ export class ArbitraryReal extends ArbitraryInteger {
     }
 
     shrink(initialValue) {
-        if (initialValue > 0) return new ArbitraryReal(0, Math.max(0, initialValue / 2))
-        else if (initialValue < 0) return new ArbitraryReal(Math.min(0, initialValue / 2), 0)
+        if (initialValue > 0) return new ArbitraryComposite([
+            new ArbitraryReal(0, Math.max(0, Math.floor(initialValue / 2))),
+            new ArbitraryReal(0, Math.max(Math.floor(initialValue / 2), initialValue - 1))
+        ])            
+        else if(initialValue < 0) return new ArbitraryComposite([
+            new ArbitraryReal(0, Math.max(initialValue + 1, Math.floor(initialValue / 2))),
+            new ArbitraryReal(0, Math.max(Math.floor(initialValue / 2), 0))
+        ])
         return new NoArbitrary()
     }
 }
