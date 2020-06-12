@@ -1,5 +1,5 @@
 import { FluentCheck } from './index'
-import { ArbitraryInteger, ArbitraryBoolean, ArbitraryReal } from './arbitraries'
+import { ArbitraryInteger, ArbitraryBoolean, ArbitraryReal, ArbitraryString } from './arbitraries'
 
 /* TODO List
  * 
@@ -99,4 +99,10 @@ new FluentCheck()
 new FluentCheck()
     .exists('a', new ArbitraryInteger())
     .then(({ a }) => a + 1000 > a)
+    .check() //?. $
+
+new FluentCheck()
+    .forall('a', new ArbitraryString())
+    .forall('b', new ArbitraryString())
+    .then(({ a, b }) => a.length + b.length === (a + b).length)
     .check() //?. $

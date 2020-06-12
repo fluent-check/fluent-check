@@ -1,4 +1,43 @@
-class Arbitrary { }
+class Arbitrary { 
+    pick() {
+
+    }
+
+    sample(size = 10) {
+        const result = []
+        for (let i = 0; i < size; i += 1)
+            result.push(this.pick())
+
+        return result
+    }
+}
+
+export class ArbitraryString extends Arbitrary {
+    constructor(public min = 2, public max = 10, public chars = 'abcdefghijklmnopqrstuvwxyz') {
+        super()
+        this.min = min
+        this.max = max
+        this.chars = chars
+    }
+
+    pick(size = Math.floor(Math.random() * (this.max - this.min + 1)) + this.min) {
+        let string = ''
+        for (let i = 0; i < size; i++) string += this.chars.charAt(Math.floor(Math.random() * this.chars.length))
+        return string
+    }
+
+    sampleWithBias(size = 10) {
+        const ret = this.sample(size - 2)
+        ret.unshift(this.pick(this.min))
+        ret.unshift(this.pick(this.max))
+        return ret
+    }
+
+    shrink(initialValue) {
+        if (this.min == this.max) return new NoArbitrary
+        return new ArbitraryString(this.min, this.max - 1, initialValue)
+    }
+}
 
 export class ArbitraryBoolean extends Arbitrary {
     constructor() {
@@ -13,14 +52,6 @@ export class ArbitraryBoolean extends Arbitrary {
         return this.sample(size)
     }
 
-    sample(size = 10) {
-        const result = []
-        for (let i = 0; i < size; i += 1)
-            result.push(this.pick())
-
-        return result
-    }
-
     shrink(initialValue) {
         return new NoArbitrary()
     }
@@ -29,6 +60,8 @@ export class ArbitraryBoolean extends Arbitrary {
 export class ArbitraryInteger extends Arbitrary {
     constructor(public min = Number.MIN_SAFE_INTEGER, public max = Number.MAX_SAFE_INTEGER) {
         super()
+        this.min = min
+        this.max = max
     }
 
     pick() {
@@ -47,14 +80,6 @@ export class ArbitraryInteger extends Arbitrary {
         }
     }
 
-    sample(size = 10) {
-        const result = []
-        for (let i = 0; i < size; i += 1)
-            result.push(this.pick())
-
-        return result
-    }
-
     shrink(initialValue) {
         if (initialValue > 0) return new ArbitraryInteger(0, Math.max(0, Math.floor(initialValue / 2)))
         else if (initialValue < 0) return new ArbitraryInteger(Math.min(0, Math.ceil(initialValue / 2), 0))
@@ -63,7 +88,7 @@ export class ArbitraryInteger extends Arbitrary {
 }
 
 export class ArbitraryReal extends ArbitraryInteger {
-    constructor(min = Number.MIN_SAFE_INTEGER, max = Number.MAX_SAFE_INTEGER) {
+    constructor(public min = Number.MIN_SAFE_INTEGER, public max = Number.MAX_SAFE_INTEGER) {
         super(min, max)
     }
 
