@@ -1,75 +1,102 @@
-import * as fc from 'fast-check'
-import { expect, assert } from 'chai'
-import { Arbitrary } from 'fast-check'
+import { FluentCheck } from './index'
+import { ArbitraryInteger, ArbitraryBoolean, ArbitraryReal } from './arbitraries'
 
-type Replace<R> = { [K in keyof R]: R[K] extends fc.Arbitrary<infer A> ? A : R[K] };
+/* TODO List
+ * 
+ * a. SUT
+ * b. Chains
+ * d. Configurable runnables (exhaustive, numRuns, etc..)
+ * e. ~~Have our own arbitraries~~ (done for Integers, Booleans and Reals)
+ * f. Estimate the confidence of the results (given certain boundaries) 
+ * g. Types
+ * h. Ensure Mocha Integration
+ * i. README
+ * j. ... after this is ready, mutations  
+ */
 
-export class FluentCheck<TP> {
-    constructor(private parent: FluentCheck<TP> | undefined = undefined) { }
-    
-    forall<K extends string, A>(name: K, a: fc.Arbitrary<A>): FluentCheck<TP & Record<K, fc.Arbitrary<A>>> {
-        return new FluentCheckUniversal<TP & Record<K, fc.Arbitrary<A>>, A>(this, name, a)
-    }
+new FluentCheck() 
+    .forall('a', new ArbitraryInteger(-10, 10))
+    .exists('b', new ArbitraryInteger(-10, 10))
+    .then(({ a, b }) => a + b == 0)
+    .check() //?. $
 
-    exists<K extends string, A>(name: K, a: fc.Arbitrary<A>): FluentCheck<TP & Record<K, fc.Arbitrary<A>>> {
-        return new FluentCheckExistential<TP & Record<K, fc.Arbitrary<A>>, A>(this, name, a)
-    }
+new FluentCheck()
+    .forall('a', new ArbitraryInteger(-10, 10))
+    .exists('b', new ArbitraryInteger(-100, 100))
+    .then(({ a, b }) => a * b == 0)
+    .check() //?. $
 
-    then<TC extends Replace<TP>>(f: (obj: TC) => void) {
-        return new FluentCheckAssert(this, f)
-    }
+new FluentCheck() 
+    .exists('b', new ArbitraryInteger(-10, 10))
+    .forall('a', new ArbitraryInteger())
+    .then(({ a, b }) => (a * b) === a && (b * a) === a)
+    .check()  //?. $
 
-    run<TC extends TP>(parentArbitrary: fc.Arbitrary<TC>, callback: (childArbitrary: fc.Arbitrary<unknown>) => void) { 
-        callback(parentArbitrary)
-    } 
+new FluentCheck()
+    .exists('b', new ArbitraryInteger(-10, 10))
+    .forall('a', new ArbitraryInteger())
+    .then(({ a, b }) => (a + b) === a && (b + a) === a)
+    .check()  //?. $
 
-    check(child: (parentArbitrary: fc.Arbitrary<unknown>) => void = () => {}) { 
-        if (this.parent !== undefined) this.parent.check((parentArbitrary) => this.run(parentArbitrary, child))
-        this.run(fc.record({}) as Arbitrary<TP>, child)
-    }
-}
+new FluentCheck() 
+    .forall('a', new ArbitraryInteger())
+    .forall('b', new ArbitraryInteger())
+    .then(({ a, b }) => (a + b) === (b + a))
+    .check()  //?. $ 
 
+new FluentCheck() 
+    .forall('a', new ArbitraryInteger())
+    .forall('b', new ArbitraryInteger())
+    .then(({ a, b }) => (a - b) === (b - a))
+    .check()  //?. $
 
-class FluentCheckUniversal<TP, A> extends FluentCheck<TP> {
-    constructor(parent: FluentCheck<TP>, private name: string, private a: Arbitrary<A>) { 
-        super(parent)
-    }
+new FluentCheck()
+    .forall('a', new ArbitraryInteger())
+    .exists('b', new ArbitraryInteger(-500, 500))
+    .then(({ a, b }) => a * b == 0)
+    .check() //?. $
 
-    run<TC extends TP>(parentArbitrary: fc.Arbitrary<TC>, callback: (childArbitrary: fc.Arbitrary<unknown>) => void) { 
-        const newArbitrary = parentArbitrary.chain(e => fc.tuple(fc.constant(e), this.a))
-        callback(newArbitrary)
-    }
-}
+new FluentCheck()
+    .exists('a', new ArbitraryInteger())
+    .forall('b', new ArbitraryInteger(-100, 100))
+    .then(({ a, b }) => a > b)
+    .check() //?. $
 
+new FluentCheck()
+    .exists('a', new ArbitraryBoolean())
+    .exists('b', new ArbitraryBoolean())
+    .then(({ a, b }) => (a && b))
+    .check() //?. $
 
-class FluentCheckExistential<TP, A> extends FluentCheck<TP> {
-    constructor(parent: FluentCheck<TP>, private name: string, private a: Arbitrary<A>) {
-        super(parent)
-    }
+new FluentCheck()
+    .exists('b', new ArbitraryBoolean())
+    .forall('a', new ArbitraryBoolean())
+    .then(({ a, b }) => (a && b))
+    .check() //?. $
 
-    run<TC extends TP>(parentArbitrary: fc.Arbitrary<TC>, callback: (childArbitrary: fc.Arbitrary<unknown>) => void) { 
-        // const tps = fc.sample(this.a)
-        // tps.forEach(tp => {
-        //     callback(fc.record(tp, fc.constant(tp)))
-        // })
-    }
-}
+new FluentCheck()
+    .forall('a', new ArbitraryBoolean())
+    .then(({ a }) => !(a ^ a))
+    .check() //?. $
 
-class FluentCheckAssert<TP, TC> extends FluentCheck<TP> {
-    constructor(parent: FluentCheck<TP>, private f: (obj: TC) => void) {
-        super(parent)
-    }
+new FluentCheck()
+    .forall('a', new ArbitraryBoolean())
+    .then(({ a }) => a || !a)
+    .check() //?. $
 
-    run<TC extends TP>(parentArbitrary: fc.Arbitrary<TC>, callback: (childArbitrary: fc.Arbitrary<unknown>) => void) { }
-}
+new FluentCheck()
+    .forall('a', new ArbitraryInteger(5, 10))
+    .exists('b', new ArbitraryInteger(1, 2))
+    .then(({ a, b }) => a + b == 0)
+    .check() //?. $
 
+new FluentCheck()
+    .exists('a', new ArbitraryReal())
+    .forall('b', new ArbitraryReal())
+    .then(({ a, b }) => a * b == 0)
+    .check() //?. $
 
-/* const c = new FluentCheck()
-            .exists('a', fc.nat())
-            .forall('b', fc.nat())
-            .then(({ a, b }) => (a * b) === a && (b * a) === a)
-            .check()
-            // .property(({ a, b }) => { fc.sample(a) }) //?
-*/
-
-const c = new FluentCheck().forall('a', fc.integer(1, 10)).then(({ a }) => a > 0).check()
+new FluentCheck()
+    .exists('a', new ArbitraryInteger())
+    .then(({ a }) => a + 1000 > a)
+    .check() //?. $

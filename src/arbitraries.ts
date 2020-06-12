@@ -27,10 +27,8 @@ export class ArbitraryBoolean extends Arbitrary {
 }
 
 export class ArbitraryInteger extends Arbitrary {
-    constructor(min = Number.MIN_SAFE_INTEGER, max = Number.MAX_SAFE_INTEGER) {
+    constructor(public min = Number.MIN_SAFE_INTEGER, public max = Number.MAX_SAFE_INTEGER) {
         super()
-        this.min = min
-        this.max = max
     }
 
     pick() {
