@@ -85,6 +85,14 @@ it("finds that there is a real larger than any number in a range and shrinks it"
   ).to.deep.include({ satisfiable: true, example: { a: 101 } })
 })
 
+it("finds a number thar is divisble by 13 and shrinks it", () => {
+  expect(new FluentCheck() 
+    .exists('a', new ArbitraryInteger(0, 10000))
+    .then(({ a }) => a != 0 && a % 13 == 0)
+    .check()
+  ).to.deep.include({ satisfiable: true, example: { a: 13 } })
+})
+
 
 it("finds two true booleans", () => {
   expect(new FluentCheck() 
