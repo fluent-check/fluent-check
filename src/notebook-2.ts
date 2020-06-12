@@ -1,5 +1,5 @@
 import { FluentCheck } from './index'
-import { ArbitraryInteger, ArbitraryBoolean, ArbitraryReal, ArbitraryString } from './arbitraries'
+import { ArbitraryInteger, ArbitraryBoolean, ArbitraryReal, ArbitraryString, ArbitraryCollection } from './arbitraries'
 
 /* TODO List
  * 
@@ -110,4 +110,14 @@ new FluentCheck()
 new FluentCheck()
     .exists('a', new ArbitraryString())
     .then(({ a }) => a.length  === 5)
+    .check() //?. $
+
+new FluentCheck()
+    .exists('a', new ArbitraryCollection([new ArbitraryString(0, 2), new ArbitraryString(4, 6)]))
+    .then(({ a }) => a.length  === 5)
+    .check() //?. $
+
+new FluentCheck()
+    .exists('a', new ArbitraryCollection([new ArbitraryString(0, 2), new ArbitraryString(4, 6)]))
+    .then(({ a }) => a.length  === 3)
     .check() //?. $

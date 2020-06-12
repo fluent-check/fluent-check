@@ -1,8 +1,4 @@
 export abstract class Arbitrary { 
-    sampleWithBias(size: number = 10) {
-        return this.sample(size)
-    }
-    
     pick() { return undefined }
 
     sample(size: number = 10) {
@@ -13,8 +9,29 @@ export abstract class Arbitrary {
         return result
     }
 
+    sampleWithBias(size: number = 10) {
+        return this.sample(size)
+    }
+
     shrink(initialValue): Arbitrary {
         return new NoArbitrary()
+    }
+}
+
+export class ArbitraryCollection extends Arbitrary {
+    constructor(public arbitraries = []) {
+        super()
+    }    
+
+    // This should calculate a number of elements to pick from each arbitrary so it doesn't affect bias 
+    pick() {
+        const picked = Math.floor(Math.random() * this.arbitraries.length)
+        return this.arbitraries[picked].pick()
+    }
+
+    shrink() {
+        if (this.arbitraries.length == 1) return new NoArbitrary()
+        return new ArbitraryCollection(this.arbitraries.slice(0, -1))
     }
 }
 
