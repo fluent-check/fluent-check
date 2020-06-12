@@ -1,7 +1,9 @@
+import { Arbitrary } from './arbitraries'
+
 class FluentResult {
     constructor(public satisfiable = false, public example = {}) { }
 
-    addExample(name, value) {
+    addExample(name: string, value: any) {
         this.example[name] = value
         return this
     }
@@ -10,11 +12,11 @@ class FluentResult {
 export class FluentCheck {
     constructor(public parent = undefined) { }
 
-    forall(name, a) {
+    forall(name: string, a: Arbitrary) {
         return new FluentCheckUniversal(this, name, a)
     }
 
-    exists(name, a) {
+    exists(name: string, a: Arbitrary) {
         return new FluentCheckExistential(this, name, a)
     }
 
@@ -33,7 +35,7 @@ export class FluentCheck {
 }
 
 class FluentCheckUniversal extends FluentCheck {
-    constructor(public parent, public name, public a) {
+    constructor(public parent: FluentCheck, public name: string, public a: Arbitrary) {
         super(parent)
     }
 

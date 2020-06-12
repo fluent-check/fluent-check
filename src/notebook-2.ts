@@ -61,7 +61,7 @@ new FluentCheck()
     .forall('b', new ArbitraryInteger(-100, 100))
     .then(({ a, b }) => a > b)
     .check() //?. $
-
+    
 new FluentCheck()
     .exists('a', new ArbitraryBoolean())
     .exists('b', new ArbitraryBoolean())

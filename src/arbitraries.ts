@@ -1,4 +1,22 @@
-class Arbitrary { }
+export abstract class Arbitrary { 
+    sampleWithBias(size: number = 10) {
+        return this.sample(size)
+    }
+    
+    pick() { return undefined }
+
+    sample(size: number = 10) {
+        const result = []
+        for (let i = 0; i < size; i += 1)
+            result.push(this.pick())
+
+        return result
+    }
+
+    shrink(initialValue): Arbitrary {
+        return new NoArbitrary()
+    }
+}
 
 export class ArbitraryBoolean extends Arbitrary {
     constructor() {
@@ -7,22 +25,6 @@ export class ArbitraryBoolean extends Arbitrary {
 
     pick() {
         return Math.random() > 0.5
-    }
-
-    sampleWithBias(size = 10) {
-        return this.sample(size)
-    }
-
-    sample(size = 10) {
-        const result = []
-        for (let i = 0; i < size; i += 1)
-            result.push(this.pick())
-
-        return result
-    }
-
-    shrink(initialValue) {
-        return new NoArbitrary()
     }
 }
 
@@ -35,7 +37,7 @@ export class ArbitraryInteger extends Arbitrary {
         return Math.floor(Math.random() * (this.max - this.min + 1)) + this.min
     }
 
-    sampleWithBias(size = 10) {
+    sampleWithBias(size: number = 10) {
         if (this.min < 0 && this.max > 0) {
             const ret = this.sample(size - 3)
             ret.unshift(0, this.min, this.max)
@@ -45,14 +47,6 @@ export class ArbitraryInteger extends Arbitrary {
             ret.unshift(this.min, this.max)
             return ret
         }
-    }
-
-    sample(size = 10) {
-        const result = []
-        for (let i = 0; i < size; i += 1)
-            result.push(this.pick())
-
-        return result
     }
 
     shrink(initialValue) {
