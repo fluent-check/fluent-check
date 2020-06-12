@@ -29,6 +29,18 @@ export class ArbitraryComposite extends Arbitrary {
         return this.arbitraries[picked].pick()
     }
 
+    sampleWithBias(size: number = 10) {
+        const picks = new Array(this.arbitraries.length, 0)
+        for (let i = 0; i < size; i++)
+            picks[Math.floor(Math.random() * picks.length)]++
+
+        const result = []
+            for (let i = 0; i < picks.length; i += 1)
+                result.push(...this.arbitraries[i].sampleWithBias(picks[i]))
+    
+        return result
+    }
+
     shrink() {
         if (this.arbitraries.length == 1) return new NoArbitrary()
         if (this.arbitraries.length == 2) return this.arbitraries[0]
