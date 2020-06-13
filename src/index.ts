@@ -20,6 +20,10 @@ export class FluentCheck {
         return new FluentCheckWhen(this, f)
     }
 
+    chain(name: string, f: (givens) => any): FluentCheckChain {
+        return new FluentCheckChain(this, name, f)
+    }
+
     forall<A>(name: string, a: Arbitrary<A>): FluentCheckUniversal<A> {
         return new FluentCheckUniversal(this, name, a)
     }
@@ -69,6 +73,17 @@ class FluentCheckWhen extends FluentCheck {
         return new FluentCheckWhen(this, f)
     }
 }
+
+class FluentCheckChain extends FluentCheck {
+    constructor(public parent: FluentCheck, public name: string, public f: (givens) => any) {
+        super(parent)
+    }
+
+    protected run(parentArbitrary, callback) {
+        return callback(parentArbitrary)
+    }
+}
+
 
 class FluentCheckGivenMutable extends FluentCheck {
     constructor(public parent: FluentCheck, public name: string, public factory: () => any) {
@@ -135,7 +150,7 @@ class FluentCheckExistential<A> extends FluentCheck {
 }
 
 class FluentCheckAssert extends FluentCheck {
-    givenWhens: FluentCheck[] = undefined
+    preliminaries: FluentCheck[] = undefined
 
     constructor(protected parent: FluentCheck, public assertion: (args: any) => any) {
         super(parent)
@@ -145,23 +160,26 @@ class FluentCheckAssert extends FluentCheck {
         return new FluentCheckAssert(this, assertion)
     }
 
-    private runGivensWhens(parentArbitrary) {
-        if (this.givenWhens == undefined) 
-            this.givenWhens = this.pathFromRoot().filter(node => 
+    private runPreliminaries(parentArbitrary) {
+        if (this.preliminaries == undefined) 
+            this.preliminaries = this.pathFromRoot().filter(node => 
                 (node instanceof FluentCheckGivenMutable) || 
-                (node instanceof FluentCheckWhen))
+                (node instanceof FluentCheckWhen) ||
+                (node instanceof FluentCheckChain))
 
-        const givens = { }
+        const data = { }
 
-        this.givenWhens.forEach(node => {
-            if (node instanceof FluentCheckGivenMutable) givens[node.name] = node.factory()
-            if (node instanceof FluentCheckWhen) node.f({...parentArbitrary, ...givens})
+        this.preliminaries.forEach(node => {
+            if (node instanceof FluentCheckGivenMutable) data[node.name] = node.factory()
+            if (node instanceof FluentCheckWhen) node.f({...parentArbitrary, ...data})
+            if (node instanceof FluentCheckChain) data[node.name] = node.f({...parentArbitrary, ...data})
         })
 
-        return givens
+        return data
     }
 
     protected run(parentArbitrary, callback): FluentResult {
-        return (this.assertion({...parentArbitrary, ...this.runGivensWhens(parentArbitrary)})) ? callback(parentArbitrary) : new FluentResult(false)
+        console.log({...parentArbitrary, ...this.runPreliminaries(parentArbitrary)})
+        return (this.assertion({...parentArbitrary, ...this.runPreliminaries(parentArbitrary)})) ? callback(parentArbitrary) : new FluentResult(false)
     }
 }
