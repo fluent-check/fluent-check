@@ -30,7 +30,7 @@ describe('Stack tests', () => {
       .check()).to.have.property('satisfiable', true)
   })
 
-  it('should find an example where pushing elements keeps the stack empty', () => {
+  it('should find an example where pushing a collection of elements keeps the stack empty', () => {
     expect(new FluentCheck()
       .given('stack', () => new Stack<number>())
       .forall('es', new ArbitraryCollection(new ArbitraryInteger()))
@@ -50,6 +50,17 @@ describe('Stack tests', () => {
       .then(({ s1, s2 }) => s1.size() == s2.size())
       .and(({ es, s1 }) => s1.size() == es.length)
       .and(({ es, s2 }) => s2.size() == es.length)
-      .check()).to.have.property('satisfiable', true) //?
+      .check()).to.have.property('satisfiable', true) 
+  })
+
+  it('should check if after being pushed some elements, and then popped just one, it has size equal to the number of elements minus one', () => {
+    expect(new FluentCheck()
+      .given('stack', () => new Stack<number>())
+      .forall('es', new ArbitraryCollection(new ArbitraryInteger(), 1))
+      .when(({ es, stack }) => stack.push(...es))
+      .then(({ es, stack }) => stack.size() == es.length)
+      .when(({ stack }) => stack.pop())
+      .then(({ es, stack }) => stack.size() == es.length - 1)
+      .check()).to.have.property('satisfiable', true) 
   })
 })

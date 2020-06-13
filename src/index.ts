@@ -32,7 +32,7 @@ export class FluentCheck {
         return new FluentCheckAssert(this, f)
     }
 
-    protected run(parentArbitrary, callback, initialValue = undefined) {
+    protected run(parentArbitrary, callback, initialValue = undefined): FluentCheck {
         return callback(parentArbitrary)
     }
 
@@ -97,7 +97,7 @@ class FluentCheckUniversal<A> extends FluentCheck {
         super(parent)
     }
 
-    protected run(parentArbitrary, callback, initialValue = undefined) {
+    protected run(parentArbitrary, callback, initialValue = undefined): FluentCheck {
         const newArbitrary = { ...parentArbitrary }
 
         let example = initialValue || new FluentResult(true)
@@ -119,7 +119,7 @@ class FluentCheckExistential<A> extends FluentCheck {
         super(parent)
     }
 
-    protected run(parentArbitrary, callback, initialValue = undefined) {
+    protected run(parentArbitrary, callback, initialValue = undefined): FluentCheck {
         const newArbitrary = { ...parentArbitrary }
         if (this.tps == undefined) this.tps = new Set(this.a.sampleWithBias(1000))
         let example = initialValue || new FluentResult(false)
@@ -161,7 +161,7 @@ class FluentCheckAssert extends FluentCheck {
         return givens
     }
 
-    protected run(parentArbitrary, callback) {
+    protected run(parentArbitrary, callback): FluentCheck {
         return (this.assertion({...parentArbitrary, ...this.runGivensWhens(parentArbitrary)})) ? callback(parentArbitrary) : new FluentResult(false)
     }
 }
