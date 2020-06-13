@@ -32,4 +32,16 @@ describe('Arbitrary tests', () => {
       .check()
       ).to.have.property('satisfiable', true)
     })  
+
+  it("should return values smaller than what was shrunk", () => {
+    expect(new FluentCheck()
+      .forall('n', new ArbitraryInteger(0, 100))
+      .forall('s', new ArbitraryInteger(0, 100))
+      .given('a', () => new ArbitraryInteger(0, 100))
+      .then(({n, s, a}) => a.shrink(s).sample(n).every((i: number) => i < s))
+      .and(({n, s, a}) => a.shrink(s).sampleWithBias(n).every((i: number) => i < s))
+      .check()
+      ).to.have.property('satisfiable', true)
+    })    
+
 })
