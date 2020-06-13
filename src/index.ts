@@ -61,7 +61,7 @@ class FluentCheckWhen extends FluentCheck {
         super(parent)
     }
 
-    protected run(parentArbitrary, callback, initialValue = undefined) {
+    protected run(parentArbitrary, callback) {
         return callback(parentArbitrary)
     }
 }
@@ -71,7 +71,7 @@ class FluentCheckGivenMutable extends FluentCheck {
         super(parent)
     }
 
-    protected run(parentArbitrary, callback, initialValue = undefined) {
+    protected run(parentArbitrary, callback) {
         return callback(parentArbitrary)
     }
 }
@@ -81,7 +81,7 @@ class FluentCheckGivenConstant extends FluentCheck {
         super(parent)
     }
 
-    protected run(parentArbitrary, callback, initialValue = undefined) {
+    protected run(parentArbitrary, callback) {
         const result = parentArbitrary
         result[this.name] = this.value
         return callback(result)
