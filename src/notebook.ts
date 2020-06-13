@@ -11,15 +11,13 @@ class Stack<T> {
 
 /* TODO List
  * 
- * a. SUT
- * b. Chains
- * d. Configurable runnables (exhaustive, numRuns, etc..)
- * e. ~~Have our own arbitraries~~ (done for Integers, Booleans and Reals)
- * f. Estimate the confidence of the results (given certain boundaries) 
- * g. Types
- * h. Ensure Mocha Integration
- * i. README
- * j. ... after this is ready, mutations  
+ * - Chains
+ * - Configurable runnables (exhaustive, numRuns, etc..)
+ * - ~~Have our own arbitraries~~ (done for Integers, Booleans, Strings, Composite, and Reals)
+ * - Estimate the confidence of the results (given certain boundaries) 
+ * - Types
+ * - README
+ * - ... after this is ready, mutations  
  */
 
 new FluentCheck() 
