@@ -50,7 +50,7 @@ export class FluentCheck {
         return this.pathFromRoot().reverse()
     }
 
-    check(child = () => {}) {
+    check(child = () => new FluentResult(true)) {
         if (this.parent !== undefined) return this.parent.check(parentArbitrary => this.run(parentArbitrary, child))
         else return this.run({}, child)
     }
@@ -63,6 +63,10 @@ class FluentCheckWhen extends FluentCheck {
 
     protected run(parentArbitrary, callback) {
         return callback(parentArbitrary)
+    }
+
+    and(f: (givens) => any): FluentCheckWhen {
+        return new FluentCheckWhen(this, f)
     }
 }
 
@@ -137,6 +141,10 @@ class FluentCheckAssert extends FluentCheck {
         super(parent)
     }
 
+    and(assertion: (args: any) => any): FluentCheckAssert {
+        return new FluentCheckAssert(this, assertion)
+    }
+
     private runGivensWhens(parentArbitrary) {
         if (this.givenWhens == undefined) 
             this.givenWhens = this.pathFromRoot().filter(node => 
@@ -154,6 +162,6 @@ class FluentCheckAssert extends FluentCheck {
     }
 
     protected run(parentArbitrary, callback) {
-        return this.assertion({...parentArbitrary, ...this.runGivensWhens(parentArbitrary)}) ? new FluentResult(true) : new FluentResult(false)
+        return (this.assertion({...parentArbitrary, ...this.runGivensWhens(parentArbitrary)})) ? callback(parentArbitrary) : new FluentResult(false)
     }
 }
