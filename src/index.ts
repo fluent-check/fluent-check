@@ -179,7 +179,6 @@ class FluentCheckAssert extends FluentCheck {
     }
 
     protected run(parentArbitrary, callback): FluentResult {
-        console.log({...parentArbitrary, ...this.runPreliminaries(parentArbitrary)})
         return (this.assertion({...parentArbitrary, ...this.runPreliminaries(parentArbitrary)})) ? callback(parentArbitrary) : new FluentResult(false)
     }
 }
