@@ -137,7 +137,7 @@ class FluentCheckAssert extends FluentCheck {
         super(parent)
     }
 
-    private runGivensWhens() {
+    private runGivensWhens(parentArbitrary) {
         if (this.givenWhens == undefined) 
             this.givenWhens = this.pathFromRoot().filter(node => 
                 (node instanceof FluentCheckGivenMutable) || 
@@ -147,13 +147,13 @@ class FluentCheckAssert extends FluentCheck {
 
         this.givenWhens.forEach(node => {
             if (node instanceof FluentCheckGivenMutable) givens[node.name] = node.factory()
-            if (node instanceof FluentCheckWhen) node.f(givens)
+            if (node instanceof FluentCheckWhen) node.f({...parentArbitrary, ...givens})
         })
 
         return givens
     }
 
     protected run(parentArbitrary, callback) {
-        return this.assertion({...parentArbitrary, ...this.runGivensWhens()}) ? new FluentResult(true) : new FluentResult(false)
+        return this.assertion({...parentArbitrary, ...this.runGivensWhens(parentArbitrary)}) ? new FluentResult(true) : new FluentResult(false)
     }
 }
