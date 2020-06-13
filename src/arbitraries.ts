@@ -131,18 +131,6 @@ export class ArbitraryReal extends ArbitraryInteger {
     pick() {
         return Math.random() * (this.max - this.min) + this.min
     }
-
-    shrink(initialValue) {
-        if (initialValue > 0) return new ArbitraryComposite([
-            new ArbitraryReal(0, Math.max(0, Math.floor(initialValue / 2))),
-            new ArbitraryReal(0, Math.max(Math.floor(initialValue / 2), initialValue - 1))
-        ])            
-        else if(initialValue < 0) return new ArbitraryComposite([
-            new ArbitraryReal(0, Math.max(initialValue + 1, Math.floor(initialValue / 2))),
-            new ArbitraryReal(0, Math.max(Math.floor(initialValue / 2), 0))
-        ])
-        return new NoArbitrary()
-    }
 }
 
 class NoArbitrary extends Arbitrary {
