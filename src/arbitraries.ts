@@ -22,6 +22,23 @@ export abstract class Arbitrary<A> {
     }
 }
 
+export class ArbitraryCollection<A> extends Arbitrary<A[]> {
+    constructor(public arbitrary : Arbitrary<A>, public min = 0, public max = 10) {
+        super()
+    }
+    
+    pick(): A[] {
+        const size = Math.floor(Math.random() * (this.max - this.min + 1)) + this.min
+        return this.arbitrary.sample(size)
+    }
+
+    shrink(initialValue: A[]): Arbitrary<A[]> {
+        if (this.min == initialValue.length) return new NoArbitrary()
+        if (this.min > (this.min + initialValue.length) / 2) return new NoArbitrary()
+        return new ArbitraryCollection(this.arbitrary, this.min, (this.min + initialValue.length) / 2)
+    }
+}
+
 export class ArbitraryComposite<A> extends Arbitrary<A> {
     constructor(public arbitraries = []) {
         super()

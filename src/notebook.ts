@@ -1,5 +1,5 @@
 import { FluentCheck } from './index'
-import { ArbitraryInteger, ArbitraryBoolean, ArbitraryReal, ArbitraryString, ArbitraryComposite } from './arbitraries'
+import { ArbitraryInteger, ArbitraryBoolean, ArbitraryReal, ArbitraryString, ArbitraryComposite, ArbitraryCollection } from './arbitraries'
 
 class Stack<T> {
     elements: Array<T> = []
@@ -48,4 +48,11 @@ new FluentCheck()
     .then(({ stack }) => stack.size() == 1)
     .check() //?
     
-    
+new FluentCheck()
+    .forall('arr', new ArbitraryCollection(new ArbitraryInteger()))
+    .given('stack', () => new Stack<number>())
+    .when((tc) => console.log(tc))
+    .then(({ arr, stack }) => true)
+    .check() //?
+
+new ArbitraryCollection(new ArbitraryInteger(), 0, 10).sample() //?
