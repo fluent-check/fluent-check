@@ -9,8 +9,14 @@ export abstract class Arbitrary {
         return result
     }
 
+    cornerCases() {
+        return []
+    }
+
     sampleWithBias(size: number = 10) {
-        return this.sample(size)
+        const cornerCases = this.cornerCases()
+        cornerCases.push(...this.sample(Math.max(0, size - cornerCases.length)))
+        return cornerCases
     }
 
     shrink(initialValue): Arbitrary {
@@ -23,22 +29,17 @@ export class ArbitraryComposite extends Arbitrary {
         super()
     }    
 
-    // This should calculate a number of elements to pick from each arbitrary so it doesn't affect bias 
     pick() {
         const picked = Math.floor(Math.random() * this.arbitraries.length)
         return this.arbitraries[picked].pick()
     }
 
-    sampleWithBias(size: number = 10) {
-        const picks = new Array(this.arbitraries.length, 0)
-        for (let i = 0; i < size; i++)
-            picks[Math.floor(Math.random() * picks.length)]++
-
-        const result = []
-            for (let i = 0; i < picks.length; i += 1)
-                result.push(...this.arbitraries[i].sampleWithBias(picks[i]))
+    cornerCases() {
+        const cornerCases = []
+        for (const a of this.arbitraries)
+            cornerCases.push(...a.cornerCases())
     
-        return result
+        return cornerCases
     }
 
     shrink() {
@@ -62,11 +63,8 @@ export class ArbitraryString extends Arbitrary {
         return string
     }
 
-    sampleWithBias(size = 10) {
-        const ret = this.sample(size - 2)
-        ret.unshift(this.pick(this.min))
-        ret.unshift(this.pick(this.max))
-        return ret
+    cornerCases() {
+        return [this.pick(this.min), this.pick(this.max)]
     }
 
     shrink(initialValue) {
@@ -96,16 +94,11 @@ export class ArbitraryInteger extends Arbitrary {
         return Math.floor(Math.random() * (this.max - this.min + 1)) + this.min
     }
 
-    sampleWithBias(size: number = 10) {
-        if (this.min < 0 && this.max > 0) {
-            const ret = this.sample(size - 3)
-            ret.unshift(0, this.min, this.max)
-            return ret
-        } else {
-            const ret = this.sample(size - 2)
-            ret.unshift(this.min, this.max)
-            return ret
-        }
+    cornerCases() {
+        if (this.min < 0 && this.max > 0)
+            return [0, this.min, this.max]
+        else
+            return [this.min, this.max]
     }
 
     shrink(initialValue) {
