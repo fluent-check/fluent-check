@@ -1,7 +1,7 @@
-export abstract class Arbitrary { 
-    pick() { return undefined }
+export abstract class Arbitrary<A> { 
+    pick(): A | undefined { return undefined }
 
-    sample(size: number = 10) {
+    sample(size: number = 10): A[] {
         const result = []
         for (let i = 0; i < size; i += 1)
             result.push(this.pick())
@@ -9,32 +9,30 @@ export abstract class Arbitrary {
         return result
     }
 
-    cornerCases() {
-        return []
-    }
+    cornerCases(): A[] { return [] }
 
-    sampleWithBias(size: number = 10) {
+    sampleWithBias(size: number = 10): A[] {
         const cornerCases = this.cornerCases()
         cornerCases.push(...this.sample(Math.max(0, size - cornerCases.length)))
         return cornerCases
     }
 
-    shrink(initialValue): Arbitrary {
+    shrink(initialValue: A): Arbitrary<A> | NoArbitrary {
         return new NoArbitrary()
     }
 }
 
-export class ArbitraryComposite extends Arbitrary {
+export class ArbitraryComposite<A> extends Arbitrary<A> {
     constructor(public arbitraries = []) {
         super()
     }    
 
-    pick() {
+    pick(): A {
         const picked = Math.floor(Math.random() * this.arbitraries.length)
         return this.arbitraries[picked].pick()
     }
 
-    cornerCases() {
+    cornerCases(): A[] {
         const cornerCases = []
         for (const a of this.arbitraries)
             cornerCases.push(...a.cornerCases())
@@ -42,14 +40,14 @@ export class ArbitraryComposite extends Arbitrary {
         return cornerCases
     }
 
-    shrink() {
+    shrink<B>(initialValue: A): Arbitrary<B> {
         if (this.arbitraries.length == 1) return new NoArbitrary()
         if (this.arbitraries.length == 2) return this.arbitraries[0]
         return new ArbitraryComposite(this.arbitraries.slice(0, -1))
     }
 }
 
-export class ArbitraryString extends Arbitrary {
+export class ArbitraryString extends Arbitrary<string> {
     constructor(public min = 2, public max = 10, public chars = 'abcdefghijklmnopqrstuvwxyz') {
         super()
         this.min = min
@@ -67,23 +65,18 @@ export class ArbitraryString extends Arbitrary {
         return [this.pick(this.min), this.pick(this.max)]
     }
 
-    shrink(initialValue) {
+    shrink(initialValue: string): Arbitrary<string> | NoArbitrary {
         if (this.min > initialValue.length - 1) return new NoArbitrary()
         return new ArbitraryString(this.min, initialValue.length - 1, initialValue)
     }
 }
 
-export class ArbitraryBoolean extends Arbitrary {
-    constructor() {
-        super()
-    }
-
-    pick() {
-        return Math.random() > 0.5
-    }
+export class ArbitraryBoolean extends Arbitrary<Boolean> {
+    constructor() { super() }
+    pick() { return Math.random() > 0.5 }
 }
 
-export class ArbitraryInteger extends Arbitrary {
+export class ArbitraryInteger extends Arbitrary<number> {
     constructor(public min = Number.MIN_SAFE_INTEGER, public max = Number.MAX_SAFE_INTEGER) {
         super()
         this.min = min
@@ -101,7 +94,7 @@ export class ArbitraryInteger extends Arbitrary {
             return [this.min, this.max]
     }
 
-    shrink(initialValue) {
+    shrink(initialValue: number): Arbitrary<number> | NoArbitrary {
         if (initialValue > 0) {            
             const lower = Math.max(0, this.min)
             const upper = Math.max(lower, initialValue - 1)
@@ -133,7 +126,7 @@ export class ArbitraryReal extends ArbitraryInteger {
     }
 }
 
-class NoArbitrary extends Arbitrary {
-    sampleWithBias(size) { return [] }
-    sample(size) { return [] }
+class NoArbitrary extends Arbitrary<undefined> {
+    sampleWithBias(_: number) { return [] }
+    sample(_: number) { return [] }
 }
