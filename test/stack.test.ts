@@ -11,7 +11,7 @@ class Stack<T> {
   size = () => { return this.elements.length }
 }
 
-describe('stack tests', () => {
+describe('Stack tests', () => {
   it('should push one element to the stack and have size one', () => {
     expect(new FluentCheck()
       .exists('e', new ArbitraryInteger())
