@@ -1,4 +1,4 @@
-import {ArbitraryInteger } from '../src/arbitraries'
+import {ArbitraryInteger, ArbitraryBoolean } from '../src/arbitraries'
 import { it } from 'mocha'
 import { expect } from 'chai'
 import { FluentCheck } from '../src'
@@ -44,4 +44,12 @@ describe('Arbitrary tests', () => {
       ).to.have.property('satisfiable', true)
     })    
 
+  it("should allow booleans to be mappeable", () => {
+    expect(new FluentCheck()
+      .forall('n', new ArbitraryInteger(0, 100))
+      .given('a', () => new ArbitraryBoolean().map(e => e ? 'Heads' : 'Tails'))
+      .then(({ a, n }) => a.sampleWithBias(n).contains('Heads') )
+      .and(({ a, n }) => a.sampleWithBias(n).contains('Tails'))
+    )
+  })
 })

@@ -26,6 +26,10 @@ export abstract class Arbitrary<A> {
     shrink(initialValue: A): Arbitrary<A> | NoArbitrary {
         return new NoArbitrary()
     }
+
+    map<B>(f: (a: A) => B) {
+        return new MappedArbitrary(this, f)
+    }
 }
 
 export class ArbitraryCollection<A> extends Arbitrary<A[]> {
@@ -100,6 +104,7 @@ export class ArbitraryString extends Arbitrary<string> {
 
 export class ArbitraryBoolean extends Arbitrary<Boolean> {
     constructor() { super() }
+    cornerCases() { return [true, false] }
     pick() { return Math.random() > 0.5 }
 }
 
@@ -148,6 +153,14 @@ export class ArbitraryReal extends ArbitraryInteger {
     pick() {
         return Math.random() * (this.max - this.min) + this.min
     }
+}
+
+class MappedArbitrary<A, B> extends Arbitrary<B> {
+    constructor(public readonly baseArbitrary: Arbitrary<A>, public readonly f: (a: A) => B) { 
+        super() 
+    }
+
+    pick(): B { return this.f(this.baseArbitrary.pick()) }
 }
 
 class NoArbitrary extends Arbitrary<undefined> {
