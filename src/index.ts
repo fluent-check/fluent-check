@@ -20,11 +20,11 @@ export class FluentCheck {
         return new FluentCheckWhen(this, f)
     }
 
-    forall(name: string, a: Arbitrary): FluentCheckUniversal {
+    forall<A>(name: string, a: Arbitrary<A>): FluentCheckUniversal<A> {
         return new FluentCheckUniversal(this, name, a)
     }
 
-    exists(name: string, a: Arbitrary): FluentCheckExistential  {
+    exists<A>(name: string, a: Arbitrary<A>): FluentCheckExistential<A>  {
         return new FluentCheckExistential(this, name, a)
     }
 
@@ -88,8 +88,8 @@ class FluentCheckGivenConstant extends FluentCheck {
     }
 }
 
-class FluentCheckUniversal extends FluentCheck {
-    constructor(protected parent: FluentCheck, public name: string, public a: Arbitrary) {
+class FluentCheckUniversal<A> extends FluentCheck {
+    constructor(protected parent: FluentCheck, public name: string, public a: Arbitrary<A>) {
         super(parent)
     }
 
@@ -108,10 +108,10 @@ class FluentCheckUniversal extends FluentCheck {
     }
 }
 
-class FluentCheckExistential extends FluentCheck {
+class FluentCheckExistential<A> extends FluentCheck {
     tps = undefined
 
-    constructor(protected parent: FluentCheck, public name: string, public a: Arbitrary) {
+    constructor(protected parent: FluentCheck, public name: string, public a: Arbitrary<A>) {
         super(parent)
     }
 
