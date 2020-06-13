@@ -3,7 +3,7 @@ import { ArbitraryInteger } from '../src/arbitraries'
 import { it } from 'mocha'
 import { expect } from 'chai'
 
-describe('moar integer tests', () => {
+describe('Integer tests', () => {
     it("finds there is a number in the -10, 10 range with inverse and shrink it to 0", () => {
         expect(new FluentCheck()
             .exists('b', new ArbitraryInteger(-10, 10))

@@ -14,4 +14,11 @@ import { ArbitraryInteger, ArbitraryBoolean, ArbitraryReal, ArbitraryString, Arb
  * - ... and then meta-PBT
  */
 
- 
+new FluentCheck()
+      .forall('n', new ArbitraryInteger(5, 100))
+      .given('a', () => new ArbitraryInteger(0, 50))
+      .then(({n, a}) => a.sample(n).includes(0))
+      .and(({n, a}) => a.sample(n).includes(50))
+      .check() //?
+
+new ArbitraryInteger(0, 50).sample(5) //?

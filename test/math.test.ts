@@ -3,7 +3,7 @@ import { ArbitraryInteger } from '../src/arbitraries'
 import { it } from 'mocha' 
 import { expect } from 'chai'
 
-describe('integer tests', () => {
+describe('Math properties tests', () => {
   it("finds if addition is commutative", () => {
       expect(new FluentCheck() 
           .forall('a', new ArbitraryInteger(-10, 10))
