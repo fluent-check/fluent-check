@@ -115,10 +115,7 @@ export class ArbitraryInteger extends Arbitrary<number> {
     }
 
     cornerCases() {
-        if (this.min < 0 && this.max > 0)
-            return [0, this.min, this.max]
-        else
-            return [this.min, this.max]
+        return (this.min < 0 && this.max > 0) ? [0, this.min, this.max] : [this.min, this.max]
     }
 
     shrink(initialValue: number): Arbitrary<number> | NoArbitrary {
