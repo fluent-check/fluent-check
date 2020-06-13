@@ -14,110 +14,14 @@ import { ArbitraryInteger, ArbitraryBoolean, ArbitraryReal, ArbitraryString, Arb
  * j. ... after this is ready, mutations  
  */
 
-new FluentCheck() 
-    .forall('a', new ArbitraryInteger(-10, 10))
-    .exists('b', new ArbitraryInteger(-10, 10))
-    .then(({ a, b }) => a + b == 0)
-    .check() //?. $
+new ArbitraryInteger(4, 6).shrink(5) //? 
+new ArbitraryInteger(-10, 10).shrink(-5) //? 
 
-new FluentCheck()
-    .forall('a', new ArbitraryInteger(-10, 10))
-    .exists('b', new ArbitraryInteger(-100, 100))
-    .then(({ a, b }) => a * b == 0)
-    .check() //?. $
+new ArbitraryInteger(10, 20).shrink(15) //? 
+new ArbitraryInteger(-20, -10).shrink(-15) //? 
 
 new FluentCheck() 
     .exists('b', new ArbitraryInteger(-10, 10))
     .forall('a', new ArbitraryInteger())
     .then(({ a, b }) => (a * b) === a && (b * a) === a)
-    .check()  //?. $
-
-new FluentCheck()
-    .exists('b', new ArbitraryInteger(-10, 10))
-    .forall('a', new ArbitraryInteger())
-    .then(({ a, b }) => (a + b) === a && (b + a) === a)
-    .check()  //?. $
-
-new FluentCheck() 
-    .forall('a', new ArbitraryInteger())
-    .forall('b', new ArbitraryInteger())
-    .then(({ a, b }) => (a + b) === (b + a))
-    .check()  //?. $ 
-
-new FluentCheck() 
-    .forall('a', new ArbitraryInteger())
-    .forall('b', new ArbitraryInteger())
-    .then(({ a, b }) => (a - b) === (b - a))
-    .check()  //?. $
-
-new FluentCheck()
-    .forall('a', new ArbitraryInteger())
-    .exists('b', new ArbitraryInteger(-500, 500))
-    .then(({ a, b }) => a * b == 0)
-    .check() //?. $
-
-new FluentCheck()
-    .exists('a', new ArbitraryInteger())
-    .forall('b', new ArbitraryInteger(-100, 100))
-    .then(({ a, b }) => a > b)
-    .check() //?. $
-    
-new FluentCheck()
-    .exists('a', new ArbitraryBoolean())
-    .exists('b', new ArbitraryBoolean())
-    .then(({ a, b }) => (a && b))
-    .check() //?. $
-
-new FluentCheck()
-    .exists('b', new ArbitraryBoolean())
-    .forall('a', new ArbitraryBoolean())
-    .then(({ a, b }) => (a && b))
-    .check() //?. $
-
-new FluentCheck()
-    .forall('a', new ArbitraryBoolean())
-    .then(({ a }) => !(a ^ a))
-    .check() //?. $
-
-new FluentCheck()
-    .forall('a', new ArbitraryBoolean())
-    .then(({ a }) => a || !a)
-    .check() //?. $
-
-new FluentCheck()
-    .forall('a', new ArbitraryInteger(5, 10))
-    .exists('b', new ArbitraryInteger(1, 2))
-    .then(({ a, b }) => a + b == 0)
-    .check() //?. $
-
-new FluentCheck()
-    .exists('a', new ArbitraryReal())
-    .forall('b', new ArbitraryReal())
-    .then(({ a, b }) => a * b == 0)
-    .check() //?. $
-
-new FluentCheck()
-    .exists('a', new ArbitraryInteger())
-    .then(({ a }) => a + 1000 > a)
-    .check() //?. $ 
-
-new FluentCheck()
-    .forall('a', new ArbitraryString())
-    .forall('b', new ArbitraryString())
-    .then(({ a, b }) => a.length + b.length === (a + b).length)
-    .check() //?. $
-
-new FluentCheck()
-    .exists('a', new ArbitraryString())
-    .then(({ a }) => a.length  === 5)
-    .check() //?. $
-
-new FluentCheck()
-    .exists('a', new ArbitraryComposite([new ArbitraryString(0, 2), new ArbitraryString(4, 6)]))
-    .then(({ a }) => a.length  === 5)
-    .check() //?. $
-
-new FluentCheck()
-    .exists('a', new ArbitraryComposite([new ArbitraryString(0, 2), new ArbitraryString(4, 6)]))
-    .then(({ a }) => a.length  === 3)
-    .check() //?. $
+    .check() //?

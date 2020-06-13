@@ -102,14 +102,19 @@ export class ArbitraryInteger extends Arbitrary {
     }
 
     shrink(initialValue) {
-        if (initialValue > 0) return new ArbitraryComposite([
-            new ArbitraryInteger(0, Math.max(0, Math.floor(initialValue / 2))),
-            new ArbitraryInteger(0, Math.max(Math.floor(initialValue / 2), initialValue - 1))
-        ])            
-        else if(initialValue < 0) return new ArbitraryComposite([
-            new ArbitraryInteger(0, Math.max(initialValue + 1, Math.floor(initialValue / 2))),
-            new ArbitraryInteger(0, Math.max(Math.floor(initialValue / 2), 0))
-        ])
+        if (initialValue > 0) {            
+            const lower = Math.max(0, this.min)
+            const upper = Math.max(lower, initialValue - 1)
+            const midpoint = Math.floor((upper + lower) / 2)
+
+            return new ArbitraryComposite([new ArbitraryInteger(lower, midpoint), new ArbitraryInteger(midpoint, upper)])
+        } else if(initialValue < 0) {
+            const upper = Math.max(0, this.max)
+            const lower = Math.max(upper, initialValue + 1)
+            const midpoint = Math.ceil((upper + lower) / 2)
+
+            return new ArbitraryComposite([new ArbitraryInteger(lower, midpoint), new ArbitraryInteger(midpoint, upper)])
+        }
         return new NoArbitrary()
     }
 }
