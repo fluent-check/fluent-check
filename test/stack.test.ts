@@ -44,7 +44,7 @@ describe('Stack tests', () => {
     expect(new FluentCheck()
       .forall('es', new ArbitraryCollection(new ArbitraryInteger()))
       .given('s1', () => new Stack<number>())
-      .given('s2', () => new Stack<number>())
+      .and('s2', () => new Stack<number>())
       .when(({ es, s1 }) => s1.push(...es))
       .and(({ es, s2 }) => s2.push(...es))
       .then(({ s1, s2 }) => s1.size() == s2.size())

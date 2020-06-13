@@ -70,9 +70,7 @@ class FluentCheckWhen extends FluentCheck {
         super(parent)
     }
 
-    and(f: (givens: TestCase) => void) {
-        return new FluentCheckWhen(this, f)
-    }
+    and(f: (givens: TestCase) => void) { return this.when(f) }
 }
 
 class FluentCheckChain<A> extends FluentCheck {
@@ -85,12 +83,16 @@ class FluentCheckGivenMutable<A> extends FluentCheck {
     constructor(protected readonly parent: FluentCheck, public readonly name: string, public readonly factory: () => A) {
         super(parent)
     }
+
+    and(name: string, a: any) { return this.given(name, a) }
 }
 
 class FluentCheckGivenConstant<A> extends FluentCheck {
     constructor(protected readonly parent: FluentCheck, public readonly name: string, public readonly value: A) {
         super(parent)
     }
+
+    and(name: string, a: any) { return this.given(name, a) }
 
     protected run(parentArbitrary: TestCase, callback: (arg: TestCase) => FluentResult) {
         parentArbitrary[this.name] = this.value
@@ -149,8 +151,8 @@ class FluentCheckAssert extends FluentCheck {
         super(parent)
     }
 
-    and(assertion: (args: TestCase) => boolean): FluentCheckAssert {
-        return new FluentCheckAssert(this, assertion)
+    and(assertion: (args: TestCase) => boolean) {
+        return this.then(assertion)
     }
 
     private runPreliminaries(parentArbitrary: TestCase) {
