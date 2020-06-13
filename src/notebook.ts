@@ -11,6 +11,7 @@ class Stack<T> {
 
 /* TODO List
  * 
+ * - Separate tests into categories
  * - Chains
  * - Configurable runnables (exhaustive, numRuns, etc..)
  * - ~~Have our own arbitraries~~ (done for Integers, Booleans, Strings, Composite, and Reals)
@@ -18,6 +19,7 @@ class Stack<T> {
  * - Types
  * - README
  * - ... after this is ready, mutations  
+ * - ... and then meta-PBT
  */
 
 new FluentCheck() 
