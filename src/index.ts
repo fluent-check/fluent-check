@@ -10,36 +10,33 @@ class FluentResult {
 }
 
 export class FluentCheck {
-    constructor(public parent = undefined) { }
+    constructor(protected parent = undefined) { }
 
-    given(name: string, a: any) {
-        if (a instanceof Function)
-            return new FluentCheckGivenMutable(this, name, a)  
-        else
-            return new FluentCheckGivenConstant(this, name, a)  
+    given(name: string, a: any): FluentCheckGivenMutable | FluentCheckGivenConstant {
+        return (a instanceof Function) ? new FluentCheckGivenMutable(this, name, a) : new FluentCheckGivenConstant(this, name, a)  
     }
 
-    when(f: (givens) => any) {
+    when(f: (givens) => any): FluentCheckWhen {
         return new FluentCheckWhen(this, f)
     }
 
-    forall(name: string, a: Arbitrary) {
+    forall(name: string, a: Arbitrary): FluentCheckUniversal {
         return new FluentCheckUniversal(this, name, a)
     }
 
-    exists(name: string, a: Arbitrary) {
+    exists(name: string, a: Arbitrary): FluentCheckExistential  {
         return new FluentCheckExistential(this, name, a)
     }
 
-    then(f) {
+    then(f): FluentCheckAssert {
         return new FluentCheckAssert(this, f)
     }
 
-    run(parentArbitrary, callback) {
+    protected run(parentArbitrary, callback, initialValue = undefined) {
         return callback(parentArbitrary)
     }
 
-    pathFromRoot() {
+    protected pathFromRoot(): FluentCheck[] {
         const path = [] 
         let node = this
         while (node !== undefined) {
@@ -49,12 +46,12 @@ export class FluentCheck {
         return path
     }
 
-    pathToRoot() {
+    protected pathToRoot(): FluentCheck[] {
         return this.pathFromRoot().reverse()
     }
 
-    check(child = () => { }) {
-        if (this.parent !== undefined) return this.parent.check((parentArbitrary) => this.run(parentArbitrary, child))
+    check(child = () => {}) {
+        if (this.parent !== undefined) return this.parent.check(parentArbitrary => this.run(parentArbitrary, child))
         else return this.run({}, child)
     }
 }
@@ -64,7 +61,7 @@ class FluentCheckWhen extends FluentCheck {
         super(parent)
     }
 
-    run(parentArbitrary, callback, initialValue = undefined) {
+    protected run(parentArbitrary, callback, initialValue = undefined) {
         return callback(parentArbitrary)
     }
 }
@@ -74,7 +71,7 @@ class FluentCheckGivenMutable extends FluentCheck {
         super(parent)
     }
 
-    run(parentArbitrary, callback, initialValue = undefined) {
+    protected run(parentArbitrary, callback, initialValue = undefined) {
         return callback(parentArbitrary)
     }
 }
@@ -84,7 +81,7 @@ class FluentCheckGivenConstant extends FluentCheck {
         super(parent)
     }
 
-    run(parentArbitrary, callback, initialValue = undefined) {
+    protected run(parentArbitrary, callback, initialValue = undefined) {
         const result = parentArbitrary
         result[this.name] = this.value
         return callback(result)
@@ -92,11 +89,11 @@ class FluentCheckGivenConstant extends FluentCheck {
 }
 
 class FluentCheckUniversal extends FluentCheck {
-    constructor(public parent: FluentCheck, public name: string, public a: Arbitrary) {
+    constructor(protected parent: FluentCheck, public name: string, public a: Arbitrary) {
         super(parent)
     }
 
-    run(parentArbitrary, callback, initialValue = undefined) {
+    protected run(parentArbitrary, callback, initialValue = undefined) {
         const newArbitrary = { ...parentArbitrary }
 
         let example = initialValue || new FluentResult(true)
@@ -114,11 +111,11 @@ class FluentCheckUniversal extends FluentCheck {
 class FluentCheckExistential extends FluentCheck {
     tps = undefined
 
-    constructor(public parent, public name, public a) {
+    constructor(protected parent: FluentCheck, public name: string, public a: Arbitrary) {
         super(parent)
     }
 
-    run(parentArbitrary, callback, initialValue = undefined) {
+    protected run(parentArbitrary, callback, initialValue = undefined) {
         const newArbitrary = { ...parentArbitrary }
         if (this.tps == undefined) this.tps = new Set(this.a.sampleWithBias(1000))
         let example = initialValue || new FluentResult(false)
@@ -134,18 +131,19 @@ class FluentCheckExistential extends FluentCheck {
 }
 
 class FluentCheckAssert extends FluentCheck {
-    givenWhens = undefined
+    givenWhens: FluentCheck[] = undefined
 
-    constructor(public parent, public assertion) {
+    constructor(protected parent: FluentCheck, public assertion: (args: any) => any) {
         super(parent)
     }
 
-    runGivensWhens() {
-        const givens = { }
+    private runGivensWhens() {
         if (this.givenWhens == undefined) 
             this.givenWhens = this.pathFromRoot().filter(node => 
                 (node instanceof FluentCheckGivenMutable) || 
                 (node instanceof FluentCheckWhen))
+
+        const givens = { }
 
         this.givenWhens.forEach(node => {
             if (node instanceof FluentCheckGivenMutable) givens[node.name] = node.factory()
@@ -155,7 +153,7 @@ class FluentCheckAssert extends FluentCheck {
         return givens
     }
 
-    run(parentArbitrary, callback) {
+    protected run(parentArbitrary, callback) {
         return this.assertion({...parentArbitrary, ...this.runGivensWhens()}) ? new FluentResult(true) : new FluentResult(false)
     }
 }

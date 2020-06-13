@@ -1,5 +1,5 @@
 import { FluentCheck } from '../src/index'
-import { ArbitraryInteger, ArbitraryBoolean, ArbitraryReal, ArbitraryString, ArbitraryComposite } from '../src/arbitraries'
+import { ArbitraryInteger } from '../src/arbitraries'
 import { it } from 'mocha' 
 import { expect } from 'chai'
 
