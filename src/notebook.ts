@@ -22,6 +22,8 @@ class Stack<T> {
  * - ... and then meta-PBT
  */
 
+/*
+
 new FluentCheck() 
     .given('sut', () => 1)
     .exists('a', new ArbitraryInteger(1))
@@ -48,11 +50,15 @@ new FluentCheck()
     .then(({ stack }) => stack.size() == 1)
     .check() //?
     
+new ArbitraryCollection(new ArbitraryInteger(0, 10), 0, 10).sample() //?
+new ArbitraryCollection(new ArbitraryInteger(0, 10), 0, 10).pick() //?
+    */
+
 new FluentCheck()
-    .forall('arr', new ArbitraryCollection(new ArbitraryInteger()))
+    .exists('arr', new ArbitraryCollection(new ArbitraryInteger(1, 100), 1, 1000))
     .given('stack', () => new Stack<number>())
-    .when((tc) => console.log(tc))
-    .then(({ arr, stack }) => true)
+    .when(({ arr, stack }) => arr.forEach(e => stack.push(e)))
+    .then(({ arr, stack }) => stack.size() == arr.length)
     .check() //?
 
-new ArbitraryCollection(new ArbitraryInteger(), 0, 10).sample() //?
+new ArbitraryInteger(1, 100).sampleWithBias(6) //?
