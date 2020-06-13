@@ -107,11 +107,15 @@ export class ArbitraryInteger extends Arbitrary {
             const upper = Math.max(lower, initialValue - 1)
             const midpoint = Math.floor((upper + lower) / 2)
 
+            if (lower == upper) return new NoArbitrary()
+
             return new ArbitraryComposite([new ArbitraryInteger(lower, midpoint), new ArbitraryInteger(midpoint, upper)])
         } else if(initialValue < 0) {
             const upper = Math.max(0, this.max)
             const lower = Math.max(upper, initialValue + 1)
             const midpoint = Math.ceil((upper + lower) / 2)
+
+            if (lower == upper) return new NoArbitrary()
 
             return new ArbitraryComposite([new ArbitraryInteger(lower, midpoint), new ArbitraryInteger(midpoint, upper)])
         }
