@@ -99,6 +99,12 @@ describe('Arbitrary tests', () => {
       ).to.include.members([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
     })
 
+    it("should should be shrinkable and remain unique", () => {
+      expect(
+        new UniqueArbitrary(new ArbitraryInteger(0, 10)).shrink(5).sample(5)
+      ).to.include.members([0, 1, 2, 3, 4])
+    })
+
     it("should return no more than the number of possible cases", () => {
       expect(new FluentCheck()
         .forall('n', new ArbitraryInteger(3, 10))

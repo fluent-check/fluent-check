@@ -173,7 +173,7 @@ export class UniqueArbitrary<A> extends Arbitrary<A> {
 
     sample(size: number = 10): A[] {
         const result = new Set<A>()
-        const bagSize = Math.min(size, this.baseArbitrary.size())
+        const bagSize = Math.min(size, this.size())
         while (result.size < bagSize) result.add(this.pick())
         return Array.from(result)
     }
