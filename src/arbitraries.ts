@@ -30,7 +30,6 @@ export abstract class Arbitrary<A> {
 
     map<B>(f: (a: A) => B) { return new MappedArbitrary(this, f) }
     filter(f: (a: A) => boolean) { return new FilteredArbitrary(this, f) }
-
 }
 
 export class ArbitraryCollection<A> extends Arbitrary<A[]> {
@@ -161,6 +160,26 @@ export class ArbitraryReal extends ArbitraryInteger {
 
     pick() {
         return Math.random() * (this.max - this.min) + this.min
+    }
+}
+
+export class UniqueArbitrary<A> extends Arbitrary<A> {
+    constructor(public readonly baseArbitrary: NonNullable<Arbitrary<A>>) {
+        super()
+    }
+
+    pick() { return this.baseArbitrary.pick() }
+    size() { return this.baseArbitrary.size() }
+
+    sample(size: number = 10): A[] {
+        const result = new Set<A>()
+        const bagSize = Math.min(size, this.baseArbitrary.size())
+        while (result.size < bagSize) result.add(this.pick())
+        return Array.from(result)
+    }
+
+    shrink(initialValue: A): UniqueArbitrary<A> {
+        return new UniqueArbitrary(this.baseArbitrary.shrink(initialValue))
     }
 }
 
