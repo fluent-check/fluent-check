@@ -1,4 +1,4 @@
-import {ArbitraryInteger, ArbitraryBoolean } from '../src/arbitraries'
+import {ArbitraryInteger, ArbitraryBoolean, ArbitraryComposite, ArbitraryCollection } from '../src/arbitraries'
 import { it } from 'mocha'
 import { expect } from 'chai'
 import { FluentCheck } from '../src'
@@ -10,8 +10,8 @@ describe('Arbitrary tests', () => {
       .given('a', () => new ArbitraryInteger())
       .then(({n, a}) => a.sample(n).length == n)
       .check()
-      ).to.have.property('satisfiable', true)
-    })
+    ).to.have.property('satisfiable', true)
+  })
 
   it("should return values in the specified range", () => {
     expect(new FluentCheck()
@@ -20,8 +20,8 @@ describe('Arbitrary tests', () => {
       .then(({n, a}) => a.sample(n).every((i: number) => i <= 50))
       .and(({n, a}) => a.sampleWithBias(n).every((i: number) => i <= 50))
       .check()
-      ).to.have.property('satisfiable', true)
-    })
+    ).to.have.property('satisfiable', true)
+  })
 
   it("should return corner cases if there is space", () => {
     expect(new FluentCheck()
@@ -30,8 +30,8 @@ describe('Arbitrary tests', () => {
       .then(({n, a}) => a.sampleWithBias(n).includes(0))
       .and(({n, a}) => a.sampleWithBias(n).includes(50))
       .check()
-      ).to.have.property('satisfiable', true)
-    })  
+    ).to.have.property('satisfiable', true)
+  })  
 
   it("should return values smaller than what was shrunk", () => {
     expect(new FluentCheck()
@@ -41,8 +41,8 @@ describe('Arbitrary tests', () => {
       .then(({n, s, a}) => a.shrink(s).sample(n).every((i: number) => i < s))
       .and(({n, s, a}) => a.shrink(s).sampleWithBias(n).every((i: number) => i < s))
       .check()
-      ).to.have.property('satisfiable', true)
-    })    
+    ).to.have.property('satisfiable', true)
+  })    
 
   it("should allow booleans to be mappeable", () => {
     expect(new FluentCheck()
@@ -65,5 +65,23 @@ describe('Arbitrary tests', () => {
       .forall('n', new ArbitraryInteger(0, 100).map(n => n + 100).filter(n => n < 150))
       .then(({ n }) => n >= 100 && n <= 150)
     )
+  })
+
+  it("should return the correct size of bounded integer arbitraries", () => {
+    expect(new ArbitraryInteger(0, 10).size()).equals(11)
+    expect(new ArbitraryInteger(-50, 50).size()).equals(101)
+  })
+
+  it("should return the correct size of shrinked integer arbitraries", () => {
+    // TODO: This is happening because of the overlap in the Composite
+    expect(new ArbitraryInteger(0, 10).shrink(5).size()).equals(5)
+  })
+
+  it("should return the correct size of a composite arbitrary", () => {
+    expect(new ArbitraryComposite([new ArbitraryBoolean(), new ArbitraryBoolean(), new ArbitraryBoolean()]).size()).equals(6)
+  })
+
+  it("should return the correct size of a collection arbitrary", () => {
+    expect(new ArbitraryCollection(new ArbitraryBoolean(), 1, 10).size()).equals(512)
   })
 })

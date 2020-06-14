@@ -1,4 +1,5 @@
 export abstract class Arbitrary<A> { 
+    size(): number { return Number.POSITIVE_INFINITY }
     pick(): A | undefined { return undefined }
 
     sample(size: number = 10): A[] {
@@ -29,6 +30,7 @@ export abstract class Arbitrary<A> {
 
     map<B>(f: (a: A) => B) { return new MappedArbitrary(this, f) }
     filter(f: (a: A) => boolean) { return new FilteredArbitrary(this, f) }
+
 }
 
 export class ArbitraryCollection<A> extends Arbitrary<A[]> {
@@ -36,6 +38,8 @@ export class ArbitraryCollection<A> extends Arbitrary<A[]> {
         super()     
     }
     
+    size() { return this.arbitrary.size() ** (this.max - this.min) }
+
     pick(): A[] {
         const size = Math.floor(Math.random() * (this.max - this.min + 1)) + this.min
         return this.arbitrary.sampleWithBias(size)
@@ -53,9 +57,11 @@ export class ArbitraryCollection<A> extends Arbitrary<A[]> {
 }
 
 export class ArbitraryComposite<A> extends Arbitrary<A> {
-    constructor(public arbitraries = []) {
+    constructor(public arbitraries: Arbitrary<A>[] = []) {
         super()
     }    
+
+    size() { return this.arbitraries.reduce((acc, e) => acc + e.size(), 0) }
 
     pick(): A {
         const picked = Math.floor(Math.random() * this.arbitraries.length)
@@ -70,7 +76,7 @@ export class ArbitraryComposite<A> extends Arbitrary<A> {
         return cornerCases
     }
 
-    shrink<B>(initialValue: A): Arbitrary<B> {
+    shrink(initialValue: A): Arbitrary<A> | NoArbitrary {
         if (this.arbitraries.length == 1) return new NoArbitrary()
         if (this.arbitraries.length == 2) return this.arbitraries[0]
         return new ArbitraryComposite(this.arbitraries.slice(0, -1))
@@ -84,6 +90,8 @@ export class ArbitraryString extends Arbitrary<string> {
         this.max = max
         this.chars = chars
     }
+
+    size() { return this.chars.length ** (this.max - this.min) } 
 
     pick(size = Math.floor(Math.random() * (Math.max(0, this.max - this.min) + 1)) + this.min) {
         let string = ''
@@ -102,7 +110,7 @@ export class ArbitraryString extends Arbitrary<string> {
 }
 
 export class ArbitraryBoolean extends Arbitrary<Boolean> {
-    constructor() { super() }
+    size() { return 2 } 
     cornerCases() { return [true, false] }
     pick() { return Math.random() > 0.5 }
 }
@@ -113,6 +121,8 @@ export class ArbitraryInteger extends Arbitrary<number> {
         this.min = min
         this.max = max
     }
+
+    size() { return this.max - this.min + 1 }
 
     pick() {
         return Math.floor(Math.random() * (this.max - this.min + 1)) + this.min
@@ -159,6 +169,8 @@ class MappedArbitrary<A, B> extends Arbitrary<B> {
         super() 
     }
 
+    size() { return this.baseArbitrary.size() }
+
     pick(): B { return this.f(this.baseArbitrary.pick()) }
 
     // TODO: Make some magic to allow shrinking of mapped arbitraries
@@ -172,6 +184,10 @@ class FilteredArbitrary<A> extends Arbitrary<A> {
         super()
     }
 
+    // TODO: Very good question... most probably it needs to be estimated by sampling
+    // For now, it return the baseArbitrary size.
+    size() { return this.baseArbitrary.size() }
+
     pick(): A { 
         do {       
             const pick = this.baseArbitrary.pick()
@@ -181,6 +197,7 @@ class FilteredArbitrary<A> extends Arbitrary<A> {
 }
 
 class NoArbitrary extends Arbitrary<undefined> {
-    sampleWithBias(_: number) { return [] }
-    sample(_: number) { return [] }
+    size(): number { return 0 }
+    sampleWithBias(size: number = 0) { return [] }
+    sample(size: number = 0) { return [] }
 }
