@@ -52,4 +52,18 @@ describe('Arbitrary tests', () => {
       .and(({ a, n }) => a.sampleWithBias(n).contains('Tails'))
     )
   })
+
+  it("should allow integers to be filtered", () => {
+    expect(new FluentCheck()
+      .forall('n', new ArbitraryInteger(0, 100).filter(n => n < 10))
+      .then(({ n }) => n < 10)
+    )
+  })
+
+  it("should allow integers to be both mapped and filtered", () => {
+    expect(new FluentCheck()
+      .forall('n', new ArbitraryInteger(0, 100).map(n => n + 100).filter(n => n < 150))
+      .then(({ n }) => n >= 100 && n <= 150)
+    )
+  })
 })

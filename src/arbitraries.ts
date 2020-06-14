@@ -27,9 +27,8 @@ export abstract class Arbitrary<A> {
         return new NoArbitrary()
     }
 
-    map<B>(f: (a: A) => B) {
-        return new MappedArbitrary(this, f)
-    }
+    map<B>(f: (a: A) => B) { return new MappedArbitrary(this, f) }
+    filter(f: (a: A) => boolean) { return new FilteredArbitrary(this, f) }
 }
 
 export class ArbitraryCollection<A> extends Arbitrary<A[]> {
@@ -161,6 +160,24 @@ class MappedArbitrary<A, B> extends Arbitrary<B> {
     }
 
     pick(): B { return this.f(this.baseArbitrary.pick()) }
+
+    // TODO: Make some magic to allow shrinking of mapped arbitraries
+    shrink(initialValue: B): NoArbitrary {
+        return new NoArbitrary()
+    }
+}
+
+class FilteredArbitrary<A> extends Arbitrary<A> {
+    constructor(public readonly baseArbitrary: Arbitrary<A>, public readonly f: (a: A) => boolean) {
+        super()
+    }
+
+    pick(): A { 
+        do {       
+            const pick = this.baseArbitrary.pick()
+            if (this.f(pick)) return pick
+        } while (true)
+    }
 }
 
 class NoArbitrary extends Arbitrary<undefined> {
