@@ -44,6 +44,15 @@ describe('Arbitrary tests', () => {
     ).to.have.property('satisfiable', true)
   })    
 
+  it("should allow shrinking of mapped arbitraries", () => {
+    expect(new FluentCheck()
+      .exists('n', new ArbitraryInteger(0, 25).map(x => x + 25).map(x => x * 2))
+      .forall('a', new ArbitraryInteger(0, 10))
+      .then(({ n, a }) => a <= n)
+      .check()
+    ).to.deep.include({ satisfiable: true, example: { n: 50 } })
+  })    
+
   describe("Transformations", () => {
     it("should allow booleans to be mappeable", () => {
       expect(new FluentCheck()

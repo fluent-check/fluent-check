@@ -1,4 +1,7 @@
-export interface FluentPick<T> { value: T | undefined }
+export interface FluentPick<V> { 
+    original?: any
+    value?: V 
+}
 
 export abstract class Arbitrary<A> { 
     size(): number { return Number.POSITIVE_INFINITY }
@@ -224,12 +227,18 @@ class MappedArbitrary<A, B> extends Arbitrary<B> {
         super() 
     }
 
-    pick() { return { value: this.f(this.baseArbitrary.pick().value) } }
+    pick(): FluentPick<B> { 
+        const basePick = this.baseArbitrary.pick()
+        const original = ('original' in basePick) ? basePick.original : basePick.value
+        return ({ original, value: this.f(basePick.value) }) 
+    }
+
+    size() { return this.baseArbitrary.size() }
+
     cornerCases() { return this.baseArbitrary.cornerCases().map(this.f) }
 
-    // TODO: Make some magic to allow shrinking of mapped arbitraries
-    shrink(initial: FluentPick<B>): NoArbitrary {
-        return new NoArbitrary()
+    shrink(initial: FluentPick<B>): MappedArbitrary<A, B> {
+        return new MappedArbitrary(this.baseArbitrary.shrink({ original: initial.original, value: initial.original }), this.f)
     }
 }
 
