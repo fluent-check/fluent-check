@@ -1,4 +1,4 @@
-import { ArbitraryInteger, UniqueArbitrary, ArbitraryBoolean, ArbitraryComposite, ArbitraryCollection } from '../src/arbitraries'
+import { FluentPick, ArbitraryInteger, UniqueArbitrary, ArbitraryBoolean, ArbitraryComposite, ArbitraryCollection } from '../src/arbitraries'
 import { it } from 'mocha'
 import { expect } from 'chai'
 import { FluentCheck } from '../src'
@@ -17,8 +17,8 @@ describe('Arbitrary tests', () => {
     expect(new FluentCheck()
       .forall('n', new ArbitraryInteger(0, 100))
       .given('a', () => new ArbitraryInteger(0, 50))
-      .then(({n, a}) => a.sample(n).every((i: number) => i <= 50))
-      .and(({n, a}) => a.sampleWithBias(n).every((i: number) => i <= 50))
+      .then(({n, a}) => a.sample(n).every((i: FluentPick<number>) => i.value <= 50))
+      .and(({ n, a }) => a.sampleWithBias(n).every((i: FluentPick<number>) => i.value <= 50))
       .check()
     ).to.have.property('satisfiable', true)
   })
@@ -27,8 +27,8 @@ describe('Arbitrary tests', () => {
     expect(new FluentCheck()
       .forall('n', new ArbitraryInteger(3, 100))
       .given('a', () => new ArbitraryInteger(0, 50))
-      .then(({n, a}) => a.sampleWithBias(n).includes(0))
-      .and(({n, a}) => a.sampleWithBias(n).includes(50))
+      .then(({n, a}) => a.sampleWithBias(n).some(v => v.value == 0))
+      .and(({ n, a }) => a.sampleWithBias(n).some(v => v.value == 50))
       .check()
     ).to.have.property('satisfiable', true)
   })  
@@ -47,10 +47,10 @@ describe('Arbitrary tests', () => {
   describe("Transformations", () => {
     it("should allow booleans to be mappeable", () => {
       expect(new FluentCheck()
-        .forall('n', new ArbitraryInteger(3, 100))
+        .forall('n', new ArbitraryInteger(10, 100))
         .given('a', () => new ArbitraryBoolean().map(e => e ? 'Heads' : 'Tails'))
-        .then(({ a, n }) => a.sampleWithBias(n).includes('Heads') )
-        .and(({ a, n }) => a.sampleWithBias(n).includes('Tails'))
+        .then(({ a, n }) => a.sampleWithBias(n).some(s => s.value == 'Heads') )
+        .and(({ a, n }) => a.sampleWithBias(n).some(s => s.value == 'Tails'))
         .check()
       ).to.have.property('satisfiable', true)
     })
@@ -80,7 +80,7 @@ describe('Arbitrary tests', () => {
 
     it("should return the correct size of shrinked integer arbitraries", () => {
       // TODO: This is happening because of the overlap in the Composite
-      expect(new ArbitraryInteger(0, 10).shrink(5).size()).equals(5)
+      expect(new ArbitraryInteger(0, 10).shrink({ value: 5 }).size()).equals(5)
     })
 
     it("should return the correct size of a composite arbitrary", () => {
@@ -95,13 +95,13 @@ describe('Arbitrary tests', () => {
   describe("Unique Arbitraries", () => {
     it("should return all the available values when sample size == size", () => {
       expect(
-        new UniqueArbitrary(new ArbitraryInteger(0, 10)).sample(11)
+        new UniqueArbitrary(new ArbitraryInteger(0, 10)).sample(11).map(v => v.value)
       ).to.include.members([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
     })
 
     it("should should be shrinkable and remain unique", () => {
       expect(
-        new UniqueArbitrary(new ArbitraryInteger(0, 10)).shrink(5).sample(5)
+        new UniqueArbitrary(new ArbitraryInteger(0, 10)).shrink({value: 5}).sample(5).map(v => v.value)
       ).to.include.members([0, 1, 2, 3, 4])
     })
 
