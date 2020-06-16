@@ -1,4 +1,4 @@
-import { FluentPick, Arbitrary, UniqueArbitrary } from './arbitraries'
+import { FluentPick, Arbitrary } from './arbitraries'
 
 interface TestCase { [k: string]: any }
 
@@ -102,7 +102,7 @@ class FluentCheckGivenConstant<A> extends FluentCheck {
 
 class FluentCheckUniversal<A> extends FluentCheck {
     private cached: Array<FluentPick<A>> = undefined
-    private dedup: UniqueArbitrary<A>
+    private dedup: Arbitrary<A>
 
     constructor(protected readonly parent: FluentCheck, public readonly name: string, public readonly a: Arbitrary<A>) {
         super(parent)
@@ -131,7 +131,7 @@ class FluentCheckUniversal<A> extends FluentCheck {
 
 class FluentCheckExistential<A> extends FluentCheck {
     private cached: Array<FluentPick<A>> = undefined
-    private dedup: UniqueArbitrary<A>
+    private dedup: Arbitrary<A>
 
     constructor(protected readonly parent: FluentCheck, public readonly name: string, public readonly a: Arbitrary<A>) {
         super(parent)

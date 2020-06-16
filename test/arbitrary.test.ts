@@ -1,4 +1,4 @@
-import { FluentPick, ArbitraryInteger, UniqueArbitrary, ArbitraryBoolean, ArbitraryComposite, ArbitraryCollection } from '../src/arbitraries'
+import { FluentPick, ArbitraryInteger, ArbitraryBoolean, ArbitraryComposite, ArbitraryCollection } from '../src/arbitraries'
 import { it } from 'mocha'
 import { expect } from 'chai'
 import { FluentCheck } from '../src'
@@ -104,20 +104,20 @@ describe('Arbitrary tests', () => {
   describe("Unique Arbitraries", () => {
     it("should return all the available values when sample size == size", () => {
       expect(
-        new UniqueArbitrary(new ArbitraryInteger(0, 10)).sample(11).map(v => v.value)
+        new ArbitraryInteger(0, 10).unique().sample(11).map(v => v.value)
       ).to.include.members([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
     })
 
     it("should should be shrinkable and remain unique", () => {
       expect(
-        new UniqueArbitrary(new ArbitraryInteger(0, 10)).shrink({value: 5}).sample(5).map(v => v.value)
+        new ArbitraryInteger(0, 10).unique().shrink({value: 5}).sample(5).map(v => v.value)
       ).to.include.members([0, 1, 2, 3, 4])
     })
 
     it("should return no more than the number of possible cases", () => {
       expect(new FluentCheck()
         .forall('n', new ArbitraryInteger(3, 10))
-        .given('ub', () => new UniqueArbitrary(new ArbitraryBoolean()))
+        .given('ub', () => new ArbitraryBoolean().unique())
         .then(({ n, ub }) => ub.sample(n).length === 2)
         .check()
       ).to.have.property('satisfiable', true)

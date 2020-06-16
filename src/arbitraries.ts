@@ -3,6 +3,10 @@ export interface FluentPick<V> {
     value?: V 
 }
 
+// -----------------------------
+// ------ Base Arbitraries -----
+// -----------------------------
+
 export abstract class Arbitrary<A> { 
     size(): number { return Number.POSITIVE_INFINITY }
     pick(): FluentPick<A> { return { value: undefined } }
@@ -36,6 +40,16 @@ export abstract class Arbitrary<A> {
     map<B>(f: (a: A) => B) { return new MappedArbitrary(this, f) }
     filter(f: (a: A) => boolean) { return new FilteredArbitrary(this, f) }
     unique() { return new UniqueArbitrary(this) }
+}
+
+// -----------------------------
+// ---- Special Arbitraries ----
+// -----------------------------
+
+class NoArbitrary extends Arbitrary<undefined> {
+    size(): number { return 0 }
+    sampleWithBias(_: number = 0) { return [] }
+    sample(_: number = 0) { return [] }
 }
 
 export class ArbitraryCollection<A> extends Arbitrary<A[]> {
@@ -88,6 +102,10 @@ export class ArbitraryComposite<A> extends Arbitrary<A> {
     }
 }
 
+// -----------------------------
+// --- Primitive Arbitraries ---
+// -----------------------------
+
 export class ArbitraryString extends Arbitrary<string> {
     constructor(public readonly min = 2, public readonly max = 10, public readonly chars = 'abcdefghijklmnopqrstuvwxyz') {
         super()
@@ -116,12 +134,6 @@ export class ArbitraryString extends Arbitrary<string> {
         if (this.min > initial.value.length - 1) return new NoArbitrary()
         return new ArbitraryString(this.min, initial.value.length - 1, this.chars)
     }
-}
-
-export class ArbitraryBoolean extends Arbitrary<Boolean> {
-    size() { return 2 } 
-    cornerCases() { return [{ value: true }, { value: false }] }
-    pick() { return {value: Math.random() > 0.5 } }
 }
 
 export class ArbitraryInteger extends Arbitrary<number> {
@@ -171,7 +183,11 @@ export class ArbitraryReal extends ArbitraryInteger {
     pick() { return { value: Math.random() * (this.max - this.min) + this.min } }
 }
 
-export class WrappedArbitrary<A> extends Arbitrary<A> {
+// -----------------------------
+// -- Transformed Arbitraries --
+// -----------------------------
+
+class WrappedArbitrary<A> extends Arbitrary<A> {
     constructor(public readonly baseArbitrary: NonNullable<Arbitrary<A>>) {
         super()
     }
@@ -181,7 +197,7 @@ export class WrappedArbitrary<A> extends Arbitrary<A> {
     cornerCases() { return this.baseArbitrary.cornerCases() }
 }
 
-export class ChainedArbitrary<A, B> extends Arbitrary<B> {
+class ChainedArbitrary<A, B> extends Arbitrary<B> {
     constructor(public readonly baseArbitrary: NonNullable<Arbitrary<A>>, public readonly f: (a: A) => Arbitrary<B>) {
         super()
     }
@@ -190,7 +206,7 @@ export class ChainedArbitrary<A, B> extends Arbitrary<B> {
     size() { return this.baseArbitrary.size() }
 }
 
-export class UniqueArbitrary<A> extends WrappedArbitrary<A> {
+class UniqueArbitrary<A> extends WrappedArbitrary<A> {
     constructor(readonly baseArbitrary: NonNullable<Arbitrary<A>>) {
         super(baseArbitrary)
     }
@@ -232,7 +248,7 @@ class MappedArbitrary<A, B> extends Arbitrary<B> {
     // <rant> .map(this.mapFluentPick) blows up with f not defined for some cases. Javascript trivia: explain why </rant>
     cornerCases() { return this.baseArbitrary.cornerCases().map(p => this.mapFluentPick(p)) }
 
-    shrink(initial: FluentPick<B>): MappedArbitrary<A, B> {
+    shrink(initial: FluentPick<B>): MappedArbitrary<A, B> | NoArbitrary {
         return new MappedArbitrary(this.baseArbitrary.shrink({ original: initial.original, value: initial.original }), this.f)
     }
 }
@@ -252,8 +268,11 @@ class FilteredArbitrary<A> extends WrappedArbitrary<A> {
     cornerCases() { return this.baseArbitrary.cornerCases().filter(this.f) }
 }
 
-class NoArbitrary extends Arbitrary<undefined> {
-    size(): number { return 0 }
-    sampleWithBias(sampleSize: number = 0) { return [] }
-    sample(sampleSize: number = 0) { return [] }
+// -----------------------------
+// ---- Derived Arbitraries ----
+// -----------------------------
+
+export class ArbitraryBoolean extends MappedArbitrary<number, boolean> {
+    constructor() { super(new ArbitraryInteger(0, 1), x => x == 0) }
+    shrink(_: FluentPick<boolean>) { return new NoArbitrary() }
 }
