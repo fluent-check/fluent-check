@@ -52,7 +52,7 @@ class NoArbitrary extends Arbitrary<undefined> {
     sample(_: number = 0) { return [] }
 }
 
-export class ArbitraryCollection<A> extends Arbitrary<A[]> {
+class ArbitraryCollection<A> extends Arbitrary<A[]> {
     constructor(public arbitrary: Arbitrary<A>, public min = 0, public max = 10) {        
         super()     
     }
@@ -75,7 +75,7 @@ export class ArbitraryCollection<A> extends Arbitrary<A[]> {
     }
 }
 
-export class ArbitraryComposite<A> extends Arbitrary<A> {
+class ArbitraryComposite<A> extends Arbitrary<A> {
     constructor(public arbitraries: Arbitrary<A>[] = []) {
         super()
     }    
@@ -106,7 +106,7 @@ export class ArbitraryComposite<A> extends Arbitrary<A> {
 // --- Primitive Arbitraries ---
 // -----------------------------
 
-export class ArbitraryString extends Arbitrary<string> {
+class ArbitraryString extends Arbitrary<string> {
     constructor(public readonly min = 2, public readonly max = 10, public readonly chars = 'abcdefghijklmnopqrstuvwxyz') {
         super()
         this.min = min
@@ -136,7 +136,7 @@ export class ArbitraryString extends Arbitrary<string> {
     }
 }
 
-export class ArbitraryInteger extends Arbitrary<number> {
+class ArbitraryInteger extends Arbitrary<number> {
     constructor(public min = Number.MIN_SAFE_INTEGER, public max = Number.MAX_SAFE_INTEGER) {
         super()
         this.min = min
@@ -175,7 +175,7 @@ export class ArbitraryInteger extends Arbitrary<number> {
     }
 }
 
-export class ArbitraryReal extends ArbitraryInteger {
+class ArbitraryReal extends ArbitraryInteger {
     constructor(public min = Number.MIN_SAFE_INTEGER, public max = Number.MAX_SAFE_INTEGER) {
         super(min, max)
     }
@@ -272,7 +272,19 @@ class FilteredArbitrary<A> extends WrappedArbitrary<A> {
 // ---- Derived Arbitraries ----
 // -----------------------------
 
-export class ArbitraryBoolean extends MappedArbitrary<number, boolean> {
+class ArbitraryBoolean extends MappedArbitrary<number, boolean> {
     constructor() { super(new ArbitraryInteger(0, 1), x => x == 0) }
     shrink(_: FluentPick<boolean>) { return new NoArbitrary() }
 }
+
+// -----------------------------
+// ----- Arbitrary Builders ----
+// -----------------------------
+
+export const integer = (min = Number.MIN_SAFE_INTEGER, max = Number.MAX_SAFE_INTEGER) => new ArbitraryInteger(min, max)
+export const real    = (min = Number.MIN_SAFE_INTEGER, max = Number.MAX_SAFE_INTEGER) => new ArbitraryReal(min, max)
+export const nat     = (min = 0, max = Number.MAX_SAFE_INTEGER) => new ArbitraryInteger(min, max)
+export const string  = (min = 2, max = 10, chars = 'abcdefghijklmnopqrstuvwxyz') => new ArbitraryString(min, max, chars)
+export const array   = <A>(arbitrary: Arbitrary<A>, min = 0, max = 10) => new ArbitraryCollection(arbitrary, min, max)
+export const union   = <A>(...arbitraries: Arbitrary<A>[]) => new ArbitraryComposite(arbitraries)
+export const boolean = () => new ArbitraryBoolean()
