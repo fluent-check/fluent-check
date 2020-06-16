@@ -107,11 +107,10 @@ class FluentCheckUniversal<A> extends FluentCheck {
     constructor(protected readonly parent: FluentCheck, public readonly name: string, public readonly a: Arbitrary<A>) {
         super(parent)
         this.dedup = a.unique()
+        this.cached = this.dedup.sampleWithBias(1000)
     }
 
     protected run(testCase: TestCase, callback: (arg: TestCase) => FluentResult, partial: FluentResult = undefined): FluentResult {
-        if (this.cached == undefined) this.cached = this.dedup.sampleWithBias(1000)
-
         const newCase = { ...testCase }
         const example = partial || new FluentResult(true)
         const collection = partial === undefined ? this.cached : this.dedup.shrink(partial.example[this.name]).sampleWithBias(1000)
@@ -136,11 +135,10 @@ class FluentCheckExistential<A> extends FluentCheck {
     constructor(protected readonly parent: FluentCheck, public readonly name: string, public readonly a: Arbitrary<A>) {
         super(parent)
         this.dedup = a.unique()
+        this.cached = this.dedup.sampleWithBias(1000)
     }
 
-    protected run(testCase: TestCase, callback: (arg: TestCase) => FluentResult, partial = undefined): FluentResult {
-        if (this.cached == undefined) this.cached = this.dedup.sampleWithBias(1000)
-
+    protected run(testCase: TestCase, callback: (arg: TestCase) => FluentResult, partial: FluentResult = undefined): FluentResult {
         const newCase = { ...testCase }
         const example = partial || new FluentResult(false)
         const collection = partial === undefined ? this.cached : this.dedup.shrink(partial.example[this.name]).sampleWithBias(1000)
@@ -185,7 +183,7 @@ class FluentCheckAssert extends FluentCheck {
         return data
     }
 
-    protected run(testCase: TestCase, callback: (arg: TestCase) => FluentResult): FluentResult {
+    protected run(testCase: TestCase, callback: (arg: TestCase) => FluentResult) {
         const unwrappedTestCase = FluentCheck.unwrapFluentPick(testCase)
         return (this.assertion({ ...unwrappedTestCase, ...this.runPreliminaries(unwrappedTestCase) })) ? callback(testCase) : new FluentResult(false)
     }
