@@ -8,7 +8,7 @@ export type FluentPick<V> = {
 export type ArbitrarySize = {    
     value: number
     type: 'exact' | 'estimated'
-    confidence?: number
+    confidence?: [number, number]
 } 
 
 const NilArbitrarySize: ArbitrarySize = { value: 0, type: 'exact' }
@@ -292,17 +292,19 @@ class FilteredArbitrary<A> extends WrappedArbitrary<A> {
         // Also, this assumes we estimate a continuous interval between 0 and 1;
         // We could try to change this to a beta-binomial distribution, which would provide us a discrete approach
         // for when we know the exact base population size. 
-        return this.baseArbitrary.mapArbitrarySize(v => (
+        return this.baseArbitrary.mapArbitrarySize(v => {
+            const dist = new BetaDistribution(this.successes + 2, this.failures + 1)
             // { value: Math.round(v * new BetaDistribution(this.successes + 1, this.failures + 0).mean()), type: 'estimated' }))
-            { value: Math.round(v * new BetaDistribution(this.successes + 2, this.failures + 1).mode()), type: 'estimated' }))
+            return { type: 'estimated', value: Math.round(v * dist.mode()), confidence: [v * dist.inv(0.05), v * dist.inv(0.95)] }
+        })
     }
 
     pick(): FluentPick<A> { 
         do {       
             const pick = this.baseArbitrary.pick()
             if (this.f(pick.value)) { this.successes += 1; return pick }
-            this.failures += 1
-        } while (true)
+            this.failures += 1        
+        } while (true) // At a certain point, the probability of finding a success is infinitesimal; we should stop there to avoid infinite loops. 
     }
 
     cornerCases() { return this.baseArbitrary.cornerCases().filter(this.f) }

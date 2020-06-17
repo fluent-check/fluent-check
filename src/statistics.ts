@@ -1,3 +1,5 @@
+import * as stats from 'jstat'
+
 export class BetaDistribution {
     constructor(public alpha: number, public beta: number) { }
 
@@ -6,6 +8,10 @@ export class BetaDistribution {
         this.beta += failures
     }
 
-    mean() { return this.alpha / (this.alpha + this.beta) }
-    mode() { return (this.alpha - 1) / (this.alpha + this.beta - 2)}
+    mean() { return stats.beta.mean(this.alpha, this.beta) }
+    mode() { return stats.beta.mode(this.alpha, this.beta) }
+    
+    pdf(x: number) { return stats.beta.pdf(x, this.alpha, this.beta) }
+    cdf(x: number) { return stats.beta.cdf(x, this.alpha, this.beta) }
+    inv(x: number) { return stats.beta.inv(x, this.alpha, this.beta) }
 }
