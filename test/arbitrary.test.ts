@@ -82,13 +82,31 @@ describe('Arbitrary tests', () => {
   })
 
   describe("Sizes", () => {
-    it("should return the correct size of bounded integer arbitraries", () => {
-      expect(fc.integer(0, 10).size()).to.have.property('value', 11)
-      expect(fc.integer(-50, 50).size()).to.have.property('value', 101)
+    describe('Statistics tests', () => {
+      it("size should be exact for exact well-bounded integer arbitraries", () => {
+        expect(fc.integer(1, 1000).size()).to.deep.include({ value: 1000, type: 'exact' })
+        expect(fc.integer(0, 10).size()).to.deep.include({ value: 11, type: 'exact' })
+        expect(fc.integer(-50, 50).size()).to.deep.include({ value: 101, type: 'exact' })
+      })
+
+      it("size should be exact for well-bounded mapped arbitraries", () => {
+        expect(fc.integer(0, 1).map(i => i == 0).size()).to.deep.include({ value: 2, type: 'exact' })
+        expect(fc.integer(0, 10).map(i => i * 10).size()).to.deep.include({ value: 11, type: 'exact' })
+      })
+
+      it("size should be estimated for filtered arbitraries", () => {
+        expect(fc.integer(1, 1000).filter(i => i > 200).filter(i => i < 800).size().confidence[0]).to.be.below(600)
+        expect(fc.integer(1, 1000).filter(i => i > 200).filter(i => i < 800).size().confidence[1]).to.be.above(600)
+        expect(fc.integer(1, 1000).filter(i => i > 200 && i < 800).size().confidence[0]).to.be.below(600)
+        expect(fc.integer(1, 1000).filter(i => i > 200 && i < 800).size().confidence[1]).to.be.above(600)
+      })
+
+      it("sampling should terminate even if arbitrary's size is potentially zero", () => {
+        expect(fc.integer(1, 1000).filter(i => false).sample()).to.deep.include({ value: undefined })
+      })
     })
 
     it("should return the correct size of shrinked integer arbitraries", () => {
-      // TODO: This is happening because of the overlap in the Composite
       expect(fc.integer(0, 10).shrink({ value: 5 }).size()).to.have.property('value', 5)
     })
 
