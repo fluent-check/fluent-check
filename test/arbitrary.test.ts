@@ -83,21 +83,21 @@ describe('Arbitrary tests', () => {
 
   describe("Sizes", () => {
     it("should return the correct size of bounded integer arbitraries", () => {
-      expect(fc.integer(0, 10).size()).equals(11)
-      expect(fc.integer(-50, 50).size()).equals(101)
+      expect(fc.integer(0, 10).size()).to.have.property('value', 11)
+      expect(fc.integer(-50, 50).size()).to.have.property('value', 101)
     })
 
     it("should return the correct size of shrinked integer arbitraries", () => {
       // TODO: This is happening because of the overlap in the Composite
-      expect(fc.integer(0, 10).shrink({ value: 5 }).size()).equals(5)
+      expect(fc.integer(0, 10).shrink({ value: 5 }).size()).to.have.property('value', 5)
     })
 
     it("should return the correct size of a composite arbitrary", () => {
-      expect(fc.union(fc.boolean(), fc.boolean(), fc.boolean()).size()).equals(6)
+      expect(fc.union(fc.boolean(), fc.boolean(), fc.boolean()).size()).to.have.property('value', 6)
     })
 
     it("should return the correct size of a collection arbitrary", () => {
-      expect(fc.array(fc.boolean(), 1, 10).size()).equals(512)
+      expect(fc.array(fc.boolean(), 1, 10).size()).to.have.property('value', 512)
     })
   })
 

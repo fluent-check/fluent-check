@@ -1,14 +1,31 @@
-export interface FluentPick<V> { 
+export type FluentPick<V> = { 
     original?: any
     value?: V 
 }
+
+export type ArbitrarySize = {    
+    value: number
+    type: 'exact' | 'estimated'
+    confidence?: number
+} 
+
+const NilArbitrarySize: ArbitrarySize = { value: 0, type: 'exact' }
 
 // -----------------------------
 // ------ Base Arbitraries -----
 // -----------------------------
 
 export abstract class Arbitrary<A> { 
-    size(): number { return Number.POSITIVE_INFINITY }
+    abstract size(): ArbitrarySize;
+
+    mapArbitrarySize(f: (v: number) => ArbitrarySize): ArbitrarySize {
+        const baseSize = this.size()
+        const result = f(baseSize.value)
+        return { value : result.value,
+                 type : baseSize.type == 'exact' && result.type == 'exact' ? 'exact' : 'estimated',
+                 confidence : result.confidence }
+    }
+
     pick(): FluentPick<A> { return { value: undefined } }
 
     sample(sampleSize: number = 10): FluentPick<A>[] {
@@ -47,7 +64,7 @@ export abstract class Arbitrary<A> {
 // -----------------------------
 
 class NoArbitrary extends Arbitrary<undefined> {
-    size(): number { return 0 }
+    size(): ArbitrarySize { return { value: 0, type: 'exact'} }
     sampleWithBias(_: number = 0) { return [] }
     sample(_: number = 0) { return [] }
 }
@@ -57,7 +74,9 @@ class ArbitraryCollection<A> extends Arbitrary<A[]> {
         super()     
     }
     
-    size() { return this.arbitrary.size() ** (this.max - this.min) }
+    size() { 
+        return this.arbitrary.mapArbitrarySize(v => ({ value: v ** (this.max - this.min), type: 'exact' })) 
+    }
 
     pick() {
         const size = Math.floor(Math.random() * (this.max - this.min + 1)) + this.min
@@ -80,7 +99,11 @@ class ArbitraryComposite<A> extends Arbitrary<A> {
         super()
     }    
 
-    size() { return this.arbitraries.reduce((acc, e) => acc + e.size(), 0) }
+    size() { 
+        return this.arbitraries.reduce((acc, e) => 
+            e.mapArbitrarySize(v => ({ value: acc.value + v, type: acc.type })), 
+            NilArbitrarySize)
+    }
 
     pick() {
         const picked = Math.floor(Math.random() * this.arbitraries.length)
@@ -113,11 +136,13 @@ class ArbitraryString extends Arbitrary<string> {
         this.max = max
     }
 
-    size() { 
+    size(): ArbitrarySize { 
         const chars = this.chars.length
         const max = this.max
         const min = this.min
-        return (chars == 1) ? (max - min + 1) : ((chars ** (max + 1)) / (chars - 1)) - chars ** min / (chars - 1)
+        const value = (chars == 1) ? (max - min + 1) : ((chars ** (max + 1)) / (chars - 1)) - chars ** min / (chars - 1)
+        
+        return { value, type: 'exact' }
     } 
 
     pick(size = Math.floor(Math.random() * (Math.max(0, this.max - this.min) + 1)) + this.min) {
@@ -143,7 +168,7 @@ class ArbitraryInteger extends Arbitrary<number> {
         this.max = max
     }
 
-    size() { return this.max - this.min + 1 }
+    size(): ArbitrarySize { return { value: this.max - this.min + 1, type: 'exact' } }
 
     pick() { return { value: Math.floor(Math.random() * (this.max - this.min + 1)) + this.min } }
 
@@ -213,7 +238,7 @@ class UniqueArbitrary<A> extends WrappedArbitrary<A> {
 
     sample(sampleSize: number = 10): FluentPick<A>[] {
         const result = new Array<FluentPick<A>>()
-        const bagSize = Math.min(sampleSize, this.size())
+        const bagSize = Math.min(sampleSize, this.size().value)
 
         // This is needed to halt the sampling process in case the size() is ill-defined, 
         // such as what happens in FilteredArbitraries. This algorithm should be improved,
