@@ -32,8 +32,9 @@ export abstract class Arbitrary<A> {
 
     sample(sampleSize: number = 10): FluentPick<A>[] {
         const result = []
-        for (let i = 0; i < sampleSize; i += 1)
-            result.push(this.pick())
+        for (let i = 0; i < sampleSize; i += 1) {
+            if (this.size().value >= 1) result.push(this.pick())
+        }
 
         return result
     }
@@ -280,11 +281,11 @@ class MappedArbitrary<A, B> extends Arbitrary<B> {
 }
 
 class FilteredArbitrary<A> extends WrappedArbitrary<A> {
-    successes = 0
-    failures = 0
+    sizeEstimation: BetaDistribution 
 
     constructor(readonly baseArbitrary: Arbitrary<A>, public readonly f: (a: A) => boolean) {
         super(baseArbitrary)
+        this.sizeEstimation = new BetaDistribution(2, 1) // use 1,1 for .mean instead of .mode in point estimation 
     }
 
     size() { 
@@ -292,19 +293,20 @@ class FilteredArbitrary<A> extends WrappedArbitrary<A> {
         // Also, this assumes we estimate a continuous interval between 0 and 1;
         // We could try to change this to a beta-binomial distribution, which would provide us a discrete approach
         // for when we know the exact base population size. 
-        return this.baseArbitrary.mapArbitrarySize(v => {
-            const dist = new BetaDistribution(this.successes + 2, this.failures + 1)
-            // { value: Math.round(v * new BetaDistribution(this.successes + 1, this.failures + 0).mean()), type: 'estimated' }))
-            return { type: 'estimated', value: Math.round(v * dist.mode()), confidence: [v * dist.inv(0.05), v * dist.inv(0.95)] }
-        })
+        return this.baseArbitrary.mapArbitrarySize(v =>
+            ({ type: 'estimated', 
+               value: Math.round(v * this.sizeEstimation.mode()), 
+               confidence: [v * this.sizeEstimation.inv(0.05), v * this.sizeEstimation.inv(0.95)] }))
     }
 
     pick(): FluentPick<A> { 
         do {       
             const pick = this.baseArbitrary.pick()
-            if (this.f(pick.value)) { this.successes += 1; return pick }
-            this.failures += 1        
-        } while (true) // At a certain point, the probability of finding a success is infinitesimal; we should stop there to avoid infinite loops. 
+            if (this.f(pick.value)) { this.sizeEstimation.update(1, 0); return pick }
+            this.sizeEstimation.update(0, 1)
+        } while (this.baseArbitrary.size().value * this.sizeEstimation.inv(0.95) >= 1) // If we have 95% confidence that the size is 0, we stop trying
+        
+        return ({ value: undefined })
     }
 
     cornerCases() { return this.baseArbitrary.cornerCases().filter(this.f) }
