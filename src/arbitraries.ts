@@ -1,4 +1,6 @@
-export type FluentPick<V> = { 
+import { BetaDistribution } from "./statistics"
+
+export type FluentPick<V> = {  
     original?: any
     value?: V 
 }
@@ -55,7 +57,7 @@ export abstract class Arbitrary<A> {
     }
 
     map<B>(f: (a: A) => B) { return new MappedArbitrary(this, f) }
-    filter(f: (a: A) => boolean) { return new FilteredArbitrary(this, f) }
+    filter(f: (a: A) => boolean) { return new FilteredArbitrary<A>(this, f) }
     unique() { return new UniqueArbitrary(this) }
 }
 
@@ -270,7 +272,6 @@ class MappedArbitrary<A, B> extends Arbitrary<B> {
     pick(): FluentPick<B> { return this.mapFluentPick(this.baseArbitrary.pick()) }
     size() { return this.baseArbitrary.size() }
 
-    // <rant> .map(this.mapFluentPick) blows up with f not defined for some cases. Javascript trivia: explain why </rant>
     cornerCases() { return this.baseArbitrary.cornerCases().map(p => this.mapFluentPick(p)) }
 
     shrink(initial: FluentPick<B>): MappedArbitrary<A, B> | NoArbitrary {
@@ -279,14 +280,28 @@ class MappedArbitrary<A, B> extends Arbitrary<B> {
 }
 
 class FilteredArbitrary<A> extends WrappedArbitrary<A> {
+    successes = 0
+    failures = 0
+
     constructor(readonly baseArbitrary: Arbitrary<A>, public readonly f: (a: A) => boolean) {
         super(baseArbitrary)
+    }
+
+    size() { 
+        // TODO: Still not sure if we should use mode or mean for estimating the size (depends on which error we are trying to minimize, L1 or L2)
+        // Also, this assumes we estimate a continuous interval between 0 and 1;
+        // We could try to change this to a beta-binomial distribution, which would provide us a discrete approach
+        // for when we know the exact base population size. 
+        return this.baseArbitrary.mapArbitrarySize(v => (
+            // { value: Math.round(v * new BetaDistribution(this.successes + 1, this.failures + 0).mean()), type: 'estimated' }))
+            { value: Math.round(v * new BetaDistribution(this.successes + 2, this.failures + 1).mode()), type: 'estimated' }))
     }
 
     pick(): FluentPick<A> { 
         do {       
             const pick = this.baseArbitrary.pick()
-            if (this.f(pick.value)) return pick
+            if (this.f(pick.value)) { this.successes += 1; return pick }
+            this.failures += 1
         } while (true)
     }
 
