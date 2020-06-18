@@ -75,7 +75,7 @@ class NoArbitrary extends Arbitrary<undefined> {
   sample(_ = 0) { return [] }
 }
 
-class ArbitraryCollection<A> extends Arbitrary<A[]> {
+class ArbitraryArray<A> extends Arbitrary<A[]> {
   constructor(public arbitrary: Arbitrary<A>, public min = 0, public max = 10) {
     super()
   }
@@ -91,12 +91,12 @@ class ArbitraryCollection<A> extends Arbitrary<A[]> {
 
   shrink(initial: FluentPick<A[]>) {
     //        if (this.min === initial.length)
-    //            return new ArbitraryCollection(this.arbitrary.shrink(
+    //            return new ArbitraryArray(this.arbitrary.shrink(
     //                initial.reduce((x,y) => (x > y) ? x : y)), this.min, initial.length)
 
     if (this.min === initial.value.length) return new NoArbitrary()
     if (this.min > (this.min + initial.value.length) / 2) return new NoArbitrary()
-    return new ArbitraryCollection(this.arbitrary, this.min, (this.min + initial.value.length) / 2)
+    return new ArbitraryArray(this.arbitrary, this.min, (this.min + initial.value.length) / 2)
   }
 }
 
@@ -338,6 +338,6 @@ export const integer = (min = Number.MIN_SAFE_INTEGER, max = Number.MAX_SAFE_INT
 export const real    = (min = Number.MIN_SAFE_INTEGER, max = Number.MAX_SAFE_INTEGER) => new ArbitraryReal(min, max)
 export const nat     = (min = 0, max = Number.MAX_SAFE_INTEGER) => new ArbitraryInteger(min, max)
 export const string  = (min = 2, max = 10, chars = 'abcdefghijklmnopqrstuvwxyz') => new ArbitraryString(min, max, chars)
-export const array   = <A>(arbitrary: Arbitrary<A>, min = 0, max = 10) => new ArbitraryCollection(arbitrary, min, max)
+export const array   = <A>(arbitrary: Arbitrary<A>, min = 0, max = 10) => new ArbitraryArray(arbitrary, min, max)
 export const union   = <A>(...arbitraries: Arbitrary<A>[]) => new ArbitraryComposite(arbitraries)
 export const boolean = () => new ArbitraryBoolean()
