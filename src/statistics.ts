@@ -1,4 +1,4 @@
-import * as stats from "jstat"
+import * as stats from 'jstat'
 
 export class BetaDistribution {
   constructor(public alpha: number, public beta: number) { }

@@ -1,6 +1,5 @@
-import { FluentPick, Arbitrary } from "./arbitraries"
+import { FluentPick, Arbitrary } from './arbitraries'
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 interface TestCase { [k: string]: any }
 
 export class FluentResult {
@@ -44,6 +43,7 @@ export class FluentCheck {
 
   protected pathFromRoot(): FluentCheck[] {
     const path = []
+
     // eslint-disable-next-line @typescript-eslint/no-this-alias
     let node: FluentCheck = this
     while (node !== undefined) {

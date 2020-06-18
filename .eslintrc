@@ -31,7 +31,7 @@
     "no-multiple-empty-lines": [1, { "max": 1 }],
     "no-trailing-spaces": [1, { "skipBlankLines": false }],
     "object-curly-spacing": [1, "always"],
-    "quotes": [1, "double", "avoid-escape"],
+    "quotes": [1, "single", "avoid-escape"],
     "space-before-blocks": [1, "always"],
     "space-before-function-paren": [1, { "anonymous": "always", "named": "never" }],
     "space-in-parens": [1, "never"],
@@ -39,6 +39,7 @@
     "@typescript-eslint/semi": [1, "never"],
 
     "no-console": 0,
+    "@typescript-eslint/no-explicit-any": 0,
     "@typescript-eslint/ban-ts-ignore": 0,
     "@typescript-eslint/no-empty-function": 0,
     "@typescript-eslint/explicit-function-return-type": 0,
