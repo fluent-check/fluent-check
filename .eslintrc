@@ -1,0 +1,47 @@
+{
+  "root": true,
+  "parser": "@typescript-eslint/parser",
+  "extends": [
+    "eslint:recommended",
+    "plugin:@typescript-eslint/eslint-recommended",
+    "plugin:@typescript-eslint/recommended"
+  ],
+
+  "plugins": [
+    "@typescript-eslint"
+  ],
+
+  "env": {
+    "es2020": true,
+    "node": true
+  },
+
+  "parserOptions": {
+    "sourceType": "module"
+  },
+
+  "rules": {
+    "eqeqeq": [2, "smart"],
+    "no-var": 2,
+
+    "indent": [1, 2, { "SwitchCase": 1 }],
+    "keyword-spacing": 1,
+    // TODO(rui): apply this later
+    // "max-len": [1, 100, 4],
+    "no-multiple-empty-lines": [1, { "max": 1 }],
+    "no-trailing-spaces": [1, { "skipBlankLines": false }],
+    "object-curly-spacing": [1, "always"],
+    "quotes": [1, "double", "avoid-escape"],
+    "space-before-blocks": [1, "always"],
+    "space-before-function-paren": [1, { "anonymous": "always", "named": "never" }],
+    "space-in-parens": [1, "never"],
+    "@typescript-eslint/no-unused-vars": [1, { "argsIgnorePattern": "^_", "varsIgnorePattern": "^_" }],
+    "@typescript-eslint/semi": [1, "never"],
+
+    "no-console": 0,
+    "@typescript-eslint/ban-ts-ignore": 0,
+    "@typescript-eslint/no-empty-function": 0,
+    "@typescript-eslint/explicit-function-return-type": 0,
+    "@typescript-eslint/explicit-module-boundary-types": 0 // TODO(rui): review this
+  }
+}
