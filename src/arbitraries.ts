@@ -8,10 +8,13 @@ export type FluentPick<V> = {
 export type ArbitrarySize = {    
     value: number
     type: 'exact' | 'estimated'
-    confidence?: [number, number]
+    credibleInterval?: [number, number]
 } 
 
 const NilArbitrarySize: ArbitrarySize = { value: 0, type: 'exact' }
+const significance = 0.90
+const lowerCredibleInterval = (1 - significance) / 2
+const upperCredibleInterval = 1 - lowerCredibleInterval
 
 // -----------------------------
 // ------ Base Arbitraries -----
@@ -25,7 +28,7 @@ export abstract class Arbitrary<A> {
         const result = f(baseSize.value)
         return { value : result.value,
                  type : baseSize.type == 'exact' && result.type == 'exact' ? 'exact' : 'estimated',
-                 confidence : result.confidence }
+                 credibleInterval : result.credibleInterval }
     }
 
     pick(): FluentPick<A> { return { value: undefined } }
@@ -271,6 +274,12 @@ class MappedArbitrary<A, B> extends Arbitrary<B> {
     }
 
     pick(): FluentPick<B> { return this.mapFluentPick(this.baseArbitrary.pick()) }
+
+    // TODO: This is not strictly true when the mapping function is not bijective. I suppose this is
+    // a count-distinct problem, so we should probably either count the cardinality with a Set (for
+    // small arbitraries), or use a cardinality estimator such as HyperLogLog for big ones. One
+    // interesting information we could leverage here is that the new arbitrary size will never 
+    // be *above* the baseArbitrary.
     size() { return this.baseArbitrary.size() }
 
     cornerCases() { return this.baseArbitrary.cornerCases().map(p => this.mapFluentPick(p)) }
@@ -296,7 +305,7 @@ class FilteredArbitrary<A> extends WrappedArbitrary<A> {
         return this.baseArbitrary.mapArbitrarySize(v =>
             ({ type: 'estimated', 
                value: Math.round(v * this.sizeEstimation.mode()), 
-               confidence: [v * this.sizeEstimation.inv(0.05), v * this.sizeEstimation.inv(0.95)] }))
+               credibleInterval: [v * this.sizeEstimation.inv(lowerCredibleInterval), v * this.sizeEstimation.inv(upperCredibleInterval)] }))
     }
 
     pick(): FluentPick<A> { 
@@ -304,8 +313,8 @@ class FilteredArbitrary<A> extends WrappedArbitrary<A> {
             const pick = this.baseArbitrary.pick()
             if (this.f(pick.value)) { this.sizeEstimation.update(1, 0); return pick }
             this.sizeEstimation.update(0, 1)
-        } while (this.baseArbitrary.size().value * this.sizeEstimation.inv(0.95) >= 1) // If we have 95% confidence that the size is 0, we stop trying
-        
+        } while (this.baseArbitrary.size().value * this.sizeEstimation.inv(upperCredibleInterval) >= 1) // If we have a pretty good confidence that the size < 1, we stop trying
+                
         return ({ value: undefined })
     }
 
