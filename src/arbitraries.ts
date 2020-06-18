@@ -1,7 +1,7 @@
 import { BetaDistribution } from "./statistics"
 
 export type FluentPick<V> = {
-    original?: unknown
+    original?: any
     value?: V
 }
 
