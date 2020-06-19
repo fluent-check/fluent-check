@@ -104,6 +104,6 @@ describe('Math properties tests', () => {
       .forall('b', fc.integer(-10, 10))
       .then(({ a, b }) => a - b === b - a)
       .check()
-    ).to.deep.include({ satisfiable: false, example: { a: 0, b: -10 } })
+    ).to.deep.include({ satisfiable: false, example: { a: 0, b: -1 } })
   })
 })

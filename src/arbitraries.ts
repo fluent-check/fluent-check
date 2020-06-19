@@ -86,7 +86,7 @@ class ArbitraryArray<A> extends Arbitrary<A[]> {
 
   pick() {
     const size = Math.floor(Math.random() * (this.max - this.min + 1)) + this.min
-    return ({ value : this.arbitrary.sampleWithBias(size).map(v => v.value) })
+    return ({ value: this.arbitrary.sampleWithBias(size).map(v => v.value) })
   }
 
   shrink(initial: FluentPick<A[]>) {
@@ -194,13 +194,13 @@ class ArbitraryInteger extends Arbitrary<number> {
 
       return new ArbitraryComposite([new ArbitraryInteger(lower, midpoint - 1), new ArbitraryInteger(midpoint, upper)])
     } else if (initial.value < 0) {
-      const upper = Math.max(0, this.max)
-      const lower = Math.max(upper, initial.value + 1)
+      const upper = Math.min(0, this.max)
+      const lower = Math.min(upper, initial.value + 1)
       const midpoint = Math.ceil((upper + lower) / 2)
 
       if (lower === upper) return new NoArbitrary()
 
-      return new ArbitraryComposite([new ArbitraryInteger(lower, midpoint - 1), new ArbitraryInteger(midpoint, upper)])
+      return new ArbitraryComposite([new ArbitraryInteger(midpoint, upper), new ArbitraryInteger(lower, midpoint - 1)])
     }
     return new NoArbitrary()
   }
@@ -319,6 +319,8 @@ class FilteredArbitrary<A> extends WrappedArbitrary<A> {
     }
 
     cornerCases() { return this.baseArbitrary.cornerCases().filter(this.f) }
+
+    shrink(initialValue: FluentPick<A>) { return new FilteredArbitrary(this.baseArbitrary.shrink(initialValue), this.f)}
 }
 
 // -----------------------------

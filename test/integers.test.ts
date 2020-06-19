@@ -30,6 +30,14 @@ describe('Integer tests', () => {
     ).to.deep.include({ satisfiable: true, example: { a: 7 } })
   })
 
+  it('finds a number that is divisible by -13 and shrinks it', () => {
+    expect(new FluentCheck()
+      .exists('a', fc.integer(-100, -1))
+      .then(({ a }) => a % 13 === 0)
+      .check()
+    ).to.deep.include({ satisfiable: true, example: { a: -13 } })
+  })
+
   it('finds that summing two positive numbers in a range nevers returns zero', () => {
     expect(new FluentCheck()
       .forall('a', fc.integer(5, 10))
@@ -45,7 +53,15 @@ describe('Integer tests', () => {
       .exists('b', fc.integer(-10, 10))
       .then(({ a, b }) => a + b === 10)
       .check()
-    ).to.deep.include({ satisfiable: true, example: { b: 10, a: 0 } })
+    ).to.deep.include({ satisfiable: true, example: { a: 0, b: 10 } })
+  })
+
+  it('finds two elements such that a % 11 == 0', () => {
+    expect(new FluentCheck()
+      .exists('a', fc.integer(-1000, 1000).filter(a => a !== 0))
+      .then(({ a }) => a % 11 === 0)
+      .check()
+    ).to.deep.include({ satisfiable: true, example: { a: 11 } })
   })
 
   it('finds that adding 1000 makes any number larger and shrinks the example', () => {

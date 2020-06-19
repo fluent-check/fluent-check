@@ -37,6 +37,7 @@ Our currently todo list, prioritized by ICSE-readiness.
 - [ ] Fix Shrink
   - [ ] Collection
   - [ ] Composite
+  - [ ] String
 - [ ] Unify arbitraries by deriving them
     - [ ] Derive booleans from Integers
     - [ ] Derive strings from Array of Integers
