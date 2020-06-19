@@ -90,7 +90,7 @@ class ArbitraryArray<A> extends Arbitrary<A[]> {
 
   pick() {
     const size = Math.floor(Math.random() * (this.max - this.min + 1)) + this.min
-    return ({ value: this.arbitrary.sampleWithBias(size).map(v => v.value) })
+    return ({ value: this.arbitrary.sampleWithBias(size).map(v => v.value) } as FluentPick<A[]>)
   }
 
   shrink(initial: FluentPick<A[]>) {
@@ -207,21 +207,22 @@ class ArbitraryInteger extends Arbitrary<number> {
   shrink(initial: FluentPick<number>): Arbitrary<number> {
     if (initial.value > 0) {
       const lower = Math.max(0, this.min)
-      const upper = Math.max(lower, initial.value - 1)
+      const upper = Math.max(lower, initial.value! - 1)
       const midpoint = Math.floor((upper + lower) / 2)
 
       if (lower === upper) return NoArbitrary
 
       return new ArbitraryComposite([new ArbitraryInteger(lower, midpoint - 1), new ArbitraryInteger(midpoint, upper)])
-    } else if (initial.value < 0) {
+    } else if (initial.value! < 0) {
       const upper = Math.min(0, this.max)
-      const lower = Math.min(upper, initial.value + 1)
+      const lower = Math.min(upper, initial.value! + 1)
       const midpoint = Math.ceil((upper + lower) / 2)
 
       if (lower === upper) return NoArbitrary
 
       return new ArbitraryComposite([new ArbitraryInteger(midpoint, upper), new ArbitraryInteger(lower, midpoint - 1)])
     }
+
     return NoArbitrary
   }
 
@@ -261,7 +262,7 @@ class _ChainedArbitrary<A, B> extends Arbitrary<B> {
     super()
   }
 
-  pick() { return this.f(this.baseArbitrary.pick().value).pick() }
+  pick() { return this.f(this.baseArbitrary.pick().value!).pick() }
   size() { return this.baseArbitrary.size() }
 }
 
@@ -286,8 +287,9 @@ class UniqueArbitrary<A> extends WrappedArbitrary<A> {
     return result
   }
 
-  shrink(initial: FluentPick<A>): UniqueArbitrary<A> {
-    return new UniqueArbitrary(this.baseArbitrary.shrink(initial))
+  shrink(initial: FluentPick<A>) {
+    const shrunk = this.baseArbitrary.shrink(initial)
+    return (shrunk === NoArbitrary) ? shrunk : new UniqueArbitrary(shrunk)
   }
 }
 
@@ -298,7 +300,7 @@ class MappedArbitrary<A, B> extends Arbitrary<B> {
 
   mapFluentPick(p: FluentPick<A>): FluentPick<B> {
     const original = ('original' in p) ? p.original : p.value
-    return ({ original, value: this.f(p.value) })
+    return ({ original, value: this.f(p.value!) })
   }
 
   pick(): FluentPick<B> { return this.mapFluentPick(this.baseArbitrary.pick()) }
@@ -369,7 +371,7 @@ class FilteredArbitrary<A> extends WrappedArbitrary<A> {
 class ArbitraryBoolean extends MappedArbitrary<number, boolean> {
   constructor() { super(new ArbitraryInteger(0, 1), x => x === 0) }
   shrink(_: FluentPick<boolean>) { return NoArbitrary }
-  canGenerate(pick: FluentPick<boolean>) { return  pick.value !== undefined}
+  canGenerate(pick: FluentPick<boolean>) { return pick.value !== undefined}
 }
 
 // -----------------------------
