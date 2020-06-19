@@ -57,7 +57,7 @@ export abstract class Arbitrary<A> {
     }
 
     shrink(_initial: FluentPick<A>): Arbitrary<A> {
-      return new NoArbitrary()
+      return NoArbitrary
     }
 
     map<B>(f: (a: A) => B) { return new MappedArbitrary(this, f) }
@@ -69,11 +69,14 @@ export abstract class Arbitrary<A> {
 // ---- Special Arbitraries ----
 // -----------------------------
 
-class NoArbitrary<A> extends Arbitrary<A> {
-  size(): ArbitrarySize { return { value: 0, type: 'exact' } }
-  sampleWithBias(_ = 0) { return [] }
-  sample(_ = 0) { return [] }
-}
+const NoArbitrary: Arbitrary<never> = (() => {
+  class NoArbitrary extends Arbitrary<never> {
+    size(): ArbitrarySize { return { value: 0, type: 'exact' } }
+    sampleWithBias(_ = 0) { return [] }
+    sample(_ = 0) { return [] }
+  }
+  return new NoArbitrary()
+})()
 
 class ArbitraryArray<A> extends Arbitrary<A[]> {
   constructor(public arbitrary: Arbitrary<A>, public min = 0, public max = 10) {
@@ -94,8 +97,8 @@ class ArbitraryArray<A> extends Arbitrary<A[]> {
     //            return new ArbitraryArray(this.arbitrary.shrink(
     //                initial.reduce((x,y) => (x > y) ? x : y)), this.min, initial.length)
 
-    if (this.min === initial.value.length) return new NoArbitrary()
-    if (this.min > (this.min + initial.value.length) / 2) return new NoArbitrary()
+    if (this.min === initial.value.length) return NoArbitrary
+    if (this.min > (this.min + initial.value.length) / 2) return NoArbitrary
     return new ArbitraryArray(this.arbitrary, this.min, (this.min + initial.value.length) / 2)
   }
 }
@@ -125,7 +128,7 @@ class ArbitraryComposite<A> extends Arbitrary<A> {
   }
 
   shrink(_initial: FluentPick<A>): Arbitrary<A> {
-    if (this.arbitraries.length === 1) return new NoArbitrary()
+    if (this.arbitraries.length === 1) return NoArbitrary
     if (this.arbitraries.length === 2) return this.arbitraries[0]
     return new ArbitraryComposite(this.arbitraries.slice(0, -1))
   }
@@ -162,7 +165,7 @@ class ArbitraryString extends Arbitrary<string> {
   }
 
   shrink(initial: FluentPick<string>): Arbitrary<string> {
-    if (this.min > initial.value.length - 1) return new NoArbitrary()
+    if (this.min > initial.value.length - 1) return NoArbitrary
     return new ArbitraryString(this.min, initial.value.length - 1, this.chars)
   }
 }
@@ -190,7 +193,7 @@ class ArbitraryInteger extends Arbitrary<number> {
       const upper = Math.max(lower, initial.value - 1)
       const midpoint = Math.floor((upper + lower) / 2)
 
-      if (lower === upper) return new NoArbitrary()
+      if (lower === upper) return NoArbitrary
 
       return new ArbitraryComposite([new ArbitraryInteger(lower, midpoint - 1), new ArbitraryInteger(midpoint, upper)])
     } else if (initial.value < 0) {
@@ -198,11 +201,11 @@ class ArbitraryInteger extends Arbitrary<number> {
       const lower = Math.max(upper, initial.value + 1)
       const midpoint = Math.ceil((upper + lower) / 2)
 
-      if (lower === upper) return new NoArbitrary()
+      if (lower === upper) return NoArbitrary
 
       return new ArbitraryComposite([new ArbitraryInteger(lower, midpoint - 1), new ArbitraryInteger(midpoint, upper)])
     }
-    return new NoArbitrary()
+    return NoArbitrary
   }
 }
 
@@ -327,7 +330,7 @@ class FilteredArbitrary<A> extends WrappedArbitrary<A> {
 
 class ArbitraryBoolean extends MappedArbitrary<number, boolean> {
   constructor() { super(new ArbitraryInteger(0, 1), x => x === 0) }
-  shrink(_: FluentPick<boolean>): Arbitrary<boolean> { return new NoArbitrary() }
+  shrink(_: FluentPick<boolean>): Arbitrary<boolean> { return NoArbitrary }
 }
 
 // -----------------------------
