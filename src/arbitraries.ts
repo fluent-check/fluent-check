@@ -69,14 +69,11 @@ export abstract class Arbitrary<A> {
 // ---- Special Arbitraries ----
 // -----------------------------
 
-const NoArbitrary: Arbitrary<never> = (() => {
-  class NoArbitrary extends Arbitrary<never> {
-    size(): ArbitrarySize { return { value: 0, type: 'exact' } }
-    sampleWithBias(_ = 0) { return [] }
-    sample(_ = 0) { return [] }
-  }
-  return new NoArbitrary()
-})()
+const NoArbitrary: Arbitrary<never> = new class extends Arbitrary<never> {
+  size(): ArbitrarySize { return { value: 0, type: 'exact' } }
+  sampleWithBias(_ = 0) { return [] }
+  sample(_ = 0) { return [] }
+}()
 
 class ArbitraryArray<A> extends Arbitrary<A[]> {
   constructor(public arbitrary: Arbitrary<A>, public min = 0, public max = 10) {
