@@ -318,9 +318,12 @@ class FilteredArbitrary<A> extends WrappedArbitrary<A> {
       return ({ value: undefined })
     }
 
-    cornerCases() { return this.baseArbitrary.cornerCases().filter(this.f) }
+    cornerCases() { return this.baseArbitrary.cornerCases().filter(a => this.f(a.value)) }
 
-    shrink(initialValue: FluentPick<A>) { return new FilteredArbitrary(this.baseArbitrary.shrink(initialValue), this.f)}
+    shrink(initialValue: FluentPick<A>) {
+      if (!this.f(initialValue.value)) return new NoArbitrary
+      return new FilteredArbitrary(this.baseArbitrary.shrink(initialValue), this.f)
+    }
 }
 
 // -----------------------------

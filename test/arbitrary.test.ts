@@ -72,6 +72,14 @@ describe('Arbitrary tests', () => {
       ).to.have.property('satisfiable', true)
     })
 
+    it('filters should exclude corner cases, even after shrinking', () => {
+      expect(new FluentCheck()
+        .exists('a', fc.integer(-20, 20).filter(a => a !== 0))
+        .then(({ a }) => a % 11 === 0 && a !== 11 && a !== -11)
+        .check()
+      ).to.have.property('satisfiable', false)
+    })
+
     it('should allow integers to be both mapped and filtered', () => {
       expect(new FluentCheck()
         .forall('n', fc.integer(0, 100).map(n => n + 100).filter(n => n < 150))

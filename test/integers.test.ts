@@ -58,7 +58,7 @@ describe('Integer tests', () => {
 
   it('finds two elements such that a % 11 == 0', () => {
     expect(new FluentCheck()
-      .exists('a', fc.integer(-1000, 1000).filter(a => a !== 0))
+      .exists('a', fc.integer(0, 1000).filter(a => a !== 0))
       .then(({ a }) => a % 11 === 0)
       .check()
     ).to.deep.include({ satisfiable: true, example: { a: 11 } })
