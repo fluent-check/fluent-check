@@ -17,7 +17,7 @@
   "author": "Hugo Sereno and Andre Restivo",
   "license": "ISC",
   "dependencies": {
-    "typescript": "^3.9.3"
+    "typescript": "^3.9.5"
   },
   "repository": {
     "type": "git",
