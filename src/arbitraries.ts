@@ -1,14 +1,14 @@
 import { BetaDistribution } from './statistics'
 
 export type FluentPick<V> = {
-    original?: any
-    value?: V
+  original?: any
+  value?: V
 }
 
 export type ArbitrarySize = {
-    value: number
-    type: 'exact' | 'estimated'
-    credibleInterval?: [number, number]
+  value: number
+  type: 'exact' | 'estimated'
+  credibleInterval?: [number, number]
 }
 
 const NilArbitrarySize: ArbitrarySize = { value: 0, type: 'exact' }
@@ -21,48 +21,48 @@ const upperCredibleInterval = 1 - lowerCredibleInterval
 // -----------------------------
 
 export abstract class Arbitrary<A> {
-    abstract size(): ArbitrarySize
+  abstract size(): ArbitrarySize
 
-    mapArbitrarySize(f: (v: number) => ArbitrarySize): ArbitrarySize {
-      const baseSize = this.size()
-      const result = f(baseSize.value)
-      return { value : result.value,
-        type : baseSize.type === 'exact' && result.type === 'exact' ? 'exact' : 'estimated',
-        credibleInterval : result.credibleInterval }
+  mapArbitrarySize(f: (v: number) => ArbitrarySize): ArbitrarySize {
+    const baseSize = this.size()
+    const result = f(baseSize.value)
+    return { value : result.value,
+      type : baseSize.type === 'exact' && result.type === 'exact' ? 'exact' : 'estimated',
+      credibleInterval : result.credibleInterval }
+  }
+
+  pick(): FluentPick<A> { return { value: undefined } }
+
+  sample(sampleSize = 10): FluentPick<A>[] {
+    const result = []
+    for (let i = 0; i < sampleSize; i += 1) {
+      if (this.size().value >= 1) result.push(this.pick())
     }
 
-    pick(): FluentPick<A> { return { value: undefined } }
+    return result
+  }
 
-    sample(sampleSize = 10): FluentPick<A>[] {
-      const result = []
-      for (let i = 0; i < sampleSize; i += 1) {
-        if (this.size().value >= 1) result.push(this.pick())
-      }
+  cornerCases(): FluentPick<A>[] { return [] }
 
-      return result
-    }
+  sampleWithBias(sampleSize = 10): FluentPick<A>[] {
+    const cornerCases = this.cornerCases()
 
-    cornerCases(): FluentPick<A>[] { return [] }
+    if (sampleSize <= cornerCases.length)
+      return this.sample(sampleSize)
 
-    sampleWithBias(sampleSize = 10): FluentPick<A>[] {
-      const cornerCases = this.cornerCases()
+    const sample = this.sample(sampleSize - cornerCases.length)
+    sample.unshift(...cornerCases)
 
-      if (sampleSize <= cornerCases.length)
-        return this.sample(sampleSize)
+    return sample
+  }
 
-      const sample = this.sample(sampleSize - cornerCases.length)
-      sample.unshift(...cornerCases)
+  shrink(_initial: FluentPick<A>): Arbitrary<A> {
+    return NoArbitrary
+  }
 
-      return sample
-    }
-
-    shrink(_initial: FluentPick<A>): Arbitrary<A> {
-      return NoArbitrary
-    }
-
-    map<B>(f: (a: A) => B) { return new MappedArbitrary(this, f) }
-    filter(f: (a: A) => boolean) { return new FilteredArbitrary<A>(this, f) }
-    unique() { return new UniqueArbitrary(this) }
+  map<B>(f: (a: A) => B) { return new MappedArbitrary(this, f) }
+  filter(f: (a: A) => boolean) { return new FilteredArbitrary<A>(this, f) }
+  unique() { return new UniqueArbitrary(this) }
 }
 
 // -----------------------------
@@ -290,35 +290,35 @@ class MappedArbitrary<A, B> extends Arbitrary<B> {
 }
 
 class FilteredArbitrary<A> extends WrappedArbitrary<A> {
-    sizeEstimation: BetaDistribution
+  sizeEstimation: BetaDistribution
 
-    constructor(readonly baseArbitrary: Arbitrary<A>, public readonly f: (a: A) => boolean) {
-      super(baseArbitrary)
-      this.sizeEstimation = new BetaDistribution(2, 1) // use 1,1 for .mean instead of .mode in point estimation
-    }
+  constructor(readonly baseArbitrary: Arbitrary<A>, public readonly f: (a: A) => boolean) {
+    super(baseArbitrary)
+    this.sizeEstimation = new BetaDistribution(2, 1) // use 1,1 for .mean instead of .mode in point estimation
+  }
 
-    size() {
-      // TODO: Still not sure if we should use mode or mean for estimating the size (depends on which error we are trying to minimize, L1 or L2)
-      // Also, this assumes we estimate a continuous interval between 0 and 1;
-      // We could try to change this to a beta-binomial distribution, which would provide us a discrete approach
-      // for when we know the exact base population size.
-      return this.baseArbitrary.mapArbitrarySize(v =>
-        ({ type: 'estimated',
-          value: Math.round(v * this.sizeEstimation.mode()),
-          credibleInterval: [v * this.sizeEstimation.inv(lowerCredibleInterval), v * this.sizeEstimation.inv(upperCredibleInterval)] }))
-    }
+  size() {
+    // TODO: Still not sure if we should use mode or mean for estimating the size (depends on which error we are trying to minimize, L1 or L2)
+    // Also, this assumes we estimate a continuous interval between 0 and 1;
+    // We could try to change this to a beta-binomial distribution, which would provide us a discrete approach
+    // for when we know the exact base population size.
+    return this.baseArbitrary.mapArbitrarySize(v =>
+      ({ type: 'estimated',
+        value: Math.round(v * this.sizeEstimation.mode()),
+        credibleInterval: [v * this.sizeEstimation.inv(lowerCredibleInterval), v * this.sizeEstimation.inv(upperCredibleInterval)] }))
+  }
 
-    pick(): FluentPick<A> {
-      do {
-        const pick = this.baseArbitrary.pick()
-        if (this.f(pick.value)) { this.sizeEstimation.update(1, 0); return pick }
-        this.sizeEstimation.update(0, 1)
-      } while (this.baseArbitrary.size().value * this.sizeEstimation.inv(upperCredibleInterval) >= 1) // If we have a pretty good confidence that the size < 1, we stop trying
+  pick(): FluentPick<A> {
+    do {
+      const pick = this.baseArbitrary.pick()
+      if (this.f(pick.value)) { this.sizeEstimation.update(1, 0); return pick }
+      this.sizeEstimation.update(0, 1)
+    } while (this.baseArbitrary.size().value * this.sizeEstimation.inv(upperCredibleInterval) >= 1) // If we have a pretty good confidence that the size < 1, we stop trying
 
-      return ({ value: undefined })
-    }
+    return ({ value: undefined })
+  }
 
-    cornerCases() { return this.baseArbitrary.cornerCases().filter(this.f) }
+  cornerCases() { return this.baseArbitrary.cornerCases().filter(this.f) }
 }
 
 // -----------------------------
