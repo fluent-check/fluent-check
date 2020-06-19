@@ -64,9 +64,9 @@ export abstract class Arbitrary<A> {
     return false
   }
 
-  map<B>(f: (a: A) => B) { return new MappedArbitrary(this, f) }
-  filter(f: (a: A) => boolean) { return new FilteredArbitrary<A>(this, f) }
-  unique() { return new UniqueArbitrary(this) }
+  map<B>(f: (a: A) => B): Arbitrary<B> { return new MappedArbitrary(this, f) }
+  filter(f: (a: A) => boolean): Arbitrary<A> { return new FilteredArbitrary(this, f) }
+  unique(): Arbitrary<A> { return new UniqueArbitrary(this) }
 }
 
 // -----------------------------
