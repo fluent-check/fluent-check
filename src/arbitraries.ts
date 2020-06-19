@@ -133,10 +133,13 @@ class ArbitraryComposite<A> extends Arbitrary<A> {
     return cornerCases
   }
 
-  shrink(_initial: FluentPick<A>) {
-    if (this.arbitraries.length === 1) return new NoArbitrary()
-    if (this.arbitraries.length === 2) return this.arbitraries[0]
-    return new ArbitraryComposite(this.arbitraries.slice(0, -1))
+  shrink(initial: FluentPick<A>) {
+    const arbitraries = this.arbitraries.filter(a => a.canGenerate(initial))
+
+    if (arbitraries.length === 0) return new NoArbitrary()
+    if (arbitraries.length === 1) return arbitraries[0].shrink(initial)
+
+    return new ArbitraryComposite(arbitraries)
   }
 
   canGenerate(pick: FluentPick<A>) {
