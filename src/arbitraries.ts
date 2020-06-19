@@ -21,48 +21,48 @@ const upperCredibleInterval = 1 - lowerCredibleInterval
 // -----------------------------
 
 export abstract class Arbitrary<A> {
-    abstract size(): ArbitrarySize
+  abstract size(): ArbitrarySize
 
-    mapArbitrarySize(f: (v: number) => ArbitrarySize): ArbitrarySize {
-      const baseSize = this.size()
-      const result = f(baseSize.value)
-      return { value : result.value,
-        type : baseSize.type === 'exact' && result.type === 'exact' ? 'exact' : 'estimated',
-        credibleInterval : result.credibleInterval }
+  mapArbitrarySize(f: (v: number) => ArbitrarySize): ArbitrarySize {
+    const baseSize = this.size()
+    const result = f(baseSize.value)
+    return { value : result.value,
+      type : baseSize.type === 'exact' && result.type === 'exact' ? 'exact' : 'estimated',
+      credibleInterval : result.credibleInterval }
+  }
+
+  pick(): FluentPick<A> { return { value: undefined } }
+
+  sample(sampleSize = 10): FluentPick<A>[] {
+    const result = []
+    for (let i = 0; i < sampleSize; i += 1) {
+      if (this.size().value >= 1) result.push(this.pick())
     }
 
-    pick(): FluentPick<A> { return { value: undefined } }
+    return result
+  }
 
-    sample(sampleSize = 10): FluentPick<A>[] {
-      const result = []
-      for (let i = 0; i < sampleSize; i += 1) {
-        if (this.size().value >= 1) result.push(this.pick())
-      }
+  cornerCases(): FluentPick<A>[] { return [] }
 
-      return result
-    }
+  sampleWithBias(sampleSize = 10): FluentPick<A>[] {
+    const cornerCases = this.cornerCases()
 
-    cornerCases(): FluentPick<A>[] { return [] }
+    if (sampleSize <= cornerCases.length)
+      return this.sample(sampleSize)
 
-    sampleWithBias(sampleSize = 10): FluentPick<A>[] {
-      const cornerCases = this.cornerCases()
+    const sample = this.sample(sampleSize - cornerCases.length)
+    sample.unshift(...cornerCases)
 
-      if (sampleSize <= cornerCases.length)
-        return this.sample(sampleSize)
+    return sample
+  }
 
-      const sample = this.sample(sampleSize - cornerCases.length)
-      sample.unshift(...cornerCases)
+  shrink(_initial: FluentPick<A>): Arbitrary<A> | NoArbitrary {
+    return new NoArbitrary()
+  }
 
-      return sample
-    }
-
-    shrink(_initial: FluentPick<A>): Arbitrary<A> | NoArbitrary {
-      return new NoArbitrary()
-    }
-
-    map<B>(f: (a: A) => B) { return new MappedArbitrary(this, f) }
-    filter(f: (a: A) => boolean) { return new FilteredArbitrary<A>(this, f) }
-    unique() { return new UniqueArbitrary(this) }
+  map<B>(f: (a: A) => B): MappedArbitrary<A, B> { return new MappedArbitrary(this, f) }
+  filter(f: (a: A) => boolean) { return new FilteredArbitrary<A>(this, f) }
+  unique() { return new UniqueArbitrary(this) }
 }
 
 // -----------------------------
@@ -86,17 +86,17 @@ class ArbitraryArray<A> extends Arbitrary<A[]> {
 
   pick() {
     const size = Math.floor(Math.random() * (this.max - this.min + 1)) + this.min
-    return ({ value: this.arbitrary.sampleWithBias(size).map(v => v.value) })
+    return ({ value: this.arbitrary.sampleWithBias(size).map(v => v.value) } as FluentPick<A[]>)
   }
 
-  shrink(initial: FluentPick<A[]>) {
+  shrink(initial: FluentPick<NonNullable<A[]>>) {
     //        if (this.min === initial.length)
     //            return new ArbitraryArray(this.arbitrary.shrink(
     //                initial.reduce((x,y) => (x > y) ? x : y)), this.min, initial.length)
 
-    if (this.min === initial.value.length) return new NoArbitrary()
-    if (this.min > (this.min + initial.value.length) / 2) return new NoArbitrary()
-    return new ArbitraryArray(this.arbitrary, this.min, (this.min + initial.value.length) / 2)
+    if (this.min === initial.value!.length) return new NoArbitrary()
+    if (this.min > (this.min + initial.value!.length) / 2) return new NoArbitrary()
+    return new ArbitraryArray(this.arbitrary, this.min, (this.min + initial.value!.length) / 2)
   }
 }
 
@@ -124,7 +124,7 @@ class ArbitraryComposite<A> extends Arbitrary<A> {
     return cornerCases
   }
 
-  shrink(_initial: FluentPick<A>) {
+  shrink(_initial: FluentPick<A>): Arbitrary<A> | NoArbitrary {
     if (this.arbitraries.length === 1) return new NoArbitrary()
     if (this.arbitraries.length === 2) return this.arbitraries[0]
     return new ArbitraryComposite(this.arbitraries.slice(0, -1))
@@ -162,8 +162,8 @@ class ArbitraryString extends Arbitrary<string> {
   }
 
   shrink(initial: FluentPick<string>) {
-    if (this.min > initial.value.length - 1) return new NoArbitrary()
-    return new ArbitraryString(this.min, initial.value.length - 1, this.chars)
+    if (this.min > initial.value!.length - 1) return new NoArbitrary()
+    return new ArbitraryString(this.min, initial.value!.length - 1, this.chars)
   }
 }
 
@@ -185,23 +185,24 @@ class ArbitraryInteger extends Arbitrary<number> {
   }
 
   shrink(initial: FluentPick<number>): Arbitrary<number> | NoArbitrary {
-    if (initial.value > 0) {
+    if (initial.value! > 0) {
       const lower = Math.max(0, this.min)
-      const upper = Math.max(lower, initial.value - 1)
+      const upper = Math.max(lower, initial.value! - 1)
       const midpoint = Math.floor((upper + lower) / 2)
 
       if (lower === upper) return new NoArbitrary()
 
       return new ArbitraryComposite([new ArbitraryInteger(lower, midpoint - 1), new ArbitraryInteger(midpoint, upper)])
-    } else if (initial.value < 0) {
+    } else if (initial.value! < 0) {
       const upper = Math.min(0, this.max)
-      const lower = Math.min(upper, initial.value + 1)
+      const lower = Math.min(upper, initial.value! + 1)
       const midpoint = Math.ceil((upper + lower) / 2)
 
       if (lower === upper) return new NoArbitrary()
 
       return new ArbitraryComposite([new ArbitraryInteger(midpoint, upper), new ArbitraryInteger(lower, midpoint - 1)])
     }
+
     return new NoArbitrary()
   }
 }
@@ -233,7 +234,7 @@ class _ChainedArbitrary<A, B> extends Arbitrary<B> {
     super()
   }
 
-  pick() { return this.f(this.baseArbitrary.pick().value).pick() }
+  pick() { return this.f(this.baseArbitrary.pick().value!).pick() }
   size() { return this.baseArbitrary.size() }
 }
 
@@ -258,8 +259,9 @@ class UniqueArbitrary<A> extends WrappedArbitrary<A> {
     return result
   }
 
-  shrink(initial: FluentPick<A>): UniqueArbitrary<A> {
-    return new UniqueArbitrary(this.baseArbitrary.shrink(initial))
+  shrink(initial: FluentPick<A>): UniqueArbitrary<A> | NoArbitrary {
+    const shrunk = this.baseArbitrary.shrink(initial)
+    return (shrunk instanceof NoArbitrary) ? shrunk : new UniqueArbitrary(shrunk)
   }
 }
 
@@ -270,7 +272,7 @@ class MappedArbitrary<A, B> extends Arbitrary<B> {
 
   mapFluentPick(p: FluentPick<A>): FluentPick<B> {
     const original = ('original' in p) ? p.original : p.value
-    return ({ original, value: this.f(p.value) })
+    return ({ original, value: this.f(p.value!) })
   }
 
   pick(): FluentPick<B> { return this.mapFluentPick(this.baseArbitrary.pick()) }
@@ -285,7 +287,8 @@ class MappedArbitrary<A, B> extends Arbitrary<B> {
   cornerCases() { return this.baseArbitrary.cornerCases().map(p => this.mapFluentPick(p)) }
 
   shrink(initial: FluentPick<B>): MappedArbitrary<A, B> | NoArbitrary {
-    return new MappedArbitrary(this.baseArbitrary.shrink({ original: initial.original, value: initial.original }), this.f)
+    const shrunk = this.baseArbitrary.shrink({ original: initial.original, value: initial.original })
+    return (shrunk instanceof NoArbitrary) ? shrunk : new MappedArbitrary(shrunk, this.f)
   }
 }
 
@@ -311,18 +314,19 @@ class FilteredArbitrary<A> extends WrappedArbitrary<A> {
     pick(): FluentPick<A> {
       do {
         const pick = this.baseArbitrary.pick()
-        if (this.f(pick.value)) { this.sizeEstimation.update(1, 0); return pick }
+        if (this.f(pick.value!)) { this.sizeEstimation.update(1, 0); return pick }
         this.sizeEstimation.update(0, 1)
       } while (this.baseArbitrary.size().value * this.sizeEstimation.inv(upperCredibleInterval) >= 1) // If we have a pretty good confidence that the size < 1, we stop trying
 
       return ({ value: undefined })
     }
 
-    cornerCases() { return this.baseArbitrary.cornerCases().filter(a => this.f(a.value)) }
+    cornerCases() { return this.baseArbitrary.cornerCases().filter(a => this.f(a.value!)) }
 
     shrink(initialValue: FluentPick<A>) {
-      if (!this.f(initialValue.value)) return new NoArbitrary
-      return new FilteredArbitrary(this.baseArbitrary.shrink(initialValue), this.f)
+      if (!this.f(initialValue.value!)) return new NoArbitrary
+      const shrunk = this.baseArbitrary.shrink(initialValue)
+      return (shrunk instanceof NoArbitrary) ? shrunk : new FilteredArbitrary(shrunk, this.f)
     }
 }
 

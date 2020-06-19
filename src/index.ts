@@ -12,7 +12,7 @@ export class FluentResult {
 }
 
 export class FluentCheck {
-  constructor(protected readonly parent: FluentCheck = undefined) { }
+  constructor(protected readonly parent: FluentCheck | undefined = undefined) { }
 
   given<A>(name: string, a: (args: TestCase) => A): FluentCheckGivenMutable<A>
   given<A>(name: string, a: A): FluentCheckGivenMutable<A> | FluentCheckGivenConstant<A> {
@@ -37,7 +37,7 @@ export class FluentCheck {
     return new FluentCheckAssert(this, f)
   }
 
-  protected run(testCase: TestCase, callback: (arg: TestCase) => FluentResult, _partial: FluentResult = undefined): FluentResult {
+  protected run(testCase: TestCase, callback: (arg: TestCase) => FluentResult, _partial: FluentResult | undefined = undefined): FluentResult {
     return callback(testCase)
   }
 
@@ -45,7 +45,7 @@ export class FluentCheck {
     const path: FluentCheck[] = []
 
     // eslint-disable-next-line @typescript-eslint/no-this-alias
-    let node: FluentCheck = this
+    let node: FluentCheck | undefined = this
     while (node !== undefined) {
       path.unshift(node)
       node = node.parent
@@ -57,7 +57,7 @@ export class FluentCheck {
     return this.pathFromRoot().reverse()
   }
 
-  check(child: (testCase: TestCase) => FluentResult = () => new FluentResult(true)) {
+  check(child: (testCase: TestCase) => FluentResult = () => new FluentResult(true)): FluentResult {
     if (this.parent !== undefined) return this.parent.check((testCase: TestCase) => this.run(testCase, child))
     else {
       const r = this.run({}, child)
@@ -112,7 +112,7 @@ class FluentCheckUniversal<A> extends FluentCheck {
       this.cache = this.dedup.sampleWithBias(1000)
     }
 
-    protected run(testCase: TestCase, callback: (arg: TestCase) => FluentResult, partial: FluentResult = undefined): FluentResult {
+    protected run(testCase: TestCase, callback: (arg: TestCase) => FluentResult, partial: FluentResult | undefined = undefined): FluentResult {
       const example = partial || new FluentResult(true)
       const collection = partial === undefined ? this.cache : this.dedup.shrink(partial.example[this.name]).sampleWithBias(1000)
 
@@ -139,7 +139,7 @@ class FluentCheckExistential<A> extends FluentCheck {
       this.cache = this.dedup.sampleWithBias(1000)
     }
 
-    protected run(testCase: TestCase, callback: (arg: TestCase) => FluentResult, partial: FluentResult = undefined): FluentResult {
+    protected run(testCase: TestCase, callback: (arg: TestCase) => FluentResult, partial: FluentResult | undefined = undefined): FluentResult {
       const example = partial || new FluentResult(false)
       const collection = partial === undefined ? this.cache : this.dedup.shrink(partial.example[this.name]).sampleWithBias(1000)
 
@@ -171,7 +171,7 @@ class FluentCheckAssert extends FluentCheck {
     }
 
     private runPreliminaries(testCase: TestCase) {
-      const data = { }
+      const data: TestCase = { }
 
       this.preliminaries.forEach(node => {
         if (node instanceof FluentCheckGivenMutable) data[node.name] = node.factory({ ...testCase, ...data })
