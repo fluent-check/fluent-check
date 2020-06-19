@@ -56,7 +56,7 @@ export abstract class Arbitrary<A> {
       return sample
     }
 
-    shrink(_initial: FluentPick<A>): Arbitrary<A> | NoArbitrary {
+    shrink(_initial: FluentPick<A>): Arbitrary<A> {
       return new NoArbitrary()
     }
 
@@ -69,7 +69,7 @@ export abstract class Arbitrary<A> {
 // ---- Special Arbitraries ----
 // -----------------------------
 
-class NoArbitrary extends Arbitrary<undefined> {
+class NoArbitrary<A> extends Arbitrary<A> {
   size(): ArbitrarySize { return { value: 0, type: 'exact' } }
   sampleWithBias(_ = 0) { return [] }
   sample(_ = 0) { return [] }
@@ -89,7 +89,7 @@ class ArbitraryArray<A> extends Arbitrary<A[]> {
     return ({ value : this.arbitrary.sampleWithBias(size).map(v => v.value) })
   }
 
-  shrink(initial: FluentPick<A[]>) {
+  shrink(initial: FluentPick<A[]>): Arbitrary<A[]> {
     //        if (this.min === initial.length)
     //            return new ArbitraryArray(this.arbitrary.shrink(
     //                initial.reduce((x,y) => (x > y) ? x : y)), this.min, initial.length)
@@ -124,7 +124,7 @@ class ArbitraryComposite<A> extends Arbitrary<A> {
     return cornerCases
   }
 
-  shrink(_initial: FluentPick<A>) {
+  shrink(_initial: FluentPick<A>): Arbitrary<A> {
     if (this.arbitraries.length === 1) return new NoArbitrary()
     if (this.arbitraries.length === 2) return this.arbitraries[0]
     return new ArbitraryComposite(this.arbitraries.slice(0, -1))
@@ -161,7 +161,7 @@ class ArbitraryString extends Arbitrary<string> {
     return [{ value: this.pick(this.min).value }, { value: this.pick(this.max).value }]
   }
 
-  shrink(initial: FluentPick<string>) {
+  shrink(initial: FluentPick<string>): Arbitrary<string> {
     if (this.min > initial.value.length - 1) return new NoArbitrary()
     return new ArbitraryString(this.min, initial.value.length - 1, this.chars)
   }
@@ -184,7 +184,7 @@ class ArbitraryInteger extends Arbitrary<number> {
       [{ value: this.min }, { value: this.max }]
   }
 
-  shrink(initial: FluentPick<number>): Arbitrary<number> | NoArbitrary {
+  shrink(initial: FluentPick<number>): Arbitrary<number> {
     if (initial.value > 0) {
       const lower = Math.max(0, this.min)
       const upper = Math.max(lower, initial.value - 1)
@@ -284,7 +284,7 @@ class MappedArbitrary<A, B> extends Arbitrary<B> {
 
   cornerCases() { return this.baseArbitrary.cornerCases().map(p => this.mapFluentPick(p)) }
 
-  shrink(initial: FluentPick<B>): MappedArbitrary<A, B> | NoArbitrary {
+  shrink(initial: FluentPick<B>): Arbitrary<B> {
     return new MappedArbitrary(this.baseArbitrary.shrink({ original: initial.original, value: initial.original }), this.f)
   }
 }
@@ -327,7 +327,7 @@ class FilteredArbitrary<A> extends WrappedArbitrary<A> {
 
 class ArbitraryBoolean extends MappedArbitrary<number, boolean> {
   constructor() { super(new ArbitraryInteger(0, 1), x => x === 0) }
-  shrink(_: FluentPick<boolean>) { return new NoArbitrary() }
+  shrink(_: FluentPick<boolean>): Arbitrary<boolean> { return new NoArbitrary() }
 }
 
 // -----------------------------
