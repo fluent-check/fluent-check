@@ -94,13 +94,12 @@ class ArbitraryArray<A> extends Arbitrary<A[]> {
   }
 
   shrink(initial: FluentPick<A[]>) {
-    //        if (this.min === initial.length)
-    //            return new ArbitraryArray(this.arbitrary.shrink(
-    //                initial.reduce((x,y) => (x > y) ? x : y)), this.min, initial.length)
-
     if (this.min === initial.value.length) return new NoArbitrary()
-    if (this.min > (this.min + initial.value.length) / 2) return new NoArbitrary()
-    return new ArbitraryArray(this.arbitrary, this.min, (this.min + initial.value.length) / 2)
+
+    return new ArbitraryComposite([
+      new ArbitraryArray(this.arbitrary, this.min, (this.min + initial.value.length) / 2),
+      new ArbitraryArray(this.arbitrary, (this.min + initial.value.length) / 2 + 1, initial.value.length - 1)
+    ])
   }
 
   canGenerate(pick: FluentPick<A[]>) {
