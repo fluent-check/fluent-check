@@ -1,14 +1,14 @@
 import { BetaDistribution } from './statistics'
 
 export type FluentPick<V> = {
-    original?: any
-    value?: V
+  original?: any
+  value?: V
 }
 
 export type ArbitrarySize = {
-    value: number
-    type: 'exact' | 'estimated'
-    credibleInterval?: [number, number]
+  value: number
+  type: 'exact' | 'estimated'
+  credibleInterval?: [number, number]
 }
 
 const NilArbitrarySize: ArbitrarySize = { value: 0, type: 'exact' }
@@ -56,11 +56,11 @@ export abstract class Arbitrary<A> {
     return sample
   }
 
-  shrink(_initial: FluentPick<A>): Arbitrary<A> | NoArbitrary {
-    return new NoArbitrary()
+  shrink(_initial: FluentPick<A>): Arbitrary<A> {
+    return NoArbitrary
   }
 
-  map<B>(f: (a: A) => B): MappedArbitrary<A, B> { return new MappedArbitrary(this, f) }
+  map<B>(f: (a: A) => B) { return new MappedArbitrary(this, f) }
   filter(f: (a: A) => boolean) { return new FilteredArbitrary<A>(this, f) }
   unique() { return new UniqueArbitrary(this) }
 }
@@ -69,11 +69,11 @@ export abstract class Arbitrary<A> {
 // ---- Special Arbitraries ----
 // -----------------------------
 
-class NoArbitrary extends Arbitrary<undefined> {
+const NoArbitrary: Arbitrary<never> = new class extends Arbitrary<never> {
   size(): ArbitrarySize { return { value: 0, type: 'exact' } }
   sampleWithBias(_ = 0) { return [] }
   sample(_ = 0) { return [] }
-}
+}()
 
 class ArbitraryArray<A> extends Arbitrary<A[]> {
   constructor(public arbitrary: Arbitrary<A>, public min = 0, public max = 10) {
@@ -89,14 +89,14 @@ class ArbitraryArray<A> extends Arbitrary<A[]> {
     return ({ value: this.arbitrary.sampleWithBias(size).map(v => v.value) } as FluentPick<A[]>)
   }
 
-  shrink(initial: FluentPick<NonNullable<A[]>>) {
+  shrink(initial: FluentPick<A[]>): Arbitrary<A[]> {
     //        if (this.min === initial.length)
     //            return new ArbitraryArray(this.arbitrary.shrink(
     //                initial.reduce((x,y) => (x > y) ? x : y)), this.min, initial.length)
 
-    if (this.min === initial.value!.length) return new NoArbitrary()
-    if (this.min > (this.min + initial.value!.length) / 2) return new NoArbitrary()
-    return new ArbitraryArray(this.arbitrary, this.min, (this.min + initial.value!.length) / 2)
+    if (this.min === initial.value.length) return NoArbitrary
+    if (this.min > (this.min + initial.value.length) / 2) return NoArbitrary
+    return new ArbitraryArray(this.arbitrary, this.min, (this.min + initial.value.length) / 2)
   }
 }
 
@@ -124,8 +124,8 @@ class ArbitraryComposite<A> extends Arbitrary<A> {
     return cornerCases
   }
 
-  shrink(_initial: FluentPick<A>): Arbitrary<A> | NoArbitrary {
-    if (this.arbitraries.length === 1) return new NoArbitrary()
+  shrink(_initial: FluentPick<A>): Arbitrary<A> {
+    if (this.arbitraries.length === 1) return NoArbitrary
     if (this.arbitraries.length === 2) return this.arbitraries[0]
     return new ArbitraryComposite(this.arbitraries.slice(0, -1))
   }
@@ -161,9 +161,9 @@ class ArbitraryString extends Arbitrary<string> {
     return [{ value: this.pick(this.min).value }, { value: this.pick(this.max).value }]
   }
 
-  shrink(initial: FluentPick<string>) {
-    if (this.min > initial.value!.length - 1) return new NoArbitrary()
-    return new ArbitraryString(this.min, initial.value!.length - 1, this.chars)
+  shrink(initial: FluentPick<string>): Arbitrary<string> {
+    if (this.min > initial.value.length - 1) return NoArbitrary
+    return new ArbitraryString(this.min, initial.value.length - 1, this.chars)
   }
 }
 
@@ -184,13 +184,13 @@ class ArbitraryInteger extends Arbitrary<number> {
       [{ value: this.min }, { value: this.max }]
   }
 
-  shrink(initial: FluentPick<number>): Arbitrary<number> | NoArbitrary {
-    if (initial.value! > 0) {
+  shrink(initial: FluentPick<number>): Arbitrary<number> {
+    if (initial.value > 0) {
       const lower = Math.max(0, this.min)
       const upper = Math.max(lower, initial.value! - 1)
       const midpoint = Math.floor((upper + lower) / 2)
 
-      if (lower === upper) return new NoArbitrary()
+      if (lower === upper) return NoArbitrary
 
       return new ArbitraryComposite([new ArbitraryInteger(lower, midpoint - 1), new ArbitraryInteger(midpoint, upper)])
     } else if (initial.value! < 0) {
@@ -198,12 +198,12 @@ class ArbitraryInteger extends Arbitrary<number> {
       const lower = Math.min(upper, initial.value! + 1)
       const midpoint = Math.ceil((upper + lower) / 2)
 
-      if (lower === upper) return new NoArbitrary()
+      if (lower === upper) return NoArbitrary
 
       return new ArbitraryComposite([new ArbitraryInteger(midpoint, upper), new ArbitraryInteger(lower, midpoint - 1)])
     }
 
-    return new NoArbitrary()
+    return NoArbitrary
   }
 }
 
@@ -259,9 +259,9 @@ class UniqueArbitrary<A> extends WrappedArbitrary<A> {
     return result
   }
 
-  shrink(initial: FluentPick<A>): UniqueArbitrary<A> | NoArbitrary {
+  shrink(initial: FluentPick<A>) {
     const shrunk = this.baseArbitrary.shrink(initial)
-    return (shrunk instanceof NoArbitrary) ? shrunk : new UniqueArbitrary(shrunk)
+    return (shrunk === NoArbitrary) ? shrunk : new UniqueArbitrary(shrunk)
   }
 }
 
@@ -286,48 +286,41 @@ class MappedArbitrary<A, B> extends Arbitrary<B> {
 
   cornerCases() { return this.baseArbitrary.cornerCases().map(p => this.mapFluentPick(p)) }
 
-  shrink(initial: FluentPick<B>): MappedArbitrary<A, B> | NoArbitrary {
-    const shrunk = this.baseArbitrary.shrink({ original: initial.original, value: initial.original })
-    return (shrunk instanceof NoArbitrary) ? shrunk : new MappedArbitrary(shrunk, this.f)
+  shrink(initial: FluentPick<B>): Arbitrary<B> {
+    return new MappedArbitrary(this.baseArbitrary.shrink({ original: initial.original, value: initial.original }), this.f)
   }
 }
 
 class FilteredArbitrary<A> extends WrappedArbitrary<A> {
-    sizeEstimation: BetaDistribution
+  sizeEstimation: BetaDistribution
 
-    constructor(readonly baseArbitrary: Arbitrary<A>, public readonly f: (a: A) => boolean) {
-      super(baseArbitrary)
-      this.sizeEstimation = new BetaDistribution(2, 1) // use 1,1 for .mean instead of .mode in point estimation
-    }
+  constructor(readonly baseArbitrary: Arbitrary<A>, public readonly f: (a: A) => boolean) {
+    super(baseArbitrary)
+    this.sizeEstimation = new BetaDistribution(2, 1) // use 1,1 for .mean instead of .mode in point estimation
+  }
 
-    size() {
-      // TODO: Still not sure if we should use mode or mean for estimating the size (depends on which error we are trying to minimize, L1 or L2)
-      // Also, this assumes we estimate a continuous interval between 0 and 1;
-      // We could try to change this to a beta-binomial distribution, which would provide us a discrete approach
-      // for when we know the exact base population size.
-      return this.baseArbitrary.mapArbitrarySize(v =>
-        ({ type: 'estimated',
-          value: Math.round(v * this.sizeEstimation.mode()),
-          credibleInterval: [v * this.sizeEstimation.inv(lowerCredibleInterval), v * this.sizeEstimation.inv(upperCredibleInterval)] }))
-    }
+  size() {
+    // TODO: Still not sure if we should use mode or mean for estimating the size (depends on which error we are trying to minimize, L1 or L2)
+    // Also, this assumes we estimate a continuous interval between 0 and 1;
+    // We could try to change this to a beta-binomial distribution, which would provide us a discrete approach
+    // for when we know the exact base population size.
+    return this.baseArbitrary.mapArbitrarySize(v =>
+      ({ type: 'estimated',
+        value: Math.round(v * this.sizeEstimation.mode()),
+        credibleInterval: [v * this.sizeEstimation.inv(lowerCredibleInterval), v * this.sizeEstimation.inv(upperCredibleInterval)] }))
+  }
 
-    pick(): FluentPick<A> {
-      do {
-        const pick = this.baseArbitrary.pick()
-        if (this.f(pick.value!)) { this.sizeEstimation.update(1, 0); return pick }
-        this.sizeEstimation.update(0, 1)
-      } while (this.baseArbitrary.size().value * this.sizeEstimation.inv(upperCredibleInterval) >= 1) // If we have a pretty good confidence that the size < 1, we stop trying
+  pick(): FluentPick<A> {
+    do {
+      const pick = this.baseArbitrary.pick()
+      if (this.f(pick.value)) { this.sizeEstimation.update(1, 0); return pick }
+      this.sizeEstimation.update(0, 1)
+    } while (this.baseArbitrary.size().value * this.sizeEstimation.inv(upperCredibleInterval) >= 1) // If we have a pretty good confidence that the size < 1, we stop trying
 
-      return ({ value: undefined })
-    }
+    return ({ value: undefined })
+  }
 
-    cornerCases() { return this.baseArbitrary.cornerCases().filter(a => this.f(a.value!)) }
-
-    shrink(initialValue: FluentPick<A>) {
-      if (!this.f(initialValue.value!)) return new NoArbitrary
-      const shrunk = this.baseArbitrary.shrink(initialValue)
-      return (shrunk instanceof NoArbitrary) ? shrunk : new FilteredArbitrary(shrunk, this.f)
-    }
+  cornerCases() { return this.baseArbitrary.cornerCases().filter(this.f) }
 }
 
 // -----------------------------
@@ -336,7 +329,7 @@ class FilteredArbitrary<A> extends WrappedArbitrary<A> {
 
 class ArbitraryBoolean extends MappedArbitrary<number, boolean> {
   constructor() { super(new ArbitraryInteger(0, 1), x => x === 0) }
-  shrink(_: FluentPick<boolean>) { return new NoArbitrary() }
+  shrink(_: FluentPick<boolean>): Arbitrary<boolean> { return NoArbitrary }
 }
 
 // -----------------------------
