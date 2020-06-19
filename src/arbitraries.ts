@@ -381,7 +381,11 @@ class ArbitraryBoolean extends MappedArbitrary<number, boolean> {
 export const integer = (min = Number.MIN_SAFE_INTEGER, max = Number.MAX_SAFE_INTEGER) => new ArbitraryInteger(min, max)
 export const real    = (min = Number.MIN_SAFE_INTEGER, max = Number.MAX_SAFE_INTEGER) => new ArbitraryReal(min, max)
 export const nat     = (min = 0, max = Number.MAX_SAFE_INTEGER) => new ArbitraryInteger(min, max)
-export const string  = (min = 2, max = 10, chars = 'abcdefghijklmnopqrstuvwxyz') => new ArbitraryString(min, max, chars)
+//export const string  = (min = 2, max = 10, chars = 'abcdefghijklmnopqrstuvwxyz') => new ArbitraryString(min, max, chars)
 export const array   = <A>(arbitrary: Arbitrary<A>, min = 0, max = 10) => new ArbitraryArray(arbitrary, min, max)
 export const union   = <A>(...arbitraries: Arbitrary<A>[]) => new ArbitraryComposite(arbitraries)
 export const boolean = () => new ArbitraryBoolean()
+
+
+export const string  = (min = 2, max = 10, chars = 'abcdefghijklmnopqrstuvwxyz') =>
+  new ArbitraryArray(integer(chars.charCodeAt(0), chars.charCodeAt(chars.length - 1)).map(c => String.fromCharCode(c)), min, max).map(chs => chs.join(''))

@@ -159,7 +159,7 @@ describe('Arbitrary tests', () => {
     })
 
     it('knows if it can generate a string', () => {
-      expect(fc.string(1, 4, 'abcd').canGenerate({ value: 'a' })).to.be.true
+      expect(fc.string(1, 4, 'abcd').canGenerate({ value: 'a', original: ['a']})).to.be.true
       expect(fc.string(1, 4, 'abcd').canGenerate({ value: 'abcd' })).to.be.true
       expect(fc.string(1, 4, 'bcd').canGenerate({ value: 'a' })).to.be.false
       expect(fc.string(1, 2, 'abcd').canGenerate({ value: 'abc' })).to.be.false
