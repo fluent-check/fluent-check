@@ -272,16 +272,19 @@ class UniqueArbitrary<A> extends WrappedArbitrary<A> {
   }
 
   sample(sampleSize = 10): FluentPick<A>[] {
-    const result = new Array<FluentPick<A>>()
+    // TODO: Here lies dragons! If you see start seeing things in double when
+    // using this arbitrary, consider the culprit might lie in the way Map
+    // deals with keys and equality
+    const result = new Map<A, FluentPick<A>>()
 
     let bagSize = sampleSize
-    while (result.length < bagSize) {
+    while (result.size < bagSize) {
       const r = this.pick()
-      if (!result.some(v => v.value === r.value)) result.push(r)
+      if (!result.has(r.value)) result.set(r.value, r)
       bagSize = Math.min(sampleSize, this.size().value)
     }
 
-    return result
+    return Array.from(result.values())
   }
 
   shrink(initial: FluentPick<A>) {
