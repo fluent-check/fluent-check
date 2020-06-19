@@ -60,6 +60,10 @@ export abstract class Arbitrary<A> {
     return NoArbitrary
   }
 
+  canGenerate(_: FluentPick<A>): boolean {
+    return false
+  }
+
   map<B>(f: (a: A) => B) { return new MappedArbitrary(this, f) }
   filter(f: (a: A) => boolean) { return new FilteredArbitrary<A>(this, f) }
   unique() { return new UniqueArbitrary(this) }
@@ -98,6 +102,11 @@ class ArbitraryArray<A> extends Arbitrary<A[]> {
     if (this.min > (this.min + initial.value.length) / 2) return NoArbitrary
     return new ArbitraryArray(this.arbitrary, this.min, (this.min + initial.value.length) / 2)
   }
+
+  canGenerate(pick: FluentPick<A[]>) {
+    return pick.value.length >= this.min && pick.value.length <= this.max &&
+           pick.value.reduce((r, v) => r && this.arbitrary.canGenerate({ value: v }), true)
+  }
 }
 
 class ArbitraryComposite<A> extends Arbitrary<A> {
@@ -124,10 +133,17 @@ class ArbitraryComposite<A> extends Arbitrary<A> {
     return cornerCases
   }
 
-  shrink(_initial: FluentPick<A>): Arbitrary<A> {
-    if (this.arbitraries.length === 1) return NoArbitrary
-    if (this.arbitraries.length === 2) return this.arbitraries[0]
-    return new ArbitraryComposite(this.arbitraries.slice(0, -1))
+  shrink(initial: FluentPick<A>) {
+    const arbitraries = this.arbitraries.filter(a => a.canGenerate(initial))
+
+    if (arbitraries.length === 0) return NoArbitrary
+    if (arbitraries.length === 1) return arbitraries[0].shrink(initial)
+
+    return new ArbitraryComposite(arbitraries)
+  }
+
+  canGenerate(pick: FluentPick<A>) {
+    return this.arbitraries.some(a => a.canGenerate(pick))
   }
 }
 
@@ -164,6 +180,11 @@ class ArbitraryString extends Arbitrary<string> {
   shrink(initial: FluentPick<string>): Arbitrary<string> {
     if (this.min > initial.value.length - 1) return NoArbitrary
     return new ArbitraryString(this.min, initial.value.length - 1, this.chars)
+  }
+
+  canGenerate(pick: FluentPick<string>) {
+    return pick.value.length >= this.min && pick.value.length <= this.max &&
+    pick.value.split('').every(c => this.chars.indexOf(c) >= 0)
   }
 }
 
@@ -205,6 +226,10 @@ class ArbitraryInteger extends Arbitrary<number> {
 
     return NoArbitrary
   }
+
+  canGenerate(pick: FluentPick<number>) {
+    return pick.value >= this.min && pick.value <= this.max
+  }
 }
 
 class ArbitraryReal extends ArbitraryInteger {
@@ -227,6 +252,10 @@ class WrappedArbitrary<A> extends Arbitrary<A> {
   pick() { return this.baseArbitrary.pick() }
   size() { return this.baseArbitrary.size() }
   cornerCases() { return this.baseArbitrary.cornerCases() }
+
+  canGenerate(pick: FluentPick<A>) {
+    return this.baseArbitrary.canGenerate(pick)
+  }
 }
 
 class _ChainedArbitrary<A, B> extends Arbitrary<B> {
@@ -289,6 +318,10 @@ class MappedArbitrary<A, B> extends Arbitrary<B> {
   shrink(initial: FluentPick<B>): Arbitrary<B> {
     return new MappedArbitrary(this.baseArbitrary.shrink({ original: initial.original, value: initial.original }), this.f)
   }
+
+  canGenerate(pick: FluentPick<B>) {
+    return this.baseArbitrary.canGenerate({ value: pick.original }) && pick.value === this.f(pick.original)
+  }
 }
 
 class FilteredArbitrary<A> extends WrappedArbitrary<A> {
@@ -320,7 +353,14 @@ class FilteredArbitrary<A> extends WrappedArbitrary<A> {
     return ({ value: undefined })
   }
 
-  cornerCases() { return this.baseArbitrary.cornerCases().filter(this.f) }
+  shrink(initialValue: FluentPick<A>) {
+    if (!this.f(initialValue.value)) return NoArbitrary
+    return new FilteredArbitrary(this.baseArbitrary.shrink(initialValue), this.f)
+  }
+
+  canGenerate(pick: FluentPick<A>) {
+    return this.baseArbitrary.canGenerate({ value: pick.value }) && this.f(pick.value)
+  }
 }
 
 // -----------------------------
@@ -329,7 +369,8 @@ class FilteredArbitrary<A> extends WrappedArbitrary<A> {
 
 class ArbitraryBoolean extends MappedArbitrary<number, boolean> {
   constructor() { super(new ArbitraryInteger(0, 1), x => x === 0) }
-  shrink(_: FluentPick<boolean>): Arbitrary<boolean> { return NoArbitrary }
+  shrink(_: FluentPick<boolean>) { return NoArbitrary }
+  canGenerate(pick: FluentPick<boolean>) { return pick.value !== undefined}
 }
 
 // -----------------------------

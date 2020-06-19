@@ -58,10 +58,10 @@ describe('Integer tests', () => {
 
   it('finds two elements such that a % 11 == 0', () => {
     expect(new FluentCheck()
-      .exists('a', fc.integer(0, 1000).filter(a => a !== 0))
-      .then(({ a }) => a % 11 === 0)
+      .exists('a', fc.integer(0, 1000000))
+      .then(({ a }) => a % 11 === 0 && a > 90000 && a < 90010)
       .check()
-    ).to.deep.include({ satisfiable: true, example: { a: 11 } })
+    ).to.deep.include({ satisfiable: true, example: { a: 90002 } })
   })
 
   it('finds that adding 1000 makes any number larger and shrinks the example', () => {
