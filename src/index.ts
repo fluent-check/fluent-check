@@ -112,7 +112,7 @@ class FluentCheckUniversal<A> extends FluentCheck {
     this.cache = this.dedup.sampleWithBias(1000)
   }
 
-  protected run(testCase: TestCase, callback: (arg: TestCase) => FluentResult, partial: FluentResult = undefined): FluentResult {
+  protected run(testCase: TestCase, callback: (arg: TestCase) => FluentResult, partial: FluentResult | undefined  = undefined): FluentResult {
     const example = partial || new FluentResult(true)
     const collection = partial === undefined ? this.cache : this.dedup.shrink(partial.example[this.name]).sampleWithBias(1000)
 
@@ -139,7 +139,7 @@ class FluentCheckExistential<A> extends FluentCheck {
     this.cache = this.dedup.sampleWithBias(1000)
   }
 
-  protected run(testCase: TestCase, callback: (arg: TestCase) => FluentResult, partial: FluentResult = undefined): FluentResult {
+  protected run(testCase: TestCase, callback: (arg: TestCase) => FluentResult, partial: FluentResult | undefined  = undefined): FluentResult {
     const example = partial || new FluentResult(false)
     const collection = partial === undefined ? this.cache : this.dedup.shrink(partial.example[this.name]).sampleWithBias(1000)
 
@@ -171,7 +171,7 @@ class FluentCheckAssert extends FluentCheck {
   }
 
   private runPreliminaries(testCase: TestCase) {
-    const data = { }
+    const data: TestCase = { }
 
     this.preliminaries.forEach(node => {
       if (node instanceof FluentCheckGivenMutable) data[node.name] = node.factory({ ...testCase, ...data })
