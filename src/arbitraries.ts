@@ -137,9 +137,8 @@ class ArbitraryComposite<A> extends Arbitrary<A> {
     const arbitraries = this.arbitraries.filter(a => a.canGenerate(initial))
 
     if (arbitraries.length === 0) return NoArbitrary
-    if (arbitraries.length === 1) return arbitraries[0].shrink(initial)
 
-    return new ArbitraryComposite(arbitraries)
+    return new ArbitraryComposite(arbitraries.map(a => a.shrink(initial)))
   }
 
   canGenerate(pick: FluentPick<A>) {
