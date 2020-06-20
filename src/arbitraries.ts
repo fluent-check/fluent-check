@@ -91,7 +91,8 @@ class ArbitraryArray<A> extends Arbitrary<A[]> {
   pick(): FluentPick<A[]> {
     const size = Math.floor(Math.random() * (this.max - this.min + 1)) + this.min
     const fpa = this.arbitrary.sampleWithBias(size)
-    return { value: fpa.map(v => v.value), original: fpa.map(v => v.original) }
+    if (fpa.every(f => f.original === undefined)) return { value: fpa.map(v => v.value) }
+    return { value: fpa.map(v => v.value) , original: fpa.map(v => v.original) }
   }
 
   shrink(initial: FluentPick<A[]>) {
@@ -149,43 +150,6 @@ class ArbitraryComposite<A> extends Arbitrary<A> {
 // -----------------------------
 // --- Primitive Arbitraries ---
 // -----------------------------
-
-class ArbitraryString extends Arbitrary<string> {
-  constructor(public readonly min = 2, public readonly max = 10, public readonly chars = 'abcdefghijklmnopqrstuvwxyz') {
-    super()
-    this.min = min
-    this.max = max
-  }
-
-  size(): ArbitrarySize {
-    const chars = this.chars.length
-    const max = this.max
-    const min = this.min
-    const value = (chars === 1) ? (max - min + 1) : ((chars ** (max + 1)) / (chars - 1)) - chars ** min / (chars - 1)
-
-    return { value, type: 'exact' }
-  }
-
-  pick(size = Math.floor(Math.random() * (Math.max(0, this.max - this.min) + 1)) + this.min) {
-    let string = ''
-    for (let i = 0; i < size; i++) string += this.chars[Math.floor(Math.random() * this.chars.length)]
-    return { value : string }
-  }
-
-  cornerCases() {
-    return [{ value: this.pick(this.min).value }, { value: this.pick(this.max).value }]
-  }
-
-  shrink(initial: FluentPick<string>): Arbitrary<string> {
-    if (this.min > initial.value.length - 1) return NoArbitrary
-    return new ArbitraryString(this.min, initial.value.length - 1, this.chars)
-  }
-
-  canGenerate(pick: FluentPick<string>) {
-    return pick.value.length >= this.min && pick.value.length <= this.max &&
-    pick.value.split('').every(c => this.chars.indexOf(c) >= 0)
-  }
-}
 
 class ArbitraryInteger extends Arbitrary<number> {
   constructor(public min = Number.MIN_SAFE_INTEGER, public max = Number.MAX_SAFE_INTEGER) {
@@ -255,15 +219,6 @@ class WrappedArbitrary<A> extends Arbitrary<A> {
   canGenerate(pick: FluentPick<A>) {
     return this.baseArbitrary.canGenerate(pick)
   }
-}
-
-class _ChainedArbitrary<A, B> extends Arbitrary<B> {
-  constructor(public readonly baseArbitrary: NonNullable<Arbitrary<A>>, public readonly f: (a: A) => Arbitrary<B>) {
-    super()
-  }
-
-  pick() { return this.f(this.baseArbitrary.pick().value!).pick() }
-  size() { return this.baseArbitrary.size() }
 }
 
 class UniqueArbitrary<A> extends WrappedArbitrary<A> {
@@ -374,6 +329,18 @@ class ArbitraryBoolean extends MappedArbitrary<number, boolean> {
   canGenerate(pick: FluentPick<boolean>) { return pick.value !== undefined}
 }
 
+class ArbitraryString extends MappedArbitrary<number[], string> {
+  constructor(public readonly min = 2, public readonly max = 10, public readonly chars = 'abcdefghijklmnopqrstuvwxyz') { 
+    super(new ArbitraryArray(new ArbitraryInteger(0, chars.length - 1), min, max), a => a.map(n => this.chars[n]).join(''))
+  }
+
+  canGenerate(pick: FluentPick<string>) {
+    return this.baseArbitrary.canGenerate({
+      original: pick.value.split('').map(c => this.chars.indexOf(c)),
+      value:    pick.value.split('').map(c => this.chars.indexOf(c)) })
+  }
+}
+
 // -----------------------------
 // ----- Arbitrary Builders ----
 // -----------------------------
@@ -381,10 +348,7 @@ class ArbitraryBoolean extends MappedArbitrary<number, boolean> {
 export const integer = (min = Number.MIN_SAFE_INTEGER, max = Number.MAX_SAFE_INTEGER) => new ArbitraryInteger(min, max)
 export const real    = (min = Number.MIN_SAFE_INTEGER, max = Number.MAX_SAFE_INTEGER) => new ArbitraryReal(min, max)
 export const nat     = (min = 0, max = Number.MAX_SAFE_INTEGER) => new ArbitraryInteger(min, max)
-//export const string  = (min = 2, max = 10, chars = 'abcdefghijklmnopqrstuvwxyz') => new ArbitraryString(min, max, chars)
+export const string  = (min = 2, max = 10, chars = 'abcdefghijklmnopqrstuvwxyz') => new ArbitraryString(min, max, chars)
 export const array   = <A>(arbitrary: Arbitrary<A>, min = 0, max = 10) => new ArbitraryArray(arbitrary, min, max)
 export const union   = <A>(...arbitraries: Arbitrary<A>[]) => new ArbitraryComposite(arbitraries)
 export const boolean = () => new ArbitraryBoolean()
-
-export const string  = (min = 2, max = 10, chars = 'abcdefghijklmnopqrstuvwxyz') =>
-  new ArbitraryArray(integer(chars.charCodeAt(0), chars.charCodeAt(chars.length - 1)).map(c => String.fromCharCode(c)), min, max).map(chs => chs.join(''))

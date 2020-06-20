@@ -182,6 +182,14 @@ describe('Arbitrary tests', () => {
       expect(fc.boolean().canGenerate({ value: undefined })).to.be.false
     })
 
+    it('knows it can generate a string', () => {
+      expect(fc.string(2, 4, 'abcdefghijklmnopqrstuvwxyz0123456789').canGenerate({ value: 'abcd' })).to.be.true
+      expect(fc.string(2, 4, 'abcdefghijklmnopqrstuvwxyz0123456789').canGenerate({ value: '12' })).to.be.true
+      expect(fc.string(2, 4, 'abcdefghijklmnopqrstuvwxyz0123456789').canGenerate({ value: 'ab12' })).to.be.true
+      expect(fc.string(2, 4, 'abcdefghijklmnopqrstuvwxyz0123456789').canGenerate({ value: 'AB12' })).to.be.false
+      expect(fc.string(2, 4, 'abcdefghijklmnopqrstuvwxyz0123456789').canGenerate({ value: 'abcde' })).to.be.false
+    })
+
     it('knows if it can generate an array', () => {
       expect(fc.array(fc.integer(1, 10), 1, 10).canGenerate({ value: [1, 2, 3], original: [1, 2, 3] })).to.be.true
       expect(fc.array(fc.integer(1, 10), 1, 10).canGenerate({ value: [1, 2, 30], original: [1, 2, 30] })).to.be.false
