@@ -105,7 +105,7 @@ class ArbitraryArray<A> extends Arbitrary<A[]> {
 
   canGenerate(pick: FluentPick<A[]>) {
     return pick.value.length >= this.min && pick.value.length <= this.max &&
-           pick.value.reduce((r, v, i) => r && this.arbitrary.canGenerate({ value: v, original: pick.original[i] }), true)
+           pick.value.every((v, i) => this.arbitrary.canGenerate({ value: v, original: pick.original[i] }))
   }
 }
 
