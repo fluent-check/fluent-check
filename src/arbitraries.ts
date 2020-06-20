@@ -88,23 +88,24 @@ class ArbitraryArray<A> extends Arbitrary<A[]> {
     return this.arbitrary.mapArbitrarySize(v => ({ value: v ** (this.max - this.min), type: 'exact' }))
   }
 
-  pick() {
+  pick(): FluentPick<A[]> {
     const size = Math.floor(Math.random() * (this.max - this.min + 1)) + this.min
-    return ({ value: this.arbitrary.sampleWithBias(size).map(v => v.value) } as FluentPick<A[]>)
+    const fpa = this.arbitrary.sampleWithBias(size)
+    return { value: fpa.map(v => v.value), original: fpa.map(v => v.original) }
   }
 
   shrink(initial: FluentPick<A[]>) {
     if (this.min === initial.value.length) return NoArbitrary
 
     return new ArbitraryComposite([
-      new ArbitraryArray(this.arbitrary, this.min, (this.min + initial.value.length) / 2),
-      new ArbitraryArray(this.arbitrary, (this.min + initial.value.length) / 2 + 1, initial.value.length - 1)
+      new ArbitraryArray(this.arbitrary, this.min, Math.floor((this.min + initial.value.length) / 2)),
+      new ArbitraryArray(this.arbitrary, Math.floor((this.min + initial.value.length) / 2) + 1, initial.value.length - 1)
     ])
   }
 
   canGenerate(pick: FluentPick<A[]>) {
     return pick.value.length >= this.min && pick.value.length <= this.max &&
-           pick.value.reduce((r, v) => r && this.arbitrary.canGenerate({ value: v }), true)
+           pick.value.reduce((r, v, i) => r && this.arbitrary.canGenerate({ value: v, original: pick.original[i] }), true)
   }
 }
 
@@ -319,7 +320,7 @@ class MappedArbitrary<A, B> extends Arbitrary<B> {
   }
 
   canGenerate(pick: FluentPick<B>) {
-    return this.baseArbitrary.canGenerate({ value: pick.original }) && pick.value === this.f(pick.original)
+    return this.baseArbitrary.canGenerate({ value: pick.original, original: pick.original }) /* && pick.value === this.f(pick.original) */
   }
 }
 
@@ -360,7 +361,7 @@ class FilteredArbitrary<A> extends WrappedArbitrary<A> {
   }
 
   canGenerate(pick: FluentPick<A>) {
-    return this.baseArbitrary.canGenerate({ value: pick.value }) && this.f(pick.value)
+    return this.baseArbitrary.canGenerate(pick) /* && this.f(pick.value) */
   }
 }
 
@@ -385,7 +386,6 @@ export const nat     = (min = 0, max = Number.MAX_SAFE_INTEGER) => new Arbitrary
 export const array   = <A>(arbitrary: Arbitrary<A>, min = 0, max = 10) => new ArbitraryArray(arbitrary, min, max)
 export const union   = <A>(...arbitraries: Arbitrary<A>[]) => new ArbitraryComposite(arbitraries)
 export const boolean = () => new ArbitraryBoolean()
-
 
 export const string  = (min = 2, max = 10, chars = 'abcdefghijklmnopqrstuvwxyz') =>
   new ArbitraryArray(integer(chars.charCodeAt(0), chars.charCodeAt(chars.length - 1)).map(c => String.fromCharCode(c)), min, max).map(chs => chs.join(''))
