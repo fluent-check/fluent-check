@@ -73,10 +73,13 @@ export abstract class Arbitrary<A> {
 // ---- Special Arbitraries ----
 // -----------------------------
 
-const NoArbitrary: Arbitrary<never> = new class extends Arbitrary<never> {
+export const NoArbitrary: Arbitrary<never> = new class extends Arbitrary<never> {
   size(): ArbitrarySize { return { value: 0, type: 'exact' } }
   sampleWithBias(_ = 0) { return [] }
   sample(_ = 0) { return [] }
+  map(_: (a: never) => any) { return NoArbitrary }
+  filter(_: (a: never) => boolean) { return NoArbitrary }
+  unique() { return NoArbitrary }
 }()
 
 class ArbitraryArray<A> extends Arbitrary<A[]> {
@@ -288,8 +291,7 @@ class UniqueArbitrary<A> extends WrappedArbitrary<A> {
   }
 
   shrink(initial: FluentPick<A>) {
-    const shrunk = this.baseArbitrary.shrink(initial)
-    return (shrunk === NoArbitrary) ? shrunk : new UniqueArbitrary(shrunk)
+    return this.baseArbitrary.shrink(initial).unique()
   }
 }
 
@@ -315,7 +317,7 @@ class MappedArbitrary<A, B> extends Arbitrary<B> {
   cornerCases() { return this.baseArbitrary.cornerCases().map(p => this.mapFluentPick(p)) }
 
   shrink(initial: FluentPick<B>): Arbitrary<B> {
-    return new MappedArbitrary(this.baseArbitrary.shrink({ original: initial.original, value: initial.original }), this.f)
+    return this.baseArbitrary.shrink({ original: initial.original, value: initial.original }).map(v => this.f(v))
   }
 
   canGenerate(pick: FluentPick<B>) {
@@ -356,7 +358,7 @@ class FilteredArbitrary<A> extends WrappedArbitrary<A> {
 
   shrink(initialValue: FluentPick<A>) {
     if (!this.f(initialValue.value)) return NoArbitrary
-    return new FilteredArbitrary(this.baseArbitrary.shrink(initialValue), this.f)
+    return this.baseArbitrary.shrink(initialValue).filter(v => this.f(v))
   }
 
   canGenerate(pick: FluentPick<A>) {
@@ -385,6 +387,5 @@ export const nat     = (min = 0, max = Number.MAX_SAFE_INTEGER) => new Arbitrary
 export const array   = <A>(arbitrary: Arbitrary<A>, min = 0, max = 10) => new ArbitraryArray(arbitrary, min, max)
 export const union   = <A>(...arbitraries: Arbitrary<A>[]) => new ArbitraryComposite(arbitraries)
 export const boolean = () => new ArbitraryBoolean()
-
 export const string  = (min = 2, max = 10, chars = 'abcdefghijklmnopqrstuvwxyz') =>
   new ArbitraryArray(integer(chars.charCodeAt(0), chars.charCodeAt(chars.length - 1)).map(c => String.fromCharCode(c)), min, max).map(chs => chs.join(''))
