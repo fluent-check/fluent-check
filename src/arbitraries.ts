@@ -330,7 +330,7 @@ class ArbitraryBoolean extends MappedArbitrary<number, boolean> {
 }
 
 class ArbitraryString extends MappedArbitrary<number[], string> {
-  constructor(public readonly min = 2, public readonly max = 10, public readonly chars = 'abcdefghijklmnopqrstuvwxyz') { 
+  constructor(public readonly min = 2, public readonly max = 10, public readonly chars = 'abcdefghijklmnopqrstuvwxyz') {
     super(new ArbitraryArray(new ArbitraryInteger(0, chars.length - 1), min, max), a => a.map(n => this.chars[n]).join(''))
   }
 
