@@ -88,23 +88,24 @@ class ArbitraryArray<A> extends Arbitrary<A[]> {
     return this.arbitrary.mapArbitrarySize(v => ({ value: v ** (this.max - this.min), type: 'exact' }))
   }
 
-  pick() {
+  pick(): FluentPick<A[]> {
     const size = Math.floor(Math.random() * (this.max - this.min + 1)) + this.min
-    return ({ value: this.arbitrary.sampleWithBias(size).map(v => v.value) } as FluentPick<A[]>)
+    const fpa = this.arbitrary.sampleWithBias(size)
+    return { value: fpa.map(v => v.value), original: fpa.map(v => v.original) }
   }
 
   shrink(initial: FluentPick<A[]>) {
     if (this.min === initial.value.length) return NoArbitrary
 
     return new ArbitraryComposite([
-      new ArbitraryArray(this.arbitrary, this.min, (this.min + initial.value.length) / 2),
-      new ArbitraryArray(this.arbitrary, (this.min + initial.value.length) / 2 + 1, initial.value.length - 1)
+      new ArbitraryArray(this.arbitrary, this.min, Math.floor((this.min + initial.value.length) / 2)),
+      new ArbitraryArray(this.arbitrary, Math.floor((this.min + initial.value.length) / 2) + 1, initial.value.length - 1)
     ])
   }
 
   canGenerate(pick: FluentPick<A[]>) {
     return pick.value.length >= this.min && pick.value.length <= this.max &&
-           pick.value.reduce((r, v) => r && this.arbitrary.canGenerate({ value: v }), true)
+           pick.value.every((v, i) => this.arbitrary.canGenerate({ value: v, original: pick.original[i] }))
   }
 }
 
@@ -136,9 +137,8 @@ class ArbitraryComposite<A> extends Arbitrary<A> {
     const arbitraries = this.arbitraries.filter(a => a.canGenerate(initial))
 
     if (arbitraries.length === 0) return NoArbitrary
-    if (arbitraries.length === 1) return arbitraries[0].shrink(initial)
 
-    return new ArbitraryComposite(arbitraries)
+    return new ArbitraryComposite(arbitraries.map(a => a.shrink(initial)))
   }
 
   canGenerate(pick: FluentPick<A>) {
@@ -272,19 +272,19 @@ class UniqueArbitrary<A> extends WrappedArbitrary<A> {
   }
 
   sample(sampleSize = 10): FluentPick<A>[] {
-    const result = new Array<FluentPick<A>>()
-    const bagSize = Math.min(sampleSize, this.size().value)
+    // TODO: Here lies dragons! If you see start seeing things in double when
+    // using this arbitrary, consider the culprit might lie in the way Map
+    // deals with keys and equality
+    const result = new Map<A, FluentPick<A>>()
 
-    // This is needed to halt the sampling process in case the size() is ill-defined,
-    // such as what happens in FilteredArbitraries. This algorithm should be improved,
-    // as sometimes it is more efficiently to simply enumerate all possible cases
-    let tries = 0
-    while ((result.length < bagSize) && (tries < sampleSize * 10)) {
+    let bagSize = sampleSize
+    while (result.size < bagSize) {
       const r = this.pick()
-      if (!result.some(v => v.value === r.value)) result.push(r)
-      tries += 1
+      if (!result.has(r.value)) result.set(r.value, r)
+      bagSize = Math.min(sampleSize, this.size().value)
     }
-    return result
+
+    return Array.from(result.values())
   }
 
   shrink(initial: FluentPick<A>) {
@@ -319,7 +319,7 @@ class MappedArbitrary<A, B> extends Arbitrary<B> {
   }
 
   canGenerate(pick: FluentPick<B>) {
-    return this.baseArbitrary.canGenerate({ value: pick.original }) && pick.value === this.f(pick.original)
+    return this.baseArbitrary.canGenerate({ value: pick.original, original: pick.original }) /* && pick.value === this.f(pick.original) */
   }
 }
 
@@ -360,7 +360,7 @@ class FilteredArbitrary<A> extends WrappedArbitrary<A> {
   }
 
   canGenerate(pick: FluentPick<A>) {
-    return this.baseArbitrary.canGenerate({ value: pick.value }) && this.f(pick.value)
+    return this.baseArbitrary.canGenerate(pick) /* && this.f(pick.value) */
   }
 }
 
@@ -381,7 +381,10 @@ class ArbitraryBoolean extends MappedArbitrary<number, boolean> {
 export const integer = (min = Number.MIN_SAFE_INTEGER, max = Number.MAX_SAFE_INTEGER) => new ArbitraryInteger(min, max)
 export const real    = (min = Number.MIN_SAFE_INTEGER, max = Number.MAX_SAFE_INTEGER) => new ArbitraryReal(min, max)
 export const nat     = (min = 0, max = Number.MAX_SAFE_INTEGER) => new ArbitraryInteger(min, max)
-export const string  = (min = 2, max = 10, chars = 'abcdefghijklmnopqrstuvwxyz') => new ArbitraryString(min, max, chars)
+//export const string  = (min = 2, max = 10, chars = 'abcdefghijklmnopqrstuvwxyz') => new ArbitraryString(min, max, chars)
 export const array   = <A>(arbitrary: Arbitrary<A>, min = 0, max = 10) => new ArbitraryArray(arbitrary, min, max)
 export const union   = <A>(...arbitraries: Arbitrary<A>[]) => new ArbitraryComposite(arbitraries)
 export const boolean = () => new ArbitraryBoolean()
+
+export const string  = (min = 2, max = 10, chars = 'abcdefghijklmnopqrstuvwxyz') =>
+  new ArbitraryArray(integer(chars.charCodeAt(0), chars.charCodeAt(chars.length - 1)).map(c => String.fromCharCode(c)), min, max).map(chs => chs.join(''))
