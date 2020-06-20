@@ -221,18 +221,18 @@ describe('Arbitrary tests', () => {
 
   describe('No Arbitrary', () => {
     it('should return size == 0', () => {
-      expect(fc.NoArbitrary.size().value).to.eq(0)
+      expect(fc.empty().size().value).to.eq(0)
     })
 
     it('should return an empty sample', () => {
-      expect(fc.NoArbitrary.sample().length).to.eq(0)
-      expect(fc.NoArbitrary.sampleWithBias().length).to.eq(0)
+      expect(fc.empty().sample().length).to.eq(0)
+      expect(fc.empty().sampleWithBias().length).to.eq(0)
     })
 
     it('should remain no arbitrary when compose with unique, map, and filter', () => {
-      expect(fc.NoArbitrary.unique()).to.eq(fc.NoArbitrary)
-      expect(fc.NoArbitrary.map(a => a)).to.eq(fc.NoArbitrary)
-      expect(fc.NoArbitrary.filter(a => true)).to.eq(fc.NoArbitrary)
+      expect(fc.empty().unique()).to.eq(fc.empty())
+      expect(fc.empty().map(a => a)).to.eq(fc.empty())
+      expect(fc.empty().filter(a => true)).to.eq(fc.empty())
     })
   })
 })

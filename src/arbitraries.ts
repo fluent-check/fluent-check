@@ -73,7 +73,7 @@ export abstract class Arbitrary<A> {
 // ---- Special Arbitraries ----
 // -----------------------------
 
-export const NoArbitrary: Arbitrary<never> = new class extends Arbitrary<never> {
+const NoArbitrary: Arbitrary<never> = new class extends Arbitrary<never> {
   size(): ArbitrarySize { return { value: 0, type: 'exact' } }
   sampleWithBias(_ = 0) { return [] }
   sample(_ = 0) { return [] }
@@ -387,5 +387,6 @@ export const nat     = (min = 0, max = Number.MAX_SAFE_INTEGER) => new Arbitrary
 export const array   = <A>(arbitrary: Arbitrary<A>, min = 0, max = 10) => new ArbitraryArray(arbitrary, min, max)
 export const union   = <A>(...arbitraries: Arbitrary<A>[]) => new ArbitraryComposite(arbitraries)
 export const boolean = () => new ArbitraryBoolean()
+export const empty   = () => NoArbitrary
 export const string  = (min = 2, max = 10, chars = 'abcdefghijklmnopqrstuvwxyz') =>
   new ArbitraryArray(integer(chars.charCodeAt(0), chars.charCodeAt(chars.length - 1)).map(c => String.fromCharCode(c)), min, max).map(chs => chs.join(''))
