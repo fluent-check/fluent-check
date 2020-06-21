@@ -12,7 +12,7 @@ export abstract class Distribution {
 }
 
 /**
- * A discrete probability distribution where the support is a set of integer values.
+ * A discrete probability distribution where the support is a contiguous set of integers.
  */
 export abstract class IntegerDistribution extends Distribution {
   abstract supportMin(): number
