@@ -317,8 +317,8 @@ class FilteredArbitrary<A> extends WrappedArbitrary<A> {
     do {
       const pick = this.baseArbitrary.pick()
       if (!pick) break // TODO: update size estimation accordingly
-      if (this.f(pick.value)) { this.sizeEstimation.update(1, 0); return pick }
-      this.sizeEstimation.update(0, 1)
+      if (this.f(pick.value)) { this.sizeEstimation.alpha += 1; return pick }
+      this.sizeEstimation.beta += 1
     } while (this.baseArbitrary.size().value * this.sizeEstimation.inv(upperCredibleInterval) >= 1) // If we have a pretty good confidence that the size < 1, we stop trying
 
     return undefined
