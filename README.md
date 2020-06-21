@@ -38,9 +38,9 @@ Our currently todo list, prioritized by ICSE-readiness.
   - [ ] Collection
   - [ ] Composite
   - [ ] String
-- [ ] Unify arbitraries by deriving them
-    - [ ] Derive booleans from Integers
-    - [ ] Derive strings from Array of Integers
+- [X] Unify arbitraries by deriving them
+    - [X] Derive booleans from Integers
+    - [X] Derive strings from Array of Integers
 - [x] Corner cases
   - [ ] Are these _hints_? 
   - [ ] Provide API to receive custom corner cases

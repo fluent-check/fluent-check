@@ -144,7 +144,7 @@ describe('Arbitrary tests', () => {
       ).to.include.members([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
     })
 
-    it('should should be shrinkable and remain unique', () => {
+    it('should be shrinkable and remain unique', () => {
       expect(
         fc.integer(0, 10).unique().shrink({ value: 5 }).sample(5).map(v => v.value)
       ).to.include.members([0, 1, 2, 3, 4])
@@ -179,6 +179,14 @@ describe('Arbitrary tests', () => {
     it('knows if it can generate a boolean', () => {
       expect(fc.boolean().canGenerate({ value: true })).to.be.true
       expect(fc.boolean().canGenerate({ value: false })).to.be.true
+    })
+
+    it('knows it can generate a string', () => {
+      expect(fc.string(2, 4, 'abcdefghijklmnopqrstuvwxyz0123456789').canGenerate({ value: 'abcd' })).to.be.true
+      expect(fc.string(2, 4, 'abcdefghijklmnopqrstuvwxyz0123456789').canGenerate({ value: '12' })).to.be.true
+      expect(fc.string(2, 4, 'abcdefghijklmnopqrstuvwxyz0123456789').canGenerate({ value: 'ab12' })).to.be.true
+      expect(fc.string(2, 4, 'abcdefghijklmnopqrstuvwxyz0123456789').canGenerate({ value: 'AB12' })).to.be.false
+      expect(fc.string(2, 4, 'abcdefghijklmnopqrstuvwxyz0123456789').canGenerate({ value: 'abcde' })).to.be.false
     })
 
     it('knows if it can generate an array', () => {
