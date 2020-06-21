@@ -1,4 +1,5 @@
 import { FluentPick, Arbitrary } from './arbitraries'
+import { Test } from 'mocha'
 
 type TestCase    = { [k: string]: any }
 type FluentPicks = { [k: string]: FluentPick<any> }
@@ -34,7 +35,7 @@ export class FluentCheck<G extends TestCase, P extends TestCase> {
     return new FluentCheckExistential(this, name, a)
   }
 
-  then(f: (arg: TestCase) => boolean) {
+  then(f: (arg: G) => boolean): FluentCheckAssert<G, P> {
     return new FluentCheckAssert(this, f)
   }
 
@@ -160,14 +161,14 @@ class FluentCheckExistential<K extends string, A, P extends TestCase, G extends 
 class FluentCheckAssert<G extends TestCase, P extends TestCase> extends FluentCheck<G, P> {
   preliminaries: FluentCheck<any, any>[]
 
-  constructor(protected readonly parent: FluentCheck<P, any>, public readonly assertion: (args: TestCase) => boolean) {
+  constructor(protected readonly parent: FluentCheck<P, any>, public readonly assertion: (args: G) => boolean) {
     super(parent)
     this.preliminaries = this.pathFromRoot().filter(node =>
       (node instanceof FluentCheckGivenMutable) ||
       (node instanceof FluentCheckWhen))
   }
 
-  and(assertion: (args: TestCase) => boolean) {
+  and(assertion: (args: G) => boolean) {
     return this.then(assertion)
   }
 
@@ -182,8 +183,8 @@ class FluentCheckAssert<G extends TestCase, P extends TestCase> extends FluentCh
     return data
   }
 
-  protected run(testCase: G, callback: (arg: TestCase) => FluentResult) {
+  protected run(testCase: TestCase, callback: (arg: TestCase) => FluentResult) {
     const unwrappedTestCase = FluentCheck.unwrapFluentPick(testCase)
-    return (this.assertion({ ...unwrappedTestCase, ...this.runPreliminaries(unwrappedTestCase) })) ? callback(testCase) : new FluentResult(false)
+    return (this.assertion({ ...unwrappedTestCase, ...this.runPreliminaries(unwrappedTestCase) } as G)) ? callback(testCase) : new FluentResult(false)
   }
 }
