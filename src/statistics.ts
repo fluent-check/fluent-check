@@ -14,26 +14,33 @@ export abstract class IntegerDistribution extends Distribution {
 
   // Default implementation is O(n) on the support size
   mean(): number {
-    const n = this.supportMax() - this.supportMin()
-    return [...Array(n + 1)].reduce((acc, _, i) => acc + this.pdf(this.supportMin() + i) * i, 0)
+    let avg = 0
+    for (let k = this.supportMin(); k <= this.supportMax(); k++) {
+      avg += k * this.pdf(k)
+    }
+    return avg
   }
 
   // Default implementation is O(n) on the support size. Can be made better if distribution is
   // known to be unimodal
   mode(): number {
-    const n = this.supportMax() - this.supportMin()
-    return [...Array(n + 1)].reduce(([curr, currP], _, i) => {
-      const p = this.pdf(this.supportMin() + i)
-      return p > currP ? [this.supportMin() + i, p] : [curr, currP]
-    },[NaN, 0])[0]
+    let max = NaN, maxP = 0
+    for (let k = this.supportMin(); k <= this.supportMax(); k++) {
+      const p = this.pdf(k)
+      if (p > maxP) { max = k; maxP = p }
+    }
+    return max
   }
 
   // Default implementation is O(n * pdf), where `pdf` is the time complexity of pdf(k)
   cdf(k: number): number {
     if (k < this.supportMin()) return 0.0
     if (k >= this.supportMax()) return 1.0
-    return [...Array(k - this.supportMin() + 1)]
-      .reduce((acc, _, i) => acc + this.pdf(this.supportMin() + i), 0)
+    let sum = 0
+    for (let k2 = this.supportMin(); k2 <= k; k2++) {
+      sum += this.pdf(k2)
+    }
+    return sum
   }
 
   // Default implementation is O(n * cdf), where `cdf` is the time complexity of cdf(k)
