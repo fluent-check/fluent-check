@@ -1,8 +1,8 @@
 import { BetaDistribution } from './statistics'
 
 export type FluentPick<V> = {
+  value: V
   original?: any
-  value?: V
 }
 
 export type ArbitrarySize = {
@@ -31,12 +31,14 @@ export abstract class Arbitrary<A> {
       credibleInterval : result.credibleInterval }
   }
 
-  pick(): FluentPick<A> { return { value: undefined } }
+  pick(): FluentPick<A> | undefined { return undefined }
 
   sample(sampleSize = 10): FluentPick<A>[] {
-    const result = []
+    const result: FluentPick<A>[] = []
     for (let i = 0; i < sampleSize; i += 1) {
-      if (this.size().value >= 1) result.push(this.pick())
+      const pick = this.pick()
+      if (pick) result.push(pick)
+      else break
     }
 
     return result
@@ -75,8 +77,8 @@ export abstract class Arbitrary<A> {
 
 const NoArbitrary: Arbitrary<never> = new class extends Arbitrary<never> {
   size(): ArbitrarySize { return { value: 0, type: 'exact' } }
-  sampleWithBias(_ = 0) { return [] }
-  sample(_ = 0) { return [] }
+  sampleWithBias(): FluentPick<never>[] { return [] }
+  sample(): FluentPick<never>[] { return [] }
   map(_: (a: never) => any) { return NoArbitrary }
   filter(_: (a: never) => boolean) { return NoArbitrary }
   unique() { return NoArbitrary }
@@ -91,13 +93,14 @@ class ArbitraryArray<A> extends Arbitrary<A[]> {
     return this.arbitrary.mapArbitrarySize(v => ({ value: v ** (this.max - this.min), type: 'exact' }))
   }
 
-  pick(): FluentPick<A[]> {
+  pick(): FluentPick<A[]> | undefined {
     const size = Math.floor(Math.random() * (this.max - this.min + 1)) + this.min
     const fpa = this.arbitrary.sampleWithBias(size)
+    // TODO: review and fix usage of `value!` (will possibly be fixed by #23)
     return { value: fpa.map(v => v.value), original: fpa.map(v => v.original) }
   }
 
-  shrink(initial: FluentPick<A[]>) {
+  shrink(initial: FluentPick<A[]>): Arbitrary<A[]> {
     if (this.min === initial.value.length) return NoArbitrary
 
     return new ArbitraryComposite([
@@ -128,8 +131,8 @@ class ArbitraryComposite<A> extends Arbitrary<A> {
     return this.arbitraries[picked].pick()
   }
 
-  cornerCases() {
-    const cornerCases = []
+  cornerCases(): FluentPick<A>[] {
+    const cornerCases: FluentPick<A>[] = []
     for (const a of this.arbitraries)
       cornerCases.push(...a.cornerCases())
 
@@ -175,7 +178,7 @@ class ArbitraryString extends Arbitrary<string> {
     return { value : string }
   }
 
-  cornerCases() {
+  cornerCases(): FluentPick<string>[] {
     return [{ value: this.pick(this.min).value }, { value: this.pick(this.max).value }]
   }
 
@@ -265,8 +268,14 @@ class _ChainedArbitrary<A, B> extends Arbitrary<B> {
     super()
   }
 
-  pick() { return this.f(this.baseArbitrary.pick().value!).pick() }
-  size() { return this.baseArbitrary.size() }
+  pick() {
+    const pick = this.baseArbitrary.pick()
+    return pick ? this.f(pick.value).pick() : undefined
+  }
+
+  size() {
+    return this.baseArbitrary.size()
+  }
 }
 
 class UniqueArbitrary<A> extends WrappedArbitrary<A> {
@@ -283,6 +292,7 @@ class UniqueArbitrary<A> extends WrappedArbitrary<A> {
     let bagSize = sampleSize
     while (result.size < bagSize) {
       const r = this.pick()
+      if (!r) break
       if (!result.has(r.value)) result.set(r.value, r)
       bagSize = Math.min(sampleSize, this.size().value)
     }
@@ -302,10 +312,13 @@ class MappedArbitrary<A, B> extends Arbitrary<B> {
 
   mapFluentPick(p: FluentPick<A>): FluentPick<B> {
     const original = ('original' in p) ? p.original : p.value
-    return ({ original, value: this.f(p.value!) })
+    return ({ original, value: this.f(p.value) })
   }
 
-  pick(): FluentPick<B> { return this.mapFluentPick(this.baseArbitrary.pick()) }
+  pick(): FluentPick<B> | undefined {
+    const pick = this.baseArbitrary.pick()
+    return pick ? this.mapFluentPick(pick) : undefined
+  }
 
   // TODO: This is not strictly true when the mapping function is not bijective. I suppose this is
   // a count-distinct problem, so we should probably either count the cardinality with a Set (for
@@ -314,7 +327,9 @@ class MappedArbitrary<A, B> extends Arbitrary<B> {
   // be *above* the baseArbitrary.
   size() { return this.baseArbitrary.size() }
 
-  cornerCases() { return this.baseArbitrary.cornerCases().map(p => this.mapFluentPick(p)) }
+  cornerCases(): FluentPick<B>[] {
+    return this.baseArbitrary.cornerCases().map(p => this.mapFluentPick(p))
+  }
 
   shrink(initial: FluentPick<B>): Arbitrary<B> {
     return this.baseArbitrary.shrink({ original: initial.original, value: initial.original }).map(v => this.f(v))
@@ -344,14 +359,15 @@ class FilteredArbitrary<A> extends WrappedArbitrary<A> {
         credibleInterval: [v * this.sizeEstimation.inv(lowerCredibleInterval), v * this.sizeEstimation.inv(upperCredibleInterval)] }))
   }
 
-  pick(): FluentPick<A> {
+  pick(): FluentPick<A> | undefined {
     do {
       const pick = this.baseArbitrary.pick()
+      if (!pick) break // TODO: update size estimation accordingly
       if (this.f(pick.value)) { this.sizeEstimation.update(1, 0); return pick }
       this.sizeEstimation.update(0, 1)
     } while (this.baseArbitrary.size().value * this.sizeEstimation.inv(upperCredibleInterval) >= 1) // If we have a pretty good confidence that the size < 1, we stop trying
 
-    return ({ value: undefined })
+    return undefined
   }
 
   cornerCases() { return this.baseArbitrary.cornerCases().filter(a => this.f(a.value)) }

@@ -103,14 +103,14 @@ describe('Arbitrary tests', () => {
       })
 
       it('size should be estimated for filtered arbitraries', () => {
-        expect(fc.integer(1, 1000).filter(i => i > 200).filter(i => i < 800).size().credibleInterval[0]).to.be.below(600)
-        expect(fc.integer(1, 1000).filter(i => i > 200).filter(i => i < 800).size().credibleInterval[1]).to.be.above(600)
-        expect(fc.integer(1, 1000).filter(i => i > 200 && i < 800).size().credibleInterval[0]).to.be.below(600)
-        expect(fc.integer(1, 1000).filter(i => i > 200 && i < 800).size().credibleInterval[1]).to.be.above(600)
+        expect(fc.integer(1, 1000).filter(i => i > 200).filter(i => i < 800).size().credibleInterval![0]).to.be.below(600)
+        expect(fc.integer(1, 1000).filter(i => i > 200).filter(i => i < 800).size().credibleInterval![1]).to.be.above(600)
+        expect(fc.integer(1, 1000).filter(i => i > 200 && i < 800).size().credibleInterval![0]).to.be.below(600)
+        expect(fc.integer(1, 1000).filter(i => i > 200 && i < 800).size().credibleInterval![1]).to.be.above(600)
       })
 
       it("sampling should terminate even if arbitrary's size is potentially zero", () => {
-        expect(fc.integer(1, 1000).filter(() => false).sample()).to.deep.include({ value: undefined })
+        expect(fc.integer(1, 1000).filter(() => false).sample()).to.be.empty
       })
     })
 
@@ -179,7 +179,6 @@ describe('Arbitrary tests', () => {
     it('knows if it can generate a boolean', () => {
       expect(fc.boolean().canGenerate({ value: true })).to.be.true
       expect(fc.boolean().canGenerate({ value: false })).to.be.true
-      expect(fc.boolean().canGenerate({ value: undefined })).to.be.false
     })
 
     it('knows if it can generate an array', () => {
