@@ -8,6 +8,8 @@ export class ArbitraryArray<A> extends BaseArbitrary<A[]> {
   }
 
   size() {
+    // TODO: Fix array sizes. The number of unique arrays of A are size(A)^min + size(A)^(min+1) + ... + size(A)^max
+    // This is a geometric progression, so there's likely a O(1) closed formula for this
     return mapArbitrarySize(this.arbitrary.size(), v => ({ value: v ** (this.max - this.min), type: 'exact' }))
   }
 
