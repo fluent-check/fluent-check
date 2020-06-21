@@ -94,8 +94,14 @@ class ArbitraryArray<A> extends Arbitrary<A[]> {
   pick(): FluentPick<A[]> {
     const size = Math.floor(Math.random() * (this.max - this.min + 1)) + this.min
     const fpa = this.arbitrary.sampleWithBias(size)
-    if (fpa.every(f => f.original === undefined)) return { value: fpa.map(v => v.value) }
-    return { value: fpa.map(v => v.value) , original: fpa.map(v => v.original) }
+
+    const value = fpa.map(v => v.value)
+    const original = fpa.map(v => v.original)
+
+    return {
+      value,
+      original: original.every(o => o === undefined) ? value : original
+    }
   }
 
   shrink(initial: FluentPick<A[]>) {
