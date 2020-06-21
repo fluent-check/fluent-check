@@ -144,7 +144,7 @@ describe('Arbitrary tests', () => {
       ).to.include.members([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
     })
 
-    it('should should be shrinkable and remain unique', () => {
+    it('should be shrinkable and remain unique', () => {
       expect(
         fc.integer(0, 10).unique().shrink({ value: 5 }).sample(5).map(v => v.value)
       ).to.include.members([0, 1, 2, 3, 4])
