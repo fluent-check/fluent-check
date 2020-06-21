@@ -1,5 +1,8 @@
 import * as stats from 'jstat'
 
+/**
+ * A probability distribution (https://en.wikipedia.org/wiki/Probability_distribution).
+ */
 export abstract class Distribution {
   abstract mean(): number
   abstract mode(): number
@@ -8,6 +11,9 @@ export abstract class Distribution {
   abstract inv(p: number): number
 }
 
+/**
+ * A discrete probability distribution where the support is a set of integer values.
+ */
 export abstract class IntegerDistribution extends Distribution {
   abstract supportMin(): number
   abstract supportMax(): number
@@ -43,7 +49,7 @@ export abstract class IntegerDistribution extends Distribution {
     return sum
   }
 
-  // Default implementation is O(n * cdf), where `cdf` is the time complexity of cdf(k)
+  // Default implementation is O(log(n) * cdf), where `cdf` is the time complexity of cdf(k)
   inv(p: number): number {
     let low = this.supportMin(), high = this.supportMax()
     while (low < high) {
@@ -55,6 +61,9 @@ export abstract class IntegerDistribution extends Distribution {
   }
 }
 
+/**
+ * A beta distribution (https://en.wikipedia.org/wiki/Beta_distribution).
+ */
 export class BetaDistribution extends Distribution {
   constructor(public alpha: number, public beta: number) {
     super()
@@ -67,6 +76,9 @@ export class BetaDistribution extends Distribution {
   inv(x: number): number { return stats.beta.inv(x, this.alpha, this.beta) }
 }
 
+/**
+ * A beta-binomial distribution (https://en.wikipedia.org/wiki/Beta-binomial_distribution).
+ */
 export class BetaBinomialDistribution extends IntegerDistribution {
   constructor(public trials: number, public alpha: number, public beta: number) { super() }
 
@@ -84,7 +96,7 @@ export class BetaBinomialDistribution extends IntegerDistribution {
     return Math.round(this.trials * (this.alpha - 1.0) / (this.alpha + this.beta - 2.0))
   }
 
-  // TODO: implement efficient CDF calculation (currently O(trials))
+  // TODO: implement efficient calculation of CDF (currently O(trials))
   // cdf(k: number): number
 
   private logPdf(x: number) {
