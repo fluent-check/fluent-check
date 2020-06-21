@@ -353,7 +353,7 @@ class ArbitraryString extends MappedArbitrary<number[], string> {
 
   canGenerate(pick: FluentPick<string>) {
     const value = pick.value.split('').map(c => this.chars.indexOf(c))
-    return this.baseArbitrary.canGenerate({value, original: value })
+    return this.baseArbitrary.canGenerate({ value, original: value })
   }
 }
 
