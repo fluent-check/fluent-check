@@ -22,15 +22,15 @@ export class FluentCheck<G extends TestCase, P extends TestCase> {
       new FluentCheckGivenConstant(this, name, a)
   }
 
-  when(f: (givens: G) => void) {
+  when(f: (givens: G) => void): FluentCheckWhen<G, P> {
     return new FluentCheckWhen(this, f)
   }
 
-  forall<A>(name: string, a: Arbitrary<A>) {
+  forall<NK extends string, A>(name: NK, a: Arbitrary<A>): FluentCheckUniversal<NK, A, G, G & Record<NK, A>> {
     return new FluentCheckUniversal(this, name, a)
   }
 
-  exists<A>(name: string, a: Arbitrary<A>)  {
+  exists<NK extends string, A>(name: NK, a: Arbitrary<A>): FluentCheckExistential<NK, A, G, G & Record<NK, A>> {
     return new FluentCheckExistential(this, name, a)
   }
 
@@ -130,11 +130,11 @@ class FluentCheckUniversal<K extends string, A, P extends TestCase, G extends P 
   }
 }
 
-class FluentCheckExistential<A, G extends TestCase, P extends TestCase> extends FluentCheck<G, P> {
+class FluentCheckExistential<K extends string, A, P extends TestCase, G extends P & Record<K, A>> extends FluentCheck<G, P> {
   private cache: Array<FluentPick<A>>
   private dedup: Arbitrary<A>
 
-  constructor(protected readonly parent: FluentCheck<P, any>, public readonly name: string, public readonly a: Arbitrary<A>) {
+  constructor(protected readonly parent: FluentCheck<P, any>, public readonly name: K, public readonly a: Arbitrary<A>) {
     super(parent)
     this.dedup = a.unique()
     this.cache = this.dedup.sampleWithBias(1000)
