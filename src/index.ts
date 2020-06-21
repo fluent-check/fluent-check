@@ -22,7 +22,7 @@ export class FluentCheck<G extends TestCase, P extends TestCase> {
       new FluentCheckGivenConstant(this, name, a)
   }
 
-  when(f: (givens: TestCase) => void) {
+  when(f: (givens: G) => void) {
     return new FluentCheckWhen(this, f)
   }
 
@@ -75,11 +75,11 @@ export class FluentCheck<G extends TestCase, P extends TestCase> {
 }
 
 class FluentCheckWhen<G extends TestCase, P extends TestCase> extends FluentCheck<G, P> {
-  constructor(protected readonly parent: FluentCheck<P, any>, public readonly f: (givens: TestCase) => void) {
+  constructor(protected readonly parent: FluentCheck<P, any>, public readonly f: (givens: G) => void) {
     super(parent)
   }
 
-  and(f: (givens: TestCase) => void) { return this.when(f) }
+  and(f: (givens: G) => void) { return this.when(f) }
 }
 
 class FluentCheckGivenMutable<K extends string, V, P extends TestCase, G extends P & Record<K, V>> extends FluentCheck<G, P> {
