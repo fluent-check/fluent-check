@@ -1,6 +1,7 @@
 import { FluentPick, Arbitrary } from './arbitraries'
 
-interface TestCase { [k: string]: any }
+type TestCase    = { [k: string]: any }
+type FluentPicks = { [k: string]: FluentPick<any> }
 
 export class FluentResult {
   constructor(public readonly satisfiable = false, public example: TestCase = {}) { }
@@ -11,13 +12,13 @@ export class FluentResult {
   }
 }
 
-export class FluentCheck {
-  constructor(protected readonly parent: FluentCheck | undefined = undefined) { }
+export class FluentCheck<G extends TestCase, P extends TestCase> {
+  constructor(protected readonly parent: FluentCheck<P, any> | undefined = undefined) { }
 
-  given<A>(name: string, a: (args: TestCase) => A): FluentCheckGivenMutable<A>
-  given<A>(name: string, a: A): FluentCheckGivenMutable<A> | FluentCheckGivenConstant<A> {
+  given<NK extends string, V>(name: NK, a: (args: G) => V): FluentCheckGivenMutable<NK, V, G, G & Record<NK, V>>
+  given<NK extends string, V>(name: NK, a: V): FluentCheckGivenMutable<NK, V, G, G & Record<NK, V>> | FluentCheckGivenConstant<NK, V, G, G & Record<NK, V>> {
     return (a instanceof Function) ?
-      new FluentCheckGivenMutable(this, name, a as unknown as ((args: TestCase) => A)) :
+      new FluentCheckGivenMutable(this, name, a as unknown as (args: G) => V) :
       new FluentCheckGivenConstant(this, name, a)
   }
 
@@ -37,15 +38,15 @@ export class FluentCheck {
     return new FluentCheckAssert(this, f)
   }
 
-  protected run(testCase: TestCase, callback: (arg: TestCase) => FluentResult, _partial: FluentResult | undefined = undefined): FluentResult {
+  protected run(testCase: G, callback: (arg: TestCase) => FluentResult, _partial: FluentResult | undefined = undefined): FluentResult {
     return callback(testCase)
   }
 
   protected pathFromRoot() {
-    const path: FluentCheck[] = []
+    const path: FluentCheck<any, any>[] = []
 
     // eslint-disable-next-line @typescript-eslint/no-this-alias
-    let node: FluentCheck | undefined = this
+    let node: FluentCheck<any, any> | undefined = this
     while (node !== undefined) {
       path.unshift(node)
       node = node.parent
@@ -58,43 +59,43 @@ export class FluentCheck {
   }
 
   check(child: (testCase: TestCase) => FluentResult = () => new FluentResult(true)): FluentResult {
-    if (this.parent !== undefined) return this.parent.check((testCase: TestCase) => this.run(testCase, child))
+    if (this.parent !== undefined) return this.parent.check((testCase: TestCase) => this.run(testCase as G, child))
     else {
-      const r = this.run({}, child)
+      const r = this.run({} as G, child)
       return new FluentResult(r.satisfiable, FluentCheck.unwrapFluentPick(r.example))
     }
   }
 
-  static unwrapFluentPick(testCase: TestCase): TestCase {
-    const result: TestCase = {}
+  static unwrapFluentPick(testCase: FluentPicks): TestCase {
+    const result: TestCase = { }
     for (const k in testCase)
       result[k] = testCase[k].value
     return result
   }
 }
 
-class FluentCheckWhen extends FluentCheck {
-  constructor(protected readonly parent: FluentCheck, public readonly f: (givens: TestCase) => void) {
+class FluentCheckWhen<G extends TestCase, P extends TestCase> extends FluentCheck<G, P> {
+  constructor(protected readonly parent: FluentCheck<P, any>, public readonly f: (givens: TestCase) => void) {
     super(parent)
   }
 
   and(f: (givens: TestCase) => void) { return this.when(f) }
 }
 
-class FluentCheckGivenMutable<A> extends FluentCheck {
-  constructor(protected readonly parent: FluentCheck, public readonly name: string, public readonly factory: (args: TestCase) => A) {
+class FluentCheckGivenMutable<K extends string, V, P extends TestCase, G extends P & Record<K, V>> extends FluentCheck<G, P> {
+  constructor(protected readonly parent: FluentCheck<P, any>, public readonly name: K, public readonly factory: (args: P) => V) {
     super(parent)
   }
 
-  and(name: string, a: (args: TestCase) => A) { return this.given(name, a) }
+  and<NK extends string, NV>(name: NK, a: (args: G) => NV) { return this.given(name, a) }
 }
 
-class FluentCheckGivenConstant<A> extends FluentCheck {
-  constructor(protected readonly parent: FluentCheck, public readonly name: string, public readonly value: A) {
+class FluentCheckGivenConstant<K extends string, V, P extends TestCase, G extends P & Record<K, V>> extends FluentCheck<G, P> {
+  constructor(protected readonly parent: FluentCheck<P, any>, public readonly name: K, public readonly value: V) {
     super(parent)
   }
 
-  and(name: string, a: (args: TestCase) => A) { return this.given(name, a) }
+  and<NK extends string, NV>(name: NK, a: (args: G) => NV) { return this.given(name, a) }
 
   protected run(testCase: TestCase, callback: (arg: TestCase) => FluentResult) {
     testCase[this.name] = this.value
@@ -102,11 +103,11 @@ class FluentCheckGivenConstant<A> extends FluentCheck {
   }
 }
 
-class FluentCheckUniversal<A> extends FluentCheck {
+class FluentCheckUniversal<K extends string, A, P extends TestCase, G extends P & Record<K, A>> extends FluentCheck<G, P> {
   private cache: Array<FluentPick<A>>
   private dedup: Arbitrary<A>
 
-  constructor(protected readonly parent: FluentCheck, public readonly name: string, public readonly a: Arbitrary<A>) {
+  constructor(protected readonly parent: FluentCheck<P, any>, public readonly name: K, public readonly a: Arbitrary<A>) {
     super(parent)
     this.dedup = a.unique()
     this.cache = this.dedup.sampleWithBias(1000)
@@ -129,11 +130,11 @@ class FluentCheckUniversal<A> extends FluentCheck {
   }
 }
 
-class FluentCheckExistential<A> extends FluentCheck {
+class FluentCheckExistential<A, G extends TestCase, P extends TestCase> extends FluentCheck<G, P> {
   private cache: Array<FluentPick<A>>
   private dedup: Arbitrary<A>
 
-  constructor(protected readonly parent: FluentCheck, public readonly name: string, public readonly a: Arbitrary<A>) {
+  constructor(protected readonly parent: FluentCheck<P, any>, public readonly name: string, public readonly a: Arbitrary<A>) {
     super(parent)
     this.dedup = a.unique()
     this.cache = this.dedup.sampleWithBias(1000)
@@ -156,10 +157,10 @@ class FluentCheckExistential<A> extends FluentCheck {
   }
 }
 
-class FluentCheckAssert extends FluentCheck {
-  preliminaries: FluentCheck[]
+class FluentCheckAssert<G extends TestCase, P extends TestCase> extends FluentCheck<G, P> {
+  preliminaries: FluentCheck<any, any>[]
 
-  constructor(protected readonly parent: FluentCheck, public readonly assertion: (args: TestCase) => boolean) {
+  constructor(protected readonly parent: FluentCheck<P, any>, public readonly assertion: (args: TestCase) => boolean) {
     super(parent)
     this.preliminaries = this.pathFromRoot().filter(node =>
       (node instanceof FluentCheckGivenMutable) ||
@@ -181,7 +182,7 @@ class FluentCheckAssert extends FluentCheck {
     return data
   }
 
-  protected run(testCase: TestCase, callback: (arg: TestCase) => FluentResult) {
+  protected run(testCase: G, callback: (arg: TestCase) => FluentResult) {
     const unwrappedTestCase = FluentCheck.unwrapFluentPick(testCase)
     return (this.assertion({ ...unwrappedTestCase, ...this.runPreliminaries(unwrappedTestCase) })) ? callback(testCase) : new FluentResult(false)
   }
