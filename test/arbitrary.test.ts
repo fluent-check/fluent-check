@@ -110,7 +110,7 @@ describe('Arbitrary tests', () => {
       })
 
       it("sampling should terminate even if arbitrary's size is potentially zero", () => {
-        expect(fc.integer(1, 1000).filter(() => false).sample()).to.deep.include({ value: undefined })
+        expect(fc.integer(1, 1000).filter(() => false).sample()).to.be.empty
       })
     })
 
