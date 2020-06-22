@@ -1,13 +1,19 @@
 import { ArbitrarySize, FluentPick } from './types'
 import { ArbitraryComposite, BaseArbitrary, NoArbitrary } from './internal'
-import { IndexedArbitrary } from './IndexedArbitrary'
+import { HybridSampling, Sampling } from './Sampler'
 
-export class ArbitraryInteger extends BaseArbitrary<number> implements IndexedArbitrary<number> {
+export class ArbitraryInteger extends BaseArbitrary<number> {
   constructor(public min = Number.MIN_SAFE_INTEGER, public max = Number.MAX_SAFE_INTEGER) {
     super()
     this.min = min
     this.max = max
   }
+
+  protected sampler: Sampling<number> = new HybridSampling(
+    this.size().value,
+    () => this.pick(),
+    idx => ({ value: this.min + idx })
+  )
 
   size(): ArbitrarySize { return { value: this.max - this.min + 1, type: 'exact' } }
 
@@ -15,10 +21,6 @@ export class ArbitraryInteger extends BaseArbitrary<number> implements IndexedAr
 
   pickWithIndex(idx: number): FluentPick<number> {
     return { value: this.min + idx }
-  }
-
-  sample(sampleSize = 10): FluentPick<number>[] {
-    return this.sampleWithReplacement(sampleSize)
   }
 
   cornerCases() {

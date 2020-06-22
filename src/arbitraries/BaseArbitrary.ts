@@ -1,39 +1,16 @@
 import { ArbitrarySize, FluentPick } from './types'
 import { FilteredArbitrary, MappedArbitrary, NoArbitrary, UniqueArbitrary } from './internal'
-import { isIndexedArbitrary } from './IndexedArbitrary'
-import { duplicatesProbability, reservoirSampling } from '../sampling'
+import { Sampling, SamplingWithReplacement } from './Sampler'
 
 export abstract class BaseArbitrary<A> {
-  abstract size(): ArbitrarySize
+  protected sampler: Sampling<A> = new SamplingWithReplacement(() => this.pick())
 
+  abstract size(): ArbitrarySize
 
   pick(): FluentPick<A> | undefined { return undefined }
 
   sample(sampleSize = 10): FluentPick<A>[] {
-    if (sampleSize === 0) return []
-
-    // eslint-disable-next-line @typescript-eslint/no-this-alias
-    const thisArb = this
-    if (!isIndexedArbitrary(thisArb)) return this.sampleWithReplacement(sampleSize)
-
-    const shouldSampleWithReplacement =
-      this.size().value >= Number.MAX_SAFE_INTEGER ||
-      duplicatesProbability(sampleSize, this.size().value) <= 0.01
-
-    return shouldSampleWithReplacement ?
-      this.sampleWithReplacement(sampleSize) :
-      reservoirSampling(sampleSize, this.size().value, idx => thisArb.pickWithIndex(idx))
-  }
-
-  sampleWithReplacement(sampleSize: number): FluentPick<A>[] {
-    const result: FluentPick<A>[] = []
-    for (let i = 0; i < sampleSize; i += 1) {
-      const pick = this.pick()
-      if (pick) result.push(pick)
-      else break
-    }
-
-    return result
+    return this.sampler.sample(sampleSize)
   }
 
   cornerCases(): FluentPick<A>[] { return [] }
