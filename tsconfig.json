@@ -5,7 +5,8 @@
     "esModuleInterop": true,
     "declaration": true,
     "outDir": "dist",
-
+    "sourceMap": true,
+    
     "strictNullChecks": true,
     "strictFunctionTypes": true,
     "strictPropertyInitialization": true,
