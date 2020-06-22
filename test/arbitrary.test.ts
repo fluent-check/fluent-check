@@ -55,26 +55,53 @@ describe('Arbitrary tests', () => {
 
   describe('Corner Cases', () => {
     it('should return the corner cases of integers', () => {
-      expect(fc.integer().cornerCases().map(c => c.value)).to.be.deep.equal([0, - Number.MAX_SAFE_INTEGER, Number.MAX_SAFE_INTEGER])
-      expect(fc.integer(1,10).cornerCases().map(c => c.value)).to.be.deep.equal([1, 10])
-      expect(fc.integer(-10,10).cornerCases().map(c => c.value)).to.be.deep.equal([0, -10, 10])
-      expect(fc.integer(5,5).cornerCases().map(c => c.value)).to.be.deep.equal([5])
+      expect(fc.integer().cornerCases().map(c => c.value)).to.have.members([0, - Number.MAX_SAFE_INTEGER, Number.MAX_SAFE_INTEGER])
+      expect(fc.integer(1,10).cornerCases().map(c => c.value)).to.have.members([1, 10])
+      expect(fc.integer(-10,10).cornerCases().map(c => c.value)).to.have.members([0, -10, 10])
+      expect(fc.integer(5,5).cornerCases().map(c => c.value)).to.have.members([5])
     })
 
     it('should return the corner cases of booleans', () => {
-      expect(fc.boolean().cornerCases().map(c => c.value)).to.be.deep.equal([true, false])
+      expect(fc.boolean().cornerCases().map(c => c.value)).to.have.members([true, false])
     })
 
     it('should return the corner cases of strings', () => {
-      expect(fc.string(1, 3, 'abc').cornerCases().map(c => c.value)).to.be.deep.equal(['a', 'aaa', 'c', 'ccc'])
+      expect(fc.string(1, 3, 'abc').cornerCases().map(c => c.value)).to.have.members(['a', 'aaa', 'c', 'ccc'])
+      expect(fc.string(1, 3, '').cornerCases().map(c => c.value)).to.have.members([''])
     })
 
     it('should return the corner cases of arrays', () => {
-      expect(fc.array(fc.integer(0, 5), 1, 3).cornerCases().map(c => c.value)).to.be.deep.equal([[0], [0, 0, 0], [5], [5, 5, 5]])
+      expect(fc.array(fc.integer(0, 5), 1, 3).cornerCases().map(c => c.value)).to.have.deep.members([[0], [0, 0, 0], [5], [5, 5, 5]])
     })
 
     it('should return the corner cases of maps', () => {
-      expect(fc.integer(0, 1).map(i => i === 0).cornerCases().map(c => c.value)).to.be.deep.equal([true, false])
+      expect(fc.integer(0, 1).map(i => i === 0).cornerCases().map(c => c.value)).to.have.members([false, true])
+    })
+  })
+
+  describe('Builders', () => {
+    it('should return a constant for strings with no chars', () => {
+      expect(fc.string(1,3, '')).to.be.deep.equal(fc.constant(''))
+    })
+
+    it('should return a constant for integers/reals with min == max', () => {
+      expect(fc.integer(123,123)).to.be.deep.equal(fc.constant(123))
+      expect(fc.real(123,123)).to.be.deep.equal(fc.constant(123))
+    })
+
+    it('should return empty for integers/reals with min > max', () => {
+      expect(fc.integer(2,1)).to.be.deep.equal(fc.empty())
+      expect(fc.real(2,1)).to.be.deep.equal(fc.empty())
+    })
+
+    it('should return empty for array with min > max', () => {
+      expect(fc.array(fc.integer(), 2, 1)).to.be.deep.equal(fc.empty())
+    })
+
+    it('should return the only arbitrary for unions with only one arbitrary', () => {
+      expect(fc.union(fc.integer(0,10))).to.be.deep.equal(fc.integer(0, 10))
+      expect(fc.union(fc.integer(123,123))).to.be.deep.equal(fc.constant(123))
+      expect(fc.union(fc.integer(1,0))).to.be.deep.equal(fc.empty())
     })
   })
 
