@@ -68,6 +68,7 @@ export abstract class Arbitrary<A> {
 
   map<B>(f: (a: A) => B): Arbitrary<B> { return new MappedArbitrary(this, f) }
   filter(f: (a: A) => boolean): Arbitrary<A> { return new FilteredArbitrary(this, f) }
+  chain<B>(f: (a: A) => Arbitrary<B>): Arbitrary<B> { return new ChainedArbitrary(this, f) }
   unique(): Arbitrary<A> { return new UniqueArbitrary(this) }
 }
 
@@ -119,6 +120,13 @@ class ArbitraryArray<A> extends Arbitrary<A[]> {
     return pick.value.length >= this.min && pick.value.length <= this.max &&
            pick.value.every((v, i) => this.arbitrary.canGenerate({ value: v, original: pick.original[i] }))
   }
+
+  cornerCases(): FluentPick<A[]>[] {
+    return this.arbitrary.cornerCases().flatMap(cc => [
+      { value: Array(this.min).fill(cc.value), original: Array(this.min).fill(cc.original) },
+      { value: Array(this.max).fill(cc.value), original: Array(this.max).fill(cc.original) }
+    ]).filter(v => v !== undefined) as FluentPick<A[]>[]
+  }
 }
 
 class ArbitraryComposite<A> extends Arbitrary<A> {
@@ -138,11 +146,7 @@ class ArbitraryComposite<A> extends Arbitrary<A> {
   }
 
   cornerCases(): FluentPick<A>[] {
-    const cornerCases: FluentPick<A>[] = []
-    for (const a of this.arbitraries)
-      cornerCases.push(...a.cornerCases())
-
-    return cornerCases
+    return this.arbitraries.flatMap(a => a.cornerCases())
   }
 
   shrink(initial: FluentPick<A>) {
@@ -229,6 +233,32 @@ class WrappedArbitrary<A> extends Arbitrary<A> {
 
   canGenerate(pick: FluentPick<A>) {
     return this.baseArbitrary.canGenerate(pick)
+  }
+}
+
+class ArbitraryConstant<A> extends Arbitrary<A> {
+  constructor(public readonly constant: A) {
+    super()
+  }
+
+  size(): ArbitrarySize { return { type: 'exact', value: 1 } }
+  pick(): FluentPick<A> { return { value: this.constant } }
+  cornerCases() { return [ this.pick() ]}
+}
+
+class ChainedArbitrary<A, B> extends Arbitrary<B> {
+  constructor(public readonly baseArbitrary: Arbitrary<A>, public readonly f: (a: A) => Arbitrary<B>) {
+    super()
+  }
+
+  size() { return this.baseArbitrary.size() }
+  pick() {
+    const pick = this.baseArbitrary.pick()
+    return (pick === undefined) ? undefined : this.f(pick.value).pick()
+  }
+
+  cornerCases(): FluentPick<B>[] {
+    return this.baseArbitrary.cornerCases().flatMap(p => this.f(p.value).cornerCases())
   }
 }
 
@@ -346,14 +376,14 @@ class ArbitraryBoolean extends MappedArbitrary<number, boolean> {
   canGenerate(pick: FluentPick<boolean>) { return pick.value !== undefined}
 }
 
-class ArbitraryString extends MappedArbitrary<number[], string> {
+class ArbitraryString extends MappedArbitrary<string[], string> {
   constructor(public readonly min = 2, public readonly max = 10, public readonly chars = 'abcdefghijklmnopqrstuvwxyz') {
-    super(new ArbitraryArray(new ArbitraryInteger(0, chars.length - 1), min, max), a => a.map(n => this.chars[n]).join(''))
+    super(new ArbitraryArray(new ArbitraryInteger(0, chars.length - 1).map(n => this.chars[n]), min, max), a => a.join(''))
   }
 
   canGenerate(pick: FluentPick<string>) {
-    const value = pick.value.split('').map(c => this.chars.indexOf(c))
-    return this.baseArbitrary.canGenerate({value, original: value })
+    // const value = pick.value.split('').map(c => this.chars[c])
+    return this.baseArbitrary.canGenerate({ value: pick.original, original: pick.original })
   }
 }
 
@@ -361,11 +391,12 @@ class ArbitraryString extends MappedArbitrary<number[], string> {
 // ----- Arbitrary Builders ----
 // -----------------------------
 
-export const integer = (min = Number.MIN_SAFE_INTEGER, max = Number.MAX_SAFE_INTEGER) => new ArbitraryInteger(min, max)
-export const real    = (min = Number.MIN_SAFE_INTEGER, max = Number.MAX_SAFE_INTEGER) => new ArbitraryReal(min, max)
-export const nat     = (min = 0, max = Number.MAX_SAFE_INTEGER) => new ArbitraryInteger(min, max)
-export const string  = (min = 2, max = 10, chars = 'abcdefghijklmnopqrstuvwxyz') => new ArbitraryString(min, max, chars)
-export const array   = <A>(arbitrary: Arbitrary<A>, min = 0, max = 10) => new ArbitraryArray(arbitrary, min, max)
-export const union   = <A>(...arbitraries: Arbitrary<A>[]) => new ArbitraryComposite(arbitraries)
-export const boolean = () => new ArbitraryBoolean()
-export const empty   = () => NoArbitrary
+export const integer  = (min = Number.MIN_SAFE_INTEGER, max = Number.MAX_SAFE_INTEGER) => min === max ? new ArbitraryConstant(min) : new ArbitraryInteger(min, max)
+export const real     = (min = Number.MIN_SAFE_INTEGER, max = Number.MAX_SAFE_INTEGER) => new ArbitraryReal(min, max)
+export const nat      = (min = 0, max = Number.MAX_SAFE_INTEGER) => new ArbitraryInteger(min, max)
+export const string   = (min = 2, max = 10, chars = 'abcdefghijklmnopqrstuvwxyz') => new ArbitraryString(min, max, chars)
+export const array    = <A>(arbitrary: Arbitrary<A>, min = 0, max = 10) => new ArbitraryArray(arbitrary, min, max)
+export const union    = <A>(...arbitraries: Arbitrary<A>[]) => new ArbitraryComposite(arbitraries)
+export const boolean  = () => new ArbitraryBoolean()
+export const empty    = () => NoArbitrary
+export const constant = <A>(constant: A) => new ArbitraryConstant(constant)
