@@ -6,13 +6,6 @@ import { duplicatesProbability, reservoirSampling } from '../sampling'
 export abstract class BaseArbitrary<A> {
   abstract size(): ArbitrarySize
 
-  mapArbitrarySize(f: (v: number) => ArbitrarySize): ArbitrarySize {
-    const baseSize = this.size()
-    const result = f(baseSize.value)
-    return { value : result.value,
-      type : baseSize.type === 'exact' && result.type === 'exact' ? 'exact' : 'estimated',
-      credibleInterval : result.credibleInterval }
-  }
 
   pick(): FluentPick<A> | undefined { return undefined }
 
