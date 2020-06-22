@@ -1,15 +1,15 @@
 import { BaseArbitrary, NoArbitrary } from './internal'
-import { FluentPick } from './types'
-import { NilArbitrarySize } from './util'
+import { Arbitrary, FluentPick } from './types'
+import { mapArbitrarySize, NilArbitrarySize } from './util'
 
 export class ArbitraryComposite<A> extends BaseArbitrary<A> {
-  constructor(public arbitraries: BaseArbitrary<A>[] = []) {
+  constructor(public arbitraries: Arbitrary<A>[] = []) {
     super()
   }
 
   size() {
     return this.arbitraries.reduce((acc, e) =>
-      e.mapArbitrarySize(v => ({ value: acc.value + v, type: acc.type })),
+      mapArbitrarySize(e.size(), v => ({ value: acc.value + v, type: acc.type })),
     NilArbitrarySize)
   }
 

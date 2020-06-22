@@ -10,7 +10,6 @@ import {
   ArbitraryInteger,
   ArbitraryReal,
   ArbitraryString,
-  BaseArbitrary,
   NoArbitrary
 } from './internal'
 
@@ -28,10 +27,10 @@ export const nat = (min = 0, max = Number.MAX_SAFE_INTEGER): Arbitrary<number> =
 export const string = (min = 2, max = 10, chars = 'abcdefghijklmnopqrstuvwxyz'): Arbitrary<string> =>
   new ArbitraryString(min, max, chars)
 
-export const array = <A>(arbitrary: BaseArbitrary<A>, min = 0, max = 10): Arbitrary<A[]> =>
+export const array = <A>(arbitrary: Arbitrary<A>, min = 0, max = 10): Arbitrary<A[]> =>
   new ArbitraryArray(arbitrary, min, max)
 
-export const union = <A>(...arbitraries: BaseArbitrary<A>[]): Arbitrary<A> =>
+export const union = <A>(...arbitraries: Arbitrary<A>[]): Arbitrary<A> =>
   new ArbitraryComposite(arbitraries)
 
 export const boolean = (): Arbitrary<boolean> =>

@@ -1,13 +1,14 @@
 import { ArbitraryComposite, BaseArbitrary, NoArbitrary } from './internal'
-import { FluentPick } from './types'
+import { Arbitrary, FluentPick } from './types'
+import { mapArbitrarySize } from './util'
 
 export class ArbitraryArray<A> extends BaseArbitrary<A[]> {
-  constructor(public arbitrary: BaseArbitrary<A>, public min = 0, public max = 10) {
+  constructor(public arbitrary: Arbitrary<A>, public min = 0, public max = 10) {
     super()
   }
 
   size() {
-    return this.arbitrary.mapArbitrarySize(v => ({ value: v ** (this.max - this.min), type: 'exact' }))
+    return mapArbitrarySize(this.arbitrary.size(), v => ({ value: v ** (this.max - this.min), type: 'exact' }))
   }
 
   pick(): FluentPick<A[]> | undefined {
