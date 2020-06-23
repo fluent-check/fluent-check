@@ -1,8 +1,9 @@
-import { BaseArbitrary, NoArbitrary } from './internal'
-import { Arbitrary, FluentPick } from './types'
+import { NoArbitrary, Arbitrary } from './internal'
+import { FluentPick } from './types'
 import { mapArbitrarySize, NilArbitrarySize } from './util'
+import * as fc from './index'
 
-export class ArbitraryComposite<A> extends BaseArbitrary<A> {
+export class ArbitraryComposite<A> extends Arbitrary<A> {
   constructor(public arbitraries: Arbitrary<A>[] = []) {
     super()
   }
@@ -19,19 +20,13 @@ export class ArbitraryComposite<A> extends BaseArbitrary<A> {
   }
 
   cornerCases(): FluentPick<A>[] {
-    const cornerCases: FluentPick<A>[] = []
-    for (const a of this.arbitraries)
-      cornerCases.push(...a.cornerCases())
-
-    return cornerCases
+    return this.arbitraries.flatMap(a => a.cornerCases())
   }
 
   shrink(initial: FluentPick<A>) {
-    const arbitraries = this.arbitraries.filter(a => a.canGenerate(initial))
-
+    const arbitraries = this.arbitraries.filter(a => a.canGenerate(initial)).map(a => a.shrink(initial)).filter(a => a !== NoArbitrary)
     if (arbitraries.length === 0) return NoArbitrary
-
-    return new ArbitraryComposite(arbitraries.map(a => a.shrink(initial)))
+    return fc.union(...arbitraries)
   }
 
   canGenerate(pick: FluentPick<A>) {

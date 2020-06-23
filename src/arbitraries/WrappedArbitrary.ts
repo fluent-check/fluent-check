@@ -1,8 +1,8 @@
 import { FluentPick } from './types'
-import { BaseArbitrary } from './internal'
+import { Arbitrary } from './internal'
 
-export class WrappedArbitrary<A> extends BaseArbitrary<A> {
-  constructor(public readonly baseArbitrary: NonNullable<BaseArbitrary<A>>) {
+export class WrappedArbitrary<A> extends Arbitrary<A> {
+  constructor(public readonly baseArbitrary: NonNullable<Arbitrary<A>>) {
     super()
   }
 

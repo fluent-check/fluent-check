@@ -26,10 +26,10 @@
   "devDependencies": {
     "@types/chai": "^4.2.11",
     "@types/mocha": "^7.0.2",
-    "@typescript-eslint/eslint-plugin": "^3.3.0",
-    "@typescript-eslint/parser": "^3.3.0",
+    "@typescript-eslint/eslint-plugin": "^3.4.0",
+    "@typescript-eslint/parser": "^3.4.0",
     "chai": "^4.2.0",
-    "eslint": "^7.3.0",
+    "eslint": "^7.3.1",
     "jstat": "^1.9.3",
     "mocha": "^8.0.1",
     "ts-node": "^8.10.2"

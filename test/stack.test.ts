@@ -1,5 +1,4 @@
-import { FluentCheck } from '../src/index'
-import * as fc from '../src/arbitraries'
+import * as fc from '../src/index'
 import { it } from 'mocha'
 import { expect } from 'chai'
 
@@ -13,7 +12,7 @@ class Stack<T> {
 
 describe('Stack tests', () => {
   it('should push one element to the stack and have size one', () => {
-    expect(new FluentCheck()
+    expect(fc.scenario()
       .forall('e', fc.integer())
       .given('stack', () => new Stack<number>())
       .when(({ e, stack }) => stack.push(e))
@@ -22,7 +21,7 @@ describe('Stack tests', () => {
   })
 
   it('should push several elements to the stack and have size equal to the number of pushed elements', () => {
-    expect(new FluentCheck()
+    expect(fc.scenario()
       .forall('es', fc.array(fc.integer()))
       .given('stack', () => new Stack<number>())
       .when(({ es, stack }) => stack.push(...es))
@@ -31,7 +30,7 @@ describe('Stack tests', () => {
   })
 
   it('should find an example where pushing a collection of elements keeps the stack empty', () => {
-    expect(new FluentCheck()
+    expect(fc.scenario()
       .given('stack', () => new Stack<number>())
       .forall('es', fc.array(fc.integer()))
       .when(({ es, stack }) => stack.push(...es))
@@ -41,7 +40,7 @@ describe('Stack tests', () => {
   })
 
   it('should find if two different stacks behave the same', () => {
-    expect(new FluentCheck()
+    expect(fc.scenario()
       .forall('es', fc.array(fc.integer()))
       .given('s1', () => new Stack<number>())
       .and('s2', () => new Stack<number>())
@@ -54,7 +53,7 @@ describe('Stack tests', () => {
   })
 
   it('should check if after being pushed some elements, and then popped just one, it has size equal to the number of elements minus one', () => {
-    expect(new FluentCheck()
+    expect(fc.scenario()
       .given('stack', () => new Stack<number>())
       .forall('es', fc.array(fc.integer(), 1))
       .when(({ es, stack }) => stack.push(...es))

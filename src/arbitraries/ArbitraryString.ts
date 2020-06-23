@@ -1,13 +1,13 @@
-import { ArbitraryArray, ArbitraryInteger, MappedArbitrary } from './internal'
+import { MappedArbitrary } from './internal'
 import { FluentPick } from './types'
+import * as fc from './index'
 
-export class ArbitraryString extends MappedArbitrary<number[], string> {
+export class ArbitraryString extends MappedArbitrary<string[], string> {
   constructor(public readonly min = 2, public readonly max = 10, public readonly chars = 'abcdefghijklmnopqrstuvwxyz') {
-    super(new ArbitraryArray(new ArbitraryInteger(0, chars.length - 1), min, max), a => a.map(n => this.chars[n]).join(''))
+    super(fc.array(fc.integer(0, chars.length - 1).map(n => this.chars[n]), min, max), a => a.join(''))
   }
 
   canGenerate(pick: FluentPick<string>) {
-    const value = pick.value.split('').map(c => this.chars.indexOf(c))
-    return this.baseArbitrary.canGenerate({ value, original: value })
+    return this.baseArbitrary.canGenerate({ value: pick.original, original: pick.original })
   }
 }
