@@ -2,7 +2,7 @@ import { NoArbitrary, Arbitrary } from './internal'
 import { FluentPick } from './types'
 import { mapArbitrarySize, NilArbitrarySize } from './util'
 import * as fc from './index'
-import { Picker } from './Picker'
+import { IndexedPicker, Picker } from './Picker'
 
 export class ArbitraryComposite<A> extends Arbitrary<A> {
   constructor(public arbitraries: Arbitrary<A>[] = []) {
@@ -16,9 +16,15 @@ export class ArbitraryComposite<A> extends Arbitrary<A> {
   }
 
   picker(): Picker<A> {
-    return new Picker(() => {
-      const picked = Math.floor(Math.random() * this.arbitraries.length)
-      return this.arbitraries[picked].picker().pick()
+    // TODO: use weighted sampling in IndexedPicker
+    return new IndexedPicker(this.size().value, idx => {
+      let arbIndex = 0
+      while (idx >= this.arbitraries[arbIndex].size().value) {
+        idx -= this.arbitraries[arbIndex].size().value
+        arbIndex++
+      }
+      const arb = this.arbitraries[arbIndex].picker()
+      return arb instanceof IndexedPicker ? arb.pickWithIndex(idx) : arb.pick()!
     })
   }
 

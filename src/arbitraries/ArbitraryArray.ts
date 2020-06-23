@@ -31,6 +31,7 @@ export class ArbitraryArray<A> extends Arbitrary<A[]> {
       }
     }
 
+    // TODO: use weighted sampling in IndexedPicker
     if (basePicker instanceof IndexedPicker) {
       return new IndexedPicker(this.size().value, idx => {
         let curr = this.size().value, sz = this.max + 1
