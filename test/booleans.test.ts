@@ -25,7 +25,7 @@ describe('Boolean tests', () => {
   it('finds that self-XOR returns true', () => {
     expect(new FluentCheck()
       .forall('a', fc.boolean())
-      .then(({ a }) => !(a ^ a))
+      .then(({ a }) => !(a !== a))
       .check()
     ).to.have.property('satisfiable', true)
   })
