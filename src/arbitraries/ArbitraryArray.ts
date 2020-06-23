@@ -9,6 +9,7 @@ export class ArbitraryArray<A> extends Arbitrary<A[]> {
   }
 
   size() {
+    // https://en.wikipedia.org/wiki/Geometric_progression#Geometric_series
     const sizeUpTo = (v: number, max: number) => {
       return v === 1 ? max + 1 : (1 - v ** (max + 1)) / (1 - v)
     }
