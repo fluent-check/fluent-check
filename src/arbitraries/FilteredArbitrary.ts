@@ -26,6 +26,7 @@ export class FilteredArbitrary<A> extends WrappedArbitrary<A> {
   picker(): Picker<A> {
     return new Picker(() => {
       do {
+        // TODO: improve estimation based on whether the picker is indexed or not
         const pick = this.baseArbitrary.picker().pick()
         if (!pick) break // TODO: update size estimation accordingly
         if (this.f(pick.value)) { this.sizeEstimation.alpha += 1; return pick }

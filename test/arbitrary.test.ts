@@ -1,6 +1,7 @@
 import * as fc from '../src/index'
 import { it } from 'mocha'
 import { expect } from 'chai'
+import { Arbitrary } from '../src/arbitraries'
 
 describe('Arbitrary tests', () => {
   it('should return has many numbers has asked', () => {
@@ -75,6 +76,22 @@ describe('Arbitrary tests', () => {
 
     it('should return the corner cases of maps', () => {
       expect(fc.integer(0, 1).map(i => i === 0).cornerCases().map(c => c.value)).to.have.members([false, true])
+    })
+  })
+
+  describe('Indexed Pickers', () => {
+    const generate = <A>(n: number, alphabet: Iterable<A>): A[][] =>
+      !n ? [[]] : [...alphabet].flatMap(c => generate(n - 1, alphabet).map(arr => { arr.push(c); return arr }))
+
+    it('should have an indexed picker for appropriate arbitraries', () => {
+      expect(fc.integer(0, 49).sample(1000).map(v => v.value)).to.have.members([...Array(50).keys()])
+      expect(fc.boolean().sample(1000).map(v => v.value)).to.have.members([true, false])
+      expect(fc.array(fc.boolean(), 3, 4).sample(1000).map(v => v.value)).to.have.deep.members([
+        ...generate(3, [true, false]), ...generate(4, [true, false])
+      ])
+      expect(fc.string(2, 3, 'abc').sample(1000).map(v => v.value)).to.have.deep.members([
+        ...generate(2, 'abc').map(a => a.join('')), ...generate(3, 'abc').map(a => a.join(''))
+      ])
     })
   })
 

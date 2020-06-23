@@ -17,6 +17,13 @@ export class Picker<A> {
     }
     return result
   }
+
+  map<B>(f: (pick: FluentPick<A>) => FluentPick<B>): Picker<B> {
+    return new Picker(() => {
+      const pick = this.pick()
+      return pick ? f(pick) : undefined
+    })
+  }
 }
 
 export class IndexedPicker<A> extends Picker<A> {
@@ -38,5 +45,9 @@ export class IndexedPicker<A> extends Picker<A> {
 
   sampleWithoutReplacement(sampleSize: number): FluentPick<A>[] {
     return reservoirSampling(sampleSize, this.size, this.pickWithIndex)
+  }
+
+  map<B>(f: (pick: FluentPick<A>) => FluentPick<B>): IndexedPicker<B> {
+    return new IndexedPicker(this.size, idx => f(this.pickWithIndex(idx)))
   }
 }

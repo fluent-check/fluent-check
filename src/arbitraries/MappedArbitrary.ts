@@ -13,10 +13,7 @@ export class MappedArbitrary<A, B> extends Arbitrary<B> {
   }
 
   picker(): Picker<B> {
-    return new Picker<B>(() => {
-      const pick = this.baseArbitrary.picker().pick()
-      return pick ? this.mapFluentPick(pick) : undefined
-    })
+    return this.baseArbitrary.picker().map(v => this.mapFluentPick(v))
   }
 
   // TODO: This is not strictly true when the mapping function is not bijective. I suppose this is
