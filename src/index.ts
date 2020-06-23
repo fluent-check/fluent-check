@@ -1,12 +1,12 @@
 import { Arbitrary, FluentPick } from './arbitraries'
 
-type TestCase    = { [k: string]: any }
-type FluentPicks = { [k: string]: FluentPick<any> }
+type TestCase    = Record<string, any>
+type FluentPicks = Record<string, FluentPick<any>>
 
-export class FluentResult {
-  constructor(public readonly satisfiable = false, public example: TestCase = {}) { }
+class FluentResult {
+  constructor(public readonly satisfiable = false, public example: FluentPicks = {}) { }
 
-  addExample<A>(name: string, value: A) {
+  addExample<A>(name: string, value: FluentPick<A>) {
     this.example[name] = value
     return this
   }
@@ -82,20 +82,26 @@ class FluentCheckWhen<G extends TestCase, P extends TestCase> extends FluentChec
   and(f: (givens: G) => void) { return this.when(f) }
 }
 
-class FluentCheckGivenMutable<K extends string, V, P extends TestCase, G extends P & Record<K, V>> extends FluentCheck<G, P> {
-  constructor(protected readonly parent: FluentCheck<P, any>, public readonly name: K, public readonly factory: (args: P) => V) {
+abstract class FluentCheckGiven<K extends string, V, P extends TestCase, G extends P & Record<K, V>> extends FluentCheck<G, P> {
+  constructor(protected readonly parent: FluentCheck<P, any>, public readonly name: K) {
     super(parent)
   }
 
-  and<NK extends string, NV>(name: NK, a: (args: G) => NV) { return this.given(name, a) }
+  and<NK extends string, NV>(name: NK, a: (args: G) => NV) {
+    return super.given<NK, NV>(name, a)
+  }
 }
 
-class FluentCheckGivenConstant<K extends string, V, P extends TestCase, G extends P & Record<K, V>> extends FluentCheck<G, P> {
-  constructor(protected readonly parent: FluentCheck<P, any>, public readonly name: K, public readonly value: V) {
-    super(parent)
+class FluentCheckGivenMutable<K extends string, V, P extends TestCase, G extends P & Record<K, V>> extends FluentCheckGiven<K, V, P, G> {
+  constructor(protected readonly parent: FluentCheck<P, any>, public readonly name: K, public readonly factory: (args: P) => V) {
+    super(parent, name)
   }
+}
 
-  and<NK extends string, NV>(name: NK, a: (args: G) => NV) { return this.given(name, a) }
+class FluentCheckGivenConstant<K extends string, V, P extends TestCase, G extends P & Record<K, V>> extends FluentCheckGiven<K, V, P, G> {
+  constructor(protected readonly parent: FluentCheck<P, any>, public readonly name: K, public readonly value: V) {
+    super(parent, name)
+  }
 
   protected run(testCase: TestCase, callback: (arg: TestCase) => FluentResult) {
     testCase[this.name] = this.value
