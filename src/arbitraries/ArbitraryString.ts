@@ -1,4 +1,4 @@
-import { ArbitraryArray, ArbitraryInteger, MappedArbitrary } from './internal'
+import { MappedArbitrary } from './internal'
 import { FluentPick } from './types'
 import * as fc from './index'
 
@@ -8,7 +8,6 @@ export class ArbitraryString extends MappedArbitrary<string[], string> {
   }
 
   canGenerate(pick: FluentPick<string>) {
-    // const value = pick.value.split('').map(c => this.chars[c])
     return this.baseArbitrary.canGenerate({ value: pick.original, original: pick.original })
   }
 }

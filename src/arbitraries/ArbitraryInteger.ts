@@ -1,5 +1,5 @@
 import { ArbitrarySize, FluentPick } from './types'
-import { ArbitraryComposite, BaseArbitrary, NoArbitrary } from './internal'
+import { BaseArbitrary, NoArbitrary } from './internal'
 import * as fc from './index'
 
 export class ArbitraryInteger extends BaseArbitrary<number> {

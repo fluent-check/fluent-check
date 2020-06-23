@@ -1,7 +1,7 @@
 import { Arbitrary, FluentPick } from './types'
 import { mapArbitrarySize } from './util'
-import * as fc from './index'
 import { BaseArbitrary } from './internal'
+import * as fc from './index'
 
 export class ArbitraryArray<A> extends BaseArbitrary<A[]> {
   constructor(public arbitrary: Arbitrary<A>, public min = 0, public max = 10) {
