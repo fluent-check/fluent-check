@@ -1,8 +1,15 @@
 import { FluentPick } from './types'
+<<<<<<< HEAD
 import { Arbitrary } from './internal'
 
 export class MappedArbitrary<A, B> extends Arbitrary<B> {
   constructor(public readonly baseArbitrary: Arbitrary<A>, public readonly f: (a: A) => B) {
+=======
+import { BaseArbitrary } from './internal'
+
+export class MappedArbitrary<A, B> extends BaseArbitrary<B> {
+  constructor(public readonly baseArbitrary: BaseArbitrary<A>, public readonly f: (a: A) => B) {
+>>>>>>> 24cfe80b5f6c30f43635541484c7cd49646eaf8e
     super()
   }
 
@@ -27,7 +34,11 @@ export class MappedArbitrary<A, B> extends Arbitrary<B> {
     return this.baseArbitrary.cornerCases().map(p => this.mapFluentPick(p))
   }
 
+<<<<<<< HEAD
   shrink(initial: FluentPick<B>): Arbitrary<B> {
+=======
+  shrink(initial: FluentPick<B>): BaseArbitrary<B> {
+>>>>>>> 24cfe80b5f6c30f43635541484c7cd49646eaf8e
     return this.baseArbitrary.shrink({ original: initial.original, value: initial.original }).map(v => this.f(v))
   }
 

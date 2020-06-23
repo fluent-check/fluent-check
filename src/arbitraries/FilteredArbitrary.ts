@@ -1,12 +1,20 @@
 import { BetaDistribution } from '../statistics'
 import { FluentPick } from './types'
+<<<<<<< HEAD
 import { Arbitrary, NoArbitrary, WrappedArbitrary } from './internal'
+=======
+import { BaseArbitrary, NoArbitrary, WrappedArbitrary } from './internal'
+>>>>>>> 24cfe80b5f6c30f43635541484c7cd49646eaf8e
 import { lowerCredibleInterval, upperCredibleInterval } from './util'
 
 export class FilteredArbitrary<A> extends WrappedArbitrary<A> {
   sizeEstimation: BetaDistribution
 
+<<<<<<< HEAD
   constructor(readonly baseArbitrary: Arbitrary<A>, public readonly f: (a: A) => boolean) {
+=======
+  constructor(readonly baseArbitrary: BaseArbitrary<A>, public readonly f: (a: A) => boolean) {
+>>>>>>> 24cfe80b5f6c30f43635541484c7cd49646eaf8e
     super(baseArbitrary)
     this.sizeEstimation = new BetaDistribution(2, 1) // use 1,1 for .mean instead of .mode in point estimation
   }
