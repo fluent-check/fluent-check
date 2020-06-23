@@ -1,5 +1,4 @@
-import { FluentPick, Arbitrary } from './arbitraries'
-import { Test } from 'mocha'
+import { Arbitrary, FluentPick } from './arbitraries'
 
 type TestCase    = { [k: string]: any }
 type FluentPicks = { [k: string]: FluentPick<any> }
