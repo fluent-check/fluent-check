@@ -211,15 +211,22 @@ describe('Arbitrary tests', () => {
     })
   })
 
-  /*
   describe('Chained Arbitraries', () => {
-    it('should work', () => {
+    it('should allow the creation of array with size based on an integer arbitrary', () => {
       expect(
-        fc.integer(2, 2).chain(i => fc.array(fc.constant(i), i, i)).pick()?.value
+        fc.integer(2, 2).chain(i => fc.array(fc.constant(i), i, i)).pick()!.value
       ).to.have.members([2, 2])
     })
+
+    it('should check a property based on a chained arbitrary', () => {
+      expect(
+        new FluentCheck()
+          .forall('a', fc.integer(1, 10).chain(i => fc.array(fc.constant(i), i, i)))
+          .then(({ a }) => a.length === a[0])
+          .check()
+      ).to.have.property('satisfiable', true)
+    })
   })
-  */
 
   describe('Can Generate', () => {
     it('knows if it can generate an integer', () => {
