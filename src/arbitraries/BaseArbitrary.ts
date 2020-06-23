@@ -2,11 +2,7 @@ import { ArbitrarySize, FluentPick } from './types'
 import { FilteredArbitrary, MappedArbitrary, NoArbitrary, UniqueArbitrary } from './internal'
 import { ChainedArbitrary } from './ChainedArbitrary'
 
-<<<<<<< HEAD
 export abstract class Arbitrary<A> {
-=======
-export abstract class BaseArbitrary<A> {
->>>>>>> 24cfe80b5f6c30f43635541484c7cd49646eaf8e
   abstract size(): ArbitrarySize
 
   mapArbitrarySize(f: (v: number) => ArbitrarySize): ArbitrarySize {
@@ -44,7 +40,6 @@ export abstract class BaseArbitrary<A> {
     return sample
   }
 
-<<<<<<< HEAD
   shrink<B extends A>(_initial: FluentPick<B>): Arbitrary<A> {
     return NoArbitrary
   }
@@ -57,18 +52,4 @@ export abstract class BaseArbitrary<A> {
   filter(f: (a: A) => boolean): Arbitrary<A> { return new FilteredArbitrary(this, f) }
   chain<B>(f: (a: A) => Arbitrary<B>): Arbitrary<B> { return new ChainedArbitrary(this, f) }
   unique(): Arbitrary<A> { return new UniqueArbitrary(this) }
-=======
-  shrink(_initial: FluentPick<A>): BaseArbitrary<A> {
-    return NoArbitrary
-  }
-
-  canGenerate(_: FluentPick<A>): boolean {
-    return false
-  }
-
-  map<B>(f: (a: A) => B): BaseArbitrary<B> { return new MappedArbitrary(this, f) }
-  filter(f: (a: A) => boolean): BaseArbitrary<A> { return new FilteredArbitrary(this, f) }
-  chain<B>(f: (a: A) => BaseArbitrary<B>): BaseArbitrary<B> { return new ChainedArbitrary(this, f) }
-  unique(): BaseArbitrary<A> { return new UniqueArbitrary(this) }
->>>>>>> 24cfe80b5f6c30f43635541484c7cd49646eaf8e
 }
