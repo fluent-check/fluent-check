@@ -6,7 +6,7 @@ export class WrappedArbitrary<A> extends Arbitrary<A> {
     super()
   }
 
-  pick() { return this.baseArbitrary.pick() }
+  picker() { return this.baseArbitrary.picker() }
   size() { return this.baseArbitrary.size() }
   cornerCases() { return this.baseArbitrary.cornerCases() }
 

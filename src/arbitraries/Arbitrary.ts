@@ -1,16 +1,13 @@
 import { ArbitrarySize, FluentPick } from './types'
 import { FilteredArbitrary, MappedArbitrary, NoArbitrary, UniqueArbitrary } from './internal'
-import { Sampling, SamplingWithReplacement } from './Sampler'
+import { Picker } from './Picker'
 
 export abstract class Arbitrary<A> {
-  protected sampler: Sampling<A> = new SamplingWithReplacement(() => this.pick())
-
   abstract size(): ArbitrarySize
-
-  pick(): FluentPick<A> | undefined { return undefined }
+  abstract picker(): Picker<A>
 
   sample(sampleSize = 10): FluentPick<A>[] {
-    return this.sampler.sample(sampleSize)
+    return this.picker().sample(sampleSize)
   }
 
   cornerCases(): FluentPick<A>[] { return [] }

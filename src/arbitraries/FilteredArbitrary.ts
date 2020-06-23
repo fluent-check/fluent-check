@@ -2,6 +2,7 @@ import { BetaDistribution } from '../statistics'
 import { FluentPick } from './types'
 import { lowerCredibleInterval, mapArbitrarySize, upperCredibleInterval } from './util'
 import { Arbitrary, NoArbitrary, WrappedArbitrary } from './internal'
+import { Picker } from './Picker'
 
 export class FilteredArbitrary<A> extends WrappedArbitrary<A> {
   sizeEstimation: BetaDistribution
@@ -22,15 +23,17 @@ export class FilteredArbitrary<A> extends WrappedArbitrary<A> {
         credibleInterval: [v * this.sizeEstimation.inv(lowerCredibleInterval), v * this.sizeEstimation.inv(upperCredibleInterval)] }))
   }
 
-  pick(): FluentPick<A> | undefined {
-    do {
-      const pick = this.baseArbitrary.pick()
-      if (!pick) break // TODO: update size estimation accordingly
-      if (this.f(pick.value)) { this.sizeEstimation.alpha += 1; return pick }
-      this.sizeEstimation.beta += 1
-    } while (this.baseArbitrary.size().value * this.sizeEstimation.inv(upperCredibleInterval) >= 1) // If we have a pretty good confidence that the size < 1, we stop trying
+  picker(): Picker<A> {
+    return new Picker(() => {
+      do {
+        const pick = this.baseArbitrary.picker().pick()
+        if (!pick) break // TODO: update size estimation accordingly
+        if (this.f(pick.value)) { this.sizeEstimation.alpha += 1; return pick }
+        this.sizeEstimation.beta += 1
+      } while (this.baseArbitrary.size().value * this.sizeEstimation.inv(upperCredibleInterval) >= 1) // If we have a pretty good confidence that the size < 1, we stop trying
 
-    return undefined
+      return undefined
+    })
   }
 
   cornerCases() { return this.baseArbitrary.cornerCases().filter(a => this.f(a.value)) }

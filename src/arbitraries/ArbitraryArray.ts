@@ -2,6 +2,7 @@ import { FluentPick } from './types'
 import { mapArbitrarySize } from './util'
 import { Arbitrary } from './internal'
 import * as fc from './index'
+import { Picker } from './Picker'
 
 export class ArbitraryArray<A> extends Arbitrary<A[]> {
   constructor(public arbitrary: Arbitrary<A>, public min = 0, public max = 10) {
@@ -19,17 +20,19 @@ export class ArbitraryArray<A> extends Arbitrary<A[]> {
     }))
   }
 
-  pick(): FluentPick<A[]> | undefined {
-    const size = Math.floor(Math.random() * (this.max - this.min + 1)) + this.min
-    const fpa = this.arbitrary.sampleWithBias(size)
+  picker(): Picker<A[]> {
+    return new Picker(() => {
+      const size = Math.floor(Math.random() * (this.max - this.min + 1)) + this.min
+      const fpa = this.arbitrary.sampleWithBias(size)
 
-    const value = fpa.map(v => v.value)
-    const original = fpa.map(v => v.original)
+      const value = fpa.map(v => v.value)
+      const original = fpa.map(v => v.original)
 
-    return {
-      value,
-      original: original.every(o => o === undefined) ? value : original
-    }
+      return {
+        value,
+        original: original.every(o => o === undefined) ? value : original
+      }
+    })
   }
 
   shrink(initial: FluentPick<A[]>): Arbitrary<A[]> {

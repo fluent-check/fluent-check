@@ -1,5 +1,6 @@
 import { FluentPick } from './types'
 import { Arbitrary } from './internal'
+import { Picker } from './Picker'
 
 export class MappedArbitrary<A, B> extends Arbitrary<B> {
   constructor(public readonly baseArbitrary: Arbitrary<A>, public readonly f: (a: A) => B) {
@@ -11,9 +12,11 @@ export class MappedArbitrary<A, B> extends Arbitrary<B> {
     return ({ original, value: this.f(p.value) })
   }
 
-  pick(): FluentPick<B> | undefined {
-    const pick = this.baseArbitrary.pick()
-    return pick ? this.mapFluentPick(pick) : undefined
+  picker(): Picker<B> {
+    return new Picker<B>(() => {
+      const pick = this.baseArbitrary.picker().pick()
+      return pick ? this.mapFluentPick(pick) : undefined
+    })
   }
 
   // TODO: This is not strictly true when the mapping function is not bijective. I suppose this is
