@@ -27,7 +27,7 @@ export class ArbitraryInteger extends Arbitrary<number> {
 
       if (lower === upper) return NoArbitrary
 
-      return fc.union(new ArbitraryInteger(lower, midpoint - 1), new ArbitraryInteger(midpoint, upper))
+      return fc.union(fc.integer(lower, midpoint - 1), fc.integer(midpoint, upper))
     } else if (initial.value! < 0) {
       const upper = Math.min(0, this.max)
       const lower = Math.min(upper, initial.value! + 1)
@@ -35,7 +35,7 @@ export class ArbitraryInteger extends Arbitrary<number> {
 
       if (lower === upper) return NoArbitrary
 
-      return fc.union(new ArbitraryInteger(midpoint, upper), new ArbitraryInteger(lower, midpoint - 1))
+      return fc.union(fc.integer(midpoint, upper), fc.integer(lower, midpoint - 1))
     }
 
     return NoArbitrary
