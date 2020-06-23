@@ -1,4 +1,4 @@
-import { FluentPick, Arbitrary } from './arbitraries'
+import { Arbitrary, FluentPick } from './arbitraries'
 
 interface TestCase { [k: string]: any }
 
