@@ -212,6 +212,7 @@ describe('Arbitrary tests', () => {
     })
   })
 
+  /*
   describe('Chained Arbitraries', () => {
     it('should work', () => {
       expect(
@@ -219,6 +220,7 @@ describe('Arbitrary tests', () => {
       ).to.have.members([2, 2])
     })
   })
+  */
 
   describe('Can Generate', () => {
     it('knows if it can generate an integer', () => {

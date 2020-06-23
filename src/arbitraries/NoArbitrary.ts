@@ -9,4 +9,5 @@ export const NoArbitrary: Arbitrary<never> = new class extends Arbitrary<never> 
   filter(_: (a: never) => boolean) { return NoArbitrary }
   unique() { return NoArbitrary }
   canGenerate(_: FluentPick<never>) { return false }
+  chain<B>(_: (a: never) => Arbitrary<B>) { return NoArbitrary }
 }()
