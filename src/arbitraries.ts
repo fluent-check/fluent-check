@@ -58,11 +58,11 @@ export abstract class Arbitrary<A> {
     return sample
   }
 
-  shrink(_initial: FluentPick<A>): Arbitrary<A> {
+  shrink<B extends A>(_initial: FluentPick<B>): Arbitrary<A> {
     return NoArbitrary
   }
 
-  canGenerate(_: FluentPick<A>): boolean {
+  canGenerate<B extends A>(_: FluentPick<B>): boolean {
     return false
   }
 
@@ -76,14 +76,14 @@ export abstract class Arbitrary<A> {
 // ---- Special Arbitraries ----
 // -----------------------------
 
-const NoArbitrary: Arbitrary<any> = new class extends Arbitrary<any> {
+const NoArbitrary: Arbitrary<never> = new class extends Arbitrary<never> {
   size(): ArbitrarySize { return { value: 0, type: 'exact' } }
   sampleWithBias(): FluentPick<never>[] { return [] }
   sample(): FluentPick<never>[] { return [] }
   map(_: (a: never) => any) { return NoArbitrary }
   filter(_: (a: never) => boolean) { return NoArbitrary }
   unique() { return NoArbitrary }
-  canGenerate(_: FluentPick<never[]>) { return false }
+  canGenerate(_: FluentPick<never>) { return false }
 }()
 
 class ArbitraryArray<A> extends Arbitrary<A[]> {
@@ -395,7 +395,7 @@ export const integer  = (min = Number.MIN_SAFE_INTEGER, max = Number.MAX_SAFE_IN
 export const real     = (min = Number.MIN_SAFE_INTEGER, max = Number.MAX_SAFE_INTEGER): Arbitrary<number> => min > max ? NoArbitrary : (min === max ? new ArbitraryConstant(min) : new ArbitraryReal(min, max))
 export const nat      = (min = 0, max = Number.MAX_SAFE_INTEGER) => new ArbitraryInteger(min, max)
 export const string   = (min = 2, max = 10, chars = 'abcdefghijklmnopqrstuvwxyz') => chars === '' ? new ArbitraryConstant('') : new ArbitraryString(min, max, chars)
-export const array    = <A>(arbitrary: Arbitrary<A>, min = 0, max = 10) => min > max ? NoArbitrary : new ArbitraryArray(arbitrary, min, max)
+export const array    = <A>(arbitrary: Arbitrary<A>, min = 0, max = 10): Arbitrary<A[]> => min > max ? NoArbitrary : new ArbitraryArray(arbitrary, min, max)
 export const union    = <A>(...arbitraries: Arbitrary<A>[]) => arbitraries.length === 1 ? arbitraries[0] : new ArbitraryComposite(arbitraries)
 export const boolean  = () => new ArbitraryBoolean()
 export const empty    = () => NoArbitrary
