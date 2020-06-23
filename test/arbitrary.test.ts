@@ -215,7 +215,7 @@ describe('Arbitrary tests', () => {
   describe('Chained Arbitraries', () => {
     it('should work', () => {
       expect(
-        fc.integer(2, 2).chain(i => fc.array(fc.constant(i), i, i)).pick()?.value
+        fc.integer(2, 2).chain(i => fc.array(fc.constant(i), i, i)).pick()!.value
       ).to.have.members([2, 2])
     })
 
