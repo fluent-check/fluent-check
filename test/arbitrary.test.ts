@@ -53,6 +53,58 @@ describe('Arbitrary tests', () => {
     ).to.deep.include({ satisfiable: true, example: { n: 50 } })
   })
 
+  describe('Corner Cases', () => {
+    it('should return the corner cases of integers', () => {
+      expect(fc.integer().cornerCases().map(c => c.value)).to.have.members([0, - Number.MAX_SAFE_INTEGER, Number.MAX_SAFE_INTEGER])
+      expect(fc.integer(1,10).cornerCases().map(c => c.value)).to.have.members([1, 10])
+      expect(fc.integer(-10,10).cornerCases().map(c => c.value)).to.have.members([0, -10, 10])
+      expect(fc.integer(5,5).cornerCases().map(c => c.value)).to.have.members([5])
+    })
+
+    it('should return the corner cases of booleans', () => {
+      expect(fc.boolean().cornerCases().map(c => c.value)).to.have.members([true, false])
+    })
+
+    it('should return the corner cases of strings', () => {
+      expect(fc.string(1, 3, 'abc').cornerCases().map(c => c.value)).to.have.members(['a', 'aaa', 'c', 'ccc'])
+      expect(fc.string(1, 3, '').cornerCases().map(c => c.value)).to.have.members([''])
+    })
+
+    it('should return the corner cases of arrays', () => {
+      expect(fc.array(fc.integer(0, 5), 1, 3).cornerCases().map(c => c.value)).to.have.deep.members([[0], [0, 0, 0], [5], [5, 5, 5]])
+    })
+
+    it('should return the corner cases of maps', () => {
+      expect(fc.integer(0, 1).map(i => i === 0).cornerCases().map(c => c.value)).to.have.members([false, true])
+    })
+  })
+
+  describe('Builders', () => {
+    it('should return a constant for strings with no chars', () => {
+      expect(fc.string(1,3, '')).to.be.deep.equal(fc.constant(''))
+    })
+
+    it('should return a constant for integers/reals with min == max', () => {
+      expect(fc.integer(123,123)).to.be.deep.equal(fc.constant(123))
+      expect(fc.real(123,123)).to.be.deep.equal(fc.constant(123))
+    })
+
+    it('should return empty for integers/reals with min > max', () => {
+      expect(fc.integer(2,1)).to.be.deep.equal(fc.empty())
+      expect(fc.real(2,1)).to.be.deep.equal(fc.empty())
+    })
+
+    it('should return empty for array with min > max', () => {
+      expect(fc.array(fc.integer(), 2, 1)).to.be.deep.equal(fc.empty())
+    })
+
+    it('should return the only arbitrary for unions with only one arbitrary', () => {
+      expect(fc.union(fc.integer(0,10))).to.be.deep.equal(fc.integer(0, 10))
+      expect(fc.union(fc.integer(123,123))).to.be.deep.equal(fc.constant(123))
+      expect(fc.union(fc.integer(1,0))).to.be.deep.equal(fc.empty())
+    })
+  })
+
   describe('Transformations', () => {
     it('should allow booleans to be mappeable', () => {
       expect(new FluentCheck()
@@ -160,6 +212,16 @@ describe('Arbitrary tests', () => {
     })
   })
 
+  /*
+  describe('Chained Arbitraries', () => {
+    it('should work', () => {
+      expect(
+        fc.integer(2, 2).chain(i => fc.array(fc.constant(i), i, i)).pick()?.value
+      ).to.have.members([2, 2])
+    })
+  })
+  */
+
   describe('Can Generate', () => {
     it('knows if it can generate an integer', () => {
       expect(fc.integer(1, 10).canGenerate({ value: 1 })).to.be.true
@@ -169,24 +231,18 @@ describe('Arbitrary tests', () => {
     })
 
     it('knows if it can generate a string', () => {
-      expect(fc.string(1, 4, 'abcd').canGenerate({ value: 'a', original: [97] })).to.be.true
-      expect(fc.string(1, 4, 'abcd').canGenerate({ value: 'abcd', original: [97, 98, 99, 100] })).to.be.true
-      expect(fc.string(1, 4, 'bcd').canGenerate({ value: 'a', original: [97] })).to.be.false
-      expect(fc.string(1, 2, 'abcd').canGenerate({ value: 'abc', original: [97, 98, 99] })).to.be.false
-      expect(fc.string(2, 4, 'abcd').canGenerate({ value: 'a', original: [97] })).to.be.false
+      expect(fc.string(1, 4, 'abcd').canGenerate({ value: 'a', original: [0] })).to.be.true
+      expect(fc.string(1, 4, 'abcd').canGenerate({ value: 'abcd', original: [0, 1, 2, 3] })).to.be.true
+      expect(fc.string(1, 2, 'abcd').canGenerate({ value: 'abc', original: [0, 1, 2] })).to.be.false
+      expect(fc.string(2, 4, 'abcd').canGenerate({ value: 'a', original: [0] })).to.be.false
+      expect(fc.string(2, 4, 'abcdefghijklmnopqrstuvwxyz0123456789').canGenerate({ value: 'abcd', original: [0, 1, 2, 3] })).to.be.true
+      expect(fc.string(2, 4, 'abcdefghijklmnopqrstuvwxyz0123456789').canGenerate({ value: '12', original: [28, 29] })).to.be.true
+      expect(fc.string(2, 4, 'abcdefghijklmnopqrstuvwxyz0123456789').canGenerate({ value: 'ab12', original: [0, 1, 28, 29] })).to.be.true
     })
 
     it('knows if it can generate a boolean', () => {
       expect(fc.boolean().canGenerate({ value: true })).to.be.true
       expect(fc.boolean().canGenerate({ value: false })).to.be.true
-    })
-
-    it('knows it can generate a string', () => {
-      expect(fc.string(2, 4, 'abcdefghijklmnopqrstuvwxyz0123456789').canGenerate({ value: 'abcd' })).to.be.true
-      expect(fc.string(2, 4, 'abcdefghijklmnopqrstuvwxyz0123456789').canGenerate({ value: '12' })).to.be.true
-      expect(fc.string(2, 4, 'abcdefghijklmnopqrstuvwxyz0123456789').canGenerate({ value: 'ab12' })).to.be.true
-      expect(fc.string(2, 4, 'abcdefghijklmnopqrstuvwxyz0123456789').canGenerate({ value: 'AB12' })).to.be.false
-      expect(fc.string(2, 4, 'abcdefghijklmnopqrstuvwxyz0123456789').canGenerate({ value: 'abcde' })).to.be.false
     })
 
     it('knows if it can generate an array', () => {

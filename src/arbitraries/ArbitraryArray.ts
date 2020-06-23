@@ -1,8 +1,9 @@
-import { ArbitraryComposite, BaseArbitrary, NoArbitrary } from './internal'
-import { Arbitrary, FluentPick } from './types'
+import { FluentPick } from './types'
 import { mapArbitrarySize } from './util'
+import { Arbitrary } from './internal'
+import * as fc from './index'
 
-export class ArbitraryArray<A> extends BaseArbitrary<A[]> {
+export class ArbitraryArray<A> extends Arbitrary<A[]> {
   constructor(public arbitrary: Arbitrary<A>, public min = 0, public max = 10) {
     super()
   }
@@ -24,17 +25,25 @@ export class ArbitraryArray<A> extends BaseArbitrary<A[]> {
     }
   }
 
-  shrink(initial: FluentPick<A[]>): BaseArbitrary<A[]> {
-    if (this.min === initial.value.length) return NoArbitrary
+  shrink(initial: FluentPick<A[]>): Arbitrary<A[]> {
+    if (this.min === initial.value.length) return fc.empty()
 
-    return new ArbitraryComposite([
-      new ArbitraryArray(this.arbitrary, this.min, Math.floor((this.min + initial.value.length) / 2)),
-      new ArbitraryArray(this.arbitrary, Math.floor((this.min + initial.value.length) / 2) + 1, initial.value.length - 1)
-    ])
+    const start = this.min
+    const middle = Math.floor((this.min + initial.value.length) / 2)
+    const end = initial.value.length - 1
+
+    return fc.union(fc.array(this.arbitrary, start, middle), fc.array(this.arbitrary, middle + 1, end))
   }
 
   canGenerate(pick: FluentPick<A[]>) {
     return pick.value.length >= this.min && pick.value.length <= this.max &&
-      pick.value.every((v, i) => this.arbitrary.canGenerate({ value: v, original: pick.original[i] }))
+           pick.value.every((v, i) => this.arbitrary.canGenerate({ value: v, original: pick.original[i] }))
+  }
+
+  cornerCases(): FluentPick<A[]>[] {
+    return this.arbitrary.cornerCases().flatMap(cc => [
+      { value: Array(this.min).fill(cc.value), original: Array(this.min).fill(cc.original) },
+      { value: Array(this.max).fill(cc.value), original: Array(this.max).fill(cc.original) }
+    ]).filter(v => v !== undefined) as FluentPick<A[]>[]
   }
 }
