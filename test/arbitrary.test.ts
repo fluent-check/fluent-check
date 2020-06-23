@@ -212,6 +212,14 @@ describe('Arbitrary tests', () => {
     })
   })
 
+  describe('Chained Arbitraries', () => {
+    it('should work', () => {
+      expect(
+        fc.integer(2, 2).chain(i => fc.array(fc.constant(i), i, i)).map(c => c.value)
+      ).to.have.members([2, 2])
+    })
+  })
+
   describe('Can Generate', () => {
     it('knows if it can generate an integer', () => {
       expect(fc.integer(1, 10).canGenerate({ value: 1 })).to.be.true

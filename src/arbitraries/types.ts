@@ -11,6 +11,7 @@ export interface Arbitrary<A> {
 
   map<B>(f: (a: A) => B): Arbitrary<B>
   filter(f: (a: A) => boolean): Arbitrary<A>
+  chain<B>(f: (a: A) => Arbitrary<B>): Arbitrary<B>
   unique(): Arbitrary<A>
 }
 
