@@ -9,7 +9,13 @@ export class ArbitraryArray<A> extends Arbitrary<A[]> {
   }
 
   size() {
-    return mapArbitrarySize(this.arbitrary.size(), v => ({ value: v ** (this.max - this.min), type: 'exact' }))
+    const sizeUpTo = (v: number, max: number) => {
+      return v === 1 ? max + 1 : (1 - v ** (max + 1)) / (1 - v)
+    }
+    return mapArbitrarySize(this.arbitrary.size(), v => ({
+      type: 'exact',
+      value: sizeUpTo(v, this.max) - sizeUpTo(v, this.min - 1)
+    }))
   }
 
   pick(): FluentPick<A[]> | undefined {
