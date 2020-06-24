@@ -25,7 +25,6 @@ export class ArbitraryComposite<A> extends Arbitrary<A> {
 
   shrink(initial: FluentPick<A>) {
     const arbitraries = this.arbitraries.filter(a => a.canGenerate(initial)).map(a => a.shrink(initial)).filter(a => a !== NoArbitrary)
-    if (arbitraries.length === 0) return NoArbitrary
     return fc.union(...arbitraries)
   }
 
