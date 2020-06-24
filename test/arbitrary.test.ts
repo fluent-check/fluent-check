@@ -174,7 +174,14 @@ describe('Arbitrary tests', () => {
     })
 
     it('should return the correct size of a collection arbitrary', () => {
-      expect(fc.array(fc.boolean(), 1, 10).size()).to.have.property('value', 512)
+      expect(fc.array(fc.boolean(), 10, 10).size()).to.have.property('value', 1024)
+      expect(fc.array(fc.boolean(), 1, 10).size()).to.have.property('value', 2046)
+      expect(fc.array(fc.empty(), 0, 10).size()).to.have.property('value', 1)
+      expect(fc.array(fc.empty(), 1, 10).size()).to.have.property('value', 0)
+      expect(fc.array(fc.integer(0, 3), 3, 4).size()).to.have.property('value', 320)
+      // TODO(rui): should we replace exact values with an "unbounded" value when they're bigger
+      // than MAX_SAFE_INTEGER? This will bite us later.
+      expect(fc.array(fc.integer(), 1, 2).size()).to.have.property('value').gt(Number.MAX_SAFE_INTEGER)
     })
   })
 
