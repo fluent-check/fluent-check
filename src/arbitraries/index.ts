@@ -38,8 +38,10 @@ export const set = <A>(elements: A[], min = 0, max = 10): Arbitrary<A[]> =>
 export const oneof = <A>(elements: A[]): Arbitrary<A> =>
   elements.length === 0 ? NoArbitrary : new ArbitraryOneOf(elements)
 
-export const union = <A>(...arbitraries: Arbitrary<A>[]): Arbitrary<A> =>
-  arbitraries.length === 1 ? arbitraries[0] : new ArbitraryComposite(arbitraries)
+export const union = <A>(...arbitraries: Arbitrary<A>[]): Arbitrary<A> => {
+  arbitraries = arbitraries.filter(a => a !== NoArbitrary)
+  arbitraries.length === 0 ? NoArbitrary : (arbitraries.length === 1 ? arbitraries[0] : new ArbitraryComposite(arbitraries))
+}
 
 export const boolean = (): Arbitrary<boolean> => new ArbitraryBoolean()
 
