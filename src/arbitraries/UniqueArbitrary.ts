@@ -1,4 +1,4 @@
-import { FluentPick } from './types'
+import { FluentPick, FluentSample } from './types'
 import { Arbitrary, WrappedArbitrary } from './internal'
 
 export class UniqueArbitrary<A> extends WrappedArbitrary<A> {
@@ -6,7 +6,7 @@ export class UniqueArbitrary<A> extends WrappedArbitrary<A> {
     super(baseArbitrary)
   }
 
-  sample(sampleSize = 10): FluentPick<A>[] {
+  sample(sampleSize = 10): FluentSample<A> {
     // TODO: Here lies dragons! If you see start seeing things in double when
     // using this arbitrary, consider the culprit might lie in the way Map
     // deals with keys and equality
@@ -20,7 +20,7 @@ export class UniqueArbitrary<A> extends WrappedArbitrary<A> {
       bagSize = Math.min(sampleSize, this.size().value)
     }
 
-    return Array.from(result.values())
+    return { items: Array.from(result.values()), confidence: 0.0 }
   }
 
   shrink(initial: FluentPick<A>) {

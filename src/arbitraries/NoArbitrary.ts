@@ -1,10 +1,10 @@
-import { ArbitrarySize, FluentPick } from './types'
+import { ArbitrarySize, FluentPick, FluentSample } from './types'
 import { Arbitrary } from './internal'
 
 export const NoArbitrary: Arbitrary<never> = new class extends Arbitrary<never> {
   size(): ArbitrarySize { return { value: 0, type: 'exact' } }
-  sampleWithBias(): FluentPick<never>[] { return [] }
-  sample(): FluentPick<never>[] { return [] }
+  sampleWithBias(): FluentSample<never> { return { items: [], confidence: 1.0 } }
+  sample(): FluentSample<never> { return { items: [], confidence: 1.0 } }
   map(_: (a: never) => any) { return NoArbitrary }
   filter(_: (a: never) => boolean) { return NoArbitrary }
   unique() { return NoArbitrary }

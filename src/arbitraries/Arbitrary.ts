@@ -1,4 +1,4 @@
-import { ArbitrarySize, FluentPick } from './types'
+import { ArbitrarySize, FluentPick, FluentSample } from './types'
 import { ChainedArbitrary, FilteredArbitrary, MappedArbitrary, NoArbitrary, UniqueArbitrary } from './internal'
 
 export abstract class Arbitrary<A> {
@@ -14,29 +14,29 @@ export abstract class Arbitrary<A> {
 
   pick(): FluentPick<A> | undefined { return undefined }
 
-  sample(sampleSize = 10): FluentPick<A>[] {
-    const result: FluentPick<A>[] = []
+  sample(sampleSize = 10): FluentSample<A> {
+    const items: FluentPick<A>[] = []
     for (let i = 0; i < sampleSize; i += 1) {
       const pick = this.pick()
-      if (pick) result.push(pick)
+      if (pick) items.push(pick)
       else break
     }
 
-    return result
+    return { items, confidence: 0.0 }
   }
 
   cornerCases(): FluentPick<A>[] { return [] }
 
-  sampleWithBias(sampleSize = 10): FluentPick<A>[] {
+  sampleWithBias(sampleSize = 10): FluentSample<A> {
     const cornerCases = this.cornerCases()
 
     if (sampleSize <= cornerCases.length)
       return this.sample(sampleSize)
 
-    const sample = this.sample(sampleSize - cornerCases.length)
-    sample.unshift(...cornerCases)
+    const { items, confidence } = this.sample(sampleSize - cornerCases.length)
+    items.unshift(...cornerCases)
 
-    return sample
+    return { items, confidence }
   }
 
   shrink<B extends A>(_initial: FluentPick<B>): Arbitrary<A> {

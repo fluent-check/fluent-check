@@ -7,7 +7,7 @@ describe('Arbitrary tests', () => {
     expect(fc.scenario()
       .forall('n', fc.integer(0, 100))
       .given('a', () => fc.integer())
-      .then(({ n, a }) => a.sample(n).length === n)
+      .then(({ n, a }) => a.sample(n).items.length === n)
       .check()
     ).to.have.property('satisfiable', true)
   })
@@ -16,8 +16,8 @@ describe('Arbitrary tests', () => {
     expect(fc.scenario()
       .forall('n', fc.integer(0, 100))
       .given('a', () => fc.integer(0, 50))
-      .then(({ n, a }) => a.sample(n).every(i => i.value <= 50))
-      .and(({ n, a }) => a.sampleWithBias(n).every(i => i.value <= 50))
+      .then(({ n, a }) => a.sample(n).items.every(i => i.value <= 50))
+      .and(({ n, a }) => a.sampleWithBias(n).items.every(i => i.value <= 50))
       .check()
     ).to.have.property('satisfiable', true)
   })
@@ -26,8 +26,8 @@ describe('Arbitrary tests', () => {
     expect(fc.scenario()
       .forall('n', fc.integer(3, 100))
       .given('a', () => fc.integer(0, 50))
-      .then(({ n, a }) => a.sampleWithBias(n).some(v => v.value === 0))
-      .and(({ n, a }) => a.sampleWithBias(n).some(v => v.value === 50))
+      .then(({ n, a }) => a.sampleWithBias(n).items.some(v => v.value === 0))
+      .and(({ n, a }) => a.sampleWithBias(n).items.some(v => v.value === 50))
       .check()
     ).to.have.property('satisfiable', true)
   })
@@ -37,8 +37,8 @@ describe('Arbitrary tests', () => {
       .forall('n', fc.integer(0, 100))
       .forall('s', fc.integer(0, 100))
       .given('a', () => fc.integer(0, 100))
-      .then(({ n, s, a }) => a.shrink({ value: s }).sample(n).every(i => i.value < s))
-      .and(({ n, s, a }) => a.shrink({ value: s }).sampleWithBias(n).every(i => i.value < s))
+      .then(({ n, s, a }) => a.shrink({ value: s }).sample(n).items.every(i => i.value < s))
+      .and(({ n, s, a }) => a.shrink({ value: s }).sampleWithBias(n).items.every(i => i.value < s))
       .check()
     ).to.have.property('satisfiable', true)
   })
@@ -109,8 +109,8 @@ describe('Arbitrary tests', () => {
       expect(fc.scenario()
         .forall('n', fc.integer(10, 100))
         .given('a', () => fc.boolean().map(e => e ? 'Heads' : 'Tails'))
-        .then(({ a, n }) => a.sampleWithBias(n).some(s => s.value === 'Heads'))
-        .and(({ a, n }) => a.sampleWithBias(n).some(s => s.value === 'Tails'))
+        .then(({ a, n }) => a.sampleWithBias(n).items.some(s => s.value === 'Heads'))
+        .and(({ a, n }) => a.sampleWithBias(n).items.some(s => s.value === 'Tails'))
         .check()
       ).to.have.property('satisfiable', true)
     })
@@ -161,7 +161,7 @@ describe('Arbitrary tests', () => {
       })
 
       it("sampling should terminate even if arbitrary's size is potentially zero", () => {
-        expect(fc.integer(1, 1000).filter(() => false).sample()).to.be.empty
+        expect(fc.integer(1, 1000).filter(() => false).sample().items).to.be.empty
       })
     })
 
@@ -198,13 +198,13 @@ describe('Arbitrary tests', () => {
   describe('Unique Arbitraries', () => {
     it('should return all the available values when sample size === size', () => {
       expect(
-        fc.integer(0, 10).unique().sample(11).map(v => v.value)
+        fc.integer(0, 10).unique().sample(11).items.map(v => v.value)
       ).to.include.members([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
     })
 
     it('should be shrinkable and remain unique', () => {
       expect(
-        fc.integer(0, 10).unique().shrink({ value: 5 }).sample(5).map(v => v.value)
+        fc.integer(0, 10).unique().shrink({ value: 5 }).sample(5).items.map(v => v.value)
       ).to.include.members([0, 1, 2, 3, 4])
     })
 
@@ -212,7 +212,7 @@ describe('Arbitrary tests', () => {
       expect(fc.scenario()
         .forall('n', fc.integer(3, 10))
         .given('ub', () => fc.boolean().unique())
-        .then(({ n, ub }) => ub.sample(n).length === 2)
+        .then(({ n, ub }) => ub.sample(n).items.length === 2)
         .check()
       ).to.have.property('satisfiable', true)
     })
@@ -301,8 +301,8 @@ describe('Arbitrary tests', () => {
     })
 
     it('should return an empty sample', () => {
-      expect(fc.empty().sample().length).to.eq(0)
-      expect(fc.empty().sampleWithBias().length).to.eq(0)
+      expect(fc.empty().sample().items.length).to.eq(0)
+      expect(fc.empty().sampleWithBias().items.length).to.eq(0)
     })
 
     it('should remain no arbitrary when compose with unique, map, and filter', () => {

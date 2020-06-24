@@ -1,10 +1,13 @@
-import { Arbitrary, FluentPick } from './arbitraries'
+import { Arbitrary, FluentPick, FluentSample } from './arbitraries'
 
 type TestCase = { [k: string]: any }
 type FluentPicks = { [k: string]: FluentPick<any> }
 
 class FluentResult {
-  constructor(public readonly satisfiable = false, public example: TestCase = {}) { }
+  constructor(
+    public readonly satisfiable = false,
+    public example: TestCase = {},
+    public confidence: number = 0.0) {}
 
   addExample<A>(name: string, value: A) {
     this.example[name] = value
@@ -62,7 +65,7 @@ export class FluentCheck<G extends TestCase, P extends TestCase> {
     if (this.parent !== undefined) return this.parent.check((testCase: TestCase) => this.run(testCase as G, child))
     else {
       const r = this.run({} as G, child)
-      return new FluentResult(r.satisfiable, FluentCheck.unwrapFluentPick(r.example))
+      return new FluentResult(r.satisfiable, FluentCheck.unwrapFluentPick(r.example), r.confidence)
     }
   }
 
@@ -104,7 +107,7 @@ class FluentCheckGivenConstant<K extends string, V, P extends TestCase, G extend
 }
 
 class FluentCheckUniversal<K extends string, A, P extends TestCase, G extends P & Record<K, A>> extends FluentCheck<G, P> {
-  private cache: Array<FluentPick<A>>
+  private cache: FluentSample<A>
   private dedup: Arbitrary<A>
 
   constructor(protected readonly parent: FluentCheck<P, any>, public readonly name: K, public readonly a: Arbitrary<A>) {
@@ -114,10 +117,11 @@ class FluentCheckUniversal<K extends string, A, P extends TestCase, G extends P 
   }
 
   protected run(testCase: TestCase, callback: (arg: TestCase) => FluentResult, partial: FluentResult | undefined = undefined): FluentResult {
-    const example = partial || new FluentResult(true)
-    const collection = partial === undefined ? this.cache : this.dedup.shrink(partial.example[this.name]).sampleWithBias(1000)
+    const sample = partial === undefined ?
+      this.cache :
+      this.dedup.shrink(partial.example[this.name]).sampleWithBias(1000)
 
-    for (const tp of collection) {
+    for (const tp of sample.items) {
       testCase[this.name] = tp
       const result = callback(testCase)
       if (!result.satisfiable) {
@@ -126,12 +130,12 @@ class FluentCheckUniversal<K extends string, A, P extends TestCase, G extends P 
       }
     }
 
-    return example
+    return partial || new FluentResult(true, {}, sample.confidence)
   }
 }
 
 class FluentCheckExistential<K extends string, A, P extends TestCase, G extends P & Record<K, A>> extends FluentCheck<G, P> {
-  private cache: Array<FluentPick<A>>
+  private cache: FluentSample<A>
   private dedup: Arbitrary<A>
 
   constructor(protected readonly parent: FluentCheck<P, any>, public readonly name: K, public readonly a: Arbitrary<A>) {
@@ -141,10 +145,11 @@ class FluentCheckExistential<K extends string, A, P extends TestCase, G extends 
   }
 
   protected run(testCase: TestCase, callback: (arg: TestCase) => FluentResult, partial: FluentResult | undefined = undefined): FluentResult {
-    const example = partial || new FluentResult(false)
-    const collection = partial === undefined ? this.cache : this.dedup.shrink(partial.example[this.name]).sampleWithBias(1000)
+    const sample = partial === undefined ?
+      this.cache :
+      this.dedup.shrink(partial.example[this.name]).sampleWithBias(1000)
 
-    for (const tp of collection) {
+    for (const tp of sample.items) {
       testCase[this.name] = tp
       const result = callback(testCase)
       if (result.satisfiable) {
@@ -153,7 +158,7 @@ class FluentCheckExistential<K extends string, A, P extends TestCase, G extends 
       }
     }
 
-    return example
+    return partial || new FluentResult(false, {}, sample.confidence)
   }
 }
 

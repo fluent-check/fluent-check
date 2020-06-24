@@ -23,8 +23,8 @@ export class ArbitraryArray<A> extends Arbitrary<A[]> {
     const size = Math.floor(Math.random() * (this.max - this.min + 1)) + this.min
     const fpa = this.arbitrary.sampleWithBias(size)
 
-    const value = fpa.map(v => v.value)
-    const original = fpa.map(v => v.original)
+    const value = fpa.items.map(v => v.value)
+    const original = fpa.items.map(v => v.original)
 
     return {
       value,
