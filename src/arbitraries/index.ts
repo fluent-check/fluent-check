@@ -1,6 +1,8 @@
 import {
   Arbitrary,
   ArbitraryArray,
+  ArbitrarySet,
+  ArbitraryOneOf,
   ArbitraryBoolean,
   ArbitraryConstant,
   ArbitraryComposite,
@@ -29,8 +31,17 @@ export const string = (min = 2, max = 10, chars = 'abcdefghijklmnopqrstuvwxyz'):
 export const array = <A>(arbitrary: Arbitrary<A>, min = 0, max = 10): Arbitrary<A[]> =>
   min > max ? NoArbitrary : new ArbitraryArray(arbitrary, min, max)
 
-export const union = <A>(...arbitraries: Arbitrary<A>[]): Arbitrary<A> =>
-  arbitraries.length === 1 ? arbitraries[0] : new ArbitraryComposite(arbitraries)
+export const set = <A>(elements: A[], min = 0, max = 10): Arbitrary<A[]> =>
+  min > max || min > elements.length || new Set(elements).size !== elements.length ? NoArbitrary :
+    new ArbitrarySet(elements, min, Math.min(max, elements.length))
+
+export const oneof = <A>(elements: A[]): Arbitrary<A> =>
+  elements.length === 0 ? NoArbitrary : new ArbitraryOneOf(elements)
+
+export const union = <A>(...arbitraries: Arbitrary<A>[]): Arbitrary<A> => {
+  arbitraries = arbitraries.filter(a => a !== NoArbitrary)
+  return arbitraries.length === 0 ? NoArbitrary : (arbitraries.length === 1 ? arbitraries[0] : new ArbitraryComposite(arbitraries.filter(a => a !== NoArbitrary)))
+}
 
 export const boolean = (): Arbitrary<boolean> => new ArbitraryBoolean()
 
