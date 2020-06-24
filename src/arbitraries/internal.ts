@@ -10,6 +10,7 @@ export * from './ChainedArbitrary'
 
 export * from './ArbitraryConstant'
 export * from './ArbitraryComposite'
+export * from './ArbitraryTuple'
 export * from './ArbitraryInteger'
 export * from './ArbitraryBoolean'
 export * from './ArbitraryReal'
