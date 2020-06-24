@@ -3,6 +3,8 @@ export * from './NoArbitrary'
 
 export * from './WrappedArbitrary'
 export * from './ArbitraryArray'
+export * from './ArbitrarySet'
+export * from './ArbitraryOneOf'
 export * from './FilteredArbitrary'
 export * from './MappedArbitrary'
 export * from './UniqueArbitrary'
