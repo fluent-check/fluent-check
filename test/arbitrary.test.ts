@@ -247,7 +247,7 @@ describe('Arbitrary tests', () => {
 
     it('should check a property based on a chained arbitrary', () => {
       expect(
-        new FluentCheck()
+        fc.scenario()
           .forall('a', fc.integer(1, 10).chain(i => fc.array(fc.constant(i), i, i)))
           .then(({ a }) => a.length === a[0])
           .check()

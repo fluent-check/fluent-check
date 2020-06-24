@@ -24,6 +24,7 @@
     "eqeqeq": [2, "smart"],
     "no-var": 2,
 
+    "eol-last": [1, "always"],
     "keyword-spacing": 1,
     // TODO(rui): apply this later
     // "max-len": [1, 100, 4],
