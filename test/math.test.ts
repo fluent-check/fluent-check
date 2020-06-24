@@ -1,11 +1,10 @@
-import { FluentCheck } from '../src/index'
-import * as fc from '../src/arbitraries'
+import * as fc from '../src/index'
 import { it } from 'mocha'
 import { expect } from 'chai'
 
 describe('Math properties tests', () => {
   it('finds if addition is commutative', () => {
-    expect(new FluentCheck()
+    expect(fc.scenario()
       .forall('a', fc.integer(-10, 10))
       .forall('b', fc.integer(-10, 10))
       .then(({ a, b }) => a + b === b + a)
@@ -14,7 +13,7 @@ describe('Math properties tests', () => {
   })
 
   it('finds if additions is associative', () => {
-    expect(new FluentCheck()
+    expect(fc.scenario()
       .forall('a', fc.integer(-10, 10))
       .forall('b', fc.integer(-10, 10))
       .forall('c', fc.integer(-10, 10))
@@ -24,7 +23,7 @@ describe('Math properties tests', () => {
   })
 
   it('finds if addition has an inverse', () => {
-    expect(new FluentCheck()
+    expect(fc.scenario()
       .forall('a', fc.integer(-10, 10))
       .exists('b', fc.integer(-10, 10))
       .then(({ a, b }) => a + b === 0)
@@ -33,7 +32,7 @@ describe('Math properties tests', () => {
   })
 
   it('finds if multiplication is commutative', () => {
-    expect(new FluentCheck()
+    expect(fc.scenario()
       .forall('a', fc.integer(-10, 10))
       .forall('b', fc.integer(-10, 10))
       .then(({ a, b }) => a * b === b * a)
@@ -42,7 +41,7 @@ describe('Math properties tests', () => {
   })
 
   it('finds if multiplication is associative', () => {
-    expect(new FluentCheck()
+    expect(fc.scenario()
       .forall('a', fc.integer(-10, 10))
       .forall('b', fc.integer(-10, 10))
       .forall('c', fc.integer(-10, 10))
@@ -52,7 +51,7 @@ describe('Math properties tests', () => {
   })
 
   it('finds if multiplication is distributive over addition', () => {
-    expect(new FluentCheck()
+    expect(fc.scenario()
       .forall('a', fc.integer(-10, 10))
       .forall('b', fc.integer(-10, 10))
       .forall('c', fc.integer(-10, 10))
@@ -62,7 +61,7 @@ describe('Math properties tests', () => {
   })
 
   it('finds if multiplication has precendence over addition', () => {
-    expect(new FluentCheck()
+    expect(fc.scenario()
       .forall('a', fc.integer(-10, 10))
       .forall('b', fc.integer(-10, 10))
       .forall('c', fc.integer(-10, 10))
@@ -72,7 +71,7 @@ describe('Math properties tests', () => {
   })
 
   it('finds the neutral element of addition', () => {
-    expect(new FluentCheck()
+    expect(fc.scenario()
       .exists('a', fc.integer())
       .forall('b', fc.integer(-10, 10))
       .then(({ a, b }) => a + b === b)
@@ -81,7 +80,7 @@ describe('Math properties tests', () => {
   })
 
   it('finds the neutral element of multiplication', () => {
-    expect(new FluentCheck()
+    expect(fc.scenario()
       .exists('a', fc.integer(-10, 10))
       .forall('b', fc.integer(-10, 10))
       .then(({ a, b }) => a * b === b)
@@ -90,7 +89,7 @@ describe('Math properties tests', () => {
   })
 
   it('finds the absorbing element of multiplication', () => {
-    expect(new FluentCheck()
+    expect(fc.scenario()
       .exists('a', fc.integer(-10, 10))
       .forall('b', fc.integer(-10, 10))
       .then(({ a, b }) => a * b === 0)
@@ -99,7 +98,7 @@ describe('Math properties tests', () => {
   })
 
   it('finds that subtraction is not cummutative', () => {
-    expect(new FluentCheck()
+    expect(fc.scenario()
       .forall('a', fc.integer(-10, 10))
       .forall('b', fc.integer(-10, 10))
       .then(({ a, b }) => a - b === b - a)

@@ -1,11 +1,10 @@
-import * as fc from '../src/arbitraries'
+import * as fc from '../src/index'
 import { it } from 'mocha'
 import { expect } from 'chai'
-import { FluentCheck } from '../src'
 
 describe('Arbitrary tests', () => {
   it('should return has many numbers has asked', () => {
-    expect(new FluentCheck()
+    expect(fc.scenario()
       .forall('n', fc.integer(0, 100))
       .given('a', () => fc.integer())
       .then(({ n, a }) => a.sample(n).length === n)
@@ -14,7 +13,7 @@ describe('Arbitrary tests', () => {
   })
 
   it('should return values in the specified range', () => {
-    expect(new FluentCheck()
+    expect(fc.scenario()
       .forall('n', fc.integer(0, 100))
       .given('a', () => fc.integer(0, 50))
       .then(({ n, a }) => a.sample(n).every(i => i.value <= 50))
@@ -24,7 +23,7 @@ describe('Arbitrary tests', () => {
   })
 
   it('should return corner cases if there is space', () => {
-    expect(new FluentCheck()
+    expect(fc.scenario()
       .forall('n', fc.integer(3, 100))
       .given('a', () => fc.integer(0, 50))
       .then(({ n, a }) => a.sampleWithBias(n).some(v => v.value === 0))
@@ -34,7 +33,7 @@ describe('Arbitrary tests', () => {
   })
 
   it('should return values smaller than what was shrunk', () => {
-    expect(new FluentCheck()
+    expect(fc.scenario()
       .forall('n', fc.integer(0, 100))
       .forall('s', fc.integer(0, 100))
       .given('a', () => fc.integer(0, 100))
@@ -45,7 +44,7 @@ describe('Arbitrary tests', () => {
   })
 
   it('should allow shrinking of mapped arbitraries', () => {
-    expect(new FluentCheck()
+    expect(fc.scenario()
       .exists('n', fc.integer(0, 25).map(x => x + 25).map(x => x * 2))
       .forall('a', fc.integer(0, 10))
       .then(({ n, a }) => a <= n)
@@ -107,7 +106,7 @@ describe('Arbitrary tests', () => {
 
   describe('Transformations', () => {
     it('should allow booleans to be mappeable', () => {
-      expect(new FluentCheck()
+      expect(fc.scenario()
         .forall('n', fc.integer(10, 100))
         .given('a', () => fc.boolean().map(e => e ? 'Heads' : 'Tails'))
         .then(({ a, n }) => a.sampleWithBias(n).some(s => s.value === 'Heads'))
@@ -117,7 +116,7 @@ describe('Arbitrary tests', () => {
     })
 
     it('should allow integers to be filtered', () => {
-      expect(new FluentCheck()
+      expect(fc.scenario()
         .forall('n', fc.integer(0, 100).filter(n => n < 10))
         .then(({ n }) => n < 10)
         .check()
@@ -125,7 +124,7 @@ describe('Arbitrary tests', () => {
     })
 
     it('filters should exclude corner cases, even after shrinking', () => {
-      expect(new FluentCheck()
+      expect(fc.scenario()
         .exists('a', fc.integer(-20, 20).filter(a => a !== 0))
         .then(({ a }) => a % 11 === 0 && a !== 11 && a !== -11)
         .check()
@@ -133,7 +132,7 @@ describe('Arbitrary tests', () => {
     })
 
     it('should allow integers to be both mapped and filtered', () => {
-      expect(new FluentCheck()
+      expect(fc.scenario()
         .forall('n', fc.integer(0, 100).map(n => n + 100).filter(n => n < 150))
         .then(({ n }) => n >= 100 && n <= 150)
         .check()
@@ -175,7 +174,14 @@ describe('Arbitrary tests', () => {
     })
 
     it('should return the correct size of a collection arbitrary', () => {
-      expect(fc.array(fc.boolean(), 1, 10).size()).to.have.property('value', 512)
+      expect(fc.array(fc.boolean(), 10, 10).size()).to.have.property('value', 1024)
+      expect(fc.array(fc.boolean(), 1, 10).size()).to.have.property('value', 2046)
+      expect(fc.array(fc.empty(), 0, 10).size()).to.have.property('value', 1)
+      expect(fc.array(fc.empty(), 1, 10).size()).to.have.property('value', 0)
+      expect(fc.array(fc.integer(0, 3), 3, 4).size()).to.have.property('value', 320)
+      // TODO(rui): should we replace exact values with an "unbounded" value when they're bigger
+      // than MAX_SAFE_INTEGER? This will bite us later.
+      expect(fc.array(fc.integer(), 1, 2).size()).to.have.property('value').gt(Number.MAX_SAFE_INTEGER)
     })
   })
 
@@ -203,7 +209,7 @@ describe('Arbitrary tests', () => {
     })
 
     it('should return no more than the number of possible cases', () => {
-      expect(new FluentCheck()
+      expect(fc.scenario()
         .forall('n', fc.integer(3, 10))
         .given('ub', () => fc.boolean().unique())
         .then(({ n, ub }) => ub.sample(n).length === 2)
@@ -212,15 +218,22 @@ describe('Arbitrary tests', () => {
     })
   })
 
-  /*
   describe('Chained Arbitraries', () => {
-    it('should work', () => {
+    it('should allow the creation of array with size based on an integer arbitrary', () => {
       expect(
-        fc.integer(2, 2).chain(i => fc.array(fc.constant(i), i, i)).pick()?.value
+        fc.integer(2, 2).chain(i => fc.array(fc.constant(i), i, i)).pick()!.value
       ).to.have.members([2, 2])
     })
+
+    it('should check a property based on a chained arbitrary', () => {
+      expect(
+        fc.scenario()
+          .forall('a', fc.integer(1, 10).chain(i => fc.array(fc.constant(i), i, i)))
+          .then(({ a }) => a.length === a[0])
+          .check()
+      ).to.have.property('satisfiable', true)
+    })
   })
-  */
 
   describe('Can Generate', () => {
     it('knows if it can generate an integer', () => {
