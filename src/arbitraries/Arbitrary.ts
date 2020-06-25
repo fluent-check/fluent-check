@@ -1,5 +1,6 @@
 import { ArbitrarySize, FluentPick, FluentSample } from './types'
 import { ChainedArbitrary, FilteredArbitrary, MappedArbitrary, NoArbitrary, UniqueArbitrary } from './internal'
+import * as stats from 'jstat'
 
 export abstract class Arbitrary<A> {
   abstract size(): ArbitrarySize
@@ -22,7 +23,29 @@ export abstract class Arbitrary<A> {
       else break
     }
 
-    return { items, confidence: 0.0 }
+    return {
+      items,
+      confidence: this.sampleConfidenceFor(sampleSize)
+    }
+  }
+
+  // The guy in https://bit.ly/3dAR2TN was right, there seems to be no closed formula for this :(
+  // The distribution is a mixture of binomials given by
+  // https://gist.github.com/ruippeixotog/c2e00f08f21d467e94545826f0832696 (think-bayes-scala
+  // code). I simplified the mathematical expression to this.
+  // ```
+  sampleConfidenceFor(sampleSize: number) {
+    const popSize = this.size().value
+    if (popSize >= 10000) {
+      // domain too large, can't calculate
+      // TODO: find closed formula or good approximation
+      return 0.0
+    }
+    let s = 1.0
+    for (let k = 0; k <= popSize; k++) {
+      s += stats.combination(popSize, k) * (1.0 - (k / popSize) ** sampleSize)
+    }
+    return s / (2 ** popSize)
   }
 
   cornerCases(): FluentPick<A>[] { return [] }
