@@ -8,7 +8,6 @@ import {
   ArbitraryTuple,
   ArbitraryInteger,
   ArbitraryReal,
-  ArbitraryString,
   NoArbitrary
 } from './internal'
 
@@ -25,7 +24,7 @@ export const nat = (min = 0, max = Number.MAX_SAFE_INTEGER): Arbitrary<number> =
   new ArbitraryInteger(min, max)
 
 export const string = (min = 2, max = 10, chars = 'abcdefghijklmnopqrstuvwxyz'): Arbitrary<string> =>
-  chars === '' ? new ArbitraryConstant('') : new ArbitraryString(min, max, chars)
+  chars === '' ? constant('') : array(integer(0, chars.length - 1).map(n => chars[n]), min, max).map(a => a.join(''))
 
 export const array = <A>(arbitrary: Arbitrary<A>, min = 0, max = 10): Arbitrary<A[]> =>
   min > max ? NoArbitrary : new ArbitraryArray(arbitrary, min, max)
