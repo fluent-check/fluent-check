@@ -2,14 +2,12 @@ import {
   Arbitrary,
   ArbitraryArray,
   ArbitrarySet,
-  ArbitraryOneOf,
   ArbitraryBoolean,
   ArbitraryConstant,
   ArbitraryComposite,
   ArbitraryTuple,
   ArbitraryInteger,
   ArbitraryReal,
-  ArbitraryString,
   NoArbitrary
 } from './internal'
 
@@ -26,7 +24,7 @@ export const nat = (min = 0, max = Number.MAX_SAFE_INTEGER): Arbitrary<number> =
   new ArbitraryInteger(min, max)
 
 export const string = (min = 2, max = 10, chars = 'abcdefghijklmnopqrstuvwxyz'): Arbitrary<string> =>
-  chars === '' ? new ArbitraryConstant('') : new ArbitraryString(min, max, chars)
+  chars === '' ? constant('') : array(integer(0, chars.length - 1).map(n => chars[n]), min, max).map(a => a.join(''))
 
 export const array = <A>(arbitrary: Arbitrary<A>, min = 0, max = 10): Arbitrary<A[]> =>
   min > max ? NoArbitrary : new ArbitraryArray(arbitrary, min, max)
@@ -35,7 +33,7 @@ export const set = <A>(elements: A[], min = 0, max = 10): Arbitrary<A[]> =>
   min > max || min > elements.length ? NoArbitrary : new ArbitrarySet(Array.from(new Set(elements)), min, max)
 
 export const oneof = <A>(elements: A[]): Arbitrary<A> =>
-  elements.length === 0 ? NoArbitrary : new ArbitraryOneOf(elements)
+  elements.length === 0 ? NoArbitrary : integer(0, elements.length - 1).map(i => elements[i])
 
 export const union = <A>(...arbitraries: Arbitrary<A>[]): Arbitrary<A> => {
   arbitraries = arbitraries.filter(a => a !== NoArbitrary)
