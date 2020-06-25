@@ -77,6 +77,11 @@ describe('Arbitrary tests', () => {
     it('should return the corner cases of maps', () => {
       expect(fc.integer(0, 1).map(i => i === 0).cornerCases().map(c => c.value)).to.have.members([false, true])
     })
+
+    it('should return the corner cases of tuples', () => {
+      expect(fc.tuple(fc.integer(0, 1), fc.string(1, 2, 'abc')).cornerCases().map(c => c.value))
+        .to.have.deep.members([[0, 'a'], [0, 'aa'], [0, 'c'], [0, 'cc'], [1, 'a'], [1, 'aa'], [1, 'c'], [1, 'cc']])
+    })
   })
 
   describe('Builders', () => {
