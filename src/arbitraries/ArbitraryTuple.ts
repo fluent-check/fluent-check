@@ -1,6 +1,7 @@
 import { ArbitrarySize, FluentPick } from './types'
 import { Arbitrary, NoArbitrary } from './internal'
 import * as fc from './index'
+import { FluentCheck } from '../FluentCheck'
 
 type Replace<T> = { [P in keyof T]: T[P] extends fc.Arbitrary<infer E> ? E : T[P] }
 
@@ -38,24 +39,19 @@ export class ArbitraryTuple<U extends Arbitrary<any>[]> extends Arbitrary<Replac
   }
 
   cornerCases(): FluentPick<Replace<U>[]>[] {
-    if (this.arbitraries.length === 0) return []
-    let cases: FluentPick<Replace<U>[]>[] =
-      this.arbitraries[0].cornerCases().map(c => ({ value: [c.value], original: [c.original] }))
+    const cornerCases = this.arbitraries.map(a => a.cornerCases())
 
-    for (let i = 1; i < this.arbitraries.length; i++) {
-      const nextCases: FluentPick<Replace<U>[]>[] = []
-      cases.forEach(c => {
-        this.arbitraries[i].cornerCases().forEach(cc => {
-          const nc = JSON.parse(JSON.stringify(c))
-          nc.value.push(cc.value)
-          nc.original.push(cc.original)
-          nextCases.push(nc)
-        })
+    const result = cornerCases.reduce((acc, cc) => {
+      const result : FluentPick<Replace<U>[]>[] = []
+      acc.forEach((a: FluentPick<any>) => {
+        cc.forEach((b: FluentPick<any>) => result.push({
+          value: Array.isArray(a.value) ? [...a.value, b.value] : [a.value, b.value],
+          original: Array.isArray(a.original) ? [...a.original, b.original] : [a.original, b.original] }))
       })
-      cases = nextCases
-    }
+      return result
+    })
 
-    return cases
+    return result
   }
 
   shrink(initial: FluentPick<any[]>): Arbitrary<any[]> {
