@@ -46,4 +46,4 @@ export const empty = () => NoArbitrary
 
 export const constant = <A>(constant: A): Arbitrary<A> => new ArbitraryConstant(constant)
 
-export const tuple    = (...arbitraries: Arbitrary<any>[]): Arbitrary<any[]> => new ArbitraryTuple(arbitraries)
+export const tuple = <U extends Arbitrary<any>[]>(...arbitraries: U) => new ArbitraryTuple(arbitraries)

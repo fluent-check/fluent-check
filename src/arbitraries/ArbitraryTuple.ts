@@ -2,8 +2,10 @@ import { ArbitrarySize, FluentPick } from './types'
 import { Arbitrary, NoArbitrary } from './internal'
 import * as fc from './index'
 
-export class ArbitraryTuple extends Arbitrary<any[]> {
-  constructor(public readonly arbitraries : Arbitrary<any>[]) {
+type Replace<T> = { [P in keyof T]: T[P] extends fc.Arbitrary<infer E> ? E : T[P] }
+
+export class ArbitraryTuple<U extends Arbitrary<any>[]> extends Arbitrary<Replace<U>[]> {
+  constructor(public readonly arbitraries: U) {
     super()
   }
 
@@ -21,12 +23,18 @@ export class ArbitraryTuple extends Arbitrary<any[]> {
   }
 
   pick() {
-    const value : any[] = []
+    const value: Replace<U>[] = []
+    const original: any[] = []
+    for (const a of this.arbitraries) {
+      const pick = a.pick()
+      if (pick === undefined) return undefined
+      else {
+        value.push(pick.value)
+        original.push(pick.original)
+      }
+    }
 
-    for (const a of this.arbitraries)
-      value.push(a.pick())
-
-    return { value }
+    return { value, original }
   }
 
   cornerCases() {
@@ -35,6 +43,7 @@ export class ArbitraryTuple extends Arbitrary<any[]> {
   }
 
   shrink(initial: FluentPick<any[]>): Arbitrary<any[]> {
+    // TODO: Make this compatible with pick()
     const arbitraries : Arbitrary<any>[] = []
 
     for (let i = 0; i < this.arbitraries.length; i++) {
