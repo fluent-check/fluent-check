@@ -30,8 +30,7 @@ export const array = <A>(arbitrary: Arbitrary<A>, min = 0, max = 10): Arbitrary<
   min > max ? NoArbitrary : new ArbitraryArray(arbitrary, min, max)
 
 export const set = <A>(elements: A[], min = 0, max = 10): Arbitrary<A[]> =>
-  min > max || min > elements.length || new Set(elements).size !== elements.length ? NoArbitrary :
-    new ArbitrarySet(elements, min, Math.min(max, elements.length))
+  min > max || min > elements.length ? NoArbitrary : new ArbitrarySet(Array.from(new Set(elements)), min, max)
 
 export const oneof = <A>(elements: A[]): Arbitrary<A> =>
   elements.length === 0 ? NoArbitrary : integer(0, elements.length - 1).map(i => elements[i])
