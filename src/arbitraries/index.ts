@@ -2,7 +2,6 @@ import {
   Arbitrary,
   ArbitraryArray,
   ArbitrarySet,
-  ArbitraryOneOf,
   ArbitraryBoolean,
   ArbitraryConstant,
   ArbitraryComposite,
@@ -36,7 +35,7 @@ export const set = <A>(elements: A[], min = 0, max = 10): Arbitrary<A[]> =>
     new ArbitrarySet(elements, min, Math.min(max, elements.length))
 
 export const oneof = <A>(elements: A[]): Arbitrary<A> =>
-  elements.length === 0 ? NoArbitrary : new ArbitraryOneOf(elements)
+  elements.length === 0 ? NoArbitrary : integer(0, elements.length - 1).map(i => elements[i])
 
 export const union = <A>(...arbitraries: Arbitrary<A>[]): Arbitrary<A> => {
   arbitraries = arbitraries.filter(a => a !== NoArbitrary)
