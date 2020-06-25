@@ -37,9 +37,25 @@ export class ArbitraryTuple<U extends Arbitrary<any>[]> extends Arbitrary<Replac
     return { value, original }
   }
 
-  cornerCases() {
-    // TODO
-    return []
+  cornerCases(): FluentPick<Replace<U>[]>[] {
+    if (this.arbitraries.length === 0) return []
+    let cases: FluentPick<Replace<U>[]>[] =
+      this.arbitraries[0].cornerCases().map(c => ({ value: [c.value], original: [c.original] }))
+
+    for (let i = 1; i < this.arbitraries.length; i++) {
+      const nextCases: FluentPick<Replace<U>[]>[] = []
+      cases.forEach(c => {
+        this.arbitraries[i].cornerCases().forEach(cc => {
+          const nc = JSON.parse(JSON.stringify(c))
+          nc.value.push(cc.value)
+          nc.original.push(cc.original)
+          nextCases.push(nc)
+        })
+      })
+      cases = nextCases
+    }
+
+    return cases
   }
 
   shrink(initial: FluentPick<any[]>): Arbitrary<any[]> {
