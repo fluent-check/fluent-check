@@ -49,7 +49,7 @@ export class ArbitrarySet<A> extends Arbitrary<A[]> {
 
   canGenerate(pick: FluentPick<A[]>) {
     return pick.value.length >= this.min && pick.value.length <= this.max &&
-           pick.value.every((v) => this.elements.concat(v))
+           pick.value.every(v => this.elements.includes(v))
   }
 
   cornerCases(): FluentPick<A[]>[] {
