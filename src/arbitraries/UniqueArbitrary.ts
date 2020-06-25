@@ -17,7 +17,7 @@ export class UniqueArbitrary<A> extends WrappedArbitrary<A> {
       const r = this.pick()
       if (!r) break
       if (!result.has(r.value)) result.set(r.value, r)
-      bagSize = Math.min(sampleSize, this.size().value)
+      bagSize = Math.min(sampleSize, this.size().value) // We only need to do this every iteration if the size estimation was not exact.
     }
 
     return Array.from(result.values())
