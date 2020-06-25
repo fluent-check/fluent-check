@@ -59,7 +59,16 @@ export class ArbitraryTuple<U extends Arbitrary<any>[]> extends Arbitrary<Replac
   }
 
   canGenerate(pick: FluentPick<any[]>) {
-    //TODO
+    if (pick.value.length !== this.arbitraries.length) return false
+
+    for (let i = 0; i < pick.value.length; i++) {
+      console.log({ value: pick.value[i], original: pick.original[i] })
+      console.log(this.arbitraries[i])
+      console.log(this.arbitraries[i].canGenerate({ value: pick.value[i], original: pick.original[i] }))
+      if (!this.arbitraries[i].canGenerate({ value: pick.value[i], original: pick.original[i] })) //?
+        return false
+    }
+
     return true
   }
 }
