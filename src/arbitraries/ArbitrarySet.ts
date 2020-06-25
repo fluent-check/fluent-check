@@ -1,19 +1,17 @@
 import { FluentPick, ArbitrarySize } from './types'
 import { Arbitrary } from './internal'
+import { factorial } from '../statistics'
 import * as fc from './index'
 
 export class ArbitrarySet<A> extends Arbitrary<A[]> {
-  constructor(public readonly elements: A[], public readonly min = 0, public readonly max = 10) {
+  readonly max: number
+
+  constructor(public readonly elements: A[], public readonly min = 0, max = 10) {
     super()
+    this.max = Math.min(max, elements.length)
   }
 
   size(): ArbitrarySize {
-    const factorial = (n: number) => {
-      let x = 1, f = 1
-      while (x <= n) f *= x++
-      return f
-    }
-
     const comb = (n: number, s: number) => { return factorial (n) / (factorial(s) * factorial(n - s))}
 
     let size = 0
@@ -31,10 +29,7 @@ export class ArbitrarySet<A> extends Arbitrary<A[]> {
 
     const value = Array.from(pick)
 
-    return {
-      value,
-      original: value
-    }
+    return { value, original: value }
   }
 
   shrink(initial: FluentPick<A[]>): Arbitrary<A[]> {
@@ -49,7 +44,7 @@ export class ArbitrarySet<A> extends Arbitrary<A[]> {
 
   canGenerate(pick: FluentPick<A[]>) {
     return pick.value.length >= this.min && pick.value.length <= this.max &&
-           pick.value.every((v) => this.elements.concat(v))
+           pick.value.every(v => this.elements.concat(v))
   }
 
   cornerCases(): FluentPick<A[]>[] {
