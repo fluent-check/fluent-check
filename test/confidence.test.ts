@@ -3,7 +3,7 @@ import { expect } from 'chai'
 import * as fc from '../src'
 import { Arbitrary } from '../src/arbitraries'
 
-describe('Confidence tests', () => {
+describe('Confidence tests', function () {
 
   /**
    * The one true test to evaluate the confidence returned by an arbitrary, given the population
@@ -53,7 +53,9 @@ describe('Confidence tests', () => {
     )
   }
 
-  it('should provide correct confidences for integers', () => {
+  it('should provide correct confidences for integers', function () {
+    this.timeout(10000)
+
     expectCorrectConfidence([0, 1], fc.integer(0, 1), 1)
     expectCorrectConfidence([0, 1], fc.integer(0, 1), 2)
     expectCorrectConfidence([0, 1, 2], fc.integer(0, 2), 1)
