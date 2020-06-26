@@ -10,7 +10,6 @@ class FluentResult {
 
   addExample<A>(name: string, value: FluentPick<A>) {
     this.example[name] = value
-    return this
   }
 }
 
