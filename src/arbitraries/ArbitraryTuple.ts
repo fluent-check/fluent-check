@@ -1,11 +1,10 @@
 import { ArbitrarySize, FluentPick } from './types'
 import { Arbitrary, NoArbitrary } from './internal'
 import * as fc from './index'
-import { FluentCheck } from '../FluentCheck'
 
-type Replace<T> = { [P in keyof T]: T[P] extends fc.Arbitrary<infer E> ? E : T[P] }
+type UnwrapFluentPick<T> = { [P in keyof T]: T[P] extends fc.Arbitrary<infer E> ? E : T[P] }
 
-export class ArbitraryTuple<U extends Arbitrary<any>[]> extends Arbitrary<Replace<U>[]> {
+export class ArbitraryTuple<U extends Arbitrary<any>[]> extends Arbitrary<UnwrapFluentPick<U>[]> {
   constructor(public readonly arbitraries: U) {
     super()
   }
@@ -24,7 +23,7 @@ export class ArbitraryTuple<U extends Arbitrary<any>[]> extends Arbitrary<Replac
   }
 
   pick() {
-    const value: Replace<U>[] = []
+    const value: UnwrapFluentPick<U>[] = []
     const original: any[] = []
     for (const a of this.arbitraries) {
       const pick = a.pick()
@@ -38,7 +37,7 @@ export class ArbitraryTuple<U extends Arbitrary<any>[]> extends Arbitrary<Replac
     return { value, original }
   }
 
-  cornerCases(): FluentPick<Replace<U>[]>[] {
+  cornerCases() {
     const cornerCases = this.arbitraries.map(a => a.cornerCases())
 
     return cornerCases.reduce((acc, cc) => acc.flatMap(a => cc.map(b => ({
@@ -47,23 +46,17 @@ export class ArbitraryTuple<U extends Arbitrary<any>[]> extends Arbitrary<Replac
     }))), [{ value: [], original: [] }])
   }
 
-  shrink(initial: FluentPick<any[]>): Arbitrary<any[]> {
-    // TODO: Make this compatible with pick()
-    const arbitraries : Arbitrary<any>[] = []
+  shrink(initial) {
+    const arbitraries = this.arbitraries.map((toShrink, i) => {
+      return this.arbitraries.map(arbitrary => {
+        return arbitrary === toShrink ? arbitrary.shrink({ value: initial.value[i], original: initial.original[i] }) : arbitrary
+      })
+    })
 
-    for (let i = 0; i < this.arbitraries.length; i++) {
-      initial.value[i].original ?
-        arbitraries.push(this.arbitraries[i].shrink({ value : initial.value[i].value, original: initial.value[i].original })) :
-        arbitraries.push(this.arbitraries[i].shrink({ value : initial.value[i].value }))
-    }
-
-    if (arbitraries.some(a => a === NoArbitrary))
-      return NoArbitrary
-
-    return fc.tuple(...arbitraries)
+    return fc.union(...arbitraries.map(a => fc.tuple(...a)))
   }
 
-  canGenerate(pick: FluentPick<any[]>) {
+  canGenerate(pick) {
     if (pick.value.length !== this.arbitraries.length) return false
 
     for (let i = 0; i < pick.value.length; i++) {
