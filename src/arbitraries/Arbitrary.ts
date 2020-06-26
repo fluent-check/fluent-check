@@ -51,4 +51,6 @@ export abstract class Arbitrary<A> {
   filter(f: (a: A) => boolean): Arbitrary<A> { return new FilteredArbitrary(this, f) }
   chain<B>(f: (a: A) => Arbitrary<B>): Arbitrary<B> { return new ChainedArbitrary(this, f) }
   unique(): Arbitrary<A> { return new UniqueArbitrary(this) }
+
+  toString(depth = 0): string { return ' '.repeat(depth * 2) + `Base Arbitrary: ${this.constructor.name}`  }
 }

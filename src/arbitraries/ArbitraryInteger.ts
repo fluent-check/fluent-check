@@ -11,7 +11,10 @@ export class ArbitraryInteger extends Arbitrary<number> {
 
   size(): ArbitrarySize { return { value: this.max - this.min + 1, type: 'exact' } }
 
-  pick() { return { value: Math.floor(Math.random() * (this.max - this.min + 1)) + this.min } }
+  pick() {
+    const value = Math.floor(Math.random() * (this.max - this.min + 1)) + this.min
+    return { value, original: value }
+  }
 
   cornerCases() {
     return (this.min < 0 && this.max > 0) ?
@@ -44,4 +47,6 @@ export class ArbitraryInteger extends Arbitrary<number> {
   canGenerate(pick: FluentPick<number>) {
     return pick.value >= this.min && pick.value <= this.max
   }
+
+  toString(depth = 0) { return ' '.repeat(depth * 2) + `Integer Arbitrary: min = ${this.min} max = ${this.max}`}
 }

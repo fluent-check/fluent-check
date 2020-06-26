@@ -53,4 +53,6 @@ export class ArbitraryArray<A> extends Arbitrary<A[]> {
       { value: Array(this.max).fill(cc.value), original: Array(this.max).fill(cc.original) }
     ]).filter(v => v !== undefined) as FluentPick<A[]>[]
   }
+
+  toString(depth = 0): string { return ' '.repeat(depth * 2) + `Array Arbitrary: min = ${this.min} max = ${this.max}\n${this.arbitrary.toString(depth + 1)}` }
 }

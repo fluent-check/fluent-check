@@ -31,4 +31,6 @@ export class ArbitraryComposite<A> extends Arbitrary<A> {
   canGenerate(pick: FluentPick<A>) {
     return this.arbitraries.some(a => a.canGenerate(pick))
   }
+
+  toString(depth: number) { return ' '.repeat(2 * depth) + 'Composite Arbitrary:\n' + this.arbitraries.map(a => a.toString(depth + 1)).join('\n')}
 }

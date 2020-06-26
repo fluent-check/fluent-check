@@ -27,4 +27,6 @@ export class UniqueArbitrary<A> extends WrappedArbitrary<A> {
   shrink(initial: FluentPick<A>) {
     return this.baseArbitrary.shrink(initial).unique()
   }
+
+  toString(depth = 0) { return ' '.repeat(depth * 2) + 'Unique Arbitrary:\n' + this.baseArbitrary.toString(depth + 1)}
 }

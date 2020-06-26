@@ -56,4 +56,6 @@ export class ArbitrarySet<A> extends Arbitrary<A[]> {
 
     return [{ value: min, original: min }, { value: max, original: max }]
   }
+
+  toString(depth = 0) { return ' '.repeat(depth * 2) + `Set Arbitrary: min = ${this.min} max = ${this.max} elements = [${this.elements.join(', ')}]`}
 }
