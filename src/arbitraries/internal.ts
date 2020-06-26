@@ -1,4 +1,4 @@
-export * from './BaseArbitrary'
+export * from './Arbitrary'
 export * from './NoArbitrary'
 
 export * from './WrappedArbitrary'
