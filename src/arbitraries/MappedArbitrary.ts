@@ -28,7 +28,7 @@ export class MappedArbitrary<A, B> extends Arbitrary<B> {
   }
 
   shrink(initial: FluentPick<B>): Arbitrary<B> {
-    return this.baseArbitrary.shrink({ original: initial.original, value: initial.original }).map(v => this.f(v))
+    return this.baseArbitrary.shrink({ value: initial.original, original: initial.original }).map(v => this.f(v))
   }
 
   canGenerate(pick: FluentPick<B>) {
