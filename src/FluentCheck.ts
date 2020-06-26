@@ -62,13 +62,13 @@ export class FluentCheck<Rec extends ParentRec, ParentRec extends {}> {
   check(child: (testCase: FluentPicks) => FluentResult = () => new FluentResult(true)): FluentResult {
     if (this.parent !== undefined) return this.parent.check(testCase => this.run(testCase, child))
     else {
-      const r = this.run({} as Rec, child)
+      const r = this.run({}, child)
       return new FluentResult(r.satisfiable, FluentCheck.unwrapFluentPick(r.example))
     }
   }
 
   static unwrapFluentPick<F extends FluentPicks>(testCase: F): UnwrapFluentPick<F> {
-    const result: any = { }
+    const result: any = {}
     for (const k in testCase) result[k] = testCase[k].value
     return result
   }
