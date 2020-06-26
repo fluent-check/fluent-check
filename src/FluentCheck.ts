@@ -67,7 +67,7 @@ export class FluentCheck<Rec extends ParentRec, ParentRec extends {}> {
     }
   }
 
-  static unwrapFluentPick<F extends FluentPicks>(testCase: F): { [K in keyof F]: F[K] extends FluentPick<infer V> ? V : F[K] } {
+  static unwrapFluentPick<F extends FluentPicks>(testCase: F): UnwrapFluentPick<F> {
     const result: any = { }
     for (const k in testCase) result[k] = testCase[k].value
     return result
@@ -105,7 +105,7 @@ class FluentCheckGivenConstant<K extends string, V, Rec extends ParentRec & Reco
 
   protected run(testCase: Rec, callback: (arg: Rec) => FluentResult) {
     (testCase as Record<K, V>)[this.name] = this.value
-    return callback(testCase as Rec)
+    return callback(testCase)
   }
 }
 
@@ -177,7 +177,7 @@ class FluentCheckAssert<Rec extends ParentRec, ParentRec extends {}> extends Flu
     return this.then(assertion)
   }
 
-  private runPreliminaries(testCase: {}) {
+  private runPreliminaries(testCase: Partial<Rec>): Partial<Rec> {
     const data = { }
 
     this.preliminaries.forEach(node => {
@@ -189,7 +189,7 @@ class FluentCheckAssert<Rec extends ParentRec, ParentRec extends {}> extends Flu
   }
 
   protected run(testCase: Rec, callback: (arg: Rec) => FluentResult) {
-    const unwrappedTestCase = FluentCheck.unwrapFluentPick(testCase)
+    const unwrappedTestCase = FluentCheck.unwrapFluentPick(testCase) as Partial<Rec>
     return (this.assertion({ ...unwrappedTestCase, ...this.runPreliminaries(unwrappedTestCase) } as Rec)) ? callback(testCase) : new FluentResult(false)
   }
 }
