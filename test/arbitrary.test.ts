@@ -52,6 +52,14 @@ describe('Arbitrary tests', () => {
     ).to.deep.include({ satisfiable: true, example: { n: 50 } })
   })
 
+  it('should allow shrinking of mapped tupples', () => {
+    expect(fc.scenario()
+      .exists('point', fc.tuple(
+        fc.integer(50, 1000).filter(x => x > 100),
+        fc.string(1, 10, 'a').filter(x => x.length > 2)).map(([a, b]) => [a * 2, '_'.concat(b)]))
+      .check()).to.deep.include({ satisfiable: true })
+  })
+
   describe('Corner Cases', () => {
     it('should return the corner cases of integers', () => {
       expect(fc.integer().cornerCases().map(c => c.value)).to.have.members([0, - Number.MAX_SAFE_INTEGER, Number.MAX_SAFE_INTEGER])
