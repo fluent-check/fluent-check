@@ -46,5 +46,7 @@ export const empty = () => NoArbitrary
 
 export const constant = <A>(constant: A): Arbitrary<A> => new ArbitraryConstant(constant)
 
-export const tuple = <U extends Arbitrary<any>[]>(...arbitraries: U) => new ArbitraryTuple(arbitraries)
-//  arbitraries.some(a => a === NoArbitrary) ? NoArbitrary : new ArbitraryTuple(arbitraries)
+type UnwrapFluentPick<T> = { [P in keyof T]: T[P] extends Arbitrary<infer E> ? E : T[P] }
+
+export const tuple = <U extends Arbitrary<any>[]>(...arbitraries: U): Arbitrary<UnwrapFluentPick<U>> =>
+  arbitraries.some(a => a === NoArbitrary) ? NoArbitrary : new ArbitraryTuple(arbitraries)

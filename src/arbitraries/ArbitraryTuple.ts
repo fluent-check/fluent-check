@@ -4,7 +4,7 @@ import * as fc from './index'
 
 type UnwrapFluentPick<T> = { [P in keyof T]: T[P] extends fc.Arbitrary<infer E> ? E : T[P] }
 
-export class ArbitraryTuple<U extends Arbitrary<any>[]> extends Arbitrary<UnwrapFluentPick<U>[]> {
+export class ArbitraryTuple<U extends Arbitrary<any>[], A = UnwrapFluentPick<U>> extends Arbitrary<A> {
   constructor(public readonly arbitraries: U) {
     super()
   }
@@ -22,8 +22,8 @@ export class ArbitraryTuple<U extends Arbitrary<any>[]> extends Arbitrary<Unwrap
     return { value, type }
   }
 
-  pick() {
-    const value: UnwrapFluentPick<U>[] = []
+  pick(): FluentPick<A> | undefined {
+    const value: any = []
     const original: any[] = []
     for (const a of this.arbitraries) {
       const pick = a.pick()
@@ -37,7 +37,7 @@ export class ArbitraryTuple<U extends Arbitrary<any>[]> extends Arbitrary<Unwrap
     return { value, original }
   }
 
-  cornerCases() {
+  cornerCases(): FluentPick<A>[] {
     const cornerCases = this.arbitraries.map(a => a.cornerCases())
 
     return cornerCases.reduce((acc, cc) => acc.flatMap(a => cc.map(b => ({
@@ -46,21 +46,21 @@ export class ArbitraryTuple<U extends Arbitrary<any>[]> extends Arbitrary<Unwrap
     }))), [{ value: [], original: [] }])
   }
 
-  shrink(initial) {
+  shrink<B extends A>(initial: FluentPick<B>): Arbitrary<A> {
     const arbitraries = this.arbitraries.map((toShrink, i) => {
       return this.arbitraries.map(arbitrary => {
         return arbitrary === toShrink ? arbitrary.shrink({ value: initial.value[i], original: initial.original[i] }) : arbitrary
       })
     })
 
-    return fc.union(...arbitraries.map(a => fc.tuple(...a)))
+    return fc.union(...arbitraries.map(a => fc.tuple(...a))) as unknown as Arbitrary<A>
   }
 
-  canGenerate(pick) {
-    if (pick.value.length !== this.arbitraries.length) return false
+  canGenerate<B extends A>(pick: FluentPick<B>): boolean {
+    // if (pickValue.length !== this.arbitraries.length) return false
 
-    for (let i = 0; i < pick.value.length; i++) {
-      if (!this.arbitraries[i].canGenerate({ value: pick.value[i], original: pick.original[i] })) //?
+    for (const i in pick.value) {
+      if (!this.arbitraries[i as number].canGenerate({ value: pick.value[i], original: pick.original[i] })) //?
         return false
     }
 
