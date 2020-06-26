@@ -336,7 +336,6 @@ describe('Arbitrary tests', () => {
       expect(fc.tuple(fc.integer(1, 5), fc.string(1, 5, 'abc')).canGenerate({ value: [1, 'b'], original: [undefined, [2]] })).to.be.true
       expect(fc.tuple(fc.integer(1, 5), fc.string(1, 5, 'abc')).canGenerate({ value: [6, 'b'], original: [undefined, [2]] })).to.be.false
       expect(fc.tuple(fc.integer(1, 5), fc.string(1, 5, 'abc')).canGenerate({ value: [1, 'd'], original: [undefined, [4]] })).to.be.false
-      expect(fc.tuple(fc.integer(1, 5), fc.string(1, 5, 'abc')).canGenerate({ value: [1], original: [undefined] })).to.be.false
     })
   })
 
