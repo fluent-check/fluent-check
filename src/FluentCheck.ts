@@ -45,10 +45,10 @@ export class FluentCheck<Rec extends ParentRec, ParentRec extends {}> {
 
     // eslint-disable-next-line @typescript-eslint/no-this-alias
     let node: FluentCheck<any, any> | undefined = this
-    while (node !== undefined) {
+    do {
       path.unshift(node)
       node = node.parent
-    }
+    } while (node !== undefined)
     return path
   }
 
@@ -56,8 +56,8 @@ export class FluentCheck<Rec extends ParentRec, ParentRec extends {}> {
     return this.pathFromRoot().reverse()
   }
 
-  check(child: (testCase: {}) => FluentResult = () => new FluentResult(true)): FluentResult {
-    if (this.parent !== undefined) return this.parent.check((testCase: {}) => this.run(testCase as Rec, child))
+  check(child: (testCase: Rec) => FluentResult = () => new FluentResult(true)): FluentResult {
+    if (this.parent !== undefined) return this.parent.check(testCase => this.run(testCase, child))
     else {
       const r = this.run({} as Rec, child)
       return new FluentResult(r.satisfiable, FluentCheck.unwrapFluentPick(r.example))
@@ -100,7 +100,7 @@ class FluentCheckGivenConstant<K extends string, V, ThisRec extends ParentRec & 
     super(parent, name)
   }
 
-  protected run(testCase: unknown, callback: (arg: ThisRec) => FluentResult) {
+  protected run(testCase: ThisRec, callback: (arg: ThisRec) => FluentResult) {
     (testCase as Record<K, V>)[this.name] = this.value
     return callback(testCase as ThisRec)
   }
