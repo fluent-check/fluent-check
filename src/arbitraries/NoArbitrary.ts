@@ -10,4 +10,5 @@ export const NoArbitrary: Arbitrary<never> = new class extends Arbitrary<never> 
   unique() { return NoArbitrary }
   canGenerate(_: FluentPick<never>) { return false }
   chain<B>(_: (a: never) => Arbitrary<B>) { return NoArbitrary }
+  toString(depth = 0) { return ' '.repeat(depth * 2) + 'No Arbitrary' }
 }()

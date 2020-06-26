@@ -12,4 +12,5 @@ export class ArbitraryConstant<A> extends Arbitrary<A> {
   canGenerate(pick: FluentPick<A>) {
     return pick.value === this.constant
   }
+  toString(depth = 0): string { return ' '.repeat(depth * 2) + `Constant Arbitrary: ${this.constant}` }
 }

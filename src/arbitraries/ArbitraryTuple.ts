@@ -25,6 +25,7 @@ export class ArbitraryTuple<U extends Arbitrary<any>[], A = UnwrapFluentPick<U>>
   pick(): FluentPick<A> | undefined {
     const value: any = []
     const original: any[] = []
+
     for (const a of this.arbitraries) {
       const pick = a.pick()
       if (pick === undefined) return undefined
@@ -64,4 +65,6 @@ export class ArbitraryTuple<U extends Arbitrary<any>[], A = UnwrapFluentPick<U>>
 
     return true
   }
+
+  toString(depth: number) { return ' '.repeat(2 * depth) + 'Tuple Arbitrary:\n' + this.arbitraries.map(a => a.toString(depth + 1)).join('\n') }
 }
