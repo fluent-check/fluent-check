@@ -1,6 +1,5 @@
 import { ArbitrarySize, FluentPick } from './types'
-import { FilteredArbitrary, MappedArbitrary, NoArbitrary, UniqueArbitrary } from './internal'
-import { ChainedArbitrary } from './ChainedArbitrary'
+import { ChainedArbitrary, FilteredArbitrary, MappedArbitrary, NoArbitrary, UniqueArbitrary } from './internal'
 
 export abstract class Arbitrary<A> {
   abstract size(): ArbitrarySize
@@ -50,6 +49,8 @@ export abstract class Arbitrary<A> {
 
   map<B>(f: (a: A) => B): Arbitrary<B> { return new MappedArbitrary(this, f) }
   filter(f: (a: A) => boolean): Arbitrary<A> { return new FilteredArbitrary(this, f) }
-  // chain<B>(f: (a: A) => Arbitrary<B>): Arbitrary<B> { return new ChainedArbitrary(this, f) }
+  chain<B>(f: (a: A) => Arbitrary<B>): Arbitrary<B> { return new ChainedArbitrary(this, f) }
   unique(): Arbitrary<A> { return new UniqueArbitrary(this) }
+
+  toString(depth = 0): string { return ' '.repeat(depth * 2) + `Base Arbitrary: ${this.constructor.name}`  }
 }

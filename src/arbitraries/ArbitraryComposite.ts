@@ -24,12 +24,13 @@ export class ArbitraryComposite<A> extends Arbitrary<A> {
   }
 
   shrink(initial: FluentPick<A>) {
-    const arbitraries = this.arbitraries.filter(a => a.canGenerate(initial)).map(a => a.shrink(initial)).filter(a => a !== NoArbitrary)
-    if (arbitraries.length === 0) return NoArbitrary
+    const arbitraries = this.arbitraries.filter(a => a.canGenerate(initial)).map(a => a.shrink(initial))
     return fc.union(...arbitraries)
   }
 
   canGenerate(pick: FluentPick<A>) {
     return this.arbitraries.some(a => a.canGenerate(pick))
   }
+
+  toString(depth: number) { return ' '.repeat(2 * depth) + 'Composite Arbitrary:\n' + this.arbitraries.map(a => a.toString(depth + 1)).join('\n')}
 }

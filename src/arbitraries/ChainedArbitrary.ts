@@ -15,4 +15,6 @@ export class ChainedArbitrary<A, B> extends Arbitrary<B> {
   cornerCases(): FluentPick<B>[] {
     return this.baseArbitrary.cornerCases().flatMap(p => this.f(p.value).cornerCases())
   }
+
+  toString(depth = 0) { return ' '.repeat(depth * 2) + `Chained Arbitrary: f = ${this.f.toString()}\n` + this.baseArbitrary.toString(depth + 1)}
 }

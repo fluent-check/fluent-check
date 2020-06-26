@@ -9,12 +9,19 @@ export class ArbitraryArray<A> extends Arbitrary<A[]> {
   }
 
   size() {
-    return mapArbitrarySize(this.arbitrary.size(), v => ({ value: v ** (this.max - this.min), type: 'exact' }))
+    // https://en.wikipedia.org/wiki/Geometric_progression#Geometric_series
+    const sizeUpTo = (v: number, max: number) => {
+      return v === 1 ? max + 1 : (1 - v ** (max + 1)) / (1 - v)
+    }
+    return mapArbitrarySize(this.arbitrary.size(), v => ({
+      type: 'exact',
+      value: sizeUpTo(v, this.max) - sizeUpTo(v, this.min - 1)
+    }))
   }
 
   pick(): FluentPick<A[]> | undefined {
     const size = Math.floor(Math.random() * (this.max - this.min + 1)) + this.min
-    const fpa = this.arbitrary.sampleWithBias(size)
+    const fpa = this.arbitrary.sample(size)
 
     const value = fpa.map(v => v.value)
     const original = fpa.map(v => v.original)
@@ -46,4 +53,6 @@ export class ArbitraryArray<A> extends Arbitrary<A[]> {
       { value: Array(this.max).fill(cc.value), original: Array(this.max).fill(cc.original) }
     ]).filter(v => v !== undefined) as FluentPick<A[]>[]
   }
+
+  toString(depth = 0): string { return ' '.repeat(depth * 2) + `Array Arbitrary: min = ${this.min} max = ${this.max}\n${this.arbitrary.toString(depth + 1)}` }
 }
