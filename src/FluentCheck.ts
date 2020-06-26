@@ -140,16 +140,16 @@ class FluentCheckExistential<K extends string, A, P extends TestCase, G extends 
     this.cache = this.dedup.sampleWithBias(1000)
   }
 
-  protected run(testCase: TestCase, callback: (arg: TestCase) => FluentResult, partial: FluentResult | undefined = undefined): FluentResult {
+  protected run(testCase: TestCase, callback: (arg: TestCase) => FluentResult, partial: FluentResult | undefined = undefined, depth = 0): FluentResult {
     const example = partial || new FluentResult(false)
-    const collection = partial === undefined ? this.cache : this.dedup.shrink(partial.example[this.name]).sampleWithBias(1000)
+    const collection = depth === 0 ? this.cache : (partial !== undefined ? this.dedup.shrink(partial.example[this.name]).sampleWithBias(1000) : [])
 
     for (const tp of collection) {
       testCase[this.name] = tp
       const result = callback(testCase)
       if (result.satisfiable) {
         result.addExample(this.name, tp)
-        return this.run(testCase, callback, result)
+        return this.run(testCase, callback, result, depth + 1)
       }
     }
 

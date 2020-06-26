@@ -105,3 +105,9 @@ export class BetaBinomialDistribution extends IntegerDistribution {
       stats.betaln(this.alpha, this.beta)
   }
 }
+
+export const factorial = (n: number) => {
+  let x = 1, f = 1
+  while (x <= n) f *= x++
+  return f
+}
