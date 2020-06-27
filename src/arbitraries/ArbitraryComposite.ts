@@ -15,8 +15,9 @@ export class ArbitraryComposite<A> extends Arbitrary<A> {
   }
 
   pick() {
-    const picked = Math.floor(Math.random() * this.arbitraries.length)
-    return this.arbitraries[picked].pick()
+    const weights = this.arbitraries.reduce((acc, a) => { acc.push((acc[acc.length - 1] | 0) + a.size().value); return acc }, new Array<number>())
+    const picked = Math.floor(Math.random() * weights[weights.length - 1])
+    return this.arbitraries[weights.findIndex(s => s > picked)].pick()
   }
 
   cornerCases(): FluentPick<A>[] {

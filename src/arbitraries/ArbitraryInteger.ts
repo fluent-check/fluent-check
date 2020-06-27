@@ -17,9 +17,10 @@ export class ArbitraryInteger extends Arbitrary<number> {
   }
 
   cornerCases() {
-    return (this.min < 0 && this.max > 0) ?
+    return ((this.min < 0 && this.max > 0) ?
       [{ value: 0 }, { value: this.min }, { value: this.max }] :
-      [{ value: this.min }, { value: this.max }]
+      [{ value: this.min }, { value: this.max }])
+      .map(cc => ({ value: cc.value, original: cc.value }))
   }
 
   shrink(initial: FluentPick<number>): Arbitrary<number> {
