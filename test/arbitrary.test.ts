@@ -57,7 +57,7 @@ describe('Arbitrary tests', () => {
       .exists('point', fc.tuple(
         fc.integer(50, 1000).filter(x => x > 100),
         fc.string(1, 10, 'a').filter(x => x.length > 2)).map(([a, b]) => [a * 2, '_'.concat(b)]))
-      .check()).to.deep.include({ satisfiable: true })
+      .check()).to.deep.include({ satisfiable: true, example: { point: [ 202, '_aaa' ] } })
   })
 
   describe('Corner Cases', () => {
