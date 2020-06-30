@@ -16,31 +16,35 @@ class FluentResult {
 export type FluentConfig = { sampleSize?: number, shrinkSize?: number }
 
 export class FluentCheck<Rec extends ParentRec, ParentRec extends {}> {
-  constructor(protected readonly parent: FluentCheck<ParentRec, any> | undefined = undefined, public readonly config: FluentConfig = {}) {
-    if (this.config.sampleSize === undefined) this.config.sampleSize = 1000
-    if (this.config.shrinkSize === undefined) this.config.shrinkSize = 500
+  constructor(protected readonly parent: FluentCheck<ParentRec, any> | undefined = undefined,
+    public readonly configuration: FluentConfig = { sampleSize: 1000, shrinkSize: 500 }) {
+  }
+
+  config(config: FluentConfig) {
+    for (const k in config) this.configuration[k] = config[k]
+    return this
   }
 
   given<K extends string, V>(name: K, v: (args: Rec) => V | V): FluentCheckGiven<K, V, Rec & Record<K, V>, Rec> {
     return (v instanceof Function) ?
-      new FluentCheckGivenMutable(this, name, v, this.config) :
-      new FluentCheckGivenConstant<K, V, Rec & Record<K, V>, Rec>(this, name, v, this.config)
+      new FluentCheckGivenMutable(this, name, v, this.configuration) :
+      new FluentCheckGivenConstant<K, V, Rec & Record<K, V>, Rec>(this, name, v, this.configuration)
   }
 
   when(f: (givens: Rec) => void): FluentCheckWhen<Rec, ParentRec> {
-    return new FluentCheckWhen(this, f, this.config)
+    return new FluentCheckWhen(this, f, this.configuration)
   }
 
   forall<K extends string, A>(name: K, a: Arbitrary<A>): FluentCheck<Rec & Record<K, A>, Rec> {
-    return new FluentCheckUniversal(this, name, a, this.config)
+    return new FluentCheckUniversal(this, name, a, this.configuration)
   }
 
   exists<K extends string, A>(name: K, a: Arbitrary<A>): FluentCheck<Rec & Record<K, A>, Rec> {
-    return new FluentCheckExistential(this, name, a, this.config)
+    return new FluentCheckExistential(this, name, a, this.configuration)
   }
 
   then(f: (arg: Rec) => boolean): FluentCheckAssert<Rec, ParentRec> {
-    return new FluentCheckAssert(this, f, this.config)
+    return new FluentCheckAssert(this, f, this.configuration)
   }
 
   protected run(testCase: FluentPicks, callback: (arg: FluentPicks) => FluentResult, _partial: FluentResult | undefined = undefined): FluentResult {
@@ -120,12 +124,12 @@ class FluentCheckUniversal<K extends string, A, Rec extends ParentRec & Record<K
   constructor(protected readonly parent: FluentCheck<ParentRec, any>, public readonly name: K, public readonly a: Arbitrary<A>, config: FluentConfig) {
     super(parent, config)
     this.dedup = a.unique()
-    this.cache = this.dedup.sampleWithBias(this.config.sampleSize)
+    this.cache = this.dedup.sampleWithBias(this.configuration.sampleSize)
   }
 
   protected run(testCase: FluentPicks, callback: (arg: FluentPicks) => FluentResult, partial: FluentResult | undefined = undefined, depth = 0): FluentResult {
     const example = partial || new FluentResult(true)
-    const collection = depth === 0 ? this.cache : (partial !== undefined ? this.dedup.shrink(partial.example[this.name]).sampleWithBias(this.config.shrinkSize) : [])
+    const collection = depth === 0 ? this.cache : (partial !== undefined ? this.dedup.shrink(partial.example[this.name]).sampleWithBias(this.configuration.shrinkSize) : [])
 
     for (const tp of collection) {
       testCase[this.name] = tp
@@ -147,12 +151,12 @@ class FluentCheckExistential<K extends string, A, Rec extends ParentRec & Record
   constructor(protected readonly parent: FluentCheck<ParentRec, any>, public readonly name: K, public readonly a: Arbitrary<A>, config: FluentConfig) {
     super(parent, config)
     this.dedup = a.unique()
-    this.cache = this.dedup.sampleWithBias(this.config.sampleSize)
+    this.cache = this.dedup.sampleWithBias(this.configuration.sampleSize)
   }
 
   protected run(testCase: FluentPicks, callback: (arg: FluentPicks) => FluentResult, partial: FluentResult | undefined = undefined, depth = 0): FluentResult {
     const example = partial || new FluentResult(false)
-    const collection = depth === 0 ? this.cache : (partial !== undefined ? this.dedup.shrink(partial.example[this.name]).sampleWithBias(this.config.shrinkSize) : [])
+    const collection = depth === 0 ? this.cache : (partial !== undefined ? this.dedup.shrink(partial.example[this.name]).sampleWithBias(this.configuration.shrinkSize) : [])
 
     for (const tp of collection) {
       testCase[this.name] = tp
