@@ -5,8 +5,6 @@ type WrapFluentPick<T> = { [P in keyof T]: FluentPick<T[P]> }
 
 type FluentPicks = Record<string, FluentPick<any> | any>
 
-export type FluentConfig = { sampleSize?: number, shrinkSize?: number }
-
 class FluentResult {
   constructor(public readonly satisfiable = false, public example: FluentPicks = {}) { }
 
@@ -14,6 +12,8 @@ class FluentResult {
     this.example[name] = value
   }
 }
+
+export type FluentConfig = { sampleSize?: number, shrinkSize?: number }
 
 export class FluentCheck<Rec extends ParentRec, ParentRec extends {}> {
   constructor(protected readonly parent: FluentCheck<ParentRec, any> | undefined = undefined, public readonly config: FluentConfig = {}) {
