@@ -118,16 +118,16 @@ class FluentCheckUniversal<K extends string, A, Rec extends ParentRec & Record<K
     this.cache = this.dedup.sampleWithBias(1000)
   }
 
-  protected run(testCase: FluentPicks, callback: (arg: FluentPicks) => FluentResult, partial: FluentResult | undefined = undefined): FluentResult {
+  protected run(testCase: FluentPicks, callback: (arg: FluentPicks) => FluentResult, partial: FluentResult | undefined = undefined, depth = 0): FluentResult {
     const example = partial || new FluentResult(true)
-    const collection = partial === undefined ? this.cache : this.dedup.shrink(partial.example[this.name]).sampleWithBias(1000)
+    const collection = depth === 0 ? this.cache : (partial !== undefined ? this.dedup.shrink(partial.example[this.name]).sampleWithBias(1000) : [])
 
     for (const tp of collection) {
       testCase[this.name] = tp
       const result = callback(testCase)
       if (!result.satisfiable) {
         result.addExample(this.name, tp)
-        return this.run(testCase, callback, result)
+        return this.run(testCase, callback, result, depth + 1)
       }
     }
 
