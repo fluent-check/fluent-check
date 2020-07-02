@@ -7,6 +7,10 @@ export function mapArbitrarySize(sz: ArbitrarySize, f: (v: number) => ArbitraryS
     credibleInterval : result.credibleInterval }
 }
 
+export function stringify(object: any) {
+  return (object instanceof Object || object instanceof Array) ? JSON.stringify(object) : object
+}
+
 export const NilArbitrarySize: ArbitrarySize = { value: 0, type: 'exact' }
 export const significance = 0.90
 export const lowerCredibleInterval = (1 - significance) / 2

@@ -1,5 +1,6 @@
 import { FluentPick } from './types'
 import { Arbitrary, WrappedArbitrary } from './internal'
+import { stringify } from './util'
 
 export class UniqueArbitrary<A> extends WrappedArbitrary<A> {
   constructor(readonly baseArbitrary: NonNullable<Arbitrary<A>>) {
@@ -17,7 +18,7 @@ export class UniqueArbitrary<A> extends WrappedArbitrary<A> {
     while (result.size < bagSize) {
       const r = this.pick()
       if (!r) break
-      if (!result.has(JSON.stringify(r.value))) result.set(JSON.stringify(r.value), r)
+      if (!result.has(stringify(r.value))) result.set(stringify(r.value), r)
       if (initialSize.type !== 'exact') bagSize = Math.min(sampleSize, this.size().value)
     }
 
