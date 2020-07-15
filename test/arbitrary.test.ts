@@ -24,7 +24,7 @@ describe('Arbitrary tests', () => {
 
   it('should return corner cases if there is space', () => {
     expect(fc.scenario()
-      .forall('n', fc.integer(3, 100))
+      .forall('n', fc.integer(4, 100))
       .given('a', () => fc.integer(0, 50))
       .then(({ n, a }) => a.sampleWithBias(n).some(v => v.value === 0))
       .and(({ n, a }) => a.sampleWithBias(n).some(v => v.value === 50))
@@ -62,8 +62,8 @@ describe('Arbitrary tests', () => {
 
   describe('Corner Cases', () => {
     it('should return the corner cases of integers', () => {
-      expect(fc.integer().cornerCases().map(c => c.value)).to.have.members([0, - Number.MAX_SAFE_INTEGER, Number.MAX_SAFE_INTEGER])
-      expect(fc.integer(1,10).cornerCases().map(c => c.value)).to.have.members([1, 10])
+      expect(fc.integer().cornerCases().map(c => c.value)).to.have.members([0, -Number.MAX_SAFE_INTEGER, Number.MAX_SAFE_INTEGER])
+      expect(fc.integer(1,10).cornerCases().map(c => c.value)).to.have.members([1, 6, 10])
       expect(fc.integer(-10,10).cornerCases().map(c => c.value)).to.have.members([0, -10, 10])
       expect(fc.integer(5,5).cornerCases().map(c => c.value)).to.have.members([5])
     })
@@ -73,22 +73,26 @@ describe('Arbitrary tests', () => {
     })
 
     it('should return the corner cases of strings', () => {
-      expect(fc.string(1, 3, 'abc').cornerCases().map(c => c.value)).to.have.members(['a', 'aaa', 'c', 'ccc'])
       expect(fc.string(1, 3, '').cornerCases().map(c => c.value)).to.have.members([''])
+      expect(fc.string(1, 3, 'a').cornerCases().map(c => c.value)).to.have.members(['a', 'aaa'])
+      expect(fc.string(1, 3, 'ab').cornerCases().map(c => c.value)).to.have.members(['a', 'aaa', 'b', 'bbb'])
+      expect(fc.string(1, 3, 'abc').cornerCases().map(c => c.value)).to.have.members(['a', 'aaa', 'b', 'bbb', 'c', 'ccc'])
+      expect(fc.string(1, 3, 'abcd').cornerCases().map(c => c.value)).to.have.members(['a', 'aaa', 'c', 'ccc', 'd', 'ddd'])
+      expect(fc.string(1, 3, 'abcde').cornerCases().map(c => c.value)).to.have.members(['a', 'aaa', 'c', 'ccc', 'e', 'eee'])
     })
 
     it('should return the corner cases of arrays/sets', () => {
-      expect(fc.array(fc.integer(0, 5), 1, 3).cornerCases().map(c => c.value)).to.have.deep.members([[0], [0, 0, 0], [5], [5, 5, 5]])
+      expect(fc.array(fc.integer(0, 5), 1, 3).cornerCases().map(c => c.value)).to.have.deep.members([[0], [0, 0, 0], [3], [3, 3, 3], [5], [5, 5, 5]])
       expect(fc.set(['a', 'b', 'c'], 1, 3).cornerCases().map(c => c.value)).to.have.deep.members([['a'], ['a', 'b', 'c']])
     })
 
     it('should return the corner cases of maps', () => {
-      expect(fc.integer(0, 1).map(i => i === 0).cornerCases().map(c => c.value)).to.have.members([false, true])
+      expect(fc.integer(0, 1).map(i => i === 0).cornerCases().map(c => c.value)).to.have.members([true, false])
     })
 
     it('should return the corner cases of tuples', () => {
       expect(fc.tuple(fc.integer(0, 1), fc.string(1, 2, 'abc')).cornerCases().map(c => c.value))
-        .to.have.deep.members([[0, 'a'], [0, 'aa'], [0, 'c'], [0, 'cc'], [1, 'a'], [1, 'aa'], [1, 'c'], [1, 'cc']])
+        .to.have.deep.members([[ 0, 'a' ], [ 0, 'aa' ], [ 0, 'b' ], [ 0, 'bb' ], [ 0, 'c' ], [ 0, 'cc' ], [ 1, 'a' ], [ 1, 'aa' ], [ 1, 'b' ], [ 1, 'bb' ], [ 1, 'c' ], [ 1, 'cc' ]])
     })
   })
 
