@@ -1,6 +1,6 @@
-import { FluentPick, ArbitrarySize } from './types'
-import { Arbitrary } from './internal'
-import { factorial } from '../statistics'
+import {FluentPick, ArbitrarySize} from './types'
+import {Arbitrary} from './internal'
+import {factorial} from '../statistics'
 import * as fc from './index'
 
 export class ArbitrarySet<A> extends Arbitrary<A[]> {
@@ -12,12 +12,12 @@ export class ArbitrarySet<A> extends Arbitrary<A[]> {
   }
 
   size(): ArbitrarySize {
-    const comb = (n: number, s: number) => { return factorial (n) / (factorial(s) * factorial(n - s))}
+    const comb = (n: number, s: number) => { return factorial (n) / (factorial(s) * factorial(n - s)) }
 
     let size = 0
     for (let i = this.min; i <= this.max; i++) size += comb(this.elements.length, i)
 
-    return { value: size, type: 'exact' }
+    return {value: size, type: 'exact'}
   }
 
   pick(): FluentPick<A[]> | undefined {
@@ -29,7 +29,7 @@ export class ArbitrarySet<A> extends Arbitrary<A[]> {
 
     const value = Array.from(pick).sort()
 
-    return { value, original: value }
+    return {value, original: value}
   }
 
   shrink(initial: FluentPick<A[]>): Arbitrary<A[]> {
@@ -54,8 +54,11 @@ export class ArbitrarySet<A> extends Arbitrary<A[]> {
     const max: A[] = []
     for (let i = 0; i < this.max; i++) max.push(this.elements[i])
 
-    return [{ value: min, original: min }, { value: max, original: max }]
+    return [{value: min, original: min}, {value: max, original: max}]
   }
 
-  toString(depth = 0) { return ' '.repeat(depth * 2) + `Set Arbitrary: min = ${this.min} max = ${this.max} elements = [${this.elements.join(', ')}]`}
+  toString(depth = 0) {
+    return ' '.repeat(depth * 2) +
+      `Set Arbitrary: min = ${this.min} max = ${this.max} elements = [${this.elements.join(', ')}]`
+  }
 }

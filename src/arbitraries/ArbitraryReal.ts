@@ -1,4 +1,4 @@
-import { ArbitraryInteger } from './internal'
+import {ArbitraryInteger} from './internal'
 
 export class ArbitraryReal extends ArbitraryInteger {
   constructor(public min = Number.MIN_SAFE_INTEGER, public max = Number.MAX_SAFE_INTEGER) {
@@ -7,6 +7,6 @@ export class ArbitraryReal extends ArbitraryInteger {
 
   pick()  {
     const value = Math.random() * (this.max - this.min) + this.min
-    return { value, original: value }
+    return {value, original: value}
   }
 }

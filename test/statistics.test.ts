@@ -1,6 +1,6 @@
-import { BetaBinomialDistribution, IntegerDistribution } from '../src/statistics'
-import { it } from 'mocha'
-import { expect } from 'chai'
+import {BetaBinomialDistribution, IntegerDistribution} from '../src/statistics'
+import {it} from 'mocha'
+import {expect} from 'chai'
 import stats from 'jstat'
 
 describe('Statistics tests', () => {

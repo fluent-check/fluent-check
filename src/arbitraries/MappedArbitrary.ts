@@ -1,5 +1,5 @@
-import { FluentPick } from './types'
-import { Arbitrary } from './internal'
+import {FluentPick} from './types'
+import {Arbitrary} from './internal'
 
 export class MappedArbitrary<A, B> extends Arbitrary<B> {
   constructor(public readonly baseArbitrary: Arbitrary<A>, public readonly f: (a: A) => B) {
@@ -8,7 +8,7 @@ export class MappedArbitrary<A, B> extends Arbitrary<B> {
 
   mapFluentPick(p: FluentPick<A>): FluentPick<B> {
     const original = ('original' in p && p.original !== undefined) ? p.original : p.value
-    return ({ value: this.f(p.value), original })
+    return ({value: this.f(p.value), original})
   }
 
   pick(): FluentPick<B> | undefined {
@@ -28,12 +28,16 @@ export class MappedArbitrary<A, B> extends Arbitrary<B> {
   }
 
   shrink(initial: FluentPick<B>): Arbitrary<B> {
-    return this.baseArbitrary.shrink({ value: initial.original, original: initial.original }).map(v => this.f(v))
+    return this.baseArbitrary.shrink({value: initial.original, original: initial.original}).map(v => this.f(v))
   }
 
   canGenerate(pick: FluentPick<B>) {
-    return this.baseArbitrary.canGenerate({ value: pick.original, original: pick.original }) /* && pick.value === this.f(pick.original) */
+    /* && pick.value === this.f(pick.original) */
+    return this.baseArbitrary.canGenerate({value: pick.original, original: pick.original})
   }
 
-  toString(depth = 0) { return ' '.repeat(2 * depth) + `Map Arbitrary: f = ${this.f.toString()}\n` + this.baseArbitrary.toString(depth + 1) }
+  toString(depth = 0) {
+    return ' '.repeat(2 * depth) +
+      `Map Arbitrary: f = ${this.f.toString()}\n` + this.baseArbitrary.toString(depth + 1)
+  }
 }
