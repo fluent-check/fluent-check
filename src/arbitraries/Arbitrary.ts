@@ -4,16 +4,6 @@ import {ChainedArbitrary, FilteredArbitrary, MappedArbitrary, NoArbitrary, Uniqu
 export abstract class Arbitrary<A> {
   abstract size(): ArbitrarySize
 
-  mapArbitrarySize(f: (v: number) => ArbitrarySize): ArbitrarySize {
-    const baseSize = this.size()
-    const result = f(baseSize.value)
-    return {
-      value : result.value,
-      type : baseSize.type === 'exact' && result.type === 'exact' ? 'exact' : 'estimated',
-      credibleInterval : result.credibleInterval
-    }
-  }
-
   pick(): FluentPick<A> | undefined { return undefined }
 
   sample(sampleSize = 10): FluentPick<A>[] {

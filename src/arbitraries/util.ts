@@ -2,9 +2,11 @@ import {ArbitrarySize} from './types'
 
 export function mapArbitrarySize(sz: ArbitrarySize, f: (v: number) => ArbitrarySize): ArbitrarySize {
   const result = f(sz.value)
-  return {value : result.value,
+  return {
+    value : result.value,
     type : sz.type === 'exact' && result.type === 'exact' ? 'exact' : 'estimated',
-    credibleInterval : result.credibleInterval}
+    credibleInterval : result.credibleInterval
+  }
 }
 
 export function stringify(object: any) {
