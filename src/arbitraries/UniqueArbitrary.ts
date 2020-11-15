@@ -1,6 +1,6 @@
-import { FluentPick } from './types'
-import { Arbitrary, WrappedArbitrary } from './internal'
-import { stringify } from './util'
+import {FluentPick} from './types'
+import {Arbitrary, WrappedArbitrary} from './internal'
+import {stringify} from './util'
 
 export class UniqueArbitrary<A> extends WrappedArbitrary<A> {
   constructor(readonly baseArbitrary: NonNullable<Arbitrary<A>>) {
@@ -29,5 +29,8 @@ export class UniqueArbitrary<A> extends WrappedArbitrary<A> {
     return this.baseArbitrary.shrink(initial).unique()
   }
 
-  toString(depth = 0) { return ' '.repeat(depth * 2) + 'Unique Arbitrary:\n' + this.baseArbitrary.toString(depth + 1)}
+  toString(depth = 0) {
+    return ' '.repeat(depth * 2) +
+      'Unique Arbitrary:\n' + this.baseArbitrary.toString(depth + 1)
+  }
 }

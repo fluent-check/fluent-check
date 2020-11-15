@@ -1,5 +1,5 @@
-import { FluentPick } from './types'
-import { Arbitrary } from './internal'
+import {FluentPick} from './types'
+import {Arbitrary} from './internal'
 
 export class ChainedArbitrary<A, B> extends Arbitrary<B> {
   constructor(public readonly baseArbitrary: Arbitrary<A>, public readonly f: (a: A) => Arbitrary<B>) {
@@ -16,5 +16,8 @@ export class ChainedArbitrary<A, B> extends Arbitrary<B> {
     return this.baseArbitrary.cornerCases().flatMap(p => this.f(p.value).cornerCases())
   }
 
-  toString(depth = 0) { return ' '.repeat(depth * 2) + `Chained Arbitrary: f = ${this.f.toString()}\n` + this.baseArbitrary.toString(depth + 1)}
+  toString(depth = 0) {
+    return ' '.repeat(depth * 2) +
+      `Chained Arbitrary: f = ${this.f.toString()}\n` + this.baseArbitrary.toString(depth + 1)
+  }
 }

@@ -1,13 +1,13 @@
 import * as fc from '../src/index'
-import { it } from 'mocha'
-import { expect } from 'chai'
+import {it} from 'mocha'
+import {expect} from 'chai'
 
 describe('Arbitrary tests', () => {
   it('should return has many numbers has asked', () => {
     expect(fc.scenario()
       .forall('n', fc.integer(0, 100))
       .given('a', () => fc.integer())
-      .then(({ n, a }) => a.sample(n).length === n)
+      .then(({n, a}) => a.sample(n).length === n)
       .check()
     ).to.have.property('satisfiable', true)
   })
@@ -16,8 +16,8 @@ describe('Arbitrary tests', () => {
     expect(fc.scenario()
       .forall('n', fc.integer(0, 100))
       .given('a', () => fc.integer(0, 50))
-      .then(({ n, a }) => a.sample(n).every(i => i.value <= 50))
-      .and(({ n, a }) => a.sampleWithBias(n).every(i => i.value <= 50))
+      .then(({n, a}) => a.sample(n).every(i => i.value <= 50))
+      .and(({n, a}) => a.sampleWithBias(n).every(i => i.value <= 50))
       .check()
     ).to.have.property('satisfiable', true)
   })
@@ -26,8 +26,8 @@ describe('Arbitrary tests', () => {
     expect(fc.scenario()
       .forall('n', fc.integer(4, 100))
       .given('a', () => fc.integer(0, 50))
-      .then(({ n, a }) => a.sampleWithBias(n).some(v => v.value === 0))
-      .and(({ n, a }) => a.sampleWithBias(n).some(v => v.value === 50))
+      .then(({n, a}) => a.sampleWithBias(n).some(v => v.value === 0))
+      .and(({n, a}) => a.sampleWithBias(n).some(v => v.value === 50))
       .check()
     ).to.have.property('satisfiable', true)
   })
@@ -37,8 +37,8 @@ describe('Arbitrary tests', () => {
       .forall('n', fc.integer(0, 100))
       .forall('s', fc.integer(0, 100))
       .given('a', () => fc.integer(0, 100))
-      .then(({ n, s, a }) => a.shrink({ value: s }).sample(n).every(i => i.value < s))
-      .and(({ n, s, a }) => a.shrink({ value: s }).sampleWithBias(n).every(i => i.value < s))
+      .then(({n, s, a}) => a.shrink({value: s}).sample(n).every(i => i.value < s))
+      .and(({n, s, a}) => a.shrink({value: s}).sampleWithBias(n).every(i => i.value < s))
       .check()
     ).to.have.property('satisfiable', true)
   })
@@ -47,9 +47,9 @@ describe('Arbitrary tests', () => {
     expect(fc.scenario()
       .exists('n', fc.integer(0, 25).map(x => x + 25).map(x => x * 2))
       .forall('a', fc.integer(0, 10))
-      .then(({ n, a }) => a <= n)
+      .then(({n, a}) => a <= n)
       .check()
-    ).to.deep.include({ satisfiable: true, example: { n: 50 } })
+    ).to.deep.include({satisfiable: true, example: {n: 50}})
   })
 
   it('should allow shrinking of mapped tupples', () => {
@@ -57,12 +57,14 @@ describe('Arbitrary tests', () => {
       .exists('point', fc.tuple(
         fc.integer(50, 1000).filter(x => x > 100),
         fc.string(1, 10, 'a').filter(x => x.length > 2)).map(([a, b]) => [a * 2, '_'.concat(b)]))
-      .check()).to.deep.include({ satisfiable: true, example: { point: [ 202, '_aaa' ] } })
+      .check()).to.deep.include({satisfiable: true, example: {point: [202, '_aaa']}})
   })
 
   describe('Corner Cases', () => {
     it('should return the corner cases of integers', () => {
-      expect(fc.integer().cornerCases().map(c => c.value)).to.have.members([0, -Number.MAX_SAFE_INTEGER, Number.MAX_SAFE_INTEGER])
+      expect(fc.integer().cornerCases().map(c => c.value)).to.have.members(
+        [0, -Number.MAX_SAFE_INTEGER, Number.MAX_SAFE_INTEGER]
+      )
       expect(fc.integer(1,10).cornerCases().map(c => c.value)).to.have.members([1, 6, 10])
       expect(fc.integer(-10,10).cornerCases().map(c => c.value)).to.have.members([0, -10, 10])
       expect(fc.integer(5,5).cornerCases().map(c => c.value)).to.have.members([5])
@@ -76,14 +78,24 @@ describe('Arbitrary tests', () => {
       expect(fc.string(1, 3, '').cornerCases().map(c => c.value)).to.have.members([''])
       expect(fc.string(1, 3, 'a').cornerCases().map(c => c.value)).to.have.members(['a', 'aaa'])
       expect(fc.string(1, 3, 'ab').cornerCases().map(c => c.value)).to.have.members(['a', 'aaa', 'b', 'bbb'])
-      expect(fc.string(1, 3, 'abc').cornerCases().map(c => c.value)).to.have.members(['a', 'aaa', 'b', 'bbb', 'c', 'ccc'])
-      expect(fc.string(1, 3, 'abcd').cornerCases().map(c => c.value)).to.have.members(['a', 'aaa', 'c', 'ccc', 'd', 'ddd'])
-      expect(fc.string(1, 3, 'abcde').cornerCases().map(c => c.value)).to.have.members(['a', 'aaa', 'c', 'ccc', 'e', 'eee'])
+      expect(fc.string(1, 3, 'abc').cornerCases().map(c => c.value)).to.have.members(
+        ['a', 'aaa', 'b', 'bbb', 'c', 'ccc']
+      )
+      expect(fc.string(1, 3, 'abcd').cornerCases().map(c => c.value)).to.have.members(
+        ['a', 'aaa', 'c', 'ccc', 'd', 'ddd']
+      )
+      expect(fc.string(1, 3, 'abcde').cornerCases().map(c => c.value)).to.have.members(
+        ['a', 'aaa', 'c', 'ccc', 'e', 'eee']
+      )
     })
 
     it('should return the corner cases of arrays/sets', () => {
-      expect(fc.array(fc.integer(0, 5), 1, 3).cornerCases().map(c => c.value)).to.have.deep.members([[0], [0, 0, 0], [3], [3, 3, 3], [5], [5, 5, 5]])
-      expect(fc.set(['a', 'b', 'c'], 1, 3).cornerCases().map(c => c.value)).to.have.deep.members([['a'], ['a', 'b', 'c']])
+      expect(fc.array(fc.integer(0, 5), 1, 3).cornerCases().map(c => c.value)).to.have.deep.members(
+        [[0], [0, 0, 0], [3], [3, 3, 3], [5], [5, 5, 5]]
+      )
+      expect(fc.set(['a', 'b', 'c'], 1, 3).cornerCases().map(c => c.value)).to.have.deep.members(
+        [['a'], ['a', 'b', 'c']]
+      )
     })
 
     it('should return the corner cases of maps', () => {
@@ -91,8 +103,10 @@ describe('Arbitrary tests', () => {
     })
 
     it('should return the corner cases of tuples', () => {
-      expect(fc.tuple(fc.integer(0, 1), fc.string(1, 2, 'abc')).cornerCases().map(c => c.value))
-        .to.have.deep.members([[ 0, 'a' ], [ 0, 'aa' ], [ 0, 'b' ], [ 0, 'bb' ], [ 0, 'c' ], [ 0, 'cc' ], [ 1, 'a' ], [ 1, 'aa' ], [ 1, 'b' ], [ 1, 'bb' ], [ 1, 'c' ], [ 1, 'cc' ]])
+      expect(fc.tuple(fc.integer(0, 1), fc.string(1, 2, 'abc')).cornerCases().map(c => c.value)).to.have.deep.members([
+        [0, 'a'], [0, 'aa'], [0, 'b'], [0, 'bb'], [0, 'c'], [0, 'cc'],
+        [1, 'a'], [1, 'aa'], [1, 'b'], [1, 'bb'], [1, 'c'], [1, 'cc']
+      ])
     })
   })
 
@@ -132,8 +146,8 @@ describe('Arbitrary tests', () => {
       expect(fc.scenario()
         .forall('n', fc.integer(10, 100))
         .given('a', () => fc.boolean().map(e => e ? 'Heads' : 'Tails'))
-        .then(({ a, n }) => a.sampleWithBias(n).some(s => s.value === 'Heads'))
-        .and(({ a, n }) => a.sampleWithBias(n).some(s => s.value === 'Tails'))
+        .then(({a, n}) => a.sampleWithBias(n).some(s => s.value === 'Heads'))
+        .and(({a, n}) => a.sampleWithBias(n).some(s => s.value === 'Tails'))
         .check()
       ).to.have.property('satisfiable', true)
     })
@@ -141,7 +155,7 @@ describe('Arbitrary tests', () => {
     it('should allow integers to be filtered', () => {
       expect(fc.scenario()
         .forall('n', fc.integer(0, 100).filter(n => n < 10))
-        .then(({ n }) => n < 10)
+        .then(({n}) => n < 10)
         .check()
       ).to.have.property('satisfiable', true)
     })
@@ -149,7 +163,7 @@ describe('Arbitrary tests', () => {
     it('filters should exclude corner cases, even after shrinking', () => {
       expect(fc.scenario()
         .exists('a', fc.integer(-20, 20).filter(a => a !== 0))
-        .then(({ a }) => a % 11 === 0 && a !== 11 && a !== -11)
+        .then(({a}) => a % 11 === 0 && a !== 11 && a !== -11)
         .check()
       ).to.have.property('satisfiable', false)
     })
@@ -157,7 +171,7 @@ describe('Arbitrary tests', () => {
     it('should allow integers to be both mapped and filtered', () => {
       expect(fc.scenario()
         .forall('n', fc.integer(0, 100).map(n => n + 100).filter(n => n < 150))
-        .then(({ n }) => n >= 100 && n <= 150)
+        .then(({n}) => n >= 100 && n <= 150)
         .check()
       ).to.have.property('satisfiable', true)
     })
@@ -166,21 +180,25 @@ describe('Arbitrary tests', () => {
   describe('Sizes', () => {
     describe('Statistics tests', () => {
       it('size should be exact for exact well-bounded integer arbitraries', () => {
-        expect(fc.integer(1, 1000).size()).to.deep.include({ value: 1000, type: 'exact' })
-        expect(fc.integer(0, 10).size()).to.deep.include({ value: 11, type: 'exact' })
-        expect(fc.integer(-50, 50).size()).to.deep.include({ value: 101, type: 'exact' })
+        expect(fc.integer(1, 1000).size()).to.deep.include({value: 1000, type: 'exact'})
+        expect(fc.integer(0, 10).size()).to.deep.include({value: 11, type: 'exact'})
+        expect(fc.integer(-50, 50).size()).to.deep.include({value: 101, type: 'exact'})
       })
 
       it('size should be exact for well-bounded mapped arbitraries', () => {
-        expect(fc.integer(0, 1).map(i => i === 0).size()).to.deep.include({ value: 2, type: 'exact' })
-        expect(fc.integer(0, 10).map(i => i * 10).size()).to.deep.include({ value: 11, type: 'exact' })
+        expect(fc.integer(0, 1).map(i => i === 0).size()).to.deep.include({value: 2, type: 'exact'})
+        expect(fc.integer(0, 10).map(i => i * 10).size()).to.deep.include({value: 11, type: 'exact'})
       })
 
       it('size should be estimated for filtered arbitraries', () => {
-        expect(fc.integer(1, 1000).filter(i => i > 200).filter(i => i < 800).size().credibleInterval![0]).to.be.below(600)
-        expect(fc.integer(1, 1000).filter(i => i > 200).filter(i => i < 800).size().credibleInterval![1]).to.be.above(600)
-        expect(fc.integer(1, 1000).filter(i => i > 200 && i < 800).size().credibleInterval![0]).to.be.below(600)
-        expect(fc.integer(1, 1000).filter(i => i > 200 && i < 800).size().credibleInterval![1]).to.be.above(600)
+        expect(fc.integer(1, 1000).filter(i => i > 200).filter(i => i < 800).size().credibleInterval![0])
+          .to.be.below(600)
+        expect(fc.integer(1, 1000).filter(i => i > 200).filter(i => i < 800).size().credibleInterval![1])
+          .to.be.above(600)
+        expect(fc.integer(1, 1000).filter(i => i > 200 && i < 800).size().credibleInterval![0])
+          .to.be.below(600)
+        expect(fc.integer(1, 1000).filter(i => i > 200 && i < 800).size().credibleInterval![1])
+          .to.be.above(600)
       })
 
       it("sampling should terminate even if arbitrary's size is potentially zero", () => {
@@ -189,7 +207,7 @@ describe('Arbitrary tests', () => {
     })
 
     it('should return the correct size of shrinked integer arbitraries', () => {
-      expect(fc.integer(0, 10).shrink({ value: 5 }).size()).to.have.property('value', 5)
+      expect(fc.integer(0, 10).shrink({value: 5}).size()).to.have.property('value', 5)
     })
 
     it('should return the correct size of a composite arbitrary', () => {
@@ -218,11 +236,13 @@ describe('Arbitrary tests', () => {
 
   describe('Filtered Arbitraries', () => {
     it('A filtered mapped filtered arbitrary is able to ', () => {
-      expect(fc.integer(0, 1).map(a => a === 1).filter(a => a === false).map(a => a ? 0 : 1).canGenerate({ original: 0, value: 0 })).to.be.true
-      // TODO: This should be false. However, we are not checking if the filter is able to actually generate the value due to missing intermediate
-      // information (i.e. multiple maps generate intermediate different values - and types - and we only preserve the root). Maybe we should consider
-      // preserving the full path.
-      expect(fc.integer(0, 1).map(a => a === 1).filter(a => a === false).map(a => a ? 0 : 1).canGenerate({ original: 1, value: 1 })).to.be.true
+      expect(fc.integer(0, 1).map(a => a === 1).filter(a => a === false).map(a => a ? 0 : 1)
+        .canGenerate({original: 0, value: 0})).to.be.true
+      // TODO: This should be false. However, we are not checking if the filter is able to actually generate the value
+      // due to missing intermediate information (i.e. multiple maps generate intermediate different values - and
+      // types - and we only preserve the root). Maybe we should consider preserving the full path.
+      expect(fc.integer(0, 1).map(a => a === 1).filter(a => a === false).map(a => a ? 0 : 1)
+        .canGenerate({original: 1, value: 1})).to.be.true
     })
   })
 
@@ -235,7 +255,7 @@ describe('Arbitrary tests', () => {
 
     it('should be shrinkable and remain unique', () => {
       expect(
-        fc.integer(0, 10).unique().shrink({ value: 5 }).sample(5).map(v => v.value)
+        fc.integer(0, 10).unique().shrink({value: 5}).sample(5).map(v => v.value)
       ).to.include.members([0, 1, 2, 3, 4])
     })
 
@@ -243,7 +263,7 @@ describe('Arbitrary tests', () => {
       expect(fc.scenario()
         .forall('n', fc.integer(3, 10))
         .given('ub', () => fc.boolean().unique())
-        .then(({ n, ub }) => ub.sample(n).length === 2)
+        .then(({n, ub}) => ub.sample(n).length === 2)
         .check()
       ).to.have.property('satisfiable', true)
     })
@@ -260,7 +280,7 @@ describe('Arbitrary tests', () => {
       expect(
         fc.scenario()
           .forall('a', fc.integer(1, 10).chain(i => fc.array(fc.constant(i), i, i)))
-          .then(({ a }) => a.length === a[0])
+          .then(({a}) => a.length === a[0])
           .check()
       ).to.have.property('satisfiable', true)
     })
@@ -268,86 +288,92 @@ describe('Arbitrary tests', () => {
 
   describe('Can Generate', () => {
     it('knows if it can generate an integer', () => {
-      expect(fc.integer(1, 10).canGenerate({ value: 1 })).to.be.true
-      expect(fc.integer(1, 10).canGenerate({ value: 10 })).to.be.true
-      expect(fc.integer(1, 10).canGenerate({ value: -1 })).to.be.false
-      expect(fc.integer(1, 10).canGenerate({ value: 11 })).to.be.false
+      expect(fc.integer(1, 10).canGenerate({value: 1})).to.be.true
+      expect(fc.integer(1, 10).canGenerate({value: 10})).to.be.true
+      expect(fc.integer(1, 10).canGenerate({value: -1})).to.be.false
+      expect(fc.integer(1, 10).canGenerate({value: 11})).to.be.false
     })
 
     it('knows if it can generate a string', () => {
-      expect(fc.string(1, 4, 'abcd').canGenerate({ value: 'a', original: [0] })).to.be.true
-      expect(fc.string(1, 4, 'abcd').canGenerate({ value: 'abcd', original: [0, 1, 2, 3] })).to.be.true
-      expect(fc.string(1, 2, 'abcd').canGenerate({ value: 'abc', original: [0, 1, 2] })).to.be.false
-      expect(fc.string(2, 4, 'abcd').canGenerate({ value: 'a', original: [0] })).to.be.false
-      expect(fc.string(2, 4, 'abcdefghijklmnopqrstuvwxyz0123456789').canGenerate({ value: 'abcd', original: [0, 1, 2, 3] })).to.be.true
-      expect(fc.string(2, 4, 'abcdefghijklmnopqrstuvwxyz0123456789').canGenerate({ value: '12', original: [28, 29] })).to.be.true
-      expect(fc.string(2, 4, 'abcdefghijklmnopqrstuvwxyz0123456789').canGenerate({ value: 'ab12', original: [0, 1, 28, 29] })).to.be.true
+      expect(fc.string(1, 4, 'abcd').canGenerate({value: 'a', original: [0]})).to.be.true
+      expect(fc.string(1, 4, 'abcd').canGenerate({value: 'abcd', original: [0, 1, 2, 3]})).to.be.true
+      expect(fc.string(1, 2, 'abcd').canGenerate({value: 'abc', original: [0, 1, 2]})).to.be.false
+      expect(fc.string(2, 4, 'abcd').canGenerate({value: 'a', original: [0]})).to.be.false
+      expect(fc.string(2, 4, 'abcdefghijklmnopqrstuvwxyz0123456789')
+        .canGenerate({value: 'abcd', original: [0, 1, 2, 3]})).to.be.true
+      expect(fc.string(2, 4, 'abcdefghijklmnopqrstuvwxyz0123456789')
+        .canGenerate({value: '12', original: [28, 29]})).to.be.true
+      expect(fc.string(2, 4, 'abcdefghijklmnopqrstuvwxyz0123456789')
+        .canGenerate({value: 'ab12', original: [0, 1, 28, 29]})).to.be.true
     })
 
     it('knows if it can generate a boolean', () => {
-      expect(fc.boolean().canGenerate({ value: true })).to.be.true
-      expect(fc.boolean().canGenerate({ value: false })).to.be.true
+      expect(fc.boolean().canGenerate({value: true})).to.be.true
+      expect(fc.boolean().canGenerate({value: false})).to.be.true
     })
 
     it('knows if it can generate an array', () => {
-      expect(fc.array(fc.integer(1, 10), 1, 10).canGenerate({ value: [1, 2, 3], original: [1, 2, 3] })).to.be.true
-      expect(fc.array(fc.integer(1, 10), 1, 10).canGenerate({ value: [1, 2, 30], original: [1, 2, 30] })).to.be.false
-      expect(fc.array(fc.integer(1, 2), 1, 10).canGenerate({ value: [1, 2, 3], original: [1, 2, 3] })).to.be.false
+      expect(fc.array(fc.integer(1, 10), 1, 10).canGenerate({value: [1, 2, 3], original: [1, 2, 3]})).to.be.true
+      expect(fc.array(fc.integer(1, 10), 1, 10).canGenerate({value: [1, 2, 30], original: [1, 2, 30]})).to.be.false
+      expect(fc.array(fc.integer(1, 2), 1, 10).canGenerate({value: [1, 2, 3], original: [1, 2, 3]})).to.be.false
     })
 
     it('knows if it can be generated by a composite', () => {
-      expect(fc.union(fc.integer(1, 10), fc.integer(20, 30)).canGenerate({ value: 1 })).to.be.true
-      expect(fc.union(fc.integer(1, 10), fc.integer(20, 30)).canGenerate({ value: 10 })).to.be.true
-      expect(fc.union(fc.integer(1, 10), fc.integer(20, 30)).canGenerate({ value: 20 })).to.be.true
-      expect(fc.union(fc.integer(1, 10), fc.integer(20, 30)).canGenerate({ value: 30 })).to.be.true
-      expect(fc.union(fc.integer(1, 10), fc.integer(20, 30)).canGenerate({ value: 15 })).to.be.false
-      expect(fc.union(fc.integer(1, 10), fc.integer(20, 30)).canGenerate({ value: 0 })).to.be.false
-      expect(fc.union(fc.integer(1, 10), fc.integer(20, 30)).canGenerate({ value: 31 })).to.be.false
+      expect(fc.union(fc.integer(1, 10), fc.integer(20, 30)).canGenerate({value: 1})).to.be.true
+      expect(fc.union(fc.integer(1, 10), fc.integer(20, 30)).canGenerate({value: 10})).to.be.true
+      expect(fc.union(fc.integer(1, 10), fc.integer(20, 30)).canGenerate({value: 20})).to.be.true
+      expect(fc.union(fc.integer(1, 10), fc.integer(20, 30)).canGenerate({value: 30})).to.be.true
+      expect(fc.union(fc.integer(1, 10), fc.integer(20, 30)).canGenerate({value: 15})).to.be.false
+      expect(fc.union(fc.integer(1, 10), fc.integer(20, 30)).canGenerate({value: 0})).to.be.false
+      expect(fc.union(fc.integer(1, 10), fc.integer(20, 30)).canGenerate({value: 31})).to.be.false
     })
 
     it('knows if it can be generated by a map', () => {
-      expect(fc.integer(97, 100).map(n => String.fromCharCode(n)).canGenerate({ original: 97, value: 'a' })).to.be.true
-      expect(fc.integer(97, 100).map(n => String.fromCharCode(n)).canGenerate({ original: 99, value: 'c' })).to.be.true
-      expect(fc.integer(97, 100).map(n => String.fromCharCode(n)).canGenerate({ original: 101, value: 'e' })).to.be.false
-      expect(fc.integer(97, 100).map(n => String.fromCharCode(n)).canGenerate({ original: 102, value: 'f' })).to.be.false
+      expect(fc.integer(97, 100).map(n => String.fromCharCode(n)).canGenerate({original: 97, value: 'a'})).to.be.true
+      expect(fc.integer(97, 100).map(n => String.fromCharCode(n)).canGenerate({original: 99, value: 'c'})).to.be.true
+      expect(fc.integer(97, 100).map(n => String.fromCharCode(n)).canGenerate({original: 101, value: 'e'})).to.be.false
+      expect(fc.integer(97, 100).map(n => String.fromCharCode(n)).canGenerate({original: 102, value: 'f'})).to.be.false
     })
 
     it('knows if it can be generated by a filter', () => {
-      expect(fc.integer(0,4).filter(n => n !== 2).canGenerate({ value: -1 })).to.be.false
-      expect(fc.integer(0,4).filter(n => n !== 2).canGenerate({ value: 0 })).to.be.true
+      expect(fc.integer(0,4).filter(n => n !== 2).canGenerate({value: -1})).to.be.false
+      expect(fc.integer(0,4).filter(n => n !== 2).canGenerate({value: 0})).to.be.true
 
-      // TODO: This should be false. However, we are not checking if the filter is able to actually generate the value due to missing intermediate
-      // information (i.e. multiple maps generate intermediate different values - and types - and we only preserve the root). Maybe we should consider
-      // preserving the full path.
+      // TODO: This should be false. However, we are not checking if the filter is able to actually generate the value
+      // due to missing intermediate information (i.e. multiple maps generate intermediate different values - and
+      // types - and we only preserve the root). Maybe we should consider preserving the full path.
       // expect(fc.integer(0,4).filter(n => n !== 2).canGenerate({ value: 2 })).to.be.false
-      expect(fc.integer(0,4).filter(n => n !== 2).canGenerate({ value: 4 })).to.be.true
-      expect(fc.integer(0,4).filter(n => n !== 2).canGenerate({ value: 5 })).to.be.false
+      expect(fc.integer(0,4).filter(n => n !== 2).canGenerate({value: 4})).to.be.true
+      expect(fc.integer(0,4).filter(n => n !== 2).canGenerate({value: 5})).to.be.false
     })
 
     it('knows if it can be generated by a set', () => {
-      expect(fc.set(['a', 'b', 'c'], 1, 3) .canGenerate({ value: ['a', 'b', 'c'] })).to.be.true
-      expect(fc.set(['a', 'b', 'c'], 1, 3) .canGenerate({ value: ['a', 'b', 'd'] })).to.be.false
-      expect(fc.set(['a', 'b', 'c'], 1, 2) .canGenerate({ value: ['a', 'b', 'c'] })).to.be.false
-      expect(fc.set([], 0, 0).canGenerate({ value: [] })).to.be.true
-      expect(fc.set([], 1, 2).canGenerate({ value: [] })).to.be.false
+      expect(fc.set(['a', 'b', 'c'], 1, 3) .canGenerate({value: ['a', 'b', 'c']})).to.be.true
+      expect(fc.set(['a', 'b', 'c'], 1, 3) .canGenerate({value: ['a', 'b', 'd']})).to.be.false
+      expect(fc.set(['a', 'b', 'c'], 1, 2) .canGenerate({value: ['a', 'b', 'c']})).to.be.false
+      expect(fc.set([], 0, 0).canGenerate({value: []})).to.be.true
+      expect(fc.set([], 1, 2).canGenerate({value: []})).to.be.false
     })
 
     it('knows if it can be generated by a oneof', () => {
-      expect(fc.oneof(['a', 'b', 'c']).canGenerate({ value: 'a', original: 0 })).to.be.true
-      expect(fc.oneof(['a', 'b', 'c']).canGenerate({ value: 'd', original: 3 })).to.be.false
+      expect(fc.oneof(['a', 'b', 'c']).canGenerate({value: 'a', original: 0})).to.be.true
+      expect(fc.oneof(['a', 'b', 'c']).canGenerate({value: 'd', original: 3})).to.be.false
     })
 
     it('knows if it can be generated by a constant', () => {
-      expect(fc.constant('a').canGenerate({ value: 'a' })).to.be.true
-      expect(fc.constant(1).canGenerate({ value: 1, original: undefined })).to.be.true
-      expect(fc.constant('a').canGenerate({ value: 'b' })).to.be.false
-      expect(fc.constant(1).canGenerate({ value: 2, original: undefined })).to.be.false
+      expect(fc.constant('a').canGenerate({value: 'a'})).to.be.true
+      expect(fc.constant(1).canGenerate({value: 1, original: undefined})).to.be.true
+      expect(fc.constant('a').canGenerate({value: 'b'})).to.be.false
+      expect(fc.constant(1).canGenerate({value: 2, original: undefined})).to.be.false
     })
 
     it('knows if it can be generated by a tuple', () => {
-      expect(fc.tuple(fc.integer(1, 5), fc.string(1, 5, 'abc')).canGenerate({ value: [1, 'b'], original: [undefined, [2]] })).to.be.true
-      expect(fc.tuple(fc.integer(1, 5), fc.string(1, 5, 'abc')).canGenerate({ value: [6, 'b'], original: [undefined, [2]] })).to.be.false
-      expect(fc.tuple(fc.integer(1, 5), fc.string(1, 5, 'abc')).canGenerate({ value: [1, 'd'], original: [undefined, [4]] })).to.be.false
+      expect(fc.tuple(fc.integer(1, 5), fc.string(1, 5, 'abc'))
+        .canGenerate({value: [1, 'b'], original: [undefined, [2]]})).to.be.true
+      expect(fc.tuple(fc.integer(1, 5), fc.string(1, 5, 'abc'))
+        .canGenerate({value: [6, 'b'], original: [undefined, [2]]})).to.be.false
+      expect(fc.tuple(fc.integer(1, 5), fc.string(1, 5, 'abc'))
+        .canGenerate({value: [1, 'd'], original: [undefined, [4]]})).to.be.false
     })
   })
 

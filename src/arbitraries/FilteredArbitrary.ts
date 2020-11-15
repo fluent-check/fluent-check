@@ -1,7 +1,7 @@
-import { BetaDistribution } from '../statistics'
-import { FluentPick } from './types'
-import { Arbitrary, NoArbitrary, WrappedArbitrary } from './internal'
-import { lowerCredibleInterval, upperCredibleInterval } from './util'
+import {BetaDistribution} from '../statistics'
+import {FluentPick} from './types'
+import {Arbitrary, NoArbitrary, WrappedArbitrary} from './internal'
+import {lowerCredibleInterval, upperCredibleInterval} from './util'
 
 export class FilteredArbitrary<A> extends WrappedArbitrary<A> {
   sizeEstimation: BetaDistribution
@@ -12,14 +12,19 @@ export class FilteredArbitrary<A> extends WrappedArbitrary<A> {
   }
 
   size() {
-    // TODO: Still not sure if we should use mode or mean for estimating the size (depends on which error we are trying to minimize, L1 or L2)
+    // TODO: Still not sure if we should use mode or mean for estimating the size (depends on which error we are trying
+    // to minimize, L1 or L2)
     // Also, this assumes we estimate a continuous interval between 0 and 1;
     // We could try to change this to a beta-binomial distribution, which would provide us a discrete approach
     // for when we know the exact base population size.
-    return this.baseArbitrary.mapArbitrarySize(v =>
-      ({ type: 'estimated',
-        value: Math.round(v * this.sizeEstimation.mode()),
-        credibleInterval: [v * this.sizeEstimation.inv(lowerCredibleInterval), v * this.sizeEstimation.inv(upperCredibleInterval)] }))
+    return this.baseArbitrary.mapArbitrarySize(v => ({
+      type: 'estimated',
+      value: Math.round(v * this.sizeEstimation.mode()),
+      credibleInterval: [
+        v * this.sizeEstimation.inv(lowerCredibleInterval),
+        v * this.sizeEstimation.inv(upperCredibleInterval)
+      ]
+    }))
   }
 
   pick(): FluentPick<A> | undefined {
@@ -28,7 +33,8 @@ export class FilteredArbitrary<A> extends WrappedArbitrary<A> {
       if (!pick) break // TODO: update size estimation accordingly
       if (this.f(pick.value)) { this.sizeEstimation.alpha += 1; return pick }
       this.sizeEstimation.beta += 1
-    } while (this.baseArbitrary.size().value * this.sizeEstimation.inv(upperCredibleInterval) >= 1) // If we have a pretty good confidence that the size < 1, we stop trying
+      // If we have a pretty good confidence that the size < 1, we stop trying
+    } while (this.baseArbitrary.size().value * this.sizeEstimation.inv(upperCredibleInterval) >= 1)
 
     return undefined
   }
@@ -44,5 +50,8 @@ export class FilteredArbitrary<A> extends WrappedArbitrary<A> {
     return this.baseArbitrary.canGenerate(pick) /* && this.f(pick.value) */
   }
 
-  toString(depth = 0) { return ' '.repeat(depth * 2) + `Filtered Arbitrary: f = ${this.f.toString()}\n` + this.baseArbitrary.toString(depth + 1)}
+  toString(depth = 0) {
+    return ' '.repeat(depth * 2) +
+      `Filtered Arbitrary: f = ${this.f.toString()}\n` + this.baseArbitrary.toString(depth + 1)
+  }
 }

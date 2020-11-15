@@ -1,6 +1,6 @@
-import { FluentPick } from './types'
-import { mapArbitrarySize } from './util'
-import { Arbitrary } from './internal'
+import {FluentPick} from './types'
+import {mapArbitrarySize} from './util'
+import {Arbitrary} from './internal'
 import * as fc from './index'
 
 export class ArbitraryArray<A> extends Arbitrary<A[]> {
@@ -44,15 +44,18 @@ export class ArbitraryArray<A> extends Arbitrary<A[]> {
 
   canGenerate(pick: FluentPick<A[]>) {
     return pick.value.length >= this.min && pick.value.length <= this.max &&
-           pick.value.every((v, i) => this.arbitrary.canGenerate({ value: v, original: pick.original[i] }))
+           pick.value.every((v, i) => this.arbitrary.canGenerate({value: v, original: pick.original[i]}))
   }
 
   cornerCases(): FluentPick<A[]>[] {
     return this.arbitrary.cornerCases().flatMap(cc => [
-      { value: Array(this.min).fill(cc.value), original: Array(this.min).fill(cc.original) },
-      { value: Array(this.max).fill(cc.value), original: Array(this.max).fill(cc.original) }
+      {value: Array(this.min).fill(cc.value), original: Array(this.min).fill(cc.original)},
+      {value: Array(this.max).fill(cc.value), original: Array(this.max).fill(cc.original)}
     ]).filter(v => v !== undefined) as FluentPick<A[]>[]
   }
 
-  toString(depth = 0): string { return ' '.repeat(depth * 2) + `Array Arbitrary: min = ${this.min} max = ${this.max}\n${this.arbitrary.toString(depth + 1)}` }
+  toString(depth = 0): string {
+    return ' '.repeat(depth * 2) +
+      `Array Arbitrary: min = ${this.min} max = ${this.max}\n${this.arbitrary.toString(depth + 1)}`
+  }
 }

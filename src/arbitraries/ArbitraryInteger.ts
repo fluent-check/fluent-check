@@ -1,5 +1,5 @@
-import { ArbitrarySize, FluentPick } from './types'
-import { Arbitrary, NoArbitrary } from './internal'
+import {ArbitrarySize, FluentPick} from './types'
+import {Arbitrary, NoArbitrary} from './internal'
 import * as fc from './index'
 
 export class ArbitraryInteger extends Arbitrary<number> {
@@ -7,11 +7,11 @@ export class ArbitraryInteger extends Arbitrary<number> {
     super()
   }
 
-  size(): ArbitrarySize { return { value: this.max - this.min + 1, type: 'exact' } }
+  size(): ArbitrarySize { return {value: this.max - this.min + 1, type: 'exact'} }
 
   pick() {
     const value = Math.floor(Math.random() * (this.max - this.min + 1)) + this.min
-    return { value, original: value }
+    return {value, original: value}
   }
 
   cornerCases() {
@@ -20,7 +20,7 @@ export class ArbitraryInteger extends Arbitrary<number> {
       [0, this.min, middle, this.max] : [this.min, middle, this.max]))]
       .sort((a,b) => (Math.abs(a) - Math.abs(b)))
 
-    return ccs.map(value => ({ value, original: value }))
+    return ccs.map(value => ({value, original: value}))
   }
 
   shrink(initial: FluentPick<number>): Arbitrary<number> {
@@ -47,5 +47,5 @@ export class ArbitraryInteger extends Arbitrary<number> {
     return pick.value >= this.min && pick.value <= this.max
   }
 
-  toString(depth = 0) { return ' '.repeat(depth * 2) + `Integer Arbitrary: min = ${this.min} max = ${this.max}`}
+  toString(depth = 0) { return ' '.repeat(depth * 2) + `Integer Arbitrary: min = ${this.min} max = ${this.max}` }
 }
