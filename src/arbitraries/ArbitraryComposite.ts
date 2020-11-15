@@ -1,4 +1,4 @@
-import { NoArbitrary, Arbitrary } from './internal'
+import { Arbitrary } from './internal'
 import { FluentPick } from './types'
 import { mapArbitrarySize, NilArbitrarySize } from './util'
 import * as fc from './index'

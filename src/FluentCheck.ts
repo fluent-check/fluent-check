@@ -25,7 +25,7 @@ export class FluentCheck<Rec extends ParentRec, ParentRec extends {}> {
     return this
   }
 
-  given<K extends string, V>(name: K, v: (args: Rec) => V | V): FluentCheckGiven<K, V, Rec & Record<K, V>, Rec> {
+  given<K extends string, V>(name: K, v: V | ((args: Rec) => V)): FluentCheckGiven<K, V, Rec & Record<K, V>, Rec> {
     return (v instanceof Function) ?
       new FluentCheckGivenMutable(this, name, v, this.configuration) :
       new FluentCheckGivenConstant<K, V, Rec & Record<K, V>, Rec>(this, name, v, this.configuration)
@@ -95,7 +95,7 @@ abstract class FluentCheckGiven<K extends string, V, Rec extends ParentRec & Rec
     super(parent, config)
   }
 
-  and<NK extends string, V>(name: NK, f: (args: Rec) => V | V) {
+  and<NK extends string, V>(name: NK, f: ((args: Rec) => V) | V) {
     return super.given(name, f)
   }
 }

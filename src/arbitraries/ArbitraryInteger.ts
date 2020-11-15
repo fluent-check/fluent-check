@@ -5,8 +5,6 @@ import * as fc from './index'
 export class ArbitraryInteger extends Arbitrary<number> {
   constructor(public min = Number.MIN_SAFE_INTEGER, public max = Number.MAX_SAFE_INTEGER) {
     super()
-    this.min = min
-    this.max = max
   }
 
   size(): ArbitrarySize { return { value: this.max - this.min + 1, type: 'exact' } }
