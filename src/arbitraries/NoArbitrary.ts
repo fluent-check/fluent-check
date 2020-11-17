@@ -2,6 +2,7 @@ import {ArbitrarySize, FluentPick} from './types'
 import {Arbitrary} from './internal'
 
 export const NoArbitrary: Arbitrary<never> = new class extends Arbitrary<never> {
+  pick(): FluentPick<never> | undefined { return undefined }
   size(): ArbitrarySize { return {value: 0, type: 'exact'} }
   sampleWithBias(): FluentPick<never>[] { return [] }
   sample(): FluentPick<never>[] { return [] }
