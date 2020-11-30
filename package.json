@@ -1,7 +1,7 @@
 {
   "name": "fluent-check",
   "version": "1.0.0",
-  "description": "A type-safe fluent-based fast-check wrapper",
+  "description": "A type-safe fluent-based property based checker natively written for Typescript",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
@@ -14,14 +14,14 @@
     "pbt",
     "typescript"
   ],
-  "author": "Hugo Sereno and Andre Restivo",
-  "license": "ISC",
+  "author": "André Restivo, Hugo Sereno Ferreira, Rui Gonçalves",
+  "license": "MIT",
   "dependencies": {
     "typescript": "^4.1.2"
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/arestivo/fluent-check"
+    "url": "https://github.com/fluent-check/fluent-check"
   },
   "devDependencies": {
     "@types/chai": "^4.2.14",
