@@ -3,12 +3,7 @@ import {it} from 'mocha'
 import {expect} from 'chai'
 
 describe('Nat tests', () => {
-  it('finds that the sum of two natural numbers is greater or equal than 0', () => {
-    expect(fc.scenario()
-      .forall('a', fc.nat(-10, 10))
-      .forall('b', fc.nat())
-      .then(({a, b}) => a + b >= 0)
-      .check()
-    ).to.deep.include({satisfiable: true})
+  it('should return a NoArbitrary if the bounds are invalid', () => {
+    expect(fc.nat(-10, 10)).to.equal(fc.empty())
   })
 })
