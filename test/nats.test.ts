@@ -6,9 +6,11 @@ describe('Nat tests', () => {
   it('should return a valid range if min < 0', () => {
     expect(
       fc.scenario()
-        .forall('a', fc.integer(Number.MIN_SAFE_INTEGER, -1))
-        .forall('b', fc.integer(0, Number.MAX_SAFE_INTEGER))
-        .then(({a, b}) => fc.nat(a, b).sample(10).every(i => i.value >= 0))
+        .forall('n', fc.tuple(
+          fc.integer(Number.MIN_SAFE_INTEGER, -1),
+          fc.integer(0, Number.MAX_SAFE_INTEGER))
+          .chain(([a, b]) => fc.nat(a, b)))
+        .then(({n}) => n >= 0)
         .check()
     ).to.have.property('satisfiable', true)
   })
