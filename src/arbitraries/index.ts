@@ -21,7 +21,7 @@ export const real = (min = Number.MIN_SAFE_INTEGER, max = Number.MAX_SAFE_INTEGE
   min > max ? NoArbitrary : (min === max ? new ArbitraryConstant(min) : new ArbitraryReal(min, max))
 
 export const nat = (min = 0, max = Number.MAX_SAFE_INTEGER): Arbitrary<number> =>
-  max < 0 ? NoArbitrary : new ArbitraryInteger(Math.max(0, min), max)
+  max < 0 ? NoArbitrary : integer(Math.max(0, min), max)
 
 export const string = (min = 2, max = 10, chars = 'abcdefghijklmnopqrstuvwxyz'): Arbitrary<string> =>
   chars === '' ? constant('') : array(integer(0, chars.length - 1).map(n => chars[n]), min, max).map(a => a.join(''))
