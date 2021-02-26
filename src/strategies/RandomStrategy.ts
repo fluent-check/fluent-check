@@ -8,6 +8,8 @@ export class RandomStrategy extends Strategy {
    */
   private numGenSamples = 0
 
+  private arbitraries: Record<string, any> = {}
+
   constructor(public readonly maxGenSamples) {
     super()
   }
@@ -21,8 +23,15 @@ export class RandomStrategy extends Strategy {
     return this.numGenSamples <= this.maxGenSamples
   }
 
-  getInput<A>(a: Arbitrary<A>) {
-    return a.pick()
+  getInput<K extends string, A>(name: K, a: Arbitrary<A>) {
+    if (this.arbitraries[name] === undefined)
+      this.arbitraries[name] = {index: 0, cornerCases: a.cornerCases()}
+
+    if (this.maxGenSamples > this.arbitraries[name].cornerCases.length &&
+       this.arbitraries[name].index < this.arbitraries[name].cornerCases.length)
+      return this.arbitraries[name].cornerCases[this.arbitraries[name].index++]
+    else
+      return a.pick()
   }
 
   /**
@@ -36,5 +45,10 @@ export class RandomStrategy extends Strategy {
    */
   handleResult(res: Boolean) {
     this.numGenSamples++
+  }
+
+  reset() {
+    this.arbitraries = {}
+    this.numGenSamples = 0
   }
 }

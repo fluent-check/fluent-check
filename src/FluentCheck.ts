@@ -1,4 +1,6 @@
 import {Arbitrary, FluentPick} from './arbitraries'
+import {RandomStrategy} from './strategies/RandomStrategy'
+import {NoArbitrary} from './arbitraries/internal'
 
 type UnwrapFluentPick<T> = { [P in keyof T]: T[P] extends FluentPick<infer E> ? E : T[P] }
 type WrapFluentPick<T> = { [P in keyof T]: FluentPick<T[P]> }
@@ -16,6 +18,8 @@ class FluentResult {
 export type FluentConfig = { sampleSize?: number, shrinkSize?: number }
 
 export class FluentCheck<Rec extends ParentRec, ParentRec extends {}> {
+  public static strategy: RandomStrategy = new RandomStrategy(1000)
+
   constructor(protected readonly parent: FluentCheck<ParentRec, any> | undefined = undefined,
     public readonly configuration: FluentConfig = {sampleSize: 1000, shrinkSize: 500}) {
   }
@@ -144,7 +148,6 @@ class FluentCheckGivenConstant<K extends string, V, Rec extends ParentRec & Reco
 class FluentCheckUniversal<K extends string, A, Rec extends ParentRec & Record<K, A>, ParentRec extends {}>
   extends FluentCheck<Rec, ParentRec> {
 
-  private cache: Array<FluentPick<A>>
   private dedup: Arbitrary<A>
 
   constructor(
@@ -155,7 +158,6 @@ class FluentCheckUniversal<K extends string, A, Rec extends ParentRec & Record<K
 
     super(parent, config)
     this.dedup = a.unique()
-    this.cache = this.dedup.sampleWithBias(this.configuration.sampleSize)
   }
 
   protected run(
@@ -165,17 +167,19 @@ class FluentCheckUniversal<K extends string, A, Rec extends ParentRec & Record<K
     depth = 0): FluentResult {
 
     const example = partial || new FluentResult(true)
-    const collection = depth === 0 ?
-      this.cache :
+    const genArbitrary = depth === 0 ?
+      this.dedup :
       (partial !== undefined ?
-        this.dedup.shrink(partial.example[this.name]).sampleWithBias(this.configuration.shrinkSize) :
-        [])
+        this.dedup.shrink(partial.example[this.name]) :
+        NoArbitrary)
 
-    for (const tp of collection) {
-      testCase[this.name] = tp
+    FluentCheck.strategy.reset()
+
+    while (FluentCheck.strategy.hasInput() && (genArbitrary !== NoArbitrary)) {
+      testCase[this.name] = FluentCheck.strategy.getInput(this.name, genArbitrary)
       const result = callback(testCase)
       if (!result.satisfiable) {
-        result.addExample(this.name, tp)
+        result.addExample(this.name, testCase[this.name])
         return this.run(testCase, callback, result, depth + 1)
       }
     }
@@ -258,8 +262,8 @@ class FluentCheckAssert<Rec extends ParentRec, ParentRec extends {}> extends Flu
 
   protected run(testCase: FluentPicks, callback: (arg: FluentPicks) => FluentResult) {
     const unwrappedTestCase = FluentCheck.unwrapFluentPick(testCase)
-    return (this.assertion({...unwrappedTestCase, ...this.runPreliminaries(unwrappedTestCase)} as Rec)) ?
-      callback(testCase) :
-      new FluentResult(false)
+    const result = this.assertion({...unwrappedTestCase, ...this.runPreliminaries(unwrappedTestCase)} as Rec)
+    FluentCheck.strategy.handleResult(result)
+    return result ? callback(testCase) : new FluentResult(false)
   }
 }

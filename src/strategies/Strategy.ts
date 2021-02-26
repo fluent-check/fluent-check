@@ -9,10 +9,15 @@ export abstract class Strategy {
   /**
    * Generates a new input
    */
-  abstract getInput<A>(a: Arbitrary<A>): FluentPick<any> | undefined
+  abstract getInput<K extends string, A>(name: K, a: Arbitrary<A>): FluentPick<any> | undefined
 
   /**
    * Handles the result of running a particular test case
    */
   abstract handleResult(res: Boolean): void
+
+  /**
+   * Resets the strategy configuration
+   */
+  abstract reset(): void
 }
