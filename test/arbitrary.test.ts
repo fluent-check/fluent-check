@@ -392,5 +392,21 @@ describe('Arbitrary tests', () => {
       expect(fc.empty().map(a => a)).to.eq(fc.empty())
       expect(fc.empty().filter(a => true)).to.eq(fc.empty())
     })
+
+    it('should always be satisfiable due to vacuous truth in universal assertions', () => {
+      expect(fc.scenario()
+        .forall('empty', fc.empty())
+        .then(_ => false)
+        .check()
+      ).to.have.property('satisfiable', true)
+    })
+
+    it('should never be satisfiable due to vacuous truth in existential assertions', () => {
+      expect(fc.scenario()
+        .exists('empty', fc.empty())
+        .then(_ => true)
+        .check()
+      ).to.have.property('satisfiable', false)
+    })
   })
 })
