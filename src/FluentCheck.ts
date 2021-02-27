@@ -18,7 +18,7 @@ class FluentResult {
 export type FluentConfig = { sampleSize?: number, shrinkSize?: number }
 
 export class FluentCheck<Rec extends ParentRec, ParentRec extends {}> {
-  public static strategy: RandomStrategy = new RandomStrategy(1000)
+  public static strategy: RandomStrategy = new RandomStrategy()
 
   constructor(protected readonly parent: FluentCheck<ParentRec, any> | undefined = undefined,
     public readonly configuration: FluentConfig = {sampleSize: 1000, shrinkSize: 500}) {
@@ -167,21 +167,25 @@ class FluentCheckUniversal<K extends string, A, Rec extends ParentRec & Record<K
     depth = 0): FluentResult {
 
     const example = partial || new FluentResult(true)
-    const genArbitrary = depth === 0 ?
+    const arbitrary = depth === 0 ?
       this.dedup :
       (partial !== undefined ?
         this.dedup.shrink(partial.example[this.name]) :
         NoArbitrary)
 
-    FluentCheck.strategy.reset()
+    FluentCheck.strategy.addArbitrary(this.name, arbitrary, depth === 0 ?
+      this.configuration.sampleSize! :
+      this.configuration.shrinkSize!)
 
-    while (FluentCheck.strategy.hasInput() && (genArbitrary !== NoArbitrary)) {
-      testCase[this.name] = FluentCheck.strategy.getInput(this.name, genArbitrary)
+    while (arbitrary !== NoArbitrary && FluentCheck.strategy.hasInput()) {
+      testCase[this.name] = FluentCheck.strategy.getInput()
+      if (testCase[this.name] === undefined) break
       const result = callback(testCase)
       if (!result.satisfiable) {
         result.addExample(this.name, testCase[this.name])
         return this.run(testCase, callback, result, depth + 1)
       }
+      FluentCheck.strategy.setCurrArbitraryName(this.name)
     }
 
     return example
@@ -191,7 +195,6 @@ class FluentCheckUniversal<K extends string, A, Rec extends ParentRec & Record<K
 class FluentCheckExistential<K extends string, A, Rec extends ParentRec & Record<K, A>, ParentRec extends {}>
   extends FluentCheck<Rec, ParentRec> {
 
-  private cache: Array<FluentPick<A>>
   private dedup: Arbitrary<A>
 
   constructor(
@@ -202,7 +205,6 @@ class FluentCheckExistential<K extends string, A, Rec extends ParentRec & Record
 
     super(parent, config)
     this.dedup = a.unique()
-    this.cache = this.dedup.sampleWithBias(this.configuration.sampleSize)
   }
 
   protected run(
@@ -212,19 +214,25 @@ class FluentCheckExistential<K extends string, A, Rec extends ParentRec & Record
     depth = 0): FluentResult {
 
     const example = partial || new FluentResult(false)
-    const collection = depth === 0 ?
-      this.cache :
+    const arbitrary = depth === 0 ?
+      this.dedup :
       (partial !== undefined ?
-        this.dedup.shrink(partial.example[this.name]).sampleWithBias(this.configuration.shrinkSize) :
-        [])
+        this.dedup.shrink(partial.example[this.name]) :
+        NoArbitrary)
 
-    for (const tp of collection) {
-      testCase[this.name] = tp
+    FluentCheck.strategy.addArbitrary(this.name, arbitrary, depth === 0 ?
+      this.configuration.sampleSize! :
+      this.configuration.shrinkSize!)
+
+    while (arbitrary !== NoArbitrary && FluentCheck.strategy.hasInput()) {
+      testCase[this.name] = FluentCheck.strategy.getInput()
+      if (testCase[this.name] === undefined) break
       const result = callback(testCase)
       if (result.satisfiable) {
-        result.addExample(this.name, tp)
+        result.addExample(this.name, testCase[this.name])
         return this.run(testCase, callback, result, depth + 1)
       }
+      FluentCheck.strategy.setCurrArbitraryName(this.name)
     }
 
     return example
@@ -262,8 +270,8 @@ class FluentCheckAssert<Rec extends ParentRec, ParentRec extends {}> extends Flu
 
   protected run(testCase: FluentPicks, callback: (arg: FluentPicks) => FluentResult) {
     const unwrappedTestCase = FluentCheck.unwrapFluentPick(testCase)
-    const result = this.assertion({...unwrappedTestCase, ...this.runPreliminaries(unwrappedTestCase)} as Rec)
-    FluentCheck.strategy.handleResult(result)
-    return result ? callback(testCase) : new FluentResult(false)
+    return this.assertion({...unwrappedTestCase, ...this.runPreliminaries(unwrappedTestCase)} as Rec) ?
+      callback(testCase) :
+      new FluentResult(false)
   }
 }

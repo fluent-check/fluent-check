@@ -1,23 +1,20 @@
 import {Arbitrary, FluentPick} from '../arbitraries'
 
+export type FluentPicks = Record<string, FluentPick<any> | any>
+
 export abstract class Strategy {
   /**
    * Determines whether there are still inputs to be generated or not
    */
-  abstract hasInput(): Boolean
+  abstract hasInput(): boolean
 
   /**
    * Generates a new input
    */
-  abstract getInput<K extends string, A>(name: K, a: Arbitrary<A>): FluentPick<any> | undefined
+  abstract getInput<A>(): FluentPick<A>
 
   /**
    * Handles the result of running a particular test case
    */
-  abstract handleResult(res: Boolean): void
-
-  /**
-   * Resets the strategy configuration
-   */
-  abstract reset(): void
+  abstract handleResult()
 }

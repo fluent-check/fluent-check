@@ -2,13 +2,14 @@ import * as fc from '../src/index'
 import {it} from 'mocha'
 import {expect} from 'chai'
 
-describe('Boolean tests', () => {
-  it('finds that subtraction is not cummutative', () => {
+describe('Debug tests', () => {
+  it('finds if additions is associative', () => {
     expect(fc.scenario()
       .forall('a', fc.integer(-10, 10))
       .forall('b', fc.integer(-10, 10))
-      .then(({a, b}) => a - b === b - a)
+      .forall('c', fc.integer(-10, 10))
+      .then(({a, b, c}) => (a + b) + c === a + (b + c))
       .check()
-    ).to.deep.include({satisfiable: false, example: {a: 0, b: -1}})
+    ).to.have.property('satisfiable', true)
   })
 })

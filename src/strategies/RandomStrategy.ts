@@ -1,18 +1,30 @@
-import {Strategy} from './Strategy'
+import {FluentPicks, Strategy} from './Strategy'
 import {Arbitrary} from '../arbitraries'
 
 export class RandomStrategy extends Strategy {
 
   /**
-   * Number of samples generated
+   * Current active arbitrary
    */
-  private numGenSamples = 0
+  private currArbitraryName = ''
 
+  /**
+   * List of arbitraries used for producing test cases
+   */
   private arbitraries: Record<string, any> = {}
 
-  constructor(public readonly maxGenSamples) {
-    super()
+  setCurrArbitraryName<K extends string>(name: K) {
+    this.currArbitraryName = name
   }
+
+  /**
+   * Adds arbitrary to the arbitraries structure that will be further used to generate test cases.
+   */
+  addArbitrary<K extends string, A>(name: K, a: Arbitrary<A>, maxGenSamples: number, currArbitrary = true) {
+    this.currArbitraryName = name
+    this.arbitraries[name] = {numGenSamples: 0, maxGenSamples, index: 0, cornerCases: a.cornerCases(), a}
+  }
+
   /**
    * NOTE -> For this particular strategy this function only
    * generates samples to a certain point specified by maxGenSamples.
@@ -20,18 +32,16 @@ export class RandomStrategy extends Strategy {
    * generation process should be stoped.
    */
   hasInput() {
-    return this.numGenSamples <= this.maxGenSamples
+    return this.arbitraries[this.currArbitraryName] !== undefined &&
+    this.arbitraries[this.currArbitraryName].numGenSamples++ <= this.arbitraries[this.currArbitraryName].maxGenSamples
   }
 
-  getInput<K extends string, A>(name: K, a: Arbitrary<A>) {
-    if (this.arbitraries[name] === undefined)
-      this.arbitraries[name] = {index: 0, cornerCases: a.cornerCases()}
-
-    if (this.maxGenSamples > this.arbitraries[name].cornerCases.length &&
-       this.arbitraries[name].index < this.arbitraries[name].cornerCases.length)
-      return this.arbitraries[name].cornerCases[this.arbitraries[name].index++]
+  getInput() {
+    const arbitrary = this.arbitraries[this.currArbitraryName]
+    if (arbitrary.maxGenSamples > arbitrary.cornerCases.length && arbitrary.index < arbitrary.cornerCases.length)
+      return arbitrary.cornerCases[arbitrary.index++]
     else
-      return a.pick()
+      return arbitrary.a.pick()
   }
 
   /**
@@ -43,12 +53,5 @@ export class RandomStrategy extends Strategy {
    * NOTE -> This function can also include some perform additional operations
    * like keeping a list of generated inputs and save them to a file.
    */
-  handleResult(res: Boolean) {
-    this.numGenSamples++
-  }
-
-  reset() {
-    this.arbitraries = {}
-    this.numGenSamples = 0
-  }
+  handleResult() {}
 }
