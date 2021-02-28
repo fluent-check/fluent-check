@@ -1,13 +1,12 @@
 import {Arbitrary, FluentPick} from './arbitraries'
-import {RandomStrategy} from './strategies/RandomStrategy'
-import {NoArbitrary} from './arbitraries/internal'
+import {FluentBiasedRandomStrategy} from './strategies/FluentBiasedRandomStrategy'
 
 type UnwrapFluentPick<T> = { [P in keyof T]: T[P] extends FluentPick<infer E> ? E : T[P] }
 type WrapFluentPick<T> = { [P in keyof T]: FluentPick<T[P]> }
 
 type FluentPicks = Record<string, FluentPick<any> | any>
 
-class FluentResult {
+export class FluentResult {
   constructor(public readonly satisfiable = false, public example: FluentPicks = {}) { }
 
   addExample<A>(name: string, value: FluentPick<A>) {
@@ -18,7 +17,10 @@ class FluentResult {
 export type FluentConfig = { sampleSize?: number, shrinkSize?: number }
 
 export class FluentCheck<Rec extends ParentRec, ParentRec extends {}> {
-  public static strategy: RandomStrategy = new RandomStrategy()
+  // TODO - This is only static for now and it is going to be changed.
+  public static strategy: FluentBiasedRandomStrategy = new FluentBiasedRandomStrategy({sampleSize: 1000,
+    shrinkSize: 500}
+  )
 
   constructor(protected readonly parent: FluentCheck<ParentRec, any> | undefined = undefined,
     public readonly configuration: FluentConfig = {sampleSize: 1000, shrinkSize: 500}) {
@@ -148,8 +150,6 @@ class FluentCheckGivenConstant<K extends string, V, Rec extends ParentRec & Reco
 class FluentCheckUniversal<K extends string, A, Rec extends ParentRec & Record<K, A>, ParentRec extends {}>
   extends FluentCheck<Rec, ParentRec> {
 
-  private dedup: Arbitrary<A>
-
   constructor(
     protected readonly parent: FluentCheck<ParentRec, any>,
     public readonly name: K,
@@ -157,7 +157,7 @@ class FluentCheckUniversal<K extends string, A, Rec extends ParentRec & Record<K
     config: FluentConfig) {
 
     super(parent, config)
-    this.dedup = a.unique()
+    FluentCheck.strategy.addArbitrary(this.name, a.unique())
   }
 
   protected run(
@@ -166,37 +166,25 @@ class FluentCheckUniversal<K extends string, A, Rec extends ParentRec & Record<K
     partial: FluentResult | undefined = undefined,
     depth = 0): FluentResult {
 
-    const example = partial || new FluentResult(true)
-    const arbitrary = depth === 0 ?
-      this.dedup :
-      (partial !== undefined ?
-        this.dedup.shrink(partial.example[this.name]) :
-        NoArbitrary)
+    FluentCheck.strategy.configArbitrary(this.name, partial, depth)
 
-    FluentCheck.strategy.addArbitrary(this.name, arbitrary, depth === 0 ?
-      this.configuration.sampleSize! :
-      this.configuration.shrinkSize!)
-
-    while (arbitrary !== NoArbitrary && FluentCheck.strategy.hasInput()) {
+    while (FluentCheck.strategy.hasInput()) {
       testCase[this.name] = FluentCheck.strategy.getInput()
-      if (testCase[this.name] === undefined) break
       const result = callback(testCase)
       if (!result.satisfiable) {
         result.addExample(this.name, testCase[this.name])
         return this.run(testCase, callback, result, depth + 1)
       }
-      FluentCheck.strategy.setCurrArbitraryName(this.name)
+      FluentCheck.strategy.setCurrArbitrary(this.name)
     }
 
-    return example
+    return partial || new FluentResult(true)
   }
 }
 
 class FluentCheckExistential<K extends string, A, Rec extends ParentRec & Record<K, A>, ParentRec extends {}>
   extends FluentCheck<Rec, ParentRec> {
 
-  private dedup: Arbitrary<A>
-
   constructor(
     protected readonly parent: FluentCheck<ParentRec, any>,
     public readonly name: K,
@@ -204,7 +192,7 @@ class FluentCheckExistential<K extends string, A, Rec extends ParentRec & Record
     config: FluentConfig) {
 
     super(parent, config)
-    this.dedup = a.unique()
+    FluentCheck.strategy.addArbitrary(this.name, a.unique())
   }
 
   protected run(
@@ -213,29 +201,19 @@ class FluentCheckExistential<K extends string, A, Rec extends ParentRec & Record
     partial: FluentResult | undefined = undefined,
     depth = 0): FluentResult {
 
-    const example = partial || new FluentResult(false)
-    const arbitrary = depth === 0 ?
-      this.dedup :
-      (partial !== undefined ?
-        this.dedup.shrink(partial.example[this.name]) :
-        NoArbitrary)
+    FluentCheck.strategy.configArbitrary(this.name, partial, depth)
 
-    FluentCheck.strategy.addArbitrary(this.name, arbitrary, depth === 0 ?
-      this.configuration.sampleSize! :
-      this.configuration.shrinkSize!)
-
-    while (arbitrary !== NoArbitrary && FluentCheck.strategy.hasInput()) {
+    while (FluentCheck.strategy.hasInput()) {
       testCase[this.name] = FluentCheck.strategy.getInput()
-      if (testCase[this.name] === undefined) break
       const result = callback(testCase)
       if (result.satisfiable) {
         result.addExample(this.name, testCase[this.name])
         return this.run(testCase, callback, result, depth + 1)
       }
-      FluentCheck.strategy.setCurrArbitraryName(this.name)
+      FluentCheck.strategy.setCurrArbitrary(this.name)
     }
 
-    return example
+    return partial || new FluentResult(false)
   }
 }
 
