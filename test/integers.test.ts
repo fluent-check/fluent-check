@@ -21,7 +21,7 @@ describe('Integer tests', () => {
     ).to.deep.include({satisfiable: true, example: {a: 101}})
   })
 
-  it('finds a number that is divisible by 13 and shrinks it', () => {
+  it('finds a number that is divisible by 7 and shrinks it', () => {
     expect(fc.scenario()
       .exists('a', fc.integer(1))
       .then(({a}) => a % 7 === 0)
