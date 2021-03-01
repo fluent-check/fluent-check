@@ -4,10 +4,10 @@ import {FluentRandomStrategy} from './FluentRandomStrategy'
 
 export class FluentBiasedRandomStrategy extends FluentRandomStrategy {
 
-  addArbitrary<K extends string, A>(name: K, dedup: Arbitrary<A>, pickNum = 0) {
+  addArbitrary<K extends string, A>(name: K, dedup: Arbitrary<A>) {
     this.arbitraries[name] = {
       dedup,
-      pickNum,
+      pickNum: 0,
       collection: [],
       cache: dedup.sampleWithBias(this.config.sampleSize)
     }
