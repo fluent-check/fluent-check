@@ -1,6 +1,6 @@
 import {Arbitrary, FluentPick} from './arbitraries'
+import { BiasedRandomCachedStrategyWithShrinking } from './strategies'
 import {FluentStrategy} from './strategies/FluentStrategy'
-import * as Strategies from './strategies/index'
 
 type UnwrapFluentPick<T> = { [P in keyof T]: T[P] extends FluentPick<infer E> ? E : T[P] }
 type WrapFluentPick<T> = { [P in keyof T]: FluentPick<T[P]> }
@@ -19,37 +19,35 @@ export type FluentConfig = { sampleSize?: number, shrinkSize?: number }
 
 export class FluentCheck<Rec extends ParentRec, ParentRec extends {}> {
 
-  constructor(protected readonly parent: FluentCheck<ParentRec, any> | undefined = undefined,
-    public readonly configuration: FluentConfig = {sampleSize: 1000, shrinkSize: 500},
-    public strategy:FluentStrategy = new Strategies.BiasedRandomCachedStrategyWithShrinking({sampleSize: 1000,
-      shrinkSize: 500})) {
+  constructor(public strategy: FluentStrategy = new BiasedRandomCachedStrategyWithShrinking(),
+    protected readonly parent: FluentCheck<ParentRec, any> | undefined = undefined) {
   }
 
-  config(config: FluentConfig) {
-    for (const k in config) this.configuration[k] = config[k]
+  config(strategy: FluentStrategy) {
+    this.strategy = strategy
     return this
   }
 
   given<K extends string, V>(name: K, v: V | ((args: Rec) => V)): FluentCheckGiven<K, V, Rec & Record<K, V>, Rec> {
     return (v instanceof Function) ?
-      new FluentCheckGivenMutable(this, name, v, this.configuration, this.strategy) :
-      new FluentCheckGivenConstant<K, V, Rec & Record<K, V>, Rec>(this, name, v, this.configuration, this.strategy)
+      new FluentCheckGivenMutable(this, name, v, this.strategy) :
+      new FluentCheckGivenConstant<K, V, Rec & Record<K, V>, Rec>(this, name, v, this.strategy)
   }
 
   when(f: (givens: Rec) => void): FluentCheckWhen<Rec, ParentRec> {
-    return new FluentCheckWhen(this, f, this.configuration, this.strategy)
+    return new FluentCheckWhen(this, f, this.strategy)
   }
 
   forall<K extends string, A>(name: K, a: Arbitrary<A>): FluentCheck<Rec & Record<K, A>, Rec> {
-    return new FluentCheckUniversal(this, name, a, this.configuration, this.strategy)
+    return new FluentCheckUniversal(this, name, a, this.strategy)
   }
 
   exists<K extends string, A>(name: K, a: Arbitrary<A>): FluentCheck<Rec & Record<K, A>, Rec> {
-    return new FluentCheckExistential(this, name, a, this.configuration, this.strategy)
+    return new FluentCheckExistential(this, name, a, this.strategy)
   }
 
   then(f: (arg: Rec) => boolean): FluentCheckAssert<Rec, ParentRec> {
-    return new FluentCheckAssert(this, f, this.configuration, this.strategy)
+    return new FluentCheckAssert(this, f, this.strategy)
   }
 
   protected run(
@@ -95,10 +93,9 @@ class FluentCheckWhen<Rec extends ParentRec, ParentRec extends {}> extends Fluen
   constructor(
     protected readonly parent: FluentCheck<ParentRec, any>,
     public readonly f: (givens: Rec) => void,
-    config: FluentConfig,
     strategy: FluentStrategy) {
 
-    super(parent, config, strategy)
+    super(strategy, parent)
   }
 
   and(f: (givens: Rec) => void) { return this.when(f) }
@@ -110,10 +107,9 @@ abstract class FluentCheckGiven<K extends string, V, Rec extends ParentRec & Rec
   constructor(
     protected readonly parent: FluentCheck<ParentRec, any>,
     public readonly name: K,
-    config: FluentConfig,
     strategy: FluentStrategy) {
 
-    super(parent, config, strategy)
+    super(strategy, parent)
   }
 
   and<NK extends string, V>(name: NK, f: ((args: Rec) => V) | V) {
@@ -128,10 +124,9 @@ class FluentCheckGivenMutable<K extends string, V, Rec extends ParentRec & Recor
     protected readonly parent: FluentCheck<ParentRec, any>,
     public readonly name: K,
     public readonly factory: (args: ParentRec) => V,
-    config: FluentConfig,
     strategy: FluentStrategy) {
 
-    super(parent, name, config, strategy)
+    super(parent, name, strategy)
   }
 }
 
@@ -142,10 +137,9 @@ class FluentCheckGivenConstant<K extends string, V, Rec extends ParentRec & Reco
     protected readonly parent: FluentCheck<ParentRec, any>,
     public readonly name: K,
     public readonly value: V,
-    config: FluentConfig,
     strategy: FluentStrategy) {
 
-    super(parent, name, config, strategy)
+    super(parent, name, strategy)
   }
 
   protected run(testCase: FluentPicks, callback: (arg: FluentPicks) => FluentResult) {
@@ -161,11 +155,10 @@ class FluentCheckUniversal<K extends string, A, Rec extends ParentRec & Record<K
     protected readonly parent: FluentCheck<ParentRec, any>,
     public readonly name: K,
     public readonly a: Arbitrary<A>,
-    config: FluentConfig,
     strategy: FluentStrategy) {
 
-    super(parent, config, strategy)
-    this.strategy.addArbitrary(this.name, a.unique())
+    super(strategy, parent)
+    this.strategy.addArbitrary(this.name, a)
   }
 
   protected run(
@@ -196,11 +189,10 @@ class FluentCheckExistential<K extends string, A, Rec extends ParentRec & Record
     protected readonly parent: FluentCheck<ParentRec, any>,
     public readonly name: K,
     public readonly a: Arbitrary<A>,
-    config: FluentConfig,
     strategy: FluentStrategy) {
 
-    super(parent, config, strategy)
-    this.strategy.addArbitrary(this.name, a.unique())
+    super(strategy, parent)
+    this.strategy.addArbitrary(this.name, a)
   }
 
   protected run(
@@ -230,10 +222,9 @@ class FluentCheckAssert<Rec extends ParentRec, ParentRec extends {}> extends Flu
   constructor(
     protected readonly parent: FluentCheck<ParentRec, any>,
     public readonly assertion: (args: Rec) => boolean,
-    config: FluentConfig,
     strategy: FluentStrategy) {
 
-    super(parent, config, strategy)
+    super(strategy, parent)
     this.preliminaries = this.pathFromRoot().filter(node =>
       (node instanceof FluentCheckGivenMutable) ||
       (node instanceof FluentCheckWhen))

@@ -18,7 +18,12 @@ export class FluentStrategy implements FluentStrategyInterface {
   /**
    * Default constructor. Receives the FluentCheck configuration, which is used for test case generation purposes.
    */
-  constructor(public readonly config: FluentConfig) {}
+  constructor(public readonly configuration: FluentConfig = {sampleSize: 1000, shrinkSize: 500}) {}
+
+  config(config: FluentConfig) {
+    for (const k in config) this.configuration[k] = config[k]
+    return this
+  }
 
   /**
    * Adds an arbitrary to the arbitraries record
@@ -51,7 +56,7 @@ export class FluentStrategy implements FluentStrategyInterface {
   /**
    * Generates a once a collection of inputs for a given arbitrary
    */
-  buildArbitraryCollection<A>(arbitrary: Arbitrary<A>, sampleSize = this.config.sampleSize): FluentPick<A>[] {
+  buildArbitraryCollection<A>(arbitrary: Arbitrary<A>, sampleSize = this.configuration.sampleSize): FluentPick<A>[] {
     return arbitrary.sample(sampleSize)
   }
 

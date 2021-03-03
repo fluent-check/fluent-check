@@ -25,7 +25,7 @@ export function Shrinkable<TBase extends MixinStrategy>(Base: TBase) {
     shrink<K extends string>(arbitraryName: K, partial: FluentResult | undefined, depth: number) {
       const shrinkedArbitrary = this.arbitraries[arbitraryName].arbitrary.shrink(partial!.example[arbitraryName])
       this.arbitraries[arbitraryName].collection = this.buildArbitraryCollection(shrinkedArbitrary,
-        this.config.shrinkSize)
+        this.configuration.shrinkSize)
     }
   }
 }
@@ -43,14 +43,14 @@ export function Cacheable<TBase extends MixinStrategy>(Base: TBase) {
   return class extends Base {
     setArbitraryCache<K extends string, A>(arbitraryName: K) {
       this.arbitraries[arbitraryName].cache = this.buildArbitraryCollection(this.arbitraries[arbitraryName].arbitrary,
-        this.config.sampleSize)
+        this.configuration.sampleSize)
     }
   }
 }
 
 export function Biased<TBase extends MixinStrategy>(Base: TBase) {
   return class extends Base {
-    buildArbitraryCollection<A>(arbitrary: Arbitrary<A>, sampleSize = this.config.sampleSize): FluentPick<A>[] {
+    buildArbitraryCollection<A>(arbitrary: Arbitrary<A>, sampleSize = this.configuration.sampleSize): FluentPick<A>[] {
       return arbitrary.sampleWithBias(sampleSize)
     }
   }
