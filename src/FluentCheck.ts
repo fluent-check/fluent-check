@@ -1,5 +1,5 @@
 import {Arbitrary, FluentPick} from './arbitraries'
-import { BiasedRandomCachedStrategyWithShrinking } from './strategies'
+import {BiasedRandomCachedStrategyWithShrinking} from './strategies'
 import {FluentStrategy} from './strategies/FluentStrategy'
 
 type UnwrapFluentPick<T> = { [P in keyof T]: T[P] extends FluentPick<infer E> ? E : T[P] }

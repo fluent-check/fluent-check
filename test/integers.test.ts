@@ -5,8 +5,8 @@ import {expect} from 'chai'
 
 describe('Integer tests', () => {
   it('finds there is a number in the -10, 10 range with inverse and shrink it to 0', () => {
-    expect(fc.scenario()
-      .config(new Strategies.RandomCachedStrategy()) // NOTE - This test still passes with a shrinkingless strategy
+    expect(fc.scenario() // NOTE: This test still passes with a shrinkingless strategy
+      .config(new Strategies.RandomCachedStrategy())
       .exists('b', fc.integer(-10, 10))
       .forall('a', fc.integer())
       .then(({a, b}) => (a + b) === a && (b + a) === a)
@@ -16,7 +16,6 @@ describe('Integer tests', () => {
 
   it('finds that there is an integer larger than any number in a range and shrinks it', () => {
     expect(fc.scenario()
-      .config(new Strategies.RandomCachedStrategyWithShrinking())
       .exists('a', fc.integer())
       .forall('b', fc.integer(-100, 100))
       .then(({a, b}) => a > b)
@@ -26,7 +25,6 @@ describe('Integer tests', () => {
 
   it('finds a number that is divisible by 7 and shrinks it', () => {
     expect(fc.scenario()
-      .config(new Strategies.RandomCachedStrategyWithShrinking())
       .exists('a', fc.integer(1))
       .then(({a}) => a % 7 === 0)
       .check()
@@ -35,7 +33,6 @@ describe('Integer tests', () => {
 
   it('finds a number that is divisible by -13 and shrinks it', () => {
     expect(fc.scenario()
-      .config(new Strategies.RandomCachedStrategyWithShrinking())
       .exists('a', fc.integer(-100, -1))
       .then(({a}) => a % 13 === 0)
       .check()
@@ -44,7 +41,6 @@ describe('Integer tests', () => {
 
   it('finds that summing two positive numbers in a range nevers returns zero', () => {
     expect(fc.scenario()
-      .config(new Strategies.RandomCachedStrategy())
       .forall('a', fc.integer(5, 10))
       .exists('b', fc.integer(1, 2))
       .then(({a, b}) => a + b === 0)
@@ -61,6 +57,14 @@ describe('Integer tests', () => {
     ).to.deep.include({satisfiable: true, example: {a: 0, b: 10}})
   })
 
+  it('finds that adding 1000 makes any number larger and shrinks the example', () => {
+    expect(fc.scenario()
+      .exists('a', fc.integer())
+      .then(({a}) => a + 1000 > a)
+      .check()
+    ).to.deep.include({satisfiable: true, example: {a: 0}})
+  })
+
   it('finds two elements such that a % 11 == 0', () => {
     // TODO: For this to pass, the shrink should perform an exhaustive search, otherwise the probability
     // of lying on the correct interval is very low.
@@ -70,13 +74,5 @@ describe('Integer tests', () => {
       .then(({ a }) => a % 11 === 0 && a > 90000 && a < 90010)
       .check()
     ).to.deep.include({ satisfiable: true, example: { a: 90002 } }) */
-  })
-
-  it('finds that adding 1000 makes any number larger and shrinks the example', () => {
-    expect(fc.scenario()
-      .exists('a', fc.integer())
-      .then(({a}) => a + 1000 > a)
-      .check()
-    ).to.deep.include({satisfiable: true, example: {a: 0}})
   })
 })
