@@ -165,10 +165,14 @@ class FluentCheckUniversal<K extends string, A, Rec extends ParentRec & Record<K
     depth = 0): FluentResult {
 
     const example = partial || new FluentResult(true)
+
+    if (depth !== 0 && partial !== undefined)
+      this.dedup = this.dedup.shrink(partial.example[this.name])
+
     const collection = depth === 0 ?
       this.cache :
       (partial !== undefined ?
-        this.dedup.shrink(partial.example[this.name]).sampleWithBias(this.configuration.shrinkSize) :
+        this.dedup.sampleWithBias(this.configuration.shrinkSize) :
         [])
 
     for (const tp of collection) {
@@ -208,10 +212,14 @@ class FluentCheckExistential<K extends string, A, Rec extends ParentRec & Record
     depth = 0): FluentResult {
 
     const example = partial || new FluentResult(false)
+
+    if (depth !== 0 && partial !== undefined)
+      this.dedup = this.dedup.shrink(partial.example[this.name])
+
     const collection = depth === 0 ?
       this.cache :
       (partial !== undefined ?
-        this.dedup.shrink(partial.example[this.name]).sampleWithBias(this.configuration.shrinkSize) :
+        this.dedup.sampleWithBias(this.configuration.shrinkSize) :
         [])
 
     for (const tp of collection) {
