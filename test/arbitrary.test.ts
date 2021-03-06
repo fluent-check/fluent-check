@@ -271,6 +271,18 @@ describe('Arbitrary tests', () => {
         .check()
       ).to.have.property('satisfiable', true)
     })
+
+    it('should return a unique sample with bias', () => {
+      expect(fc.scenario()
+        .forall('n', fc.integer(10, 20))
+        .forall('s', fc.integer(0, 10))
+        .given('a', ({n}) => fc.integer(0, n))
+        .and('r', ({a, s}) => a.sampleWithBias(s))
+        .then(({r, s}) => r.length === s)
+        .and(({r}) => r.length === new Set(r).size)
+        .check()
+      ).to.have.property('satisfiable', true)
+    })
   })
 
   describe('Chained Arbitraries', () => {
