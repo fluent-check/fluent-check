@@ -1,7 +1,6 @@
 import * as fc from '../src/index'
 import {it} from 'mocha'
 import {expect} from 'chai'
-import { stringify } from '../src/arbitraries/util'
 
 describe('Arbitrary tests', () => {
   it('should return has many numbers has asked', () => {
@@ -273,7 +272,7 @@ describe('Arbitrary tests', () => {
       ).to.have.property('satisfiable', true)
     })
 
-    it('should return a unique sample with bias', () => {
+    it('should return a unique sample with bias with corner cases', () => {
       expect(fc.scenario()
         .forall('n', fc.integer(10, 20))
         .forall('s', fc.integer(5, 10))
@@ -282,6 +281,18 @@ describe('Arbitrary tests', () => {
         .then(({r, s}) => r.length === s)
         .and(({r}) => r.length === new Set(r.map(e => e.value)).size)
         .and(({a, r}) => a.cornerCases().map(c => c.value).every(e => r.map(e => e.value).includes(e)))
+        .check()
+      ).to.have.property('satisfiable', true)
+    })
+
+    it('should return a unique sample with bias even with a small sample', () => {
+      expect(fc.scenario()
+        .forall('n', fc.integer(10, 20))
+        .forall('s', fc.integer(0, 5))
+        .given('a', ({n}) => fc.integer(0, n).unique())
+        .and('r', ({a, s}) => a.sampleWithBias(s))
+        .then(({r, s}) => r.length === s)
+        .and(({r}) => r.length === new Set(r.map(e => e.value)).size)
         .check()
       ).to.have.property('satisfiable', true)
     })
