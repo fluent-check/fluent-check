@@ -1,6 +1,7 @@
 import * as fc from '../src/index'
 import {it} from 'mocha'
 import {expect} from 'chai'
+import { stringify } from '../src/arbitraries/util'
 
 describe('Arbitrary tests', () => {
   it('should return has many numbers has asked', () => {
@@ -279,7 +280,7 @@ describe('Arbitrary tests', () => {
         .given('a', ({n}) => fc.integer(0, n))
         .and('r', ({a, s}) => a.sampleWithBias(s))
         .then(({r, s}) => r.length === s)
-        .and(({r}) => r.length === new Set(r).size)
+        .and(({r}) => r.length === new Set(r.map(e => stringify(e.value))).size)
         .check()
       ).to.have.property('satisfiable', true)
     })
