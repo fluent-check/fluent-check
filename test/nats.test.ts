@@ -1,4 +1,5 @@
 import * as fc from '../src/index'
+import * as Strategies from '../src/strategies/index'
 import {it} from 'mocha'
 import {expect} from 'chai'
 
@@ -6,6 +7,7 @@ describe('Nat tests', () => {
   it('should return a valid range if min < 0', () => {
     expect(
       fc.scenario()
+        .config(new Strategies.RandomCachedStrategy())
         .forall('n', fc.tuple(
           fc.integer(Number.MIN_SAFE_INTEGER, -1),
           fc.integer(0, Number.MAX_SAFE_INTEGER))
@@ -18,6 +20,7 @@ describe('Nat tests', () => {
   it('should return a NoArbitrary if max < 0', () => {
     expect(
       fc.scenario()
+        .config(new Strategies.RandomCachedStrategy())
         .forall('a', fc.integer())
         .forall('b', fc.integer(Number.MIN_SAFE_INTEGER, -1))
         .then(({a, b}) => fc.nat(a, b) === fc.empty())

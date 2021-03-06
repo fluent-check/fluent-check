@@ -5,4 +5,6 @@ export const RandomCachedStrategy = Cacheable(Dedupable(Random(FluentStrategy)))
 
 export const RandomCachedStrategyWithShrinking = Shrinkable(Cacheable(Dedupable(Random(FluentStrategy))))
 
+export const BiasedRandomCachedStrategy = Cacheable(Biased(Dedupable(Random(FluentStrategy))))
+
 export const BiasedRandomCachedStrategyWithShrinking = Shrinkable(Cacheable(Biased(Dedupable(Random(FluentStrategy)))))
