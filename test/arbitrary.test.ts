@@ -278,7 +278,7 @@ describe('Arbitrary tests', () => {
         .forall('n', fc.integer(10, 20))
         .forall('s', fc.integer(0, 10))
         .given('a', ({n}) => fc.integer(0, n))
-        .and('r', ({a, s}) => a.sampleWithBias(s))
+        .and('r', ({a, s}) => a.unique().sampleWithBias(s))
         .then(({r, s}) => r.length === s)
         .and(({r}) => r.length === new Set(r.map(e => stringify(e.value))).size)
         .check()
