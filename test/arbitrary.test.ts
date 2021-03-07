@@ -280,21 +280,15 @@ describe('Arbitrary tests', () => {
     })
 
     it('should return a unique sample with bias even with a small sample', () => {
-      console.log(fc.scenario()
+      expect(fc.scenario()
         .forall('n', fc.integer(10, 20))
         .forall('s', fc.integer(0, 5))
         .given('a', ({n}) => fc.integer(0, n))
         .and('r', ({a, s}) => a.sampleWithoutReplacementWithBias(s))
         .then(({r, s}) => r.length === s)
-        .and(({r}) => {
-          if (r.length !== new Set(r.map(e => e.value)).size) {
-            console.log(r)
-          }
-
-          return r.length === new Set(r.map(e => e.value)).size
-        })
+        .and(({r}) => r.length === new Set(r.map(e => e.value)).size)
         .check()
-      )//.to.have.property('satisfiable', true)
+      ).to.have.property('satisfiable', true)
     })
   })
 
