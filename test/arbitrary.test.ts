@@ -58,6 +58,10 @@ describe('Arbitrary tests', () => {
   })
 
   it('should allow shrinking of mapped tupples', () => {
+    // FIXME: After changing the run() cycle of universals and existentials, which nows involves the update of the
+    // this.dedup variable, this test does not pass since FluentCheck is not able to shrink result to the example
+    // provided.
+
     expect(fc.scenario()
       .exists('point', fc.tuple(
         fc.integer(50, 1000).filter(x => x > 100),
@@ -274,6 +278,31 @@ describe('Arbitrary tests', () => {
         .forall('n', fc.integer(3, 10))
         .given('ub', () => fc.boolean().unique())
         .then(({n, ub}) => ub.sample(n).length === 2)
+        .check()
+      ).to.have.property('satisfiable', true)
+    })
+
+    it('should return a unique sample with bias with corner cases', () => {
+      expect(fc.scenario()
+        .forall('n', fc.integer(10, 20))
+        .forall('s', fc.integer(5, 10))
+        .given('a', ({n}) => fc.integer(0, n).unique())
+        .and('r', ({a, s}) => a.sampleWithBias(s))
+        .then(({r, s}) => r.length === s)
+        .and(({r}) => r.length === new Set(r.map(e => e.value)).size)
+        .and(({a, r}) => a.cornerCases().map(c => c.value).every(e => r.map(e => e.value).includes(e)))
+        .check()
+      ).to.have.property('satisfiable', true)
+    })
+
+    it('should return a unique sample with bias even with a small sample', () => {
+      expect(fc.scenario()
+        .forall('n', fc.integer(10, 20))
+        .forall('s', fc.integer(0, 5))
+        .given('a', ({n}) => fc.integer(0, n).unique())
+        .and('r', ({a, s}) => a.sampleWithBias(s))
+        .then(({r, s}) => r.length === s)
+        .and(({r}) => r.length === new Set(r.map(e => e.value)).size)
         .check()
       ).to.have.property('satisfiable', true)
     })
