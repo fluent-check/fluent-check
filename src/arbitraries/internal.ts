@@ -6,7 +6,6 @@ export * from './ArbitraryArray'
 export * from './ArbitrarySet'
 export * from './FilteredArbitrary'
 export * from './MappedArbitrary'
-export * from './UniqueArbitrary'
 export * from './ChainedArbitrary'
 
 export * from './ArbitraryConstant'

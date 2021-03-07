@@ -145,7 +145,6 @@ class FluentCheckUniversal<K extends string, A, Rec extends ParentRec & Record<K
   extends FluentCheck<Rec, ParentRec> {
 
   private cache: Array<FluentPick<A>>
-  private dedup: Arbitrary<A>
 
   constructor(
     protected readonly parent: FluentCheck<ParentRec, any>,
@@ -154,8 +153,7 @@ class FluentCheckUniversal<K extends string, A, Rec extends ParentRec & Record<K
     config: FluentConfig) {
 
     super(parent, config)
-    this.dedup = a.unique()
-    this.cache = this.dedup.sampleWithBias(this.configuration.sampleSize)
+    this.cache = this.a.sampleWithoutReplacementWithBias(this.configuration.sampleSize)
   }
 
   protected run(
@@ -169,7 +167,7 @@ class FluentCheckUniversal<K extends string, A, Rec extends ParentRec & Record<K
     const collection = depth === 0 ?
       this.cache :
       (partial !== undefined ?
-        this.dedup.shrink(partial.example[this.name]).sampleWithBias(this.configuration.shrinkSize) :
+        this.a.shrink(partial.example[this.name]).sampleWithoutReplacementWithBias(this.configuration.shrinkSize) :
         [])
 
     for (const tp of collection) {
@@ -189,7 +187,6 @@ class FluentCheckExistential<K extends string, A, Rec extends ParentRec & Record
   extends FluentCheck<Rec, ParentRec> {
 
   private cache: Array<FluentPick<A>>
-  private dedup: Arbitrary<A>
 
   constructor(
     protected readonly parent: FluentCheck<ParentRec, any>,
@@ -198,8 +195,7 @@ class FluentCheckExistential<K extends string, A, Rec extends ParentRec & Record
     config: FluentConfig) {
 
     super(parent, config)
-    this.dedup = a.unique()
-    this.cache = this.dedup.sampleWithBias(this.configuration.sampleSize)
+    this.cache = this.a.sampleWithoutReplacementWithBias(this.configuration.sampleSize)
   }
 
   protected run(
@@ -213,7 +209,7 @@ class FluentCheckExistential<K extends string, A, Rec extends ParentRec & Record
     const collection = depth === 0 ?
       this.cache :
       (partial !== undefined ?
-        this.dedup.shrink(partial.example[this.name]).sampleWithBias(this.configuration.shrinkSize) :
+        this.a.shrink(partial.example[this.name]).sampleWithoutReplacementWithBias(this.configuration.shrinkSize) :
         [])
 
     for (const tp of collection) {
