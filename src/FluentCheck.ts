@@ -165,6 +165,7 @@ class FluentCheckUniversal<K extends string, A, Rec extends ParentRec & Record<K
     depth = 0): FluentResult {
 
     const example = partial || new FluentResult(true)
+
     const collection = depth === 0 ?
       this.cache :
       (partial !== undefined ?
@@ -208,6 +209,7 @@ class FluentCheckExistential<K extends string, A, Rec extends ParentRec & Record
     depth = 0): FluentResult {
 
     const example = partial || new FluentResult(false)
+
     const collection = depth === 0 ?
       this.cache :
       (partial !== undefined ?

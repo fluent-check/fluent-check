@@ -7,11 +7,14 @@ export class UniqueArbitrary<A> extends WrappedArbitrary<A> {
     super(baseArbitrary)
   }
 
-  sample(sampleSize = 10): FluentPick<A>[] {
+  sample(sampleSize = 10, cornerCases: FluentPick<A>[] = []): FluentPick<A>[] {
     // TODO: Here lies dragons! If you see start seeing things in double when
     // using this arbitrary, consider the culprit might lie in the way Map
     // deals with keys and equality
     const result = new Map<string, FluentPick<A>>()
+
+    for (const k in cornerCases)
+      result.set(stringify(cornerCases[k].value), cornerCases[k])
 
     const initialSize = this.size()
     let bagSize = Math.min(sampleSize, initialSize.value)
@@ -23,6 +26,15 @@ export class UniqueArbitrary<A> extends WrappedArbitrary<A> {
     }
 
     return Array.from(result.values())
+  }
+
+  sampleWithBias(sampleSize = 10): FluentPick<A>[] {
+    const cornerCases = this.cornerCases()
+
+    if (sampleSize <= cornerCases.length)
+      return this.sample(sampleSize)
+
+    return this.sample(sampleSize, cornerCases)
   }
 
   shrink(initial: FluentPick<A>) {
