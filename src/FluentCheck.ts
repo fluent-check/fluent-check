@@ -175,7 +175,7 @@ abstract class FluentCheckQuantifier<K extends string, A, Rec extends ParentRec 
     for (const tp of collection) {
       testCase[this.name] = tp
       const result = callback(testCase)
-      if (this.breakCondition(result.satisfiable)) {
+      if (result.satisfiable === this.breakCondition) {
         result.addExample(this.name, tp)
         return this.run(testCase, callback, result, depth + 1)
       }
@@ -185,21 +185,21 @@ abstract class FluentCheckQuantifier<K extends string, A, Rec extends ParentRec 
   }
 
   abstract defaultValue: boolean
-  abstract breakCondition: (b: boolean) => boolean
+  abstract breakCondition: boolean
 }
 
 class FluentCheckUniversal<K extends string, A, Rec extends ParentRec & Record<K, A>, ParentRec extends {}>
   extends FluentCheckQuantifier<K, A, Rec, ParentRec> {
 
   defaultValue = true
-  breakCondition = (b => !b)
+  breakCondition = false
 }
 
 class FluentCheckExistential<K extends string, A, Rec extends ParentRec & Record<K, A>, ParentRec extends {}>
   extends FluentCheckQuantifier<K, A, Rec, ParentRec> {
 
   defaultValue = false
-  breakCondition = (b => b)
+  breakCondition = true
 }
 
 class FluentCheckAssert<Rec extends ParentRec, ParentRec extends {}> extends FluentCheck<Rec, ParentRec> {
