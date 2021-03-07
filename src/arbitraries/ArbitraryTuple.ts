@@ -4,7 +4,7 @@ import * as fc from './index'
 
 type UnwrapFluentPick<T> = { [P in keyof T]: T[P] extends fc.Arbitrary<infer E> ? E : T[P] }
 
-export class ArbitraryTuple<U extends Arbitrary<any>[], A = UnwrapFluentPick<U>> extends Arbitrary<A> {
+export class ArbitraryTuple<U extends readonly Arbitrary<any>[], A = UnwrapFluentPick<U>> extends Arbitrary<A> {
   constructor(public readonly arbitraries: U) {
     super()
   }
@@ -48,15 +48,12 @@ export class ArbitraryTuple<U extends Arbitrary<any>[], A = UnwrapFluentPick<U>>
   }
 
   shrink<B extends A>(initial: FluentPick<B>): Arbitrary<A> {
-    const tuples = this.arbitraries.map(selected =>
-      this.arbitraries.map((arbitrary, i) =>
-        (arbitrary === selected) ?
+    return fc.union(...this.arbitraries.map((_, selected) =>
+      fc.tuple(...this.arbitraries.map((arbitrary, i) =>
+        (selected === i) ?
           arbitrary.shrink({value: initial.value[i], original: initial.original[i]}) :
           fc.constant(initial.value[i])
-      )
-    ).filter(t => t.every(a => a !== NoArbitrary))
-
-    return fc.union(...tuples.map(t => fc.tuple(...t))) as unknown as Arbitrary<A>
+      )))) as unknown as Arbitrary<A>
   }
 
   canGenerate<B extends A>(pick: FluentPick<B>): boolean {
