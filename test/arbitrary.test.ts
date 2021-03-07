@@ -410,7 +410,7 @@ describe('Arbitrary tests', () => {
       expect(fc.empty().sampleWithBias().length).to.eq(0)
     })
 
-    it('should remain no arbitrary when compose with unique, map, and filter', () => {
+    it('should remain no arbitrary when compose with map, and filter', () => {
       expect(fc.empty().map(a => a)).to.eq(fc.empty())
       expect(fc.empty().filter(a => true)).to.eq(fc.empty())
     })
