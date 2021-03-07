@@ -253,21 +253,15 @@ describe('Arbitrary tests', () => {
   describe('Unique Arbitraries', () => {
     it('should return all the available values when sample size === size', () => {
       expect(
-        fc.integer(0, 10).unique().sample(11).map(v => v.value)
+        fc.integer(0, 10).sampleWithoutReplacement(11).map(v => v.value)
       ).to.include.members([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
-    })
-
-    it('should be shrinkable and remain unique', () => {
-      expect(
-        fc.integer(0, 10).unique().shrink({value: 5}).sample(5).map(v => v.value)
-      ).to.include.members([0, 1, 2, 3, 4])
     })
 
     it('should return no more than the number of possible cases', () => {
       expect(fc.scenario()
         .forall('n', fc.integer(3, 10))
-        .given('ub', () => fc.boolean().unique())
-        .then(({n, ub}) => ub.sample(n).length === 2)
+        .given('ub', () => fc.boolean())
+        .then(({n, ub}) => ub.sampleWithoutReplacement(n).length === 2)
         .check()
       ).to.have.property('satisfiable', true)
     })
@@ -276,8 +270,8 @@ describe('Arbitrary tests', () => {
       expect(fc.scenario()
         .forall('n', fc.integer(10, 20))
         .forall('s', fc.integer(5, 10))
-        .given('a', ({n}) => fc.integer(0, n).unique())
-        .and('r', ({a, s}) => a.sampleWithBias(s))
+        .given('a', ({n}) => fc.integer(0, n))
+        .and('r', ({a, s}) => a.sampleWithoutReplacementWithBias(s))
         .then(({r, s}) => r.length === s)
         .and(({r}) => r.length === new Set(r.map(e => e.value)).size)
         .and(({a, r}) => a.cornerCases().map(c => c.value).every(e => r.map(e => e.value).includes(e)))
@@ -289,8 +283,8 @@ describe('Arbitrary tests', () => {
       expect(fc.scenario()
         .forall('n', fc.integer(10, 20))
         .forall('s', fc.integer(0, 5))
-        .given('a', ({n}) => fc.integer(0, n).unique())
-        .and('r', ({a, s}) => a.sampleWithBias(s))
+        .given('a', ({n}) => fc.integer(0, n))
+        .and('r', ({a, s}) => a.sampleWithoutReplacementWithBias(s))
         .then(({r, s}) => r.length === s)
         .and(({r}) => r.length === new Set(r.map(e => e.value)).size)
         .check()
@@ -417,7 +411,6 @@ describe('Arbitrary tests', () => {
     })
 
     it('should remain no arbitrary when compose with unique, map, and filter', () => {
-      expect(fc.empty().unique()).to.eq(fc.empty())
       expect(fc.empty().map(a => a)).to.eq(fc.empty())
       expect(fc.empty().filter(a => true)).to.eq(fc.empty())
     })
