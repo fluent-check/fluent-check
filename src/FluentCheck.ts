@@ -164,7 +164,7 @@ abstract class FluentCheckQuantifier<K extends string, A, Rec extends ParentRec 
     partial: FluentResult | undefined = undefined,
     depth = 0): FluentResult {
 
-    const example = partial || new FluentResult(this.defaultValue)
+    const example = partial || new FluentResult(!this.breakCondition)
 
     const collection = depth === 0 ?
       this.cache :
@@ -184,21 +184,16 @@ abstract class FluentCheckQuantifier<K extends string, A, Rec extends ParentRec 
     return example
   }
 
-  abstract defaultValue: boolean
   abstract breakCondition: boolean
 }
 
 class FluentCheckUniversal<K extends string, A, Rec extends ParentRec & Record<K, A>, ParentRec extends {}>
   extends FluentCheckQuantifier<K, A, Rec, ParentRec> {
-
-  defaultValue = true
   breakCondition = false
 }
 
 class FluentCheckExistential<K extends string, A, Rec extends ParentRec & Record<K, A>, ParentRec extends {}>
   extends FluentCheckQuantifier<K, A, Rec, ParentRec> {
-
-  defaultValue = false
   breakCondition = true
 }
 
