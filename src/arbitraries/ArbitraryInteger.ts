@@ -28,14 +28,14 @@ export class ArbitraryInteger extends Arbitrary<number> {
       const lower = Math.max(0, this.min)
       const upper = Math.max(lower, initial.value - 1)
 
-      if (lower === upper) return fc.constant(upper)
+      if (lower === upper) return NoArbitrary
 
       return fc.integer(lower, upper)
     } else if (initial.value < 0) {
       const upper = Math.min(0, this.max)
       const lower = Math.min(upper, initial.value + 1)
 
-      if (lower === upper) return fc.constant(lower)
+      if (lower === upper) return NoArbitrary
 
       return fc.integer(lower, upper)
     }
