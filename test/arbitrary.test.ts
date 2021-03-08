@@ -53,10 +53,6 @@ describe('Arbitrary tests', () => {
   })
 
   it('should allow shrinking of mapped tupples', () => {
-    // FIXME: After changing the run() cycle of universals and existentials, which nows involves the update of the
-    // this.dedup variable, this test does not pass since FluentCheck is not able to shrink result to the example
-    // provided.
-
     expect(fc.scenario()
       .exists('point', fc.tuple(
         fc.integer(50, 1000).filter(x => x > 100),
