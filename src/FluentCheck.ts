@@ -2,18 +2,19 @@ import {Arbitrary, FluentPick} from './arbitraries'
 import {FluentStrategy} from './strategies/FluentStrategy'
 import {FluentStrategyFactory} from './strategies/FluentStrategyFactory'
 
-type UnwrapFluentPick<T> = { [P in keyof T]: T[P] extends FluentPick<infer E> ? E : T[P] }
-type WrapFluentPick<T> = { [P in keyof T]: FluentPick<T[P]> | any }
+type WrapFluentPick<T> = { [P in keyof T]: FluentPick<T[P]> }
+type PickResult<V> = Record<string, FluentPick<V>>
+type ValueResult<V> = Record<string, V>
 
-class FluentResult<R extends {}> {
-  constructor(public readonly satisfiable = false, public example = {} as WrapFluentPick<R>) { }
+class FluentResult {
+  constructor(public readonly satisfiable = false, public example: ValueResult<any> = {}) { }
 
   addExample<A>(name: string, value: FluentPick<A>) {
     this.example[name] = value
   }
 }
 
-export type FluentConfig = { sampleSize?: number, shrinkSize?: number }
+export type FluentConfig = { sampleSize: number, shrinkSize: number }
 
 export class FluentCheck<Rec extends ParentRec, ParentRec extends {}> {
 
@@ -49,39 +50,27 @@ export class FluentCheck<Rec extends ParentRec, ParentRec extends {}> {
   }
 
   protected run(
-    testCase: WrapFluentPick<Rec>,
-    callback: (arg: WrapFluentPick<Rec>) => FluentResult<Rec>,
-    _partial: FluentResult<Rec> | undefined = undefined): FluentResult<Rec> {
+    testCase: WrapFluentPick<Rec> | Rec,
+    callback: (arg: WrapFluentPick<Rec> | any) => FluentResult,
+    _partial: FluentResult | undefined = undefined): FluentResult {
 
     return callback(testCase)
   }
 
-  protected pathFromRoot() {
-    const path: FluentCheck<any, any>[] = []
-
-    // eslint-disable-next-line @typescript-eslint/no-this-alias
-    let node: FluentCheck<any, any> | undefined = this
-    do {
-      path.unshift(node)
-      node = node.parent
-    } while (node !== undefined)
-    return path
+  protected pathFromRoot(): FluentCheck<any, any>[] {
+    return this.parent !== undefined ? this.parent.pathFromRoot().concat(this) : [this]
   }
 
-  protected pathToRoot() {
-    return this.pathFromRoot().reverse()
-  }
-
-  check(child: (testCase: WrapFluentPick<ParentRec>) => FluentResult<Rec> = () => new FluentResult(true)): FluentResult<ParentRec> {
+  check(child: (testCase: WrapFluentPick<ParentRec>) => FluentResult = () => new FluentResult(true)): FluentResult {
     if (this.parent !== undefined) return this.parent.check(testCase => this.run(testCase, child))
     else {
-      const r = this.run({} as WrapFluentPick<any>, child)
+      const r = this.run({} as WrapFluentPick<Rec>, child)
       return new FluentResult(r.satisfiable, FluentCheck.unwrapFluentPick(r.example))
     }
   }
 
-  static unwrapFluentPick<F>(testCase: WrapFluentPick<F>): UnwrapFluentPick<F> {
-    const result: any = {}
+  static unwrapFluentPick<T>(testCase: PickResult<T>): ValueResult<T> {
+    const result = {} as ValueResult<T>
     for (const k in testCase) result[k] = testCase[k].value
     return result
   }
@@ -140,8 +129,8 @@ class FluentCheckGivenConstant<K extends string, V, Rec extends ParentRec & Reco
     super(parent, name, strategy)
   }
 
-  protected run(testCase: WrapFluentPick<Rec>, callback: (arg: WrapFluentPick<Rec>) => FluentResult<Rec>) {
-    testCase[this.name] = this.value
+  protected run(testCase: Rec, callback: (arg: Rec) => FluentResult) {
+    testCase[this.name as string] = this.value
     return callback(testCase)
   }
 }
@@ -161,9 +150,9 @@ abstract class FluentCheckQuantifier<K extends string, A, Rec extends ParentRec 
 
   protected run(
     testCase: WrapFluentPick<Rec>,
-    callback: (arg: WrapFluentPick<Rec>) => FluentResult<Rec>,
-    partial: FluentResult<Rec> | undefined = undefined,
-    depth = 0): FluentResult<Rec> {
+    callback: (arg: WrapFluentPick<Rec>) => FluentResult,
+    partial: FluentResult | undefined = undefined,
+    depth = 0): FluentResult {
 
     this.strategy.configArbitrary(this.name, partial, depth)
 
@@ -210,8 +199,8 @@ class FluentCheckAssert<Rec extends ParentRec, ParentRec extends {}> extends Flu
     return this.then(assertion)
   }
 
-  private runPreliminaries(testCase: WrapFluentPick<Rec>): WrapFluentPick<Rec> {
-    const data = {} as WrapFluentPick<Rec>
+  private runPreliminaries<T>(testCase: ValueResult<T>): Rec {
+    const data = { } as Rec
 
     this.preliminaries.forEach(node => {
       if (node instanceof FluentCheckGivenMutable) data[node.name] = node.factory({...testCase, ...data})
@@ -222,7 +211,7 @@ class FluentCheckAssert<Rec extends ParentRec, ParentRec extends {}> extends Flu
   }
 
   protected run(testCase: WrapFluentPick<Rec>,
-    callback: (arg: WrapFluentPick<Rec>) => FluentResult<Rec>): FluentResult<Rec> {
+    callback: (arg: WrapFluentPick<Rec>) => FluentResult): FluentResult {
     const unwrappedTestCase = FluentCheck.unwrapFluentPick(testCase)
     return this.assertion({...unwrappedTestCase, ...this.runPreliminaries(unwrappedTestCase)} as Rec) ?
       callback(testCase) :
