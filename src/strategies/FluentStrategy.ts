@@ -20,6 +20,9 @@ export class FluentStrategy implements FluentStrategyInterface {
    */
   constructor(public readonly configuration: FluentConfig = {sampleSize: 1000, shrinkSize: 500}) {}
 
+  /**
+   * Allows the configuration of a given strategy
+   */
   config(config: FluentConfig) {
     for (const k in config) this.configuration[k] = config[k]
     return this
@@ -29,7 +32,7 @@ export class FluentStrategy implements FluentStrategyInterface {
    * Adds an arbitrary to the arbitraries record
    */
   addArbitrary<K extends string, A>(arbitraryName: K, a: Arbitrary<A>) {
-    this.arbitraries[arbitraryName] = {arbitrary: a, pickNum: 0}
+    this.arbitraries[arbitraryName] = {arbitrary: a, pickNum: 0, collection: []}
     this.setArbitraryCache(arbitraryName)
   }
 
@@ -49,6 +52,13 @@ export class FluentStrategy implements FluentStrategyInterface {
   }
 
   /**
+   * Determines whether uniqueness should be taken into account while generating samples.
+   */
+  isDedupable() {
+    return false
+  }
+
+  /**
    * Hook that acts as point of extension of the addArbitrary function and that enables the strategy to be cached.
    */
   setArbitraryCache<K extends string, A>(_arbitraryName: K) {}
@@ -57,7 +67,7 @@ export class FluentStrategy implements FluentStrategyInterface {
    * Generates a once a collection of inputs for a given arbitrary
    */
   buildArbitraryCollection<A>(arbitrary: Arbitrary<A>, sampleSize = this.configuration.sampleSize): FluentPick<A>[] {
-    return arbitrary.sample(sampleSize)
+    return this.isDedupable() ? arbitrary.sampleUnique(sampleSize) : arbitrary.sample(sampleSize)
   }
 
   /**

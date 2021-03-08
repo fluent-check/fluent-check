@@ -88,7 +88,7 @@ describe('Math properties tests', () => {
   })
 
   it('finds the neutral element of multiplication', () => {
-    expect(fc.scenario() // NOTE: This test still passes with a shrinkingless strategy
+    expect(fc.scenario()
       .config(new Strategies.RandomCachedStrategy())
       .exists('a', fc.integer(-10, 10))
       .forall('b', fc.integer(-10, 10))
@@ -98,7 +98,7 @@ describe('Math properties tests', () => {
   })
 
   it('finds the absorbing element of multiplication', () => {
-    expect(fc.scenario() // NOTE: This test still passes with a shrinkingless strategy
+    expect(fc.scenario()
       .config(new Strategies.RandomCachedStrategy())
       .exists('a', fc.integer(-10, 10))
       .forall('b', fc.integer(-10, 10))

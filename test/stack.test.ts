@@ -33,7 +33,7 @@ describe('Stack tests', () => {
   })
 
   it('should find an example where pushing a collection of elements keeps the stack empty', () => {
-    expect(fc.scenario() // NOTE: This test still passes with a shrinkingless strategy
+    expect(fc.scenario()
       .config(new Strategies.RandomCachedStrategy())
       .given('stack', () => new Stack<number>())
       .forall('es', fc.array(fc.integer()))

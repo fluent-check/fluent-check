@@ -148,7 +148,7 @@ class FluentCheckGivenConstant<K extends string, V, Rec extends ParentRec & Reco
   }
 }
 
-class FluentCheckUniversal<K extends string, A, Rec extends ParentRec & Record<K, A>, ParentRec extends {}>
+abstract class FluentCheckQuantifier<K extends string, A, Rec extends ParentRec & Record<K, A>, ParentRec extends {}>
   extends FluentCheck<Rec, ParentRec> {
 
   constructor(
@@ -172,48 +172,26 @@ class FluentCheckUniversal<K extends string, A, Rec extends ParentRec & Record<K
     while (this.strategy.hasInput(this.name)) {
       testCase[this.name] = this.strategy.getInput(this.name)
       const result = callback(testCase)
-      if (!result.satisfiable) {
+      if (result.satisfiable === this.breakValue) {
         result.addExample(this.name, testCase[this.name])
         return this.run(testCase, callback, result, depth + 1)
       }
     }
 
-    return partial || new FluentResult(true)
+    return partial || new FluentResult(!this.breakValue)
   }
+
+  abstract breakValue: boolean
+}
+
+class FluentCheckUniversal<K extends string, A, Rec extends ParentRec & Record<K, A>, ParentRec extends {}>
+  extends FluentCheckQuantifier<K, A, Rec, ParentRec> {
+  breakValue = false
 }
 
 class FluentCheckExistential<K extends string, A, Rec extends ParentRec & Record<K, A>, ParentRec extends {}>
-  extends FluentCheck<Rec, ParentRec> {
-
-  constructor(
-    protected readonly parent: FluentCheck<ParentRec, any>,
-    public readonly name: K,
-    public readonly a: Arbitrary<A>,
-    strategy: FluentStrategy) {
-
-    super(strategy, parent)
-    this.strategy.addArbitrary(this.name, a)
-  }
-
-  protected run(
-    testCase: FluentPicks,
-    callback: (arg: FluentPicks) => FluentResult,
-    partial: FluentResult | undefined = undefined,
-    depth = 0): FluentResult {
-
-    this.strategy.configArbitrary(this.name, partial, depth)
-
-    while (this.strategy.hasInput(this.name)) {
-      testCase[this.name] = this.strategy.getInput(this.name)
-      const result = callback(testCase)
-      if (result.satisfiable) {
-        result.addExample(this.name, testCase[this.name])
-        return this.run(testCase, callback, result, depth + 1)
-      }
-    }
-
-    return partial || new FluentResult(false)
-  }
+  extends FluentCheckQuantifier<K, A, Rec, ParentRec> {
+  breakValue = true
 }
 
 class FluentCheckAssert<Rec extends ParentRec, ParentRec extends {}> extends FluentCheck<Rec, ParentRec> {

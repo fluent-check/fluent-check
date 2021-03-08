@@ -32,9 +32,8 @@ export function Shrinkable<TBase extends MixinStrategy>(Base: TBase) {
 
 export function Dedupable<TBase extends MixinStrategy>(Base: TBase) {
   return class extends Base {
-    addArbitrary<K extends string, A>(arbitraryName: K, a: Arbitrary<A>) {
-      this.arbitraries[arbitraryName] = {arbitrary: a.unique(), pickNum: 0, collection: []}
-      this.setArbitraryCache(arbitraryName)
+    isDedupable() {
+      return true
     }
   }
 }
@@ -50,7 +49,7 @@ export function Cacheable<TBase extends MixinStrategy>(Base: TBase) {
 export function Biased<TBase extends MixinStrategy>(Base: TBase) {
   return class extends Base {
     buildArbitraryCollection<A>(arbitrary: Arbitrary<A>, sampleSize = this.configuration.sampleSize): FluentPick<A>[] {
-      return arbitrary.sampleWithBias(sampleSize)
+      return this.isDedupable() ? arbitrary.sampleUniqueWithBias(sampleSize) : arbitrary.sampleWithBias(sampleSize)
     }
   }
 }
