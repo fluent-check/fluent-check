@@ -15,7 +15,7 @@ export class FluentResult {
   }
 }
 
-export type FluentConfig = { sampleSize?: number, shrinkSize?: number }
+export type FluentConfig = { sampleSize?: number, shrinkSize?: number, seed?: bigint}
 
 export class FluentCheck<Rec extends ParentRec, ParentRec extends {}> {
 
