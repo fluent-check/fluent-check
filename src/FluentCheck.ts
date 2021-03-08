@@ -18,6 +18,7 @@ export class FluentResult {
 export type FluentConfig = { sampleSize?: number, shrinkSize?: number, seed?: bigint}
 
 export class FluentCheck<Rec extends ParentRec, ParentRec extends {}> {
+    protected readonly parent: FluentCheck<ParentRec, any> | undefined = undefined) {
 
   constructor(public strategy: FluentStrategy = new FluentStrategyFactory().defaultStrategy().build(),
     protected readonly parent: FluentCheck<ParentRec, any> | undefined = undefined) {
