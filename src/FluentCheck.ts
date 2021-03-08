@@ -145,7 +145,6 @@ abstract class FluentCheckQuantifier<K extends string, A, Rec extends ParentRec 
   extends FluentCheck<Rec, ParentRec> {
 
   private cache: Array<FluentPick<A>>
-  private dedup: Arbitrary<A>
 
   constructor(
     protected readonly parent: FluentCheck<ParentRec, any>,
@@ -154,8 +153,7 @@ abstract class FluentCheckQuantifier<K extends string, A, Rec extends ParentRec 
     config: FluentConfig) {
 
     super(parent, config)
-    this.dedup = a.unique()
-    this.cache = this.dedup.sampleWithBias(this.configuration.sampleSize)
+    this.cache = this.a.sampleUniqueWithBias(this.configuration.sampleSize)
   }
 
   protected run(
@@ -169,7 +167,7 @@ abstract class FluentCheckQuantifier<K extends string, A, Rec extends ParentRec 
     const collection = depth === 0 ?
       this.cache :
       (partial !== undefined ?
-        this.dedup.shrink(partial.example[this.name]).sampleWithBias(this.configuration.shrinkSize) :
+        this.a.shrink(partial.example[this.name]).sampleUniqueWithBias(this.configuration.shrinkSize) :
         [])
 
     for (const tp of collection) {
