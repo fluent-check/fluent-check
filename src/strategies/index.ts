@@ -1,10 +1,10 @@
 import {FluentStrategy} from './FluentStrategy'
-import {Random, Dedupable, Biased, Cacheable, Shrinkable} from './FluentStrategyMixins'
+import {Random, Dedupable, Biased, Cached, Shrinkable} from './FluentStrategyMixins'
 
-export const RandomCachedStrategy = Cacheable(Dedupable(Random(FluentStrategy)))
+export const RandomCachedStrategy = Cached(Dedupable(Random(FluentStrategy)))
 
-export const RandomCachedStrategyWithShrinking = Shrinkable(Cacheable(Dedupable(Random(FluentStrategy))))
+export const RandomCachedStrategyWithShrinking = Shrinkable(Cached(Dedupable(Random(FluentStrategy))))
 
-export const BiasedRandomCachedStrategy = Cacheable(Biased(Dedupable(Random(FluentStrategy))))
+export const BiasedRandomCachedStrategy = Cached(Biased(Dedupable(Random(FluentStrategy))))
 
-export const BiasedRandomCachedStrategyWithShrinking = Shrinkable(Cacheable(Biased(Dedupable(Random(FluentStrategy)))))
+export const BiasedRandomCachedStrategyWithShrinking = Shrinkable(Cached(Biased(Dedupable(Random(FluentStrategy)))))
