@@ -1,5 +1,6 @@
 import {ArbitrarySize, FluentPick} from './types'
-import {ChainedArbitrary, FilteredArbitrary, MappedArbitrary, NoArbitrary, UniqueArbitrary} from './internal'
+import {ChainedArbitrary, FilteredArbitrary, MappedArbitrary, NoArbitrary} from './internal'
+import {stringify} from './util'
 
 export abstract class Arbitrary<A> {
 
@@ -26,15 +27,13 @@ export abstract class Arbitrary<A> {
   abstract canGenerate<B extends A>(pick: FluentPick<B>): boolean
 
   /**
-   * Returns a sample of picks of a given size.
-   *
-   * While this function doesn't pick corner cases, each pick is not necessarily independent from the others: different
-   * arbitraries might choose to use smarter search strategies to maximize the probability of falsifying a property,
-   * e.g. by including only unique elements.
+   * Returns a sample of picks of a given size. Sample might contain repeated values
+   * and corner cases are not taken into account.
    */
   sample(sampleSize = 10): FluentPick<A>[] {
     const result: FluentPick<A>[] = []
-    for (let i = 0; i < sampleSize; i += 1) {
+
+    for (let i = 0; i < sampleSize; i ++) {
       const pick = this.pick()
       if (pick) result.push(pick)
       else break
@@ -44,12 +43,38 @@ export abstract class Arbitrary<A> {
   }
 
   /**
-   * The special cases for this arbitrary, which can be used during sampling to give higher weight to certain elements.
+   * Returns a sample of picks of a given size withour replacement. Sample will
+   * not contain repeated values. Corner cases are not taken into account.
+   */
+  sampleUnique(sampleSize = 10, cornerCases: FluentPick<A>[] = []): FluentPick<A>[] {
+    const result = new Map<string, FluentPick<A>>()
+
+    for (const k in cornerCases)
+      result.set(stringify(cornerCases[k].value), cornerCases[k])
+
+    const initialSize = this.size()
+    let bagSize = Math.min(sampleSize, initialSize.value)
+
+    while (result.size < bagSize) {
+      const r = this.pick()
+      if (!r) break
+      if (!result.has(stringify(r.value))) result.set(stringify(r.value), r)
+      if (initialSize.type !== 'exact') bagSize = Math.min(sampleSize, this.size().value)
+    }
+
+    return Array.from(result.values())
+  }
+
+  /**
+   * The special cases for this arbitrary, which can be used during sampling to give
+   * higher weight to certain elements.
    */
   cornerCases(): FluentPick<A>[] { return [] }
 
   /**
-   * Returns a sample of picks of a given size, possibly biased towards corner cases.
+   * Returns a sample of picks of a given size. Sample might contain repeated values
+   * and might be biased toward corner cases (depending on the specific arbitrary
+   * implementing or not the cornerCases method).
    */
   sampleWithBias(sampleSize = 10): FluentPick<A>[] {
     const cornerCases = this.cornerCases()
@@ -64,6 +89,20 @@ export abstract class Arbitrary<A> {
   }
 
   /**
+   * Returns a sample of picks of a given size. Sample will not contain repeated values
+   * and might be biased toward corner cases (depending on the specific arbitrary
+   * implementing or not the cornerCases method).
+   */
+  sampleUniqueWithBias(sampleSize = 10): FluentPick<A>[] {
+    const cornerCases = this.cornerCases()
+
+    if (sampleSize <= cornerCases.length)
+      return this.sampleUnique(sampleSize)
+
+    return this.sampleUnique(sampleSize, cornerCases)
+  }
+
+  /**
    * Given a pick known to falsify a property, returns a new arbitrary with simpler cases to be tested. This is part of
    * FluentCheck's behavior of searching for simpler counter-examples after one is found.
    */
@@ -74,7 +113,6 @@ export abstract class Arbitrary<A> {
   map<B>(f: (a: A) => B): Arbitrary<B> { return new MappedArbitrary(this, f) }
   filter(f: (a: A) => boolean): Arbitrary<A> { return new FilteredArbitrary(this, f) }
   chain<B>(f: (a: A) => Arbitrary<B>): Arbitrary<B> { return new ChainedArbitrary(this, f) }
-  unique(): Arbitrary<A> { return new UniqueArbitrary(this) }
 
   toString(depth = 0): string { return ' '.repeat(depth * 2) + `Base Arbitrary: ${this.constructor.name}`  }
 }

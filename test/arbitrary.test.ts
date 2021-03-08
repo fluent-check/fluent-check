@@ -53,10 +53,6 @@ describe('Arbitrary tests', () => {
   })
 
   it('should allow shrinking of mapped tupples', () => {
-    // FIXME: After changing the run() cycle of universals and existentials, which nows involves the update of the
-    // this.dedup variable, this test does not pass since FluentCheck is not able to shrink result to the example
-    // provided.
-
     expect(fc.scenario()
       .exists('point', fc.tuple(
         fc.integer(50, 1000).filter(x => x > 100),
@@ -253,21 +249,15 @@ describe('Arbitrary tests', () => {
   describe('Unique Arbitraries', () => {
     it('should return all the available values when sample size === size', () => {
       expect(
-        fc.integer(0, 10).unique().sample(11).map(v => v.value)
+        fc.integer(0, 10).sampleUnique(11).map(v => v.value)
       ).to.include.members([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
-    })
-
-    it('should be shrinkable and remain unique', () => {
-      expect(
-        fc.integer(0, 10).unique().shrink({value: 5}).sample(5).map(v => v.value)
-      ).to.include.members([0, 1, 2, 3, 4])
     })
 
     it('should return no more than the number of possible cases', () => {
       expect(fc.scenario()
         .forall('n', fc.integer(3, 10))
-        .given('ub', () => fc.boolean().unique())
-        .then(({n, ub}) => ub.sample(n).length === 2)
+        .given('ub', () => fc.boolean())
+        .then(({n, ub}) => ub.sampleUnique(n).length === 2)
         .check()
       ).to.have.property('satisfiable', true)
     })
@@ -276,8 +266,8 @@ describe('Arbitrary tests', () => {
       expect(fc.scenario()
         .forall('n', fc.integer(10, 20))
         .forall('s', fc.integer(5, 10))
-        .given('a', ({n}) => fc.integer(0, n).unique())
-        .and('r', ({a, s}) => a.sampleWithBias(s))
+        .given('a', ({n}) => fc.integer(0, n))
+        .and('r', ({a, s}) => a.sampleUniqueWithBias(s))
         .then(({r, s}) => r.length === s)
         .and(({r}) => r.length === new Set(r.map(e => e.value)).size)
         .and(({a, r}) => a.cornerCases().map(c => c.value).every(e => r.map(e => e.value).includes(e)))
@@ -289,8 +279,8 @@ describe('Arbitrary tests', () => {
       expect(fc.scenario()
         .forall('n', fc.integer(10, 20))
         .forall('s', fc.integer(0, 5))
-        .given('a', ({n}) => fc.integer(0, n).unique())
-        .and('r', ({a, s}) => a.sampleWithBias(s))
+        .given('a', ({n}) => fc.integer(0, n))
+        .and('r', ({a, s}) => a.sampleUniqueWithBias(s))
         .then(({r, s}) => r.length === s)
         .and(({r}) => r.length === new Set(r.map(e => e.value)).size)
         .check()
@@ -416,8 +406,7 @@ describe('Arbitrary tests', () => {
       expect(fc.empty().sampleWithBias().length).to.eq(0)
     })
 
-    it('should remain no arbitrary when compose with unique, map, and filter', () => {
-      expect(fc.empty().unique()).to.eq(fc.empty())
+    it('should remain no arbitrary when compose with map, and filter', () => {
       expect(fc.empty().map(a => a)).to.eq(fc.empty())
       expect(fc.empty().filter(a => true)).to.eq(fc.empty())
     })
