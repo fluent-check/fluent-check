@@ -18,13 +18,13 @@ export class FluentStrategy implements FluentStrategyInterface {
   /**
    * Default constructor. Receives the FluentCheck configuration, which is used for test case generation purposes.
    */
-  constructor(public readonly configuration: FluentConfig = {sampleSize: 1000, shrinkSize: 500}) {}
+  constructor(public configuration: FluentConfig = {sampleSize: 1000, shrinkSize: 500}) {}
 
   /**
    * Allows the configuration of a given strategy
    */
-  config(config: FluentConfig) {
-    for (const k in config) this.configuration[k] = config[k]
+  config(config: Partial<FluentConfig>) {
+    this.configuration = {...this.configuration, ...config}
     return this
   }
 
