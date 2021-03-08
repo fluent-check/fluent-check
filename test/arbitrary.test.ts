@@ -253,7 +253,7 @@ describe('Arbitrary tests', () => {
   describe('Unique Arbitraries', () => {
     it('should return all the available values when sample size === size', () => {
       expect(
-        fc.integer(0, 10).sampleWithoutReplacement(11).map(v => v.value)
+        fc.integer(0, 10).sampleUnique(11).map(v => v.value)
       ).to.include.members([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
     })
 
@@ -261,7 +261,7 @@ describe('Arbitrary tests', () => {
       expect(fc.scenario()
         .forall('n', fc.integer(3, 10))
         .given('ub', () => fc.boolean())
-        .then(({n, ub}) => ub.sampleWithoutReplacement(n).length === 2)
+        .then(({n, ub}) => ub.sampleUnique(n).length === 2)
         .check()
       ).to.have.property('satisfiable', true)
     })
@@ -271,7 +271,7 @@ describe('Arbitrary tests', () => {
         .forall('n', fc.integer(10, 20))
         .forall('s', fc.integer(5, 10))
         .given('a', ({n}) => fc.integer(0, n))
-        .and('r', ({a, s}) => a.sampleWithoutReplacementWithBias(s))
+        .and('r', ({a, s}) => a.sampleUniqueWithBias(s))
         .then(({r, s}) => r.length === s)
         .and(({r}) => r.length === new Set(r.map(e => e.value)).size)
         .and(({a, r}) => a.cornerCases().map(c => c.value).every(e => r.map(e => e.value).includes(e)))
@@ -284,7 +284,7 @@ describe('Arbitrary tests', () => {
         .forall('n', fc.integer(10, 20))
         .forall('s', fc.integer(0, 5))
         .given('a', ({n}) => fc.integer(0, n))
-        .and('r', ({a, s}) => a.sampleWithoutReplacementWithBias(s))
+        .and('r', ({a, s}) => a.sampleUniqueWithBias(s))
         .then(({r, s}) => r.length === s)
         .and(({r}) => r.length === new Set(r.map(e => e.value)).size)
         .check()

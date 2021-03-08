@@ -27,11 +27,8 @@ export abstract class Arbitrary<A> {
   abstract canGenerate<B extends A>(pick: FluentPick<B>): boolean
 
   /**
-   * Returns a sample of picks of a given size.
-   *
-   * While this function doesn't pick corner cases, each pick is not necessarily independent
-   * from the others: different arbitraries might choose to use smarter search strategies to
-   * maximize the probability of falsifying a property, e.g. by including only unique elements.
+   * Returns a sample of picks of a given size. Sample might contain repeated values 
+   * and corner cases are not taken into account.
    */
   sample(sampleSize = 10): FluentPick<A>[] {
     const result: FluentPick<A>[] = []
@@ -46,13 +43,10 @@ export abstract class Arbitrary<A> {
   }
 
   /**
-   * Returns a sample of picks of a given size without replacements.
-   *
-   * While this function doesn't pick corner cases, each pick is not necessarily independent
-   * from the others: different arbitraries might choose to use smarter search strategies to
-   * maximize the probability of falsifying a property, e.g. by including only unique elements.
+   * Returns a sample of picks of a given size withour replacement. Sample will
+   * not contain repeated values. Corner cases are not taken into account.
    */
-  sampleWithoutReplacement(sampleSize = 10, cornerCases: FluentPick<A>[] = []): FluentPick<A>[] {
+  sampleUnique(sampleSize = 10, cornerCases: FluentPick<A>[] = []): FluentPick<A>[] {
     const result = new Map<string, FluentPick<A>>()
 
     for (const k in cornerCases)
@@ -78,7 +72,9 @@ export abstract class Arbitrary<A> {
   cornerCases(): FluentPick<A>[] { return [] }
 
   /**
-   * Returns a sample of picks of a given size, possibly biased towards corner cases.
+   * Returns a sample of picks of a given size. Sample might contain repeated values
+   * and might be biased toward corner cases (depending on the specific arbitrary
+   * implementing or not the cornerCases method).
    */
   sampleWithBias(sampleSize = 10): FluentPick<A>[] {
     const cornerCases = this.cornerCases()
@@ -93,16 +89,17 @@ export abstract class Arbitrary<A> {
   }
 
   /**
-   * Returns a sample of picks of a given size, possibly biased towards corner cases,
-   * without replacements.
+   * Returns a sample of picks of a given size. Sample will not contain repeated values
+   * and might be biased toward corner cases (depending on the specific arbitrary
+   * implementing or not the cornerCases method).
    */
-  sampleWithoutReplacementWithBias(sampleSize = 10): FluentPick<A>[] {
+  sampleUniqueWithBias(sampleSize = 10): FluentPick<A>[] {
     const cornerCases = this.cornerCases()
 
     if (sampleSize <= cornerCases.length)
-      return this.sampleWithoutReplacement(sampleSize)
+      return this.sampleUnique(sampleSize)
 
-    return this.sampleWithoutReplacement(sampleSize, cornerCases)
+    return this.sampleUnique(sampleSize, cornerCases)
   }
 
   /**

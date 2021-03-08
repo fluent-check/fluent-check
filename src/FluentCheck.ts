@@ -153,7 +153,7 @@ abstract class FluentCheckQuantifier<K extends string, A, Rec extends ParentRec 
     config: FluentConfig) {
 
     super(parent, config)
-    this.cache = this.a.sampleWithoutReplacementWithBias(this.configuration.sampleSize)
+    this.cache = this.a.sampleUniqueWithBias(this.configuration.sampleSize)
   }
 
   protected run(
@@ -167,7 +167,7 @@ abstract class FluentCheckQuantifier<K extends string, A, Rec extends ParentRec 
     const collection = depth === 0 ?
       this.cache :
       (partial !== undefined ?
-        this.a.shrink(partial.example[this.name]).sampleWithoutReplacementWithBias(this.configuration.shrinkSize) :
+        this.a.shrink(partial.example[this.name]).sampleUniqueWithBias(this.configuration.shrinkSize) :
         [])
 
     for (const tp of collection) {
