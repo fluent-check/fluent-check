@@ -3,7 +3,7 @@ import {it} from 'mocha'
 import {expect} from 'chai'
 
 describe('Integer tests', () => {
-  it('finds there is a number in the -10, 10 range with inverse and shrink it to 0', () => {
+  it('finds there is a number in the -10, 10 range, which is neutral under addition for all integers.', () => {
     expect(fc.scenario()
       .exists('b', fc.integer(-10, 10))
       .forall('a', fc.integer())
@@ -55,6 +55,14 @@ describe('Integer tests', () => {
     ).to.deep.include({satisfiable: true, example: {a: 0, b: 10}})
   })
 
+  it('finds that adding 1000 makes any number larger and shrinks the example', () => {
+    expect(fc.scenario()
+      .exists('a', fc.integer())
+      .then(({a}) => a + 1000 > a)
+      .check()
+    ).to.deep.include({satisfiable: true, example: {a: 0}})
+  })
+
   it('finds two elements such that a % 11 == 0', () => {
     // TODO: For this to pass, the shrink should perform an exhaustive search, otherwise the probability
     // of lying on the correct interval is very low.
@@ -64,13 +72,5 @@ describe('Integer tests', () => {
       .then(({ a }) => a % 11 === 0 && a > 90000 && a < 90010)
       .check()
     ).to.deep.include({ satisfiable: true, example: { a: 90002 } }) */
-  })
-
-  it('finds that adding 1000 makes any number larger and shrinks the example', () => {
-    expect(fc.scenario()
-      .exists('a', fc.integer())
-      .then(({a}) => a + 1000 > a)
-      .check()
-    ).to.deep.include({satisfiable: true, example: {a: 0}})
   })
 })
