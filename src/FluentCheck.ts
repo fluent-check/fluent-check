@@ -7,7 +7,7 @@ type PickResult<V> = Record<string, FluentPick<V>>
 type ValueResult<V> = Record<string, V>
 
 class FluentResult {
-  constructor(public readonly satisfiable = false, public example: ValueResult<any> = {}) { }
+  constructor(public readonly satisfiable = false, public example: PickResult<any> = {}) { }
 
   addExample<A>(name: string, value: FluentPick<A>) {
     this.example[name] = value
@@ -63,13 +63,13 @@ export class FluentCheck<Rec extends ParentRec, ParentRec extends {}> {
   check(child: (testCase: WrapFluentPick<any>) => FluentResult = () => new FluentResult(true)): FluentResult {
     if (this.parent !== undefined) return this.parent.check(testCase => this.run(testCase, child))
     else {
-      const r = this.run({} as WrapFluentPick<Rec>, child)
+      const r = this.run({} as Rec, child)
       return new FluentResult(r.satisfiable, FluentCheck.unwrapFluentPick(r.example))
     }
   }
 
   static unwrapFluentPick<T>(testCase: PickResult<T>): ValueResult<T> {
-    const result = {} as ValueResult<T>
+    const result = {}
     for (const k in testCase) result[k] = testCase[k].value
     return result
   }
