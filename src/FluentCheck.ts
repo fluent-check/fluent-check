@@ -1,6 +1,6 @@
 import {Arbitrary, FluentPick} from './arbitraries'
-import {BiasedRandomCachedStrategyWithShrinking} from './strategies'
 import {FluentStrategy} from './strategies/FluentStrategy'
+import {FluentStrategyFactory} from './strategies/FluentStrategyFactory'
 
 type UnwrapFluentPick<T> = { [P in keyof T]: T[P] extends FluentPick<infer E> ? E : T[P] }
 type WrapFluentPick<T> = { [P in keyof T]: FluentPick<T[P]> }
@@ -19,12 +19,12 @@ export type FluentConfig = { sampleSize?: number, shrinkSize?: number }
 
 export class FluentCheck<Rec extends ParentRec, ParentRec extends {}> {
 
-  constructor(public strategy: FluentStrategy = new BiasedRandomCachedStrategyWithShrinking(),
+  constructor(public strategy: FluentStrategy = new FluentStrategyFactory().defaultStrategy().build(),
     protected readonly parent: FluentCheck<ParentRec, any> | undefined = undefined) {
   }
 
-  config(strategy: FluentStrategy) {
-    this.strategy = strategy
+  config(strategy: FluentStrategyFactory) {
+    this.strategy = strategy.build()
     return this
   }
 

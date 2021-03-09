@@ -1,6 +1,6 @@
 import {Arbitrary, FluentPick} from '../arbitraries'
 import {FluentConfig, FluentResult} from '../FluentCheck'
-import {StrategyArbitraries} from './types'
+import {StrategyArbitraries} from './FluentStrategyTypes'
 
 export interface FluentStrategyInterface {
   hasInput: <K extends string>(arbitraryName: K) => boolean
@@ -18,15 +18,7 @@ export class FluentStrategy implements FluentStrategyInterface {
   /**
    * Default constructor. Receives the FluentCheck configuration, which is used for test case generation purposes.
    */
-  constructor(public configuration: FluentConfig = {sampleSize: 1000, shrinkSize: 500}) {}
-
-  /**
-   * Allows the configuration of a given strategy
-   */
-  config(config: Partial<FluentConfig>) {
-    this.configuration = {...this.configuration, ...config}
-    return this
-  }
+  constructor(public readonly configuration: FluentConfig) {}
 
   /**
    * Adds an arbitrary to the arbitraries record
@@ -48,7 +40,7 @@ export class FluentStrategy implements FluentStrategyInterface {
         this.arbitraries[arbitraryName].cache :
         this.buildArbitraryCollection(this.arbitraries[arbitraryName].arbitrary)
     else if (partial !== undefined)
-      this.shrink(arbitraryName, partial, depth)
+      this.shrink(arbitraryName, partial)
   }
 
   /**
@@ -73,7 +65,7 @@ export class FluentStrategy implements FluentStrategyInterface {
   /**
    * Hook that acts as point of extension of the configArbitrary function and that enables an arbitrary to be shrinked.
    */
-  shrink<K extends string>(_name: K, _partial: FluentResult | undefined, _depth: number) {}
+  shrink<K extends string>(_name: K, _partial: FluentResult | undefined) {}
 
   /**
    * Determines whether there are more inputs to be used for test case generation purposes. This function can use

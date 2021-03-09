@@ -1,5 +1,4 @@
 import * as fc from '../src/index'
-import * as Strategies from '../src/strategies/index'
 import {it} from 'mocha'
 import {expect} from 'chai'
 
