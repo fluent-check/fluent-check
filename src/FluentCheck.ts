@@ -51,17 +51,16 @@ export class FluentCheck<Rec extends ParentRec, ParentRec extends {}> {
 
   protected run(
     testCase: WrapFluentPick<Rec> | Rec,
-    callback: (arg: WrapFluentPick<Rec> | any) => FluentResult,
-    _partial: FluentResult | undefined = undefined): FluentResult {
+    callback: (arg: WrapFluentPick<Rec> | Rec) => FluentResult): FluentResult {
 
     return callback(testCase)
   }
 
   protected pathFromRoot(): FluentCheck<any, any>[] {
-    return this.parent !== undefined ? this.parent.pathFromRoot().concat(this) : [this]
+    return this.parent !== undefined ? [...this.parent.pathFromRoot(), this] : [this]
   }
 
-  check(child: (testCase: WrapFluentPick<ParentRec>) => FluentResult = () => new FluentResult(true)): FluentResult {
+  check(child: (testCase: WrapFluentPick<any>) => FluentResult = () => new FluentResult(true)): FluentResult {
     if (this.parent !== undefined) return this.parent.check(testCase => this.run(testCase, child))
     else {
       const r = this.run({} as WrapFluentPick<Rec>, child)
