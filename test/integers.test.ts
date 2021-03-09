@@ -6,7 +6,6 @@ import {expect} from 'chai'
 describe('Integer tests', () => {
   it('finds there is a number in the -10, 10 range, which is neutral under addition for all integers.', () => {
     expect(fc.scenario()
-      .config(new Strategies.RandomCachedStrategy())
       .exists('b', fc.integer(-10, 10))
       .forall('a', fc.integer())
       .then(({a, b}) => (a + b) === a && (b + a) === a)

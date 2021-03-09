@@ -6,7 +6,6 @@ import {expect} from 'chai'
 describe('Arbitrary tests', () => {
   it('should return has many numbers has asked', () => {
     expect(fc.scenario()
-      .config(new Strategies.RandomCachedStrategy())
       .forall('n', fc.integer(0, 100))
       .given('a', () => fc.integer())
       .then(({n, a}) => a.sample(n).length === n)
@@ -16,7 +15,6 @@ describe('Arbitrary tests', () => {
 
   it('should return values in the specified range', () => {
     expect(fc.scenario()
-      .config(new Strategies.RandomCachedStrategy())
       .forall('n', fc.integer(0, 100))
       .given('a', () => fc.integer(0, 50))
       .then(({n, a}) => a.sample(n).every(i => i.value <= 50))
@@ -27,7 +25,6 @@ describe('Arbitrary tests', () => {
 
   it('should return corner cases if there is space', () => {
     expect(fc.scenario()
-      .config(new Strategies.RandomCachedStrategy())
       .forall('n', fc.integer(4, 100))
       .given('a', () => fc.integer(0, 50))
       .then(({n, a}) => a.sampleWithBias(n).some(v => v.value === 0))
@@ -38,7 +35,6 @@ describe('Arbitrary tests', () => {
 
   it('should return values smaller than what was shrunk', () => {
     expect(fc.scenario()
-      .config(new Strategies.RandomCachedStrategy())
       .forall('n', fc.integer(0, 100))
       .forall('s', fc.integer(0, 100))
       .given('a', () => fc.integer(0, 100))
@@ -149,7 +145,6 @@ describe('Arbitrary tests', () => {
   describe('Transformations', () => {
     it('should allow booleans to be mappeable', () => {
       expect(fc.scenario()
-        .config(new Strategies.RandomCachedStrategy())
         .forall('n', fc.integer(10, 100))
         .given('a', () => fc.boolean().map(e => e ? 'Heads' : 'Tails'))
         .then(({a, n}) => a.sampleWithBias(n).some(s => s.value === 'Heads'))
@@ -160,7 +155,6 @@ describe('Arbitrary tests', () => {
 
     it('should allow integers to be filtered', () => {
       expect(fc.scenario()
-        .config(new Strategies.RandomCachedStrategy())
         .forall('n', fc.integer(0, 100).filter(n => n < 10))
         .then(({n}) => n < 10)
         .check()
@@ -169,7 +163,6 @@ describe('Arbitrary tests', () => {
 
     it('filters should exclude corner cases, even after shrinking', () => {
       expect(fc.scenario()
-        .config(new Strategies.RandomCachedStrategy())
         .exists('a', fc.integer(-20, 20).filter(a => a !== 0))
         .then(({a}) => a % 11 === 0 && a !== 11 && a !== -11)
         .check()
@@ -178,7 +171,6 @@ describe('Arbitrary tests', () => {
 
     it('should allow integers to be both mapped and filtered', () => {
       expect(fc.scenario()
-        .config(new Strategies.RandomCachedStrategy())
         .forall('n', fc.integer(0, 100).map(n => n + 100).filter(n => n < 150))
         .then(({n}) => n >= 100 && n <= 150)
         .check()
@@ -264,7 +256,6 @@ describe('Arbitrary tests', () => {
 
     it('should return no more than the number of possible cases', () => {
       expect(fc.scenario()
-        .config(new Strategies.RandomCachedStrategy())
         .forall('n', fc.integer(3, 10))
         .given('ub', () => fc.boolean())
         .then(({n, ub}) => ub.sampleUnique(n).length === 2)
@@ -308,7 +299,6 @@ describe('Arbitrary tests', () => {
     it('should check a property based on a chained arbitrary', () => {
       expect(
         fc.scenario()
-          .config(new Strategies.RandomCachedStrategy())
           .forall('a', fc.integer(1, 10).chain(i => fc.array(fc.constant(i), i, i)))
           .then(({a}) => a.length === a[0])
           .check()
@@ -424,7 +414,6 @@ describe('Arbitrary tests', () => {
 
     it('should always be satisfiable due to vacuous truth in universal assertions', () => {
       expect(fc.scenario()
-        .config(new Strategies.RandomCachedStrategy())
         .forall('empty', fc.empty())
         .then(_ => false)
         .check()
@@ -433,7 +422,6 @@ describe('Arbitrary tests', () => {
 
     it('should never be satisfiable due to vacuous truth in existential assertions', () => {
       expect(fc.scenario()
-        .config(new Strategies.RandomCachedStrategy())
         .exists('empty', fc.empty())
         .then(_ => true)
         .check()

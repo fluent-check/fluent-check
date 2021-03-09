@@ -6,7 +6,6 @@ import {expect} from 'chai'
 describe('Math properties tests', () => {
   it('finds if addition is commutative', () => {
     expect(fc.scenario()
-      .config(new Strategies.RandomCachedStrategy())
       .forall('a', fc.integer(-10, 10))
       .forall('b', fc.integer(-10, 10))
       .then(({a, b}) => a + b === b + a)
@@ -16,7 +15,6 @@ describe('Math properties tests', () => {
 
   it('finds if additions is associative', () => {
     expect(fc.scenario()
-      .config(new Strategies.RandomCachedStrategy())
       .forall('a', fc.integer(-10, 10))
       .forall('b', fc.integer(-10, 10))
       .forall('c', fc.integer(-10, 10))
@@ -27,7 +25,6 @@ describe('Math properties tests', () => {
 
   it('finds if addition has an inverse', () => {
     expect(fc.scenario()
-      .config(new Strategies.RandomCachedStrategy())
       .forall('a', fc.integer(-10, 10))
       .exists('b', fc.integer(-10, 10))
       .then(({a, b}) => a + b === 0)
@@ -37,7 +34,6 @@ describe('Math properties tests', () => {
 
   it('finds if multiplication is commutative', () => {
     expect(fc.scenario()
-      .config(new Strategies.RandomCachedStrategy())
       .forall('a', fc.integer(-10, 10))
       .forall('b', fc.integer(-10, 10))
       .then(({a, b}) => a * b === b * a)
@@ -47,7 +43,6 @@ describe('Math properties tests', () => {
 
   it('finds if multiplication is associative', () => {
     expect(fc.scenario()
-      .config(new Strategies.RandomCachedStrategy())
       .forall('a', fc.integer(-10, 10))
       .forall('b', fc.integer(-10, 10))
       .forall('c', fc.integer(-10, 10))
@@ -58,7 +53,6 @@ describe('Math properties tests', () => {
 
   it('finds if multiplication is distributive over addition', () => {
     expect(fc.scenario()
-      .config(new Strategies.RandomCachedStrategy())
       .forall('a', fc.integer(-10, 10))
       .forall('b', fc.integer(-10, 10))
       .forall('c', fc.integer(-10, 10))
@@ -69,7 +63,6 @@ describe('Math properties tests', () => {
 
   it('finds if multiplication has precendence over addition', () => {
     expect(fc.scenario()
-      .config(new Strategies.RandomCachedStrategy())
       .forall('a', fc.integer(-10, 10))
       .forall('b', fc.integer(-10, 10))
       .forall('c', fc.integer(-10, 10))
@@ -89,7 +82,6 @@ describe('Math properties tests', () => {
 
   it('finds the neutral element of multiplication', () => {
     expect(fc.scenario()
-      .config(new Strategies.RandomCachedStrategy())
       .exists('a', fc.integer(-10, 10))
       .forall('b', fc.integer(-10, 10))
       .then(({a, b}) => a * b === b)
@@ -99,7 +91,6 @@ describe('Math properties tests', () => {
 
   it('finds the absorbing element of multiplication', () => {
     expect(fc.scenario()
-      .config(new Strategies.RandomCachedStrategy())
       .exists('a', fc.integer(-10, 10))
       .forall('b', fc.integer(-10, 10))
       .then(({a, b}) => a * b === 0)

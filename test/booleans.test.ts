@@ -6,7 +6,6 @@ import {expect} from 'chai'
 describe('Boolean tests', () => {
   it('finds two true booleans', () => {
     expect(fc.scenario()
-      .config(new Strategies.RandomCachedStrategy())
       .exists('a', fc.boolean())
       .exists('b', fc.boolean())
       .then(({a, b}) => (a && b))
@@ -16,7 +15,6 @@ describe('Boolean tests', () => {
 
   it('finds that some booleans are false', () => {
     expect(fc.scenario()
-      .config(new Strategies.RandomCachedStrategy())
       .exists('b', fc.boolean())
       .forall('a', fc.boolean())
       .then(({a, b}) => (a && b))
@@ -26,7 +24,6 @@ describe('Boolean tests', () => {
 
   it('finds that self-XOR returns true', () => {
     expect(fc.scenario()
-      .config(new Strategies.RandomCachedStrategy())
       .forall('a', fc.boolean())
       .then(({a}) => !(a !== a))
       .check()
@@ -35,7 +32,6 @@ describe('Boolean tests', () => {
 
   it('finds implication using ORs', () => {
     expect(fc.scenario()
-      .config(new Strategies.RandomCachedStrategy())
       .forall('a', fc.boolean())
       .then(({a}) => a || !a)
       .check()
