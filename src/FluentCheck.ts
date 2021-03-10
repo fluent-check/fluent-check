@@ -1,3 +1,4 @@
+import Rand, {PRNG} from 'rand-seed'
 import {Arbitrary, FluentPick} from './arbitraries'
 import {FluentStrategy} from './strategies/FluentStrategy'
 import {FluentStrategyFactory} from './strategies/FluentStrategyFactory'
@@ -15,7 +16,7 @@ export class FluentResult {
   }
 }
 
-export type FluentConfig = { sampleSize?: number, shrinkSize?: number, seed: bigint}
+export type FluentConfig = { sampleSize?: number, shrinkSize?: number, seed: string}
 
 export class FluentCheck<Rec extends ParentRec, ParentRec extends {}> {
     protected readonly parent: FluentCheck<ParentRec, any> | undefined = undefined) {
@@ -49,6 +50,10 @@ export class FluentCheck<Rec extends ParentRec, ParentRec extends {}> {
 
   then(f: (arg: Rec) => boolean): FluentCheckAssert<Rec, ParentRec> {
     return new FluentCheckAssert(this, f, this.strategy)
+  }
+
+  withSeed(seed: string): FluentCheckSeed<Rec, ParentRec> {
+    return new FluentCheckSeed(this, seed, this.configuration)
   }
 
   protected run(
@@ -88,6 +93,8 @@ export class FluentCheck<Rec extends ParentRec, ParentRec extends {}> {
     for (const k in testCase) result[k] = testCase[k].value
     return result
   }
+
+  public getParent(): FluentCheck<ParentRec, any> | undefined { return this.parent }
 }
 
 class FluentCheckWhen<Rec extends ParentRec, ParentRec extends {}> extends FluentCheck<Rec, ParentRec> {
@@ -229,5 +236,22 @@ class FluentCheckAssert<Rec extends ParentRec, ParentRec extends {}> extends Flu
     return this.assertion({...unwrappedTestCase, ...this.runPreliminaries(unwrappedTestCase)} as Rec) ?
       callback(testCase) :
       new FluentResult(false)
+  }
+}
+
+class FluentCheckSeed<Rec extends ParentRec, ParentRec extends {}> extends FluentCheck<Rec, ParentRec> {
+  constructor(
+    protected readonly parent: FluentCheck<ParentRec, any>,
+    public readonly seed: string,
+    config: FluentConfig) {
+
+    super(parent, config)
+    this.configuration.seed = hexToDec(seed)
+    this.generator = new Rand(this.configuration.seed, PRNG.xoshiro128ss)
+    let p: FluentCheck<ParentRec, any> | undefined = this.parent
+    while (p !== undefined) {
+      p.generator = this.generator
+      p = p.getParent()
+    }
   }
 }

@@ -10,7 +10,8 @@ export class ArbitraryInteger extends Arbitrary<number> {
   size(): ArbitrarySize { return {value: this.max - this.min + 1, type: 'exact'} }
 
   pick() {
-    const value = Math.floor(Math.random() * (this.max - this.min + 1)) + this.min
+    const value = Math.floor((this.generator ?
+      this.generator.next() : Math.random()) * (this.max - this.min + 1)) + this.min
     return {value, original: value}
   }
 
