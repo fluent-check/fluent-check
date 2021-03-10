@@ -94,7 +94,8 @@ export class FluentCheck<Rec extends ParentRec, ParentRec extends {}> {
     return result
   }
 
-  public getParent(): FluentCheck<ParentRec, any> | undefined { return this.parent }
+  getParent(): FluentCheck<ParentRec, any> | undefined { return this.parent }
+  setGenerator(generator: Rand): void { this.generator = generator }
 }
 
 class FluentCheckWhen<Rec extends ParentRec, ParentRec extends {}> extends FluentCheck<Rec, ParentRec> {
@@ -189,6 +190,11 @@ abstract class FluentCheckQuantifier<K extends string, A, Rec extends ParentRec 
     return partial || new FluentResult(!this.breakValue)
   }
 
+  setGenerator(generator: Rand): void {
+    this.generator = generator
+    this.a.setGenerator(this.generator)
+  }
+
   abstract breakValue: boolean
 }
 
@@ -250,7 +256,7 @@ class FluentCheckSeed<Rec extends ParentRec, ParentRec extends {}> extends Fluen
     this.generator = new Rand(this.configuration.seed, PRNG.xoshiro128ss)
     let p: FluentCheck<ParentRec, any> | undefined = this.parent
     while (p !== undefined) {
-      p.generator = this.generator
+      p.setGenerator(this.generator)
       p = p.getParent()
     }
   }
