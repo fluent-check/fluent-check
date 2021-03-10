@@ -6,7 +6,7 @@ type WrapFluentPick<T> = { [P in keyof T]: FluentPick<T[P]> }
 type PickResult<V> = Record<string, FluentPick<V>>
 type ValueResult<V> = Record<string, V>
 
-class FluentResult {
+export class FluentResult {
   constructor(public readonly satisfiable = false, public example: PickResult<any> = {}) { }
 
   addExample<A>(name: string, value: FluentPick<A>) {
@@ -14,10 +14,7 @@ class FluentResult {
   }
 }
 
-export type FluentConfig = { sampleSize: number, shrinkSize: number }
-
 export class FluentCheck<Rec extends ParentRec, ParentRec extends {}> {
-
   constructor(public strategy: FluentStrategy = new FluentStrategyFactory().defaultStrategy().build(),
     protected readonly parent: FluentCheck<ParentRec, any> | undefined = undefined) {
   }
