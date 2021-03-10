@@ -94,13 +94,12 @@ export class FluentCheck<Rec extends ParentRec, ParentRec extends {}> {
     return result
   }
 
-  getParent(): FluentCheck<ParentRec, any> | undefined { return this.parent }
   setGenerator(generator: Rand): void { this.generator = generator }
 }
 
 class FluentCheckWhen<Rec extends ParentRec, ParentRec extends {}> extends FluentCheck<Rec, ParentRec> {
   constructor(
-    protected readonly parent: FluentCheck<ParentRec, any>,
+    readonly parent: FluentCheck<ParentRec, any>,
     public readonly f: (givens: Rec) => void,
     strategy: FluentStrategy) {
 
@@ -130,7 +129,7 @@ class FluentCheckGivenMutable<K extends string, V, Rec extends ParentRec & Recor
   extends FluentCheckGiven<K, V, Rec, ParentRec> {
 
   constructor(
-    protected readonly parent: FluentCheck<ParentRec, any>,
+    readonly parent: FluentCheck<ParentRec, any>,
     public readonly name: K,
     public readonly factory: (args: ParentRec) => V,
     strategy: FluentStrategy) {
@@ -143,7 +142,7 @@ class FluentCheckGivenConstant<K extends string, V, Rec extends ParentRec & Reco
   extends FluentCheckGiven<K, V, Rec, ParentRec> {
 
   constructor(
-    protected readonly parent: FluentCheck<ParentRec, any>,
+    readonly parent: FluentCheck<ParentRec, any>,
     public readonly name: K,
     public readonly value: V,
     strategy: FluentStrategy) {
@@ -161,7 +160,7 @@ abstract class FluentCheckQuantifier<K extends string, A, Rec extends ParentRec 
   extends FluentCheck<Rec, ParentRec> {
 
   constructor(
-    protected readonly parent: FluentCheck<ParentRec, any>,
+    readonly parent: FluentCheck<ParentRec, any>,
     public readonly name: K,
     public readonly a: Arbitrary<A>,
     strategy: FluentStrategy) {
@@ -212,7 +211,7 @@ class FluentCheckAssert<Rec extends ParentRec, ParentRec extends {}> extends Flu
   preliminaries: FluentCheck<unknown, any>[]
 
   constructor(
-    protected readonly parent: FluentCheck<ParentRec, any>,
+    readonly parent: FluentCheck<ParentRec, any>,
     public readonly assertion: (args: Rec) => boolean,
     strategy: FluentStrategy) {
 
@@ -247,7 +246,7 @@ class FluentCheckAssert<Rec extends ParentRec, ParentRec extends {}> extends Flu
 
 class FluentCheckSeed<Rec extends ParentRec, ParentRec extends {}> extends FluentCheck<Rec, ParentRec> {
   constructor(
-    protected readonly parent: FluentCheck<ParentRec, any>,
+    readonly parent: FluentCheck<ParentRec, any>,
     public readonly seed: string,
     config: FluentConfig) {
 
@@ -257,7 +256,7 @@ class FluentCheckSeed<Rec extends ParentRec, ParentRec extends {}> extends Fluen
     let p: FluentCheck<ParentRec, any> | undefined = this.parent
     while (p !== undefined) {
       p.setGenerator(this.generator)
-      p = p.getParent()
+      p = p.parent
     }
   }
 }
