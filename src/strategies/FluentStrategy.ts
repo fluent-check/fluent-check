@@ -16,16 +16,27 @@ export class FluentStrategy implements FluentStrategyInterface {
   public arbitraries: StrategyArbitraries = {}
 
   /**
+   * Contains all the assertions concercing a test case
+   */
+  public assertions: {(...args: any[]): boolean} [] = []
+
+  /**
    * Default constructor. Receives the FluentCheck configuration, which is used for test case generation purposes.
    */
   constructor(public readonly configuration: FluentStrategyConfig) {}
-  tokenize() {}
+
   /**
    * Adds an arbitrary to the arbitraries record
    */
   addArbitrary<K extends string, A>(arbitraryName: K, a: Arbitrary<A>) {
     this.arbitraries[arbitraryName] = {arbitrary: a, pickNum: 0, collection: []}
-    this.setArbitraryCache(arbitraryName)
+  }
+
+  /**
+   * Adds an assertions to the assertions array.
+   */
+  addAssertion(f: (...args: any[]) => boolean) {
+    this.assertions.push(f)
   }
 
   /**
@@ -34,6 +45,8 @@ export class FluentStrategy implements FluentStrategyInterface {
   configArbitrary<K extends string>(arbitraryName: K, partial: FluentResult | undefined, depth: number) {
     this.arbitraries[arbitraryName].pickNum = 0
     this.arbitraries[arbitraryName].collection = []
+
+    this.setArbitraryCache(arbitraryName)
 
     if (depth === 0)
       this.arbitraries[arbitraryName].collection = this.arbitraries[arbitraryName].cache !== undefined ?
@@ -53,7 +66,7 @@ export class FluentStrategy implements FluentStrategyInterface {
   /**
    * Hook that acts as point of extension of the addArbitrary function and that enables the strategy to be cached.
    */
-  setArbitraryCache<K extends string, A>(_arbitraryName: K) {}
+  setArbitraryCache<K extends string>(_arbitraryName: K) {}
 
   /**
    * Generates a once a collection of inputs for a given arbitrary
@@ -68,19 +81,27 @@ export class FluentStrategy implements FluentStrategyInterface {
   shrink<K extends string>(_name: K, _partial: FluentResult | undefined) {}
 
   /**
+   * Hook that acts as point of extension of the buildArbitraryCollection function and that enables the strategy to use
+   * extracted constants from code in the test cases.
+   */
+  getArbitraryExtractedConstants<A>(_arbitrary: Arbitrary<A>): FluentPick<A>[] {
+    return []
+  }
+
+  /**
    * Determines whether there are more inputs to be used for test case generation purposes. This function can use
    * several factors (e.g. input size, time) to determine whether the generation process should be stoped or not.
    *
    * Returns true if there are still more inputs to be used; otherwise it returns false.
    */
-  hasInput<K extends string>(arbitraryName: K): boolean {
+  hasInput<K extends string>(_arbitraryName: K): boolean {
     throw new Error('Method <hasInput> not implemented.')
   }
 
   /**
    * Retrieves a new input from the arbitraries record.
    */
-  getInput<K extends string, A>(arbitraryName: K): FluentPick<A> {
+  getInput<K extends string, A>(_arbitraryName: K): FluentPick<A> {
     throw new Error('Method <getInput > not implemented.')
   }
 
