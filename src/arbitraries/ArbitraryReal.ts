@@ -6,7 +6,7 @@ export class ArbitraryReal extends ArbitraryInteger {
   }
 
   pick()  {
-    const value = Math.random() * (this.max - this.min) + this.min
+    const value = this.generator() * (this.max - this.min) + this.min
     return {value, original: value}
   }
 }
