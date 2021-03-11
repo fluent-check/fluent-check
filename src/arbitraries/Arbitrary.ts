@@ -29,12 +29,12 @@ export abstract class Arbitrary<A> {
    * Returns a sample of picks of a given size. Sample might contain repeated values
    * and corner cases are not taken into account.
    */
-  sample(sampleSize = 10, generator: () => number = Math.random): FluentPick<A>[] {
-    const result: FluentPick<A>[] = []
+  sample(sampleSize = 10, currSample: FluentPick<A>[] = [], generator: () => number = Math.random): FluentPick<A>[] {
+    const result: FluentPick<A>[] = sampleSize <= currSample.length ? [] : currSample
 
-    for (let i = 0; i < sampleSize; i ++) {
+    for (let i = result.length; i < sampleSize; i++) {
       const pick = this.pick(generator)
-      if (pick !== undefined) result.push(pick)
+      if (pick) result.push(pick)
       else break
     }
 
@@ -45,12 +45,14 @@ export abstract class Arbitrary<A> {
    * Returns a sample of picks of a given size withour replacement. Sample will
    * not contain repeated values. Corner cases are not taken into account.
    */
-  sampleUnique(sampleSize = 10, cornerCases: FluentPick<A>[] = [],
+  sampleUnique(sampleSize = 10, currSample: FluentPick<A>[] = [],
     generator: () => number = Math.random): FluentPick<A>[] {
     const result = new Map<string, FluentPick<A>>()
 
-    for (const k in cornerCases)
-      result.set(stringify(cornerCases[k].value), cornerCases[k])
+    if (sampleSize > currSample.length) {
+      for (const k in currSample)
+        result.set(stringify(currSample[k].value), currSample[k])
+    }
 
     const initialSize = this.size()
     let bagSize = Math.min(sampleSize, initialSize.value)
@@ -76,16 +78,16 @@ export abstract class Arbitrary<A> {
    * and might be biased toward corner cases (depending on the specific arbitrary
    * implementing or not the cornerCases method).
    */
-  sampleWithBias(sampleSize = 10, generator: () => number = Math.random): FluentPick<A>[] {
-    const cornerCases = this.cornerCases()
+  sampleWithBias(
+    sampleSize = 10,
+    currSample: FluentPick<A>[] = [],
+    generator: () => number = Math.random): FluentPick<A>[] {
+    currSample = currSample.concat(this.cornerCases())
 
-    if (sampleSize <= cornerCases.length)
-      return this.sample(sampleSize, generator)
+    if (sampleSize <= currSample.length)
+      return this.sample(sampleSize, [], generator)
 
-    const sample = this.sample(sampleSize - cornerCases.length, generator)
-    sample.unshift(...cornerCases)
-
-    return sample
+    return this.sample(sampleSize, currSample, generator)
   }
 
   /**
@@ -93,13 +95,16 @@ export abstract class Arbitrary<A> {
    * and might be biased toward corner cases (depending on the specific arbitrary
    * implementing or not the cornerCases method).
    */
-  sampleUniqueWithBias(sampleSize = 10, generator: () => number = Math.random): FluentPick<A>[] {
-    const cornerCases = this.cornerCases()
+  sampleUniqueWithBias(
+    sampleSize = 10,
+    currSample: FluentPick<A>[] = [],
+    generator: () => number = Math.random): FluentPick<A>[] {
+    currSample = [...new Set(currSample.concat(this.cornerCases()))]
 
-    if (sampleSize <= cornerCases.length)
+    if (sampleSize <= currSample.length)
       return this.sampleUnique(sampleSize, [], generator)
 
-    return this.sampleUnique(sampleSize, cornerCases, generator)
+    return this.sampleUnique(sampleSize, currSample, generator)
   }
 
   /**
