@@ -17,8 +17,6 @@
   "author": "André Restivo, Hugo Sereno Ferreira, Rui Gonçalves",
   "license": "MIT",
   "dependencies": {
-    "rand-seed": "^1.0.0",
-    "set-blocking": "^2.0.0",
     "typescript": "^4.2.3"
   },
   "repository": {
