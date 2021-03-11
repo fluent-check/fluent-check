@@ -1,7 +1,5 @@
-import Rand, {PRNG} from 'rand-seed'
 import {Arbitrary, FluentPick} from './arbitraries'
-import {FluentStrategy} from './strategies/FluentStrategy'
-import {FluentStrategyFactory} from './strategies/FluentStrategyFactory'
+import {hexToDec} from './arbitraries/util'
 
 type UnwrapFluentPick<T> = { [P in keyof T]: T[P] extends FluentPick<infer E> ? E : T[P] }
 type WrapFluentPick<T> = { [P in keyof T]: FluentPick<T[P]> }
@@ -16,13 +14,20 @@ export class FluentResult {
   }
 }
 
-export type FluentConfig = { sampleSize?: number, shrinkSize?: number, seed: string}
+export type FluentConfig = { sampleSize?: number, shrinkSize?: number}
 
 export class FluentCheck<Rec extends ParentRec, ParentRec extends {}> {
-    protected readonly parent: FluentCheck<ParentRec, any> | undefined = undefined) {
+  public prng: {
+    generator: () => number,
+    seed: number | undefined
+  }
 
   constructor(public strategy: FluentStrategy = new FluentStrategyFactory().defaultStrategy().build(),
     protected readonly parent: FluentCheck<ParentRec, any> | undefined = undefined) {
+    if (this.parent === undefined)
+      this.prng = {generator: Math.random, seed: undefined}
+    else
+      this.prng = this.parent.prng
   }
 
   config(strategy: FluentStrategyFactory) {
@@ -52,8 +57,8 @@ export class FluentCheck<Rec extends ParentRec, ParentRec extends {}> {
     return new FluentCheckAssert(this, f, this.strategy)
   }
 
-  withSeed(seed: string): FluentCheckSeed<Rec, ParentRec> {
-    return new FluentCheckSeed(this, seed, this.configuration)
+  withGenerator(generator: (seed: number) => () => number, seed?: number): FluentCheckGenerator<Rec, ParentRec> {
+    return new FluentCheckGenerator(this, this.configuration, generator, seed)
   }
 
   protected run(
@@ -94,7 +99,7 @@ export class FluentCheck<Rec extends ParentRec, ParentRec extends {}> {
     return result
   }
 
-  setGenerator(generator: Rand): void { this.generator = generator }
+  setPrng(prng: { generator: () => number, seed: number | undefined }): void { this.prng = prng }
 }
 
 class FluentCheckWhen<Rec extends ParentRec, ParentRec extends {}> extends FluentCheck<Rec, ParentRec> {
@@ -189,9 +194,9 @@ abstract class FluentCheckQuantifier<K extends string, A, Rec extends ParentRec 
     return partial || new FluentResult(!this.breakValue)
   }
 
-  setGenerator(generator: Rand): void {
-    this.generator = generator
-    this.a.setGenerator(this.generator)
+  setPrng(prng: { generator: () => number, seed: number | undefined }): void {
+    this.prng = prng
+    this.a.setGenerator(this.prng.generator)
   }
 
   abstract breakValue: boolean
@@ -244,18 +249,22 @@ class FluentCheckAssert<Rec extends ParentRec, ParentRec extends {}> extends Flu
   }
 }
 
-class FluentCheckSeed<Rec extends ParentRec, ParentRec extends {}> extends FluentCheck<Rec, ParentRec> {
+class FluentCheckGenerator<Rec extends ParentRec, ParentRec extends {}> extends FluentCheck<Rec, ParentRec> {
   constructor(
     readonly parent: FluentCheck<ParentRec, any>,
-    public readonly seed: string,
-    config: FluentConfig) {
-
+    config: FluentConfig,
+    readonly generator: (seed: number) => () => number,
+    readonly seed?: number
+  ) {
     super(parent, config)
-    this.configuration.seed = hexToDec(seed)
-    this.generator = new Rand(this.configuration.seed, PRNG.xoshiro128ss)
+    if (seed !== undefined)
+      this.prng.seed = seed
+    else
+      this.prng.seed = Math.floor(Math.random() * 0x100000000)
+    this.prng.generator = generator(this.prng.seed)
     let p: FluentCheck<ParentRec, any> | undefined = this.parent
     while (p !== undefined) {
-      p.setGenerator(this.generator)
+      p.setPrng(this.prng)
       p = p.parent
     }
   }
