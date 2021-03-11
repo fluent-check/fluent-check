@@ -54,7 +54,10 @@ export function Cached<TBase extends MixinStrategy>(Base: TBase) {
 export function Biased<TBase extends MixinStrategy>(Base: TBase) {
   return class extends Base {
     buildArbitraryCollection<A>(arbitrary: Arbitrary<A>, sampleSize = this.configuration.sampleSize): FluentPick<A>[] {
-      return this.isDedupable() ? arbitrary.sampleUniqueWithBias(sampleSize) : arbitrary.sampleWithBias(sampleSize)
+      const constantsSample = this.getArbitraryExtractedConstants(arbitrary)
+      return this.isDedupable() ?
+        arbitrary.sampleUniqueWithBias(sampleSize, constantsSample) :
+        arbitrary.sampleWithBias(sampleSize, constantsSample)
     }
   }
 }

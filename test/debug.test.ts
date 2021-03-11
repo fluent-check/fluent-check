@@ -3,11 +3,15 @@ import {it} from 'mocha'
 import {expect} from 'chai'
 
 describe('Debug tests', () => {
-  it('finds a number that is divisible by -13 and shrinks it', () => {
+  it('dumb test that proves that finding an integer equal to 10 in a random way is VERY unlikely', () => {
     expect(fc.scenario()
-      .exists('a', fc.integer(-100, -1))
-      .then(({a}) => a % 13 === 0)
+      .config(fc.strategy()
+        .withRandomSampling()
+        .withConstantExtraction()
+      ) // Comment configuration to run with default strategy
+      .exists('a', fc.integer())
+      .then(({a}) => a === 10)
       .check()
-    ).to.deep.include({satisfiable: true, example: {a: -13}})
+    ).to.deep.include({satisfiable: true, example: {a: 10}})
   })
 })
