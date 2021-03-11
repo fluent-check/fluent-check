@@ -6,8 +6,8 @@ type WrapFluentPick<T> = { [P in keyof T]: FluentPick<T[P]> }
 
 type FluentPicks = Record<string, FluentPick<any> | any>
 
-export class FluentResult {
-  constructor(public readonly satisfiable = false, public example: FluentPicks = {}) { }
+class FluentResult {
+  constructor(public readonly satisfiable = false, public example: FluentPicks = {}, public readonly seed?: string) { }
 
   addExample<A>(name: string, value: FluentPick<A>) {
     this.example[name] = value
@@ -89,7 +89,8 @@ export class FluentCheck<Rec extends ParentRec, ParentRec extends {}> {
     if (this.parent !== undefined) return this.parent.check(testCase => this.run(testCase, child))
     else {
       const r = this.run({}, child)
-      return new FluentResult(r.satisfiable, FluentCheck.unwrapFluentPick(r.example))
+      return new FluentResult(r.satisfiable, FluentCheck.unwrapFluentPick(r.example),
+        this.prng.seed === undefined ? 'unseeded' : this.prng.seed.toString())
     }
   }
 
