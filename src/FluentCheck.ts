@@ -15,8 +15,6 @@ export class FluentResult {
   }
 }
 
-export type FluentConfig = { sampleSize?: number, shrinkSize?: number }
-
 export class FluentCheck<Rec extends ParentRec, ParentRec extends {}> {
 
   constructor(public strategy: FluentStrategy = new FluentStrategyFactory().defaultStrategy().build(),

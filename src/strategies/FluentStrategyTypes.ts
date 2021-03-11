@@ -8,3 +8,11 @@ export type FluentStrategyArbitrary<A> = {
 }
 
 export type StrategyArbitraries = Record<string, FluentStrategyArbitrary<any> | any>
+
+export type StrategyConstants = Record<string, Array<any>>
+
+export type FluentStrategyConfig = {
+  sampleSize: number,
+  shrinkSize?: number,
+  globSource?: string
+}

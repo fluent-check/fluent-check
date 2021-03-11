@@ -1,6 +1,6 @@
 import {Arbitrary, FluentPick} from '../arbitraries'
-import {FluentConfig, FluentResult} from '../FluentCheck'
-import {StrategyArbitraries} from './FluentStrategyTypes'
+import {FluentResult} from '../FluentCheck'
+import {FluentStrategyConfig, StrategyArbitraries} from './FluentStrategyTypes'
 
 export interface FluentStrategyInterface {
   hasInput: <K extends string>(arbitraryName: K) => boolean
@@ -18,8 +18,8 @@ export class FluentStrategy implements FluentStrategyInterface {
   /**
    * Default constructor. Receives the FluentCheck configuration, which is used for test case generation purposes.
    */
-  constructor(public readonly configuration: FluentConfig) {}
-
+  constructor(public readonly configuration: FluentStrategyConfig) {}
+  tokenize() {}
   /**
    * Adds an arbitrary to the arbitraries record
    */
