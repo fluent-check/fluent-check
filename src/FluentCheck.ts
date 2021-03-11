@@ -19,7 +19,7 @@ export type FluentConfig = { sampleSize?: number, shrinkSize?: number}
 export class FluentCheck<Rec extends ParentRec, ParentRec extends {}> {
   public prng: {
     generator: () => number,
-    seed: number | undefined
+    seed?: number
   }
 
   constructor(public strategy: FluentStrategy = new FluentStrategyFactory().defaultStrategy().build(),
@@ -99,7 +99,7 @@ export class FluentCheck<Rec extends ParentRec, ParentRec extends {}> {
     return result
   }
 
-  setPrng(prng: { generator: () => number, seed: number | undefined }): void { this.prng = prng }
+  setPrng(prng: { generator: () => number, seed?: number }): void { this.prng = prng }
 }
 
 class FluentCheckWhen<Rec extends ParentRec, ParentRec extends {}> extends FluentCheck<Rec, ParentRec> {
@@ -194,7 +194,7 @@ abstract class FluentCheckQuantifier<K extends string, A, Rec extends ParentRec 
     return partial || new FluentResult(!this.breakValue)
   }
 
-  setPrng(prng: { generator: () => number, seed: number | undefined }): void {
+  setPrng(prng: { generator: () => number, seed?: number }): void {
     this.prng = prng
     this.a.setGenerator(this.prng.generator)
   }
