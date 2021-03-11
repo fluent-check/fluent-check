@@ -1,5 +1,4 @@
-import {Arbitrary, FluentPick} from './arbitraries'
-import {hexToDec} from './arbitraries/util'
+import {Arbitrary, FluentPick, PrngInfo} from './arbitraries'
 
 type UnwrapFluentPick<T> = { [P in keyof T]: T[P] extends FluentPick<infer E> ? E : T[P] }
 type WrapFluentPick<T> = { [P in keyof T]: FluentPick<T[P]> }
@@ -17,10 +16,7 @@ class FluentResult {
 export type FluentConfig = { sampleSize?: number, shrinkSize?: number}
 
 export class FluentCheck<Rec extends ParentRec, ParentRec extends {}> {
-  public prng: {
-    generator: () => number,
-    seed?: number
-  }
+  public prng: PrngInfo
 
   constructor(public strategy: FluentStrategy = new FluentStrategyFactory().defaultStrategy().build(),
     protected readonly parent: FluentCheck<ParentRec, any> | undefined = undefined) {
@@ -100,7 +96,7 @@ export class FluentCheck<Rec extends ParentRec, ParentRec extends {}> {
     return result
   }
 
-  setPrng(prng: { generator: () => number, seed?: number }): void { this.prng = prng }
+  setPrng(prng: PrngInfo): void { this.prng = prng }
 }
 
 class FluentCheckWhen<Rec extends ParentRec, ParentRec extends {}> extends FluentCheck<Rec, ParentRec> {
@@ -195,7 +191,7 @@ abstract class FluentCheckQuantifier<K extends string, A, Rec extends ParentRec 
     return partial || new FluentResult(!this.breakValue)
   }
 
-  setPrng(prng: { generator: () => number, seed?: number }): void {
+  setPrng(prng: PrngInfo): void {
     this.prng = prng
     this.a.setGenerator(this.prng.generator)
   }

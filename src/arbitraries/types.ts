@@ -8,3 +8,8 @@ export type ArbitrarySize = {
   type: 'exact' | 'estimated'
   credibleInterval?: [number, number]
 }
+
+export type PrngInfo = {
+  generator: () => number,
+  seed?: number
+}
