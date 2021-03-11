@@ -64,11 +64,22 @@ export class FluentStrategyFactory {
   }
 
   /**
+   * Enables constant extraction. It is also possible indicate the source from where constants should be extracted apart
+   * from the test case assertions.
+   */
+  withConstantExtraction(globSource: '') {
+    this.configuration = {...this.configuration, globSource}
+    this.strategy = ConstantExtractionBased(this.strategy)
+    return this
+  }
+
+  /**
    * Default strategy composition.
    */
   defaultStrategy() {
     this.configuration = {...this.configuration, shrinkSize: 500}
-    this.strategy = ConstantExtractionBased(Shrinkable(Cached(Biased(Dedupable(Random(this.strategy))))))
+    this.strategy = Shrinkable(Cached(Biased(Dedupable(Random(this.strategy)))))
+    // this.strategy = ConstantExtractionBased(Shrinkable(Cached(Biased(Dedupable(Random(this.strategy))))))
     return this
   }
 

@@ -22,17 +22,28 @@ export class FluentStrategy implements FluentStrategyInterface {
    */
   public randomGenerator = new FluentRandomGenerator()
 
+  /*
+   * Contains all the assertions concercing a test case
+   */
+  public assertions: {(...args: any[]): boolean} [] = []
+
   /**
    * Default constructor. Receives the FluentCheck configuration, which is used for test case generation purposes.
    */
   constructor(public readonly configuration: FluentStrategyConfig) {}
-  tokenize() {}
+
   /**
    * Adds an arbitrary to the arbitraries record
    */
   addArbitrary<K extends string, A>(arbitraryName: K, a: Arbitrary<A>) {
     this.arbitraries[arbitraryName] = {arbitrary: a, pickNum: 0, collection: []}
-    this.setArbitraryCache(arbitraryName)
+  }
+
+  /**
+   * Adds an assertions to the assertions array.
+   */
+  addAssertion(f: (...args: any[]) => boolean) {
+    this.assertions.push(f)
   }
 
   /**
@@ -41,6 +52,8 @@ export class FluentStrategy implements FluentStrategyInterface {
   configArbitrary<K extends string>(arbitraryName: K, partial: FluentResult | undefined, depth: number) {
     this.arbitraries[arbitraryName].pickNum = 0
     this.arbitraries[arbitraryName].collection = []
+
+    this.setArbitraryCache(arbitraryName)
 
     if (depth === 0)
       this.arbitraries[arbitraryName].collection = this.arbitraries[arbitraryName].cache !== undefined ?
@@ -74,6 +87,14 @@ export class FluentStrategy implements FluentStrategyInterface {
    * Hook that acts as point of extension of the configArbitrary function and that enables an arbitrary to be shrinked.
    */
   shrink<K extends string>(_name: K, _partial: FluentResult | undefined) {}
+
+  /**
+   * Hook that acts as point of extension of the buildArbitraryCollection function and that enables the strategy to use
+   * extracted constants from code in the test cases.
+   */
+  getArbitraryExtractedConstants<A>(_arbitrary: Arbitrary<A>): FluentPick<A>[] {
+    return []
+  }
 
   /**
    * Determines whether there are more inputs to be used for test case generation purposes. This function can use

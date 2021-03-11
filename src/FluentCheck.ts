@@ -201,6 +201,7 @@ class FluentCheckAssert<Rec extends ParentRec, ParentRec extends {}> extends Flu
     strategy: FluentStrategy) {
 
     super(strategy, parent)
+    this.strategy.addAssertion(assertion)
     this.preliminaries = this.pathFromRoot().filter(node =>
       node instanceof FluentCheckGivenMutable ||
       node instanceof FluentCheckWhen)
