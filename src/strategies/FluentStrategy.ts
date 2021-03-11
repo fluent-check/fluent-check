@@ -1,6 +1,6 @@
 import {Arbitrary, FluentPick, FluentRandomGenerator} from '../arbitraries'
 import {FluentResult} from '../FluentCheck'
-import {StrategyArbitraries} from './FluentStrategyTypes'
+import {FluentStrategyConfig, StrategyArbitraries} from './FluentStrategyTypes'
 
 export type FluentConfig = { sampleSize?: number, shrinkSize?: number }
 
@@ -25,8 +25,8 @@ export class FluentStrategy implements FluentStrategyInterface {
   /**
    * Default constructor. Receives the FluentCheck configuration, which is used for test case generation purposes.
    */
-  constructor(public readonly configuration: FluentConfig) {}
-
+  constructor(public readonly configuration: FluentStrategyConfig) {}
+  tokenize() {}
   /**
    * Adds an arbitrary to the arbitraries record
    */

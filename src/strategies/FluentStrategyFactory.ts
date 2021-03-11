@@ -1,5 +1,6 @@
-import {FluentStrategy, FluentConfig} from './FluentStrategy'
-import {Biased, Cached, Dedupable, Random, Shrinkable} from './FluentStrategyMixins'
+import {FluentStrategy} from './FluentStrategy'
+import {Biased, Cached, ConstantExtractionBased, Dedupable, Random, Shrinkable} from './FluentStrategyMixins'
+import {FluentStrategyConfig} from './FluentStrategyTypes'
 
 export class FluentStrategyFactory {
 
@@ -11,7 +12,7 @@ export class FluentStrategyFactory {
   /**
    * Strategy configuration
    */
-  public configuration: FluentConfig = {sampleSize: 1000}
+  public configuration: FluentStrategyConfig = {sampleSize: 1000}
 
   /**
    * Changes the sample size to be used while sampling test cases.
@@ -67,7 +68,7 @@ export class FluentStrategyFactory {
    */
   defaultStrategy() {
     this.configuration = {...this.configuration, shrinkSize: 500}
-    this.strategy = Shrinkable(Cached(Biased(Dedupable(Random(this.strategy)))))
+    this.strategy = ConstantExtractionBased(Shrinkable(Cached(Biased(Dedupable(Random(this.strategy))))))
     return this
   }
 

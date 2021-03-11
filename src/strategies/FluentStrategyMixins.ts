@@ -1,6 +1,10 @@
+import * as espree from 'espree'
+import * as glob from 'glob'
+import * as fs from 'fs'
 import {Arbitrary, FluentPick} from '../arbitraries'
 import {FluentResult} from '../FluentCheck'
 import {FluentStrategy, FluentStrategyInterface} from './FluentStrategy'
+import {StrategyConstants} from './FluentStrategyTypes'
 
 type MixinConstructor<T = {}> = new (...args: any[]) => T
 type MixinStrategy = MixinConstructor<FluentStrategy>
@@ -52,5 +56,25 @@ export function Biased<TBase extends MixinStrategy>(Base: TBase) {
       return this.isDedupable() ? arbitrary.sampleUniqueWithBias(sampleSize, this.randomGenerator.generator) :
         arbitrary.sampleWithBias(sampleSize, this.randomGenerator.generator)
     }
+  }
+}
+
+export function ConstantExtractionBased<TBase extends MixinStrategy>(Base: TBase) {
+  return class extends Base {
+
+    public constants: StrategyConstants = {'integer': []}
+
+    tokenize() {
+      const files = glob.sync(this.configuration.globSource + '/**/*', {nodir: true})
+
+      for (const file of files) {
+        const tokens = espree.tokenize(fs.readFileSync(file).toString('utf-8').replace(/['`]/g, '"'))
+          .filter(token => token.type === 'Numeric' && !token.value.includes('.'))
+          .map(token => Number.parseInt(token.value))
+
+        this.constants['integer'] = [...new Set(this.constants['integer'].concat(tokens))]
+      }
+    }
+
   }
 }
