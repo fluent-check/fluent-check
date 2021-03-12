@@ -1,5 +1,12 @@
+import {
+  Biased,
+  Cached,
+  Dedupable,
+  Random,
+  Shrinkable,
+  ConstantExtractionBased
+} from './mixins/internal'
 import {FluentStrategy} from './FluentStrategy'
-import {Biased, Cached, ConstantExtractionBased, Dedupable, Random, Shrinkable} from './FluentStrategyMixins'
 import {FluentStrategyConfig} from './FluentStrategyTypes'
 
 export class FluentStrategyFactory {
@@ -64,11 +71,12 @@ export class FluentStrategyFactory {
   }
 
   /**
-   * Enables constant extraction. It is also possible indicate the source from where constants should be extracted apart
-   * from the test case assertions.
+   * Enables constant extraction. As additional configuration, there is the possibility of indicating the source from
+   * where constants should be extracted (apart from the test case assertion(s)) and specifying the maximum range from
+   * which constants can be infered.
    */
-  withConstantExtraction(globSource = '') {
-    this.configuration = {...this.configuration, globSource}
+  withConstantExtraction(globSource = '', maxRange = 100) {
+    this.configuration = {...this.configuration, globSource, maxRange}
     this.strategy = ConstantExtractionBased(this.strategy)
     return this
   }
