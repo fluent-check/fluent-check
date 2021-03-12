@@ -62,7 +62,8 @@ describe('Generation tests', () => {
   })
 
   it('Generator generates same values in two runs of the same scenario', () => {
-    const sc = fc.scenario().withGenerator(prng, 1234).forall('a', fc.integer(-10, 10)).forall('b', fc.integer(-10, 10))
+    const sc = fc.scenario().config(fc.strategy().withRandomSampling().withBias().withShrinking().withoutReplacement())
+      .withGenerator(prng, 1234).forall('a', fc.integer(-10, 10)).forall('b', fc.integer(-10, 10))
 
     sc.then(({a, b}) => a+b === a+b).check()
     const collection1a = sc.strategy.arbitraries['a'].collection
