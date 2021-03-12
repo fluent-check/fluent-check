@@ -19,7 +19,7 @@ export type FluentStrategyConfig = {
 export type MixinConstructor<T = {}> = new (...args: any[]) => T
 export type MixinStrategy = MixinConstructor<FluentStrategy>
 
-export type StrategyArbitraries = Record<string, FluentStrategyArbitrary<any> | any>
+export type StrategyArbitraries = Record<string, FluentStrategyArbitrary<any>>
 
 export type StrategyExtractedConstants = Record<string, Array<any>>
 
