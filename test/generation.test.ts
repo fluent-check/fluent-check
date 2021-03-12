@@ -12,44 +12,52 @@ describe('Generation tests', () => {
   it('Generator propagates without generator specification', () => {
     const sc = fc.scenario()
 
-    expect(sc.prng.generator === sc.forall('a', fc.integer(-10, 10)).prng.generator).to.be.true
-    expect(sc.prng.generator ===
-      sc.forall('a', fc.integer(-10, 10)).forall('b', fc.integer(-10, 10)).prng.generator).to.be.true
+    expect(sc.strategy.prng.generator === sc.forall('a', fc.integer(-10, 10)).strategy.prng.generator).to.be.true
+    expect(sc.strategy.prng.generator ===
+      sc.forall('a', fc.integer(-10, 10)).forall('b', fc.integer(-10, 10)).strategy.prng.generator).to.be.true
   })
 
   it('Generator generates different values for two similar arbitraries without generator specification', () => {
-    const sc1 = fc.scenario().forall('a', fc.integer(-10, 10))
-    const sc2 = sc1.forall('b', fc.integer(-10, 10))
+    const sc = fc.scenario().forall('a', fc.integer(-10, 10)).forall('b', fc.integer(-10, 10))
 
-    expect(sc1.getCache()).to.not.eql(sc2.getCache())
+    expect(sc.strategy.getCacheOfArbitrary('a')).to.not.be.undefined
+    expect(sc.strategy.getCacheOfArbitrary('b')).to.not.be.undefined
+    expect(sc.strategy.getCacheOfArbitrary('a')).to.not.eql(sc.strategy.getCacheOfArbitrary('b'))
   })
 
   it('Generator propagates with generator specification', () => {
     const sc = fc.scenario()
     const sc2 = sc.withGenerator(prng)
-    expect(sc2.prng.generator === sc.prng.generator).to.be.true
+    expect(sc2.strategy.prng.generator === sc.strategy.prng.generator).to.be.true
 
     const sc3 = sc2.forall('a', fc.integer(-10, 10))
-    expect(sc2.prng.generator === sc3.prng.generator).to.be.true
+    expect(sc2.strategy.prng.generator === sc3.strategy.prng.generator).to.be.true
 
     const sc4 = sc3.forall('b', fc.integer(-10, 10))
-    expect(sc3.prng.generator === sc4.prng.generator).to.be.true
+    expect(sc3.strategy.prng.generator === sc4.strategy.prng.generator).to.be.true
   })
 
   it('Generator generates different values for two similar arbitraries with generator specification', () => {
-    const sc1 = fc.scenario().withGenerator(prng).forall('a', fc.integer(-10, 10))
-    const sc2 = sc1.forall('b', fc.integer(-10, 10))
+    const sc = fc.scenario().withGenerator(prng).forall('a', fc.integer(-10, 10)).forall('b', fc.integer(-10, 10))
 
-    expect(sc1.getCache()).to.not.eql(sc2.getCache())
+    expect(sc.strategy.getCacheOfArbitrary('a')).to.not.be.undefined
+    expect(sc.strategy.getCacheOfArbitrary('b')).to.not.be.undefined
+    expect(sc.strategy.getCacheOfArbitrary('a')).to.not.eql(sc.strategy.getCacheOfArbitrary('b'))
   })
 
   it('Generator generates same values in two runs with the same seed', () => {
-    const sc1 = fc.scenario().withGenerator(prng, 1234).forall('a', fc.integer(-10, 10))
-    const sc2 = sc1.forall('b', fc.integer(-10, 10))
+    const sc1 = fc.scenario().withGenerator(prng, 1234)
+      .forall('a', fc.integer(-10, 10)).forall('b', fc.integer(-10, 10))
+    const sc2 = fc.scenario().withGenerator(prng, 1234)
+      .forall('a', fc.integer(-10, 10)).forall('b', fc.integer(-10, 10))
 
-    const sc3 = fc.scenario().withGenerator(prng, 1234).forall('a', fc.integer(-10, 10))
-    const sc4 = sc3.forall('b', fc.integer(-10, 10))
-    expect(sc1.getCache()).to.have.deep.members(sc3.getCache())
-    expect(sc2.getCache()).to.have.deep.members(sc4.getCache())
+    expect(sc1.strategy.getCacheOfArbitrary('a')).to.not.be.undefined
+    expect(sc1.strategy.getCacheOfArbitrary('b')).to.not.be.undefined
+
+    expect(sc2.strategy.getCacheOfArbitrary('a')).to.not.be.undefined
+    expect(sc2.strategy.getCacheOfArbitrary('b')).to.not.be.undefined
+
+    expect(sc1.strategy.getCacheOfArbitrary('a')).to.eql(sc2.strategy.getCacheOfArbitrary('a'))
+    expect(sc1.strategy.getCacheOfArbitrary('b')).to.eql(sc2.strategy.getCacheOfArbitrary('b'))
   })
 })
