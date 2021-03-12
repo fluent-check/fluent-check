@@ -1,0 +1,6 @@
+export * from './FluentBiasedMixin'
+export * from './FluentCachedMixin'
+export * from './FluentConstantExtractionMixin'
+export * from './FluentDedupableMixin'
+export * from './FluentRandomMixin'
+export * from './FluentShrinkableMixin'
