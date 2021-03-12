@@ -82,6 +82,9 @@ export class FluentCheck<Rec extends ParentRec, ParentRec extends {}> {
   check(child: (testCase: FluentPicks) => FluentResult = () => new FluentResult(true)): FluentResult {
     if (this.parent) return this.parent.check(testCase => this.run(testCase, child))
     else {
+      if (this.strategy.prng.unseededGen && this.strategy.prng.seed) {
+        this.strategy.prng.generator = this.strategy.prng.unseededGen(this.strategy.prng.seed)
+      }
       const r = this.run({}, child)
       return new FluentResult(r.satisfiable, FluentCheck.unwrapFluentPick(r.example),
         this.strategy.prng.seed ? this.strategy.prng.seed.toString() : 'unseeded')
