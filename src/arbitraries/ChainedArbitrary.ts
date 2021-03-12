@@ -8,9 +8,9 @@ export class ChainedArbitrary<A, B> extends Arbitrary<B> {
 
   size() { return this.baseArbitrary.size() }
 
-  pick(): FluentPick<B> | undefined {
-    const pick = this.baseArbitrary.pick()
-    return (pick === undefined) ? undefined : this.f(pick.value).pick()
+  pick(generator: () => number = Math.random): FluentPick<B> | undefined {
+    const pick = this.baseArbitrary.pick(generator)
+    return (pick === undefined) ? undefined : this.f(pick.value).pick(generator)
   }
 
   cornerCases(): FluentPick<B>[] {

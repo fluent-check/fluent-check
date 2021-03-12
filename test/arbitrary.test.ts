@@ -291,7 +291,7 @@ describe('Arbitrary tests', () => {
   describe('Chained Arbitraries', () => {
     it('should allow the creation of array with size based on an integer arbitrary', () => {
       expect(
-        fc.integer(2, 2).chain(i => fc.array(fc.constant(i), i, i)).pick()!.value
+        fc.integer(2, 2).chain(i => fc.array(fc.constant(i), i, i)).pick(Math.random)!.value
       ).to.have.members([2, 2])
     })
 

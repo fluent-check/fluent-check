@@ -97,6 +97,7 @@ export class FluentCheck<Rec extends ParentRec, ParentRec extends {}> {
   }
 
   setPrng(prng: PrngInfo): void { this.prng = prng }
+  getCache(): Array<FluentPick<any>> { return [] }
 }
 
 class FluentCheckWhen<Rec extends ParentRec, ParentRec extends {}> extends FluentCheck<Rec, ParentRec> {
@@ -191,9 +192,8 @@ abstract class FluentCheckQuantifier<K extends string, A, Rec extends ParentRec 
     return partial || new FluentResult(!this.breakValue)
   }
 
-  setPrng(prng: PrngInfo): void {
-    this.prng = prng
-    this.a.setGenerator(this.prng.generator)
+  getCache(): Array<FluentPick<A>> {
+    return this.cache
   }
 
   abstract breakValue: boolean
