@@ -20,7 +20,7 @@ export type FluentConfig = { sampleSize?: number, shrinkSize?: number}
 export class FluentCheck<Rec extends ParentRec, ParentRec extends {}> {
   constructor(public strategy: FluentStrategy = new FluentStrategyFactory().defaultStrategy().build(),
     readonly parent: FluentCheck<ParentRec, any> | undefined = undefined) {
-    if (this.parent !== undefined)
+    if (this.parent)
       this.strategy.prng = this.parent.strategy.prng
   }
 
@@ -71,7 +71,7 @@ export class FluentCheck<Rec extends ParentRec, ParentRec extends {}> {
     do {
       path.unshift(node)
       node = node.parent
-    } while (node !== undefined)
+    } while (node)
     return path
   }
 
@@ -80,11 +80,11 @@ export class FluentCheck<Rec extends ParentRec, ParentRec extends {}> {
   }
 
   check(child: (testCase: FluentPicks) => FluentResult = () => new FluentResult(true)): FluentResult {
-    if (this.parent !== undefined) return this.parent.check(testCase => this.run(testCase, child))
+    if (this.parent) return this.parent.check(testCase => this.run(testCase, child))
     else {
       const r = this.run({}, child)
       return new FluentResult(r.satisfiable, FluentCheck.unwrapFluentPick(r.example),
-        this.strategy.prng.seed === undefined ? 'unseeded' : this.strategy.prng.seed.toString())
+        this.strategy.prng.seed ? this.strategy.prng.seed.toString() : 'unseeded')
     }
   }
 
@@ -247,13 +247,13 @@ class FluentCheckGenerator<Rec extends ParentRec, ParentRec extends {}> extends 
     readonly seed?: number
   ) {
     super(strategy, parent)
-    if (seed !== undefined)
+    if (seed)
       this.strategy.prng.seed = seed
     else
       this.strategy.prng.seed = Math.floor(Math.random() * 0x100000000)
     this.strategy.prng.generator = generator(this.strategy.prng.seed)
     let p: FluentCheck<ParentRec, any> | undefined = this.parent
-    while (p !== undefined) {
+    while (p) {
       p.setPrng(this.strategy.prng)
       p = p.parent
     }
