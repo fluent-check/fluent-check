@@ -18,7 +18,7 @@ export class FluentStrategy implements FluentStrategyInterface {
   /**
    * Information concerning the random value generation
    */
-  public prng: PrngInfo = {generator: Math.random, seed: undefined}
+  public prng: PrngInfo = {unseededGen: undefined, generator: Math.random, seed: undefined}
 
   /**
    * Default constructor. Receives the FluentCheck configuration, which is used for test case generation purposes.

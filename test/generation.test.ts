@@ -60,4 +60,19 @@ describe('Generation tests', () => {
     expect(sc1.strategy.getCacheOfArbitrary('a')).to.eql(sc2.strategy.getCacheOfArbitrary('a'))
     expect(sc1.strategy.getCacheOfArbitrary('b')).to.eql(sc2.strategy.getCacheOfArbitrary('b'))
   })
+
+  it('Generator generates same values in two runs of the same scenario', () => {
+    const sc = fc.scenario().withGenerator(prng, 1234).forall('a', fc.integer(-10, 10)).forall('b', fc.integer(-10, 10))
+
+    sc.then(({a, b}) => a+b === a+b).check()
+    const collection1a = sc.strategy.arbitraries['a'].collection
+    const collection1b = sc.strategy.arbitraries['b'].collection
+
+    sc.then(({a, b}) => a+b === a+b).check()
+    const collection2a = sc.strategy.arbitraries['a'].collection
+    const collection2b = sc.strategy.arbitraries['b'].collection
+
+    expect(collection1a).to.eql(collection2a)
+    expect(collection1b).to.eql(collection2b)
+  })
 })

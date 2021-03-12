@@ -10,6 +10,7 @@ export type ArbitrarySize = {
 }
 
 export type PrngInfo = {
+  unseededGen?: (seed: number) => () => number,
   generator: () => number,
   seed?: number
 }

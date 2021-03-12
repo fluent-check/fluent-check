@@ -247,10 +247,8 @@ class FluentCheckGenerator<Rec extends ParentRec, ParentRec extends {}> extends 
     readonly seed?: number
   ) {
     super(strategy, parent)
-    if (seed)
-      this.strategy.prng.seed = seed
-    else
-      this.strategy.prng.seed = Math.floor(Math.random() * 0x100000000)
+    this.strategy.prng.seed = seed || Math.floor(Math.random() * 0x100000000)
+    this.strategy.prng.unseededGen = generator
     this.strategy.prng.generator = generator(this.strategy.prng.seed)
     let p: FluentCheck<ParentRec, any> | undefined = this.parent
     while (p) {
