@@ -35,55 +35,51 @@ export function ConstantExtractionBased<TBase extends MixinStrategy>(Base: TBase
         return (token.type === 'Punctuator') || (token.type === 'Numeric' && !token.value.includes('.'))
       })
 
-      const indexOfNumericsAndPunctuators = filteredTokens.reduce(function (acc, token, index) {
+      const numericsAndPunctuators = filteredTokens.reduce(function (acc, token, index) {
         if (token.type === 'Numeric')
           acc.push(
-            {opIndex: index - 1, numIndex: index},
-            {opIndex: index + 1, numIndex: index}
+            {punctuator: filteredTokens[index - 1], numeric: filteredTokens[index]},
+            {punctuator: filteredTokens[index + 1], numeric: filteredTokens[index]}
           )
         return acc
       }, [])
 
       const constants: number[] = []
-      let lesserThanConstants: number[] = []
-      let greaterThanConstants: number[] = []
+      const lesserThanConstants: number[] = []
+      const greaterThanConstants: number[] = []
 
-      for (const pair of indexOfNumericsAndPunctuators) {
-        if (pair.opIndex >= 0 && pair.opIndex < filteredTokens.length) {
-          const punctuator = filteredTokens[pair.opIndex].value
-          const value = Number.parseInt(filteredTokens[pair.numIndex].value)
+      for (const pair of numericsAndPunctuators) {
+        if (pair.punctuator === undefined) continue
 
-          if (punctuator === '===' || punctuator === '==') constants.push(value)
-          else if (punctuator === '!==' || punctuator === '!=') constants.push(value - 1, value + 1)
-          else if (punctuator === '>=') greaterThanConstants.push(value)
-          else if (punctuator === '>') greaterThanConstants.push(value + 1)
-          else if (punctuator === '<=') lesserThanConstants.push(value)
-          else if (punctuator === '<') lesserThanConstants.push(value - 1)
-          else constants.push(value * (punctuator === '-' ? -1 : 1))
-        }
+        const punctuator = pair.punctuator.value
+        const value = Number.parseInt(pair.numeric.value)
+
+        if (punctuator === '===' || punctuator === '==' || punctuator === '>=' || punctuator === '<=')
+          constants.push(value)
+        else if (punctuator === '!==' || punctuator === '!=') constants.push(value - 1, value + 1)
+        else if (punctuator === '>') greaterThanConstants.push(value + 1)
+        else if (punctuator === '<') lesserThanConstants.push(value - 1)
+        else constants.push(value * (punctuator === '-' ? -1 : 1))
+
       }
 
       greaterThanConstants.sort((a,b) => a - b)
-      lesserThanConstants.sort((a,b) => b - a)
+      lesserThanConstants.sort((a,b) => a - b)
 
-      for (let i = 0; i < greaterThanConstants.length; i++) {
-        let constant = greaterThanConstants[i]
-        // eslint-disable-next-line max-len
-        const upperLimit = lesserThanConstants.find(x => x >= constant && (x - constant <= this.configuration.maxRange!))
+      let last
+      constants.push(...greaterThanConstants
+        .flatMap(lower => lesserThanConstants.map(upper => ([lower, upper])))
+        .filter(range => (range[0] < range[1] && range[1] - range[0] <= this.configuration.maxRange!))
+        .reduce((nonOverlappingRanges, range) => {
+          if (!last || range[0] > last[1]) nonOverlappingRanges.push(last = range)
+          else if (range[1] > last[1]) last[1] = range[1]
+          return nonOverlappingRanges
+        }, [] as any)
+        .flatMap(range => (
+          Array.from({length: range[1] - range[0] + 1}, (_, index) => index + 1).map(value => value + range[0] - 1))
+        )
+      )
 
-        if (upperLimit === undefined) {
-          constants.push(constant)
-          continue
-        }
-
-        while (constant <= upperLimit)
-          constants.push(constant++)
-
-        lesserThanConstants = lesserThanConstants.filter(x => !constants.includes(x))
-        greaterThanConstants = [...new Set(greaterThanConstants.map(x => x < upperLimit ? upperLimit : x))]
-      }
-
-      constants.push(...lesserThanConstants)
       this.constants['numeric'] = [...new Set(this.constants['numeric'].concat(constants))]
     }
 
