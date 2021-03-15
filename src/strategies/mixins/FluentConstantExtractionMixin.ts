@@ -2,6 +2,7 @@
 import * as espree from 'espree'
 import * as glob from 'glob'
 import * as fs from 'fs'
+import * as utils from './utils'
 import {Arbitrary, FluentPick} from '../../arbitraries'
 import {MixinStrategy, StrategyExtractedConstants, Token} from '../FluentStrategyTypes'
 
@@ -28,11 +29,10 @@ export function ConstantExtractionBased<TBase extends MixinStrategy>(Base: TBase
 
     /**
      * Parses the numeric tokens already extracted. So far it only extract integer constants.
-     * TODO - Parse floats
      */
     parseNumericTokens(tokens: Token[]) {
       const filteredTokens = tokens.filter(token => {
-        return (token.type === 'Punctuator') || (token.type === 'Numeric' && !token.value.includes('.'))
+        return (token.type === 'Punctuator') || (token.type === 'Numeric')
       })
 
       const numericsAndPunctuators = filteredTokens.reduce(function (acc, token, index) {
@@ -52,14 +52,21 @@ export function ConstantExtractionBased<TBase extends MixinStrategy>(Base: TBase
         if (pair.punctuator === undefined) continue
 
         const punctuator = pair.punctuator.value
-        const value = Number.parseInt(pair.numeric.value)
+        const value = pair.numeric.value.includes('.') ?
+          Number.parseFloat(pair.numeric.value) :
+          Number.parseInt(pair.numeric.value)
+
+        const decimals = utils.countDecimals(value)
+        const increment = (1000 / (1000 * 10 ** decimals))
 
         if (punctuator === '===' || punctuator === '==' || punctuator === '>=' || punctuator === '<=')
           constants.push(value)
-        else if (punctuator === '!==' || punctuator === '!=') constants.push(value - 1, value + 1)
-        else if (punctuator === '>') greaterThanConstants.push(value + 1)
-        else if (punctuator === '<') lesserThanConstants.push(value - 1)
+        else if (punctuator === '!==' || punctuator === '!=')
+          constants.push(+(value - increment).toFixed(decimals), +(value + increment).toFixed(decimals))
+        else if (punctuator === '>') greaterThanConstants.push(+(value + increment).toFixed(decimals))
+        else if (punctuator === '<') lesserThanConstants.push(+(value - increment).toFixed(decimals))
         else constants.push(value * (punctuator === '-' ? -1 : 1))
+        // TODO: fix '-' ponctuator. It should consider the previous token
 
       }
 
@@ -69,15 +76,13 @@ export function ConstantExtractionBased<TBase extends MixinStrategy>(Base: TBase
       let last
       constants.push(...greaterThanConstants
         .flatMap(lower => lesserThanConstants.map(upper => ([lower, upper])))
-        .filter(range => (range[0] < range[1] && range[1] - range[0] <= this.configuration.maxRange!))
+        .filter(range => (range[0] < range[1] && utils.computeRange(range) <= this.configuration.maxRange!))
         .reduce((nonOverlappingRanges, range) => {
           if (!last || range[0] > last[1]) nonOverlappingRanges.push(last = range)
           else if (range[1] > last[1]) last[1] = range[1]
           return nonOverlappingRanges
         }, [] as any)
-        .flatMap(range => (
-          Array.from({length: range[1] - range[0] + 1}, (_, index) => index + 1).map(value => value + range[0] - 1))
-        )
+        .flatMap(range => utils.buildSequentialArray(range))
       )
 
       this.constants['numeric'] = [...new Set(this.constants['numeric'].concat(constants))]
@@ -108,7 +113,7 @@ export function ConstantExtractionBased<TBase extends MixinStrategy>(Base: TBase
 
       const extractedConstants: Array<FluentPick<A>> = []
 
-      if (arbitrary.toString().includes('Integer Arbitrary'))
+      if (arbitrary.toString().includes('Integer' || 'Constant'))
         for (const elem of this.constants['numeric'])
           if (arbitrary.canGenerate({value: elem, original: elem}))
             extractedConstants.push({value: elem, original: elem})
