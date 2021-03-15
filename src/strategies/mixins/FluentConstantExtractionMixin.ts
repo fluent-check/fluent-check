@@ -36,11 +36,18 @@ export function ConstantExtractionBased<TBase extends MixinStrategy>(Base: TBase
       })
 
       const numericsAndPunctuators = filteredTokens.reduce(function (acc, token, index) {
-        if (token.type === 'Numeric')
+        if (token.type === 'Numeric') {
+          const leftPunctuatorIndex = (filteredTokens[index - 1] !== undefined &&
+            filteredTokens[index - 1].value !== '-') ? 1 : 2
+
           acc.push(
-            {punctuator: filteredTokens[index - 1], numeric: filteredTokens[index]},
-            {punctuator: filteredTokens[index + 1], numeric: filteredTokens[index]}
+            {
+              punctuator: filteredTokens[index - leftPunctuatorIndex],
+              numeric: leftPunctuatorIndex === 1 ? filteredTokens[index].value : '-' + filteredTokens[index].value
+            },
+            {punctuator: filteredTokens[index + 1], numeric: filteredTokens[index].value}
           )
+        }
         return acc
       }, [])
 
@@ -52,9 +59,9 @@ export function ConstantExtractionBased<TBase extends MixinStrategy>(Base: TBase
         if (pair.punctuator === undefined) continue
 
         const punctuator = pair.punctuator.value
-        const value = pair.numeric.value.includes('.') ?
-          Number.parseFloat(pair.numeric.value) :
-          Number.parseInt(pair.numeric.value)
+        const value = pair.numeric.includes('.') ?
+          Number.parseFloat(pair.numeric) :
+          Number.parseInt(pair.numeric)
 
         const decimals = utils.countDecimals(value)
         const increment = (1000 / (1000 * 10 ** decimals))
@@ -65,9 +72,6 @@ export function ConstantExtractionBased<TBase extends MixinStrategy>(Base: TBase
           constants.push(+(value - increment).toFixed(decimals), +(value + increment).toFixed(decimals))
         else if (punctuator === '>') greaterThanConstants.push(+(value + increment).toFixed(decimals))
         else if (punctuator === '<') lesserThanConstants.push(+(value - increment).toFixed(decimals))
-        else constants.push(value * (punctuator === '-' ? -1 : 1))
-        // TODO: fix '-' ponctuator. It should consider the previous token
-
       }
 
       greaterThanConstants.sort((a,b) => a - b)
