@@ -43,6 +43,9 @@ export const unicode = (encoding = 'utf-8'): Arbitrary<string> => encoding === '
 export const string = (min = 2, max = 10, chars = 'abcdefghijklmnopqrstuvwxyz'): Arbitrary<string> =>
   chars === '' ? constant('') : array(integer(0, chars.length - 1).map(n => chars[n]), min, max).map(a => a.join(''))
 
+// export const string = (min = 2, max = 10, charArb = char()): Arbitrary<string> =>
+//   min > max ? NoArbitrary : array(charArb, min, max).map(a => a.join(''))
+
 export const array = <A>(arbitrary: Arbitrary<A>, min = 0, max = 10): Arbitrary<A[]> =>
   min > max ? NoArbitrary : new ArbitraryArray(arbitrary, min, max)
 
