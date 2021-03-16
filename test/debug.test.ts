@@ -14,7 +14,9 @@ import {expect} from 'chai'
 // })
 
 console.log(fc.char().pick())
-console.log(fc.hexa().pick())
+console.log(fc.hex().pick())
 console.log(fc.base64().pick())
 console.log(fc.ascii().pick())
+console.log(fc.unicode().pick())
+console.log(fc.unicode('utf-16').pick())
 
