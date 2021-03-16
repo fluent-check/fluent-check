@@ -8,7 +8,8 @@ type WrapFluentPick<T> = { [P in keyof T]: FluentPick<T[P]> }
 type FluentPicks = Record<string, FluentPick<any> | any>
 
 export class FluentResult {
-  constructor(public readonly satisfiable = false, public example: FluentPicks = {}, public readonly seed?: string) { }
+  constructor(public readonly satisfiable = false, public example: FluentPicks = {},
+    public readonly seed: string = 'unseeded') { }
 
   addExample<A>(name: string, value: FluentPick<A>) {
     this.example[name] = value
