@@ -1,3 +1,4 @@
+import * as utils from './util'
 import {
   Arbitrary,
   ArbitraryArray,
@@ -8,7 +9,7 @@ import {
   ArbitraryTuple,
   ArbitraryInteger,
   ArbitraryReal,
-  NoArbitrary
+  NoArbitrary,
 } from './internal'
 
 export * from './types'
@@ -22,6 +23,18 @@ export const real = (min = Number.MIN_SAFE_INTEGER, max = Number.MAX_SAFE_INTEGE
 
 export const nat = (min = 0, max = Number.MAX_SAFE_INTEGER): Arbitrary<number> =>
   max < 0 ? NoArbitrary : integer(Math.max(0, min), max)
+
+export const char = (): Arbitrary<string> =>
+  new ArbitraryInteger(0x20, 0x7e).map((v) => String.fromCodePoint(v))
+
+export const hexa = (): Arbitrary<string> =>
+  new ArbitraryInteger(0, 15).map((v) => String.fromCodePoint(v < 10 ? v + 48 : v + 97 - 10))
+
+export const base64 = (): Arbitrary<string> =>
+  new ArbitraryInteger(0, 63).map((v) => String.fromCodePoint(utils.base64Mapper(v)))
+
+export const ascii = (): Arbitrary<string> =>
+  new ArbitraryInteger(0x00, 0x7f).map((v) => String.fromCodePoint(utils.printableCharactersMapper(v)))
 
 export const string = (min = 2, max = 10, chars = 'abcdefghijklmnopqrstuvwxyz'): Arbitrary<string> =>
   chars === '' ? constant('') : array(integer(0, chars.length - 1).map(n => chars[n]), min, max).map(a => a.join(''))

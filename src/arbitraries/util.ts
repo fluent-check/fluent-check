@@ -9,6 +9,19 @@ export function mapArbitrarySize(sz: ArbitrarySize, f: (v: number) => ArbitraryS
   }
 }
 
+export const printableCharactersMapper = (v: number): number => {
+  if (v < 95) return v + 0x20   // 0x20-0x7e
+  if (v <= 0x7e) return v - 95
+  return v
+}
+
+export function base64Mapper(v: number) {
+  if (v < 26) return v + 65        // A-Z
+  if (v < 52) return v + 97 - 26   // a-z
+  if (v < 62) return v + 48 - 52   // 0-9
+  return v === 62 ? 43 : 47        // +/
+}
+
 export function stringify(object: any) {
   return (object instanceof Object || object instanceof Array) ? JSON.stringify(object) : object
 }
