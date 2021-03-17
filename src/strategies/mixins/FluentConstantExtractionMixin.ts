@@ -17,7 +17,7 @@ export function ConstantExtractionBased<TBase extends MixinStrategy>(Base: TBase
     /**
      * Record that contains all the constants extracted.
      */
-    public constants: StrategyExtractedConstants = {'numeric': []}
+    public constants: StrategyExtractedConstants = {'numeric': [], 'string': []}
 
     /**
      * Tokenizes either the file or function passed as parameter.
@@ -25,12 +25,15 @@ export function ConstantExtractionBased<TBase extends MixinStrategy>(Base: TBase
     tokenize(data: Buffer | ((...args: any[]) => boolean)) {
       const tokens = espree.tokenize(data.toString('utf-8')) //.replace(/['`]/g, '"')
       this.parseNumericTokens(tokens)
+      this.parseStringTokens(tokens)
     }
 
     /**
-     * Parses the numeric tokens already extracted. So far it only extract integer constants.
+     * Parses the numeric tokens already extracted from code.
      */
     parseNumericTokens(tokens: Token[]) {
+      if (this.constants['numeric'].length > this.configuration.maxNumericConst!) return
+
       const filteredTokens = tokens.filter(token => {
         return (token.type === 'Punctuator') || (token.type === 'Numeric')
       })
@@ -80,7 +83,7 @@ export function ConstantExtractionBased<TBase extends MixinStrategy>(Base: TBase
       let last
       constants.push(...greaterThanConstants
         .flatMap(lower => lesserThanConstants.map(upper => ([lower, upper])))
-        .filter(range => (range[0] < range[1] && utils.computeRange(range) <= this.configuration.maxRange!))
+        .filter(range => (range[0] < range[1] && utils.computeRange(range) <= this.configuration.maxNumericConst!))
         .reduce((nonOverlappingRanges, range) => {
           if (!last || range[0] > last[1]) nonOverlappingRanges.push(last = range)
           else if (range[1] > last[1]) last[1] = range[1]
@@ -89,7 +92,23 @@ export function ConstantExtractionBased<TBase extends MixinStrategy>(Base: TBase
         .flatMap(range => utils.buildSequentialArray(range))
       )
 
-      this.constants['numeric'] = [...new Set(this.constants['numeric'].concat(constants))]
+      this.constants['numeric'] = [...new Set(this.constants['numeric'].concat(constants.slice(0,
+        Math.min(constants.length, this.configuration.maxNumericConst! - this.constants['numeric'].length))))]
+    }
+
+    /**
+     * Parses the string tokens already extracted from code.
+     */
+    parseStringTokens(tokens: Token[]) {
+      if (this.constants['string'].length > this.configuration.maxStringConst!) return
+
+      const filteredTokens = tokens.filter(token => { return token.type === 'String' })
+        .map(token => token.value.substring(1, token.value.length - 1))
+
+      const constants = filteredTokens.slice(0,
+        Math.min(filteredTokens.length, this.configuration.maxStringConst! - this.constants['string'].length))
+
+      this.constants['string'] = [...new Set(this.constants['string'].concat(constants))]
     }
 
     /**
@@ -117,7 +136,14 @@ export function ConstantExtractionBased<TBase extends MixinStrategy>(Base: TBase
 
       const extractedConstants: Array<FluentPick<A>> = []
 
-      if (arbitrary.toString().includes('Integer' || 'Constant'))
+      // TODO: String support not possible considering the current status of ArbitraryString.
+      // if (arbitrary.toString().includes('Map' && 'Array' && 'Integer')) {
+      // for (const elem of this.constants['string'])
+      //     if (arbitrary.canGenerate({value: elem, original: elem}))
+      //       extractedConstants.push({value: elem, original: elem})
+      // }
+
+      if (arbitrary.toString().includes('Integer' || 'Constant') && !arbitrary.toString().includes('Array'))
         for (const elem of this.constants['numeric'])
           if (arbitrary.canGenerate({value: elem, original: elem}))
             extractedConstants.push({value: elem, original: elem})
