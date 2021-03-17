@@ -5,21 +5,19 @@ import {FluentReporter} from '../src/FluentReporter'
 
 describe('Reporter tests', () => {
   it('Passes a satisfiable property', () => {
-    fc.expect(fc.scenario()
-      .forall('a', fc.integer(-10,10))
-      .forall('b', fc.integer(-10,10))
-      .then(({a, b}) => a + b === (a - 1) + (b + 1))
-      .check()
+    fc.expect(
+      fc.scenario()
+        .then(() => true)
+        .check()
     )
   })
   it('Returns error on an unsatisfiable property', () => {
     expect(
-      function () {
-        fc.expect(fc.scenario()
-          .forall('a', fc.integer(-10,10))
-          .forall('b', fc.integer(-10,10))
-          .then(({a, b}) => a + b === a + (b + 1))
-          .check()
+      () => {
+        fc.expect(
+          fc.scenario()
+            .then(() => false)
+            .check()
         )
       }
     ).to.throw(FluentReporter)
