@@ -12,7 +12,7 @@ describe('Reporter tests', () => {
       .check()
     )
   })
-  it('Returns error on a unsatisfiable property', () => {
+  it('Returns error on an unsatisfiable property', () => {
     expect(
       function () {
         fc.expect(fc.scenario()
