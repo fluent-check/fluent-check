@@ -14,7 +14,7 @@ describe('Reporter tests', () => {
   })
   it('Returns error on a unsatisfiable property', () => {
     expect(
-      function(){
+      function () {
         fc.expect(fc.scenario()
           .forall('a', fc.integer(-10,10))
           .forall('b', fc.integer(-10,10))
