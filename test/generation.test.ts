@@ -4,7 +4,7 @@ import {expect} from 'chai'
 
 const prng = function (seed: number): () => number {
   return () => {
-    return seed = seed * 16807 % 2147483647
+    return (seed = seed * 16807 % 2147483647)/2147483647
   }
 }
 
