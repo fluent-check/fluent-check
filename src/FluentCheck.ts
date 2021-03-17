@@ -11,7 +11,8 @@ export class FluentResult {
   constructor(
     public readonly satisfiable = false,
     public example: FluentPicks = {},
-    public readonly seed?: number) { }
+    public readonly seed?: number),
+    public readonly testCases: Set<String> = new Set()) { }
 
   addExample<A>(name: string, value: FluentPick<A>) {
     this.example[name] = value
@@ -60,6 +61,7 @@ export class FluentCheck<Rec extends ParentRec, ParentRec extends {}> {
   protected run(
     testCase: FluentPicks,
     callback: (arg: FluentPicks) => FluentResult,
+    testCases: Set<String>,
     _partial: FluentResult | undefined = undefined): FluentResult {
 
     return callback(testCase)
@@ -81,13 +83,13 @@ export class FluentCheck<Rec extends ParentRec, ParentRec extends {}> {
     return this.pathFromRoot().reverse()
   }
 
-  check(child: (testCase: FluentPicks) => FluentResult = () => new FluentResult(true)): FluentResult {
-    if (this.parent) return this.parent.check(testCase => this.run(testCase, child))
+  check(child: (testCase: FluentPicks) => FluentResult = () => new FluentResult(true),
+    testCases: Set<String> = new Set()): FluentResult {
+    if (this.parent !== undefined) return this.parent.check(testCase => this.run(testCase, child, testCases), testCases)
     else {
-      this.strategy.randomGenerator.initialize()
-      const r = this.run({}, child)
-      return new FluentResult(r.satisfiable, FluentCheck.unwrapFluentPick(r.example),
-        this.strategy.randomGenerator.seed)
+       this.strategy.randomGenerator.initialize()
+      const r = this.run({}, child, testCases)
+      return new FluentResult(r.satisfiable, FluentCheck.unwrapFluentPick(r.example), this.strategy.randomGenerator.seed, testCases)
     }
   }
 
@@ -178,6 +180,7 @@ abstract class FluentCheckQuantifier<K extends string, A, Rec extends ParentRec 
   protected run(
     testCase: FluentPicks,
     callback: (arg: FluentPicks) => FluentResult,
+    testCases: Set<String>,
     partial: FluentResult | undefined = undefined,
     depth = 0): FluentResult {
 
@@ -188,7 +191,7 @@ abstract class FluentCheckQuantifier<K extends string, A, Rec extends ParentRec 
       const result = callback(testCase)
       if (result.satisfiable === this.breakValue) {
         result.addExample(this.name, testCase[this.name])
-        return this.run(testCase, callback, result, depth + 1)
+        return this.run(testCase, callback, testCases, result, depth + 1)
       }
     }
 
@@ -237,8 +240,9 @@ class FluentCheckAssert<Rec extends ParentRec, ParentRec extends {}> extends Flu
     return data
   }
 
-  protected run(testCase: FluentPicks, callback: (arg: FluentPicks) => FluentResult) {
+  protected run(testCase: FluentPicks, callback: (arg: FluentPicks) => FluentResult, testCases: Set<String>) {
     const unwrappedTestCase = FluentCheck.unwrapFluentPick(testCase)
+    testCases.add(JSON.stringify(unwrappedTestCase))
     return this.assertion({...unwrappedTestCase, ...this.runPreliminaries(unwrappedTestCase)} as Rec) ?
       callback(testCase) :
       new FluentResult(false)
