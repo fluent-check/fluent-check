@@ -9,8 +9,15 @@ export type ArbitrarySize = {
   credibleInterval?: [number, number]
 }
 
-export type PrngInfo = {
-  unseededGen?: (seed: number) => () => number,
-  generator: () => number,
-  seed?: number
+export class FluentRandomGenerator {
+  generator!: () => number
+
+  constructor(
+    public readonly builder: (seed: number) => () => number = (_: number) => Math.random,
+    public readonly seed: number = Math.floor(Math.random() * 0x100000000)) {
+
+    this.initialize()
+  }
+
+  initialize() { this.generator = this.builder(this.seed) }
 }

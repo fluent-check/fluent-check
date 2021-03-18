@@ -20,7 +20,7 @@ export class ArbitrarySet<A> extends Arbitrary<A[]> {
     return {value: size, type: 'exact'}
   }
 
-  pick(generator: () => number = Math.random): FluentPick<A[]> | undefined {
+  pick(generator: () => number): FluentPick<A[]> | undefined {
     const size = Math.floor(generator() * (this.max - this.min + 1)) + this.min
     const pick = new Set<A>()
 

@@ -27,7 +27,7 @@ export class FilteredArbitrary<A> extends WrappedArbitrary<A> {
     }))
   }
 
-  pick(generator: () => number = Math.random): FluentPick<A> | undefined {
+  pick(generator: () => number): FluentPick<A> | undefined {
     do {
       const pick = this.baseArbitrary.pick(generator)
       if (!pick) break // TODO: update size estimation accordingly

@@ -1,4 +1,4 @@
-import {Arbitrary, FluentPick, PrngInfo} from '../arbitraries'
+import {Arbitrary, FluentPick, FluentRandomGenerator} from '../arbitraries'
 import {FluentConfig, FluentResult} from '../FluentCheck'
 import {StrategyArbitraries} from './FluentStrategyTypes'
 
@@ -18,7 +18,7 @@ export class FluentStrategy implements FluentStrategyInterface {
   /**
    * Information concerning the random value generation
    */
-  public prng: PrngInfo = {unseededGen: undefined, generator: Math.random, seed: undefined}
+  public randomGenerator = new FluentRandomGenerator()
 
   /**
    * Default constructor. Receives the FluentCheck configuration, which is used for test case generation purposes.
@@ -64,8 +64,8 @@ export class FluentStrategy implements FluentStrategyInterface {
    * Generates a once a collection of inputs for a given arbitrary
    */
   buildArbitraryCollection<A>(arbitrary: Arbitrary<A>, sampleSize = this.configuration.sampleSize): FluentPick<A>[] {
-    return this.isDedupable() ? arbitrary.sampleUnique(sampleSize, [], this.prng.generator) :
-      arbitrary.sample(sampleSize, this.prng.generator)
+    return this.isDedupable() ? arbitrary.sampleUnique(sampleSize, [], this.randomGenerator.generator) :
+      arbitrary.sample(sampleSize, this.randomGenerator.generator)
   }
 
   /**
@@ -97,12 +97,5 @@ export class FluentStrategy implements FluentStrategyInterface {
    */
   handleResult() {
     throw new Error('Method <handleResult> not implemented.')
-  }
-
-  /**
-   * Fetches the cache of a specific arbitrary
-   */
-  getCacheOfArbitrary<K extends string, A>(name: K): FluentPick<A>[] {
-    return this.arbitraries[name].cache
   }
 }

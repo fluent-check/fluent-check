@@ -22,7 +22,7 @@ export class ArbitraryTuple<U extends readonly Arbitrary<any>[], A = UnwrapFluen
     return {value, type}
   }
 
-  pick(generator: () => number = Math.random): FluentPick<A> | undefined {
+  pick(generator: () => number): FluentPick<A> | undefined {
     const value: any = []
     const original: any[] = []
 

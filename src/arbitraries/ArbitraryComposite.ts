@@ -15,7 +15,7 @@ export class ArbitraryComposite<A> extends Arbitrary<A> {
     )
   }
 
-  pick(generator: () => number = Math.random) {
+  pick(generator: () => number) {
     const weights = this.arbitraries.reduce(
       (acc, a) => { acc.push((acc[acc.length - 1] | 0) + a.size().value); return acc },
       new Array<number>()

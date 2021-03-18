@@ -291,8 +291,8 @@ describe('Arbitrary tests', () => {
   describe('Chained Arbitraries', () => {
     it('should allow the creation of array with size based on an integer arbitrary', () => {
       expect(
-        fc.integer(2, 2).chain(i => fc.array(fc.constant(i), i, i)).pick(Math.random)!.value
-      ).to.have.members([2, 2])
+        fc.integer(2, 2).chain(i => fc.array(fc.constant(i), i, i)).sample(1)[0].value
+      ).to.eql([2, 2])
     })
 
     it('should check a property based on a chained arbitrary', () => {
