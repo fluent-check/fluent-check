@@ -9,7 +9,7 @@ describe('Generation tests', () => {
     prng = (seed: number) => () => (seed = seed * 16807 % 2147483647) / 2147483647
   )
 
-  it('Test if the generator factory is working as expected', () => {
+  it('The generator factory is working as expected', () => {
     const rng1 = prng(1)
     const rng2 = prng(1)
 
@@ -17,8 +17,8 @@ describe('Generation tests', () => {
     const case2 = Array(10).fill(0).map(_ => rng2())
     const case3 = Array(10).fill(0).map(_ => rng1())
 
-    JSON.stringify(case1) === JSON.stringify(case2)
-    JSON.stringify(case1) === JSON.stringify(case3)
+    expect(case1).to.eql(case2)
+    expect(case1).to.not.eql(case3)
   })
 
   it('Sampling two similar arbitraries with the same rng produces the same values', () => {
