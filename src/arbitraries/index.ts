@@ -24,17 +24,23 @@ export const real = (min = Number.MIN_SAFE_INTEGER, max = Number.MAX_SAFE_INTEGE
 export const nat = (min = 0, max = Number.MAX_SAFE_INTEGER): Arbitrary<number> =>
   max < 0 ? NoArbitrary : integer(Math.max(0, min), max)
 
-export const char = (min = 0x20, max = 0x7e): Arbitrary<string> => min < 0x20 || max > 0x7e ?
+const charArb = (min = 0x20, max = 0x7e): Arbitrary<string> => min < 0x20 || max > 0x7e ?
   NoArbitrary : new ArbitraryInteger(min, max).map((v) => String.fromCodePoint(v))
 
-export const hex = (min = 0, max = 15): Arbitrary<string> => min < 0 || max > 15 ?
-  NoArbitrary : new ArbitraryInteger(min, max).map((v) => String.fromCodePoint(v < 10 ? v + 48 : v + 97 - 10))
-
-export const base64 = (min = 0, max = 63): Arbitrary<string> => min < 0 || max > 63 ?
-  NoArbitrary : new ArbitraryInteger(min, max).map((v) => String.fromCodePoint(utils.base64Mapper(v)))
+export const char = (start?: string, end?: string): Arbitrary<string> => start === end ?
+  (start === undefined ? charArb() : charArb(start.charCodeAt(0), start.charCodeAt(0))) :
+  (end === undefined ?
+    charArb(start!.charCodeAt(0), start!.charCodeAt(0)) :
+    charArb(start!.charCodeAt(0), end.charCodeAt(0)))
 
 export const ascii = (min = 0x00, max = 0x7f): Arbitrary<string> => min < 0x00 || max > 0x7f ?
   NoArbitrary : new ArbitraryInteger(min, max).map((v) => String.fromCodePoint(utils.printableCharactersMapper(v)))
+
+export const hex = (): Arbitrary<string> =>
+  new ArbitraryInteger(0, 15).map((v) => String.fromCodePoint(v < 10 ? v + 48 : v + 97 - 10))
+
+export const base64 = (): Arbitrary<string> =>
+  new ArbitraryInteger(0, 63).map((v) => String.fromCodePoint(utils.base64Mapper(v)))
 
 export const unicode = (encoding = 'utf-8'): Arbitrary<string> => encoding === 'utf-16' ?
   new ArbitraryInteger(0x0000, 0x10ffff).map((v) => String.fromCodePoint(utils.printableCharactersMapper(v))) :
