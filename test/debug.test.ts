@@ -4,13 +4,10 @@ import {expect} from 'chai'
 
 describe('Debug tests', () => {
   it('finds two elements such that a % 11 == 0', () => {
-    // TODO: For this to pass, the shrink should perform an exhaustive search, otherwise the probability
-    // of lying on the correct interval is very low.
-
     expect(fc.scenario()
       .config(fc.strategy()
         .defaultStrategy()
-        .withConstantExtraction()
+        .withAdvancedConstantExtraction()
       )
       .exists('a', fc.integer(0, 1000000))
       .then(({a}) => a % 11 === 0 && a > 90000 && a < 90010)
@@ -22,7 +19,7 @@ describe('Debug tests', () => {
     expect(fc.scenario()
       .config(fc.strategy()
         .withRandomSampling()
-        .withConstantExtraction()
+        .withBasicConstantExtraction()
       ) // Comment configuration to run with default strategy
       .exists('a', fc.integer())
       .then(({a}) => a === 10)

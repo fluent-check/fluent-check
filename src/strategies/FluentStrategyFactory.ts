@@ -75,8 +75,15 @@ export class FluentStrategyFactory {
    * where constants should be extracted (apart from the test case assertion(s)) and specifying the maximum range from
    * which constants can be infered.
    */
-  withConstantExtraction(globSource = '', numericConstMaxRange = 100,
-    maxNumericConst = 100, maxStringConst = 100) {
+  withBasicConstantExtraction(globSource = '', maxNumericConst = 100, maxStringConst = 100) {
+    this.configuration = {...this.configuration, globSource, numericConstMaxRange: 0,
+      maxNumericConst, maxStringConst}
+    this.strategy = ConstantExtractionBased(this.strategy)
+    return this
+  }
+
+  withAdvancedConstantExtraction(globSource = '', maxNumericConst = 100, maxStringConst = 100,
+    numericConstMaxRange = 100) {
     this.configuration = {...this.configuration, globSource, numericConstMaxRange,
       maxNumericConst, maxStringConst}
     this.strategy = ConstantExtractionBased(this.strategy)
