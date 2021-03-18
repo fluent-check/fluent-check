@@ -237,24 +237,29 @@ describe('Arbitrary tests', () => {
   describe('Filtered Arbitraries', () => {
     it('A filtered mapped filtered arbitrary is able to ', () => {
       expect(fc.integer(0, 1)
-        .map(a => a === 1, b => b ? 1 : 0)
+        .map(a => a === 1, {inverseFunction: b => b ? 1 : 0})
         .filter(a => a === false)
-        .map(a => a ? 0 : 1, b => b === 0 ? true : false)
+        .map(a => a ? 0 : 1, {inverseFunction: b => b === 0 ? true : false})
         .canGenerate({original: 0, value: 0})).to.be.false
 
       expect(fc.integer(0, 1)
-        .map(a => a === 1, b => b ? 1 : 0)
+        .map(a => a === 1, {inverseFunction: b => b ? 1 : 0})
         .filter(a => a === false)
-        .map(a => a ? 0 : 1, b => b === 0 ? true : false)
+        .map(a => a ? 0 : 1, {inverseFunction: b => b === 0 ? true : false})
         .canGenerate({original: 1, value: 1})).to.be.true
     })
   })
 
   describe('Mapped Arbitraries', () => {
     it('should be able to inverse map transformation', () => {
-      expect(fc.integer(-10, 0).map(a => Math.abs(a), b => -b)
+      expect(fc.integer(-10, 0).map(a => Math.abs(a), {inverseFunction: b => -b})
         .canGenerate({original: -5, value: -5})).to.be.false
-      expect(fc.integer(-10, 10).map(a => Math.abs(a), b => [-b, b])
+      expect(fc.integer(-10, 0).map(a => Math.abs(a), {customCanGenerate: b => b.value >= 0 && b.value <= 10})
+        .canGenerate({original: -5, value: -5})).to.be.false
+
+      expect(fc.integer(-10, 10).map(a => Math.abs(a), {inverseFunction: b => [-b, b]})
+        .canGenerate({original: -5, value: -5})).to.be.true
+      expect(fc.integer(-10, 10).map(a => Math.abs(a), {customCanGenerate: b => b.value >= -10 && b.value <= 10})
         .canGenerate({original: -5, value: -5})).to.be.true
     })
   })
