@@ -69,31 +69,32 @@ export function ConstantExtractionBased<TBase extends MixinStrategy>(Base: TBase
         const decimals = utils.countDecimals(value)
         const increment = (1000 / (1000 * 10 ** decimals))
 
-        if (punctuator === '===' || punctuator === '==' || punctuator === '>=' || punctuator === '<=')
-          constants.push(value)
-        else if (punctuator === '!==' || punctuator === '!=')
-          constants.push(+(value - increment).toFixed(decimals), +(value + increment).toFixed(decimals))
-        else if (punctuator === '>') greaterThanConstants.push(+(value + increment).toFixed(decimals))
-        else if (punctuator === '<') lesserThanConstants.push(+(value - increment).toFixed(decimals))
+        constants.push(value, +(value + increment).toFixed(decimals), +(value - increment).toFixed(decimals))
+
+        if (['>', '>='].includes(punctuator)) greaterThanConstants.push(+(value + increment).toFixed(decimals))
+        else if (['<', '<='].includes(punctuator)) lesserThanConstants.push(+(value - increment).toFixed(decimals))
       }
 
-      greaterThanConstants.sort((a,b) => a - b)
-      lesserThanConstants.sort((a,b) => a - b)
+      if (this.configuration.numericConstMaxRange! > 0) {
+        greaterThanConstants.sort((a,b) => a - b)
+        lesserThanConstants.sort((a,b) => a - b)
 
-      let last
-      constants.push(...greaterThanConstants
-        .flatMap(lower => lesserThanConstants.map(upper => ([lower, upper])))
-        .filter(range => (range[0] < range[1] && utils.computeRange(range) <= this.configuration.maxNumericConst!))
-        .reduce((nonOverlappingRanges, range) => {
-          if (!last || range[0] > last[1]) nonOverlappingRanges.push(last = range)
-          else if (range[1] > last[1]) last[1] = range[1]
-          return nonOverlappingRanges
-        }, [] as any)
-        .flatMap(range => utils.buildSequentialArray(range))
-      )
+        let last
+        constants.push(...greaterThanConstants
+          .flatMap(lower => lesserThanConstants.map(upper => ([lower, upper])))
+          .filter(range => (range[0]<range[1] && utils.computeRange(range) <= this.configuration.numericConstMaxRange!))
+          .reduce((nonOverlappingRanges, range) => {
+            if (!last || range[0] > last[1]) nonOverlappingRanges.push(last = range)
+            else if (range[1] > last[1]) last[1] = range[1]
+            return nonOverlappingRanges
+          }, [] as any)
+          .flatMap(range => utils.buildSequentialArray(range))
+        )
+      }
 
       this.constants['numeric'] = [...new Set(this.constants['numeric'].concat(constants.slice(0,
-        Math.min(constants.length, this.configuration.maxNumericConst! - this.constants['numeric'].length))))]
+        Math.min(constants.length,
+          Math.max(0, this.configuration.maxNumericConst! - this.constants['numeric'].length)))))]
     }
 
     /**
