@@ -15,7 +15,7 @@ describe('Debug tests', () => {
     ).to.deep.include({satisfiable: true, example: {a: 90002}})
   })
 
-  it('dumb test that proves that finding an integer equal to 10 in a random way is VERY unlikely', () => {
+  it('Dumb Test #1: test that proves that constant extraction can be very powerfull', () => {
     expect(fc.scenario()
       .config(fc.strategy()
         .withRandomSampling()
@@ -25,5 +25,20 @@ describe('Debug tests', () => {
       .then(({a}) => a === 10)
       .check()
     ).to.deep.include({satisfiable: true, example: {a: 10}})
+  })
+
+  it('Dumb Test #2: test that proves that constant extraction can be very powerfull', () => {
+    expect(fc.scenario()
+      .config(fc.strategy()
+        .withRandomSampling()
+        .withSampleSize(100)
+        .withAdvancedConstantExtraction()
+      )
+      .exists('a', fc.string())
+      .forall('b', fc.string())
+      .exists('c', fc.string())
+      .then(({a, b, c}) => a.concat(b).concat(c).includes('before-' && '-after'))
+      .check()
+    ).to.deep.include({satisfiable: true})
   })
 })

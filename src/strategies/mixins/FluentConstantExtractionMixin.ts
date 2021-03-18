@@ -17,7 +17,7 @@ export function ConstantExtractionBased<TBase extends MixinStrategy>(Base: TBase
     /**
      * Record that contains all the constants extracted.
      */
-    public constants: StrategyExtractedConstants = {'numeric': [], 'string': []}
+    public constants: StrategyExtractedConstants = {'numeric': [] as number[], 'string': [] as string[]}
 
     /**
      * Tokenizes either the file or function passed as parameter.
@@ -106,6 +106,12 @@ export function ConstantExtractionBased<TBase extends MixinStrategy>(Base: TBase
       const filteredTokens = tokens.filter(token => { return token.type === 'String' })
         .map(token => token.value.substring(1, token.value.length - 1))
 
+      // TODO - Implement some "advanced" techniques to extract strings.
+      // (1) - Split string on half
+      // (2) - Mutate the string which includes: characters insertion, deletion, and replacement
+      // (3) - Create new strings based on the concatenation of extracted strings (left and right)
+      // ...
+
       const constants = filteredTokens.slice(0,
         Math.min(filteredTokens.length, this.configuration.maxStringConst! - this.constants['string'].length))
 
@@ -129,6 +135,7 @@ export function ConstantExtractionBased<TBase extends MixinStrategy>(Base: TBase
       }
     }
 
+    // TODO: Cache constant extraction. Similiar to what happens to the collection
     getArbitraryExtractedConstants<A>(arbitrary: Arbitrary<A>): FluentPick<A>[] {
       if (!this.extractionStatus) {
         this.extractConstants()
@@ -137,12 +144,10 @@ export function ConstantExtractionBased<TBase extends MixinStrategy>(Base: TBase
 
       const extractedConstants: Array<FluentPick<A>> = []
 
-      // TODO: String support not possible considering the current status of ArbitraryString.
-      // if (arbitrary.toString().includes('Map' && 'Array' && 'Integer')) {
-      // for (const elem of this.constants['string'])
-      //     if (arbitrary.canGenerate({value: elem, original: elem}))
-      //       extractedConstants.push({value: elem, original: elem})
-      // }
+      if (arbitrary.toString().includes('Map' && 'Array' && 'Integer'))
+        for (const elem of this.constants['string'])
+          if (arbitrary.canGenerate({value: elem, original: Array.from(elem as string).map(x => x.charCodeAt(0))}))
+            extractedConstants.push({value: elem, original: Array.from(elem as string).map(x => x.charCodeAt(0))})
 
       if (arbitrary.toString().includes('Integer' || 'Constant') && !arbitrary.toString().includes('Array'))
         for (const elem of this.constants['numeric'])
