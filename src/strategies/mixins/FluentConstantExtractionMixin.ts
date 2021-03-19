@@ -106,16 +106,14 @@ export function ConstantExtractionBased<TBase extends MixinStrategy>(Base: TBase
       const filteredTokens = tokens.filter(token => { return token.type === 'String' })
         .map(token => token.value.substring(1, token.value.length - 1))
 
-      // TODO - Implement some "advanced" techniques to extract strings.
-      // (1) - Split string on half
-      // (2) - Mutate the string which includes: characters insertion, deletion, and replacement
-      // (3) - Create new strings based on the concatenation of extracted strings (left and right)
-      // ...
+      const constants = this.configuration.maxStringMutations! > 0 ? filteredTokens.reduce((acc, value) => {
+        acc = [...new Set(acc.concat(utils.manipulateString(value, this.configuration.maxStringMutations!)))]
+        return acc
+      }, []) : filteredTokens
 
-      const constants = filteredTokens.slice(0,
-        Math.min(filteredTokens.length, this.configuration.maxStringConst! - this.constants['string'].length))
-
-      this.constants['string'] = [...new Set(this.constants['string'].concat(constants))]
+      this.constants['string'] = [...new Set(this.constants['string'].concat(constants.slice(0,
+        Math.min(constants.length,
+          Math.max(0, this.configuration.maxStringConst! - this.constants['string'].length)))))]
     }
 
     /**
