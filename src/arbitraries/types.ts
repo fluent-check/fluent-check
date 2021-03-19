@@ -10,6 +10,6 @@ export type ArbitrarySize = {
 }
 
 export type MappedArbitraryExtensions<A,B> = {
-  inverseMap?: (b: B) => A | A[],
+  inverseMap?: (b: B) => A[],
   canGenerate?: (pick: FluentPick<B>) => boolean
 }

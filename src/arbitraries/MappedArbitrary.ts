@@ -8,9 +8,7 @@ export class MappedArbitrary<A, B> extends Arbitrary<B> {
     public readonly config?: MappedArbitraryExtensions<A,B>
   ) {
     super()
-
-    if (this.config && this.config.canGenerate)
-      this.canGenerate = this.config.canGenerate
+    this.canGenerate = this.config?.canGenerate || this.canGenerate
   }
 
   mapFluentPick(p: FluentPick<A>): FluentPick<B> {
@@ -39,12 +37,8 @@ export class MappedArbitrary<A, B> extends Arbitrary<B> {
   }
 
   canGenerate(pick: FluentPick<B>) {
-    const inverseValues = !(this.config && this.config.inverseMap) ? [pick.original] :
-      (Array.isArray(this.config.inverseMap(pick.value)) ?
-        this.config.inverseMap(pick.value) as A[] :
-        [this.config.inverseMap(pick.value)])
-
-    return inverseValues.some(value => this.baseArbitrary.canGenerate({value, original: pick.original}))
+    const inverseValues = this.config?.inverseMap ? this.config.inverseMap(pick.value) : [pick.original]
+    return (inverseValues).some(value => this.baseArbitrary.canGenerate({value, original: pick.original}))
   }
 
   toString(depth = 0) {
