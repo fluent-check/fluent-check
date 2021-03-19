@@ -192,7 +192,7 @@ abstract class FluentCheckQuantifier<K extends string, A, Rec extends ParentRec 
       }
     }
 
-    return partial || new FluentResult(!this.breakValue)
+    return partial ?? new FluentResult(!this.breakValue)
   }
 
   abstract breakValue: boolean
