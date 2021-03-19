@@ -44,12 +44,7 @@ export class MappedArbitrary<A, B> extends Arbitrary<B> {
         this.config.inverseFunction(pick.value) as A[] :
         [this.config.inverseFunction(pick.value)])
 
-    for (const value of inverseValues) {
-      if (this.baseArbitrary.canGenerate({value, original: pick.original}))
-        return true
-    }
-
-    return false
+    return inverseValues.some(value => this.baseArbitrary.canGenerate({value, original: pick.original}))
   }
 
   toString(depth = 0) {
