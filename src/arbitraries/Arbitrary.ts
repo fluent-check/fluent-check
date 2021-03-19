@@ -1,4 +1,4 @@
-import {ArbitrarySize, FluentPick, MappedArbitraryConfig} from './types'
+import {ArbitrarySize, FluentPick, MappedArbitraryExtensions} from './types'
 import {ChainedArbitrary, FilteredArbitrary, MappedArbitrary, NoArbitrary} from './internal'
 import {stringify} from './util'
 
@@ -110,7 +110,7 @@ export abstract class Arbitrary<A> {
     return NoArbitrary
   }
 
-  map<B>(f: (a: A) => B, config?: MappedArbitraryConfig<A,B>): Arbitrary<B> {
+  map<B>(f: (a: A) => B, config?: MappedArbitraryExtensions<A,B>): Arbitrary<B> {
     return new MappedArbitrary(this, f, config)
   }
 

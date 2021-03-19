@@ -1,16 +1,16 @@
-import {FluentPick, MappedArbitraryConfig} from './types'
+import {FluentPick, MappedArbitraryExtensions} from './types'
 import {Arbitrary} from './internal'
 
 export class MappedArbitrary<A, B> extends Arbitrary<B> {
   constructor(
     public readonly baseArbitrary: Arbitrary<A>,
     public readonly f: (a: A) => B,
-    public readonly config?: MappedArbitraryConfig<A,B>
+    public readonly config?: MappedArbitraryExtensions<A,B>
   ) {
     super()
 
-    if (this.config && this.config.customCanGenerate)
-      this.canGenerate = this.config.customCanGenerate
+    if (this.config && this.config.canGenerate)
+      this.canGenerate = this.config.canGenerate
   }
 
   mapFluentPick(p: FluentPick<A>): FluentPick<B> {
@@ -39,10 +39,10 @@ export class MappedArbitrary<A, B> extends Arbitrary<B> {
   }
 
   canGenerate(pick: FluentPick<B>) {
-    const inverseValues = !(this.config && this.config.inverseFunction) ? [pick.original] :
-      (Array.isArray(this.config.inverseFunction(pick.value)) ?
-        this.config.inverseFunction(pick.value) as A[] :
-        [this.config.inverseFunction(pick.value)])
+    const inverseValues = !(this.config && this.config.inverseMap) ? [pick.original] :
+      (Array.isArray(this.config.inverseMap(pick.value)) ?
+        this.config.inverseMap(pick.value) as A[] :
+        [this.config.inverseMap(pick.value)])
 
     return inverseValues.some(value => this.baseArbitrary.canGenerate({value, original: pick.original}))
   }

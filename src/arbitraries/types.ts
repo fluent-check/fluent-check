@@ -9,7 +9,7 @@ export type ArbitrarySize = {
   credibleInterval?: [number, number]
 }
 
-export type MappedArbitraryConfig<A,B> = {
-  inverseFunction?: (b: B) => A | A[],
-  customCanGenerate?: (pick: FluentPick<B>) => boolean
+export type MappedArbitraryExtensions<A,B> = {
+  inverseMap?: (b: B) => A | A[],
+  canGenerate?: (pick: FluentPick<B>) => boolean
 }
