@@ -1,4 +1,4 @@
-import {Arbitrary, FluentPick} from '../arbitraries'
+import {Arbitrary, FluentPick, FluentRandomGenerator} from '../arbitraries'
 import {FluentResult} from '../FluentCheck'
 import {StrategyArbitraries} from './FluentStrategyTypes'
 
@@ -16,6 +16,11 @@ export class FluentStrategy implements FluentStrategyInterface {
    * Record of all the arbitraries used for composing a given test case.
    */
   public arbitraries: StrategyArbitraries = {}
+
+  /**
+   * Information concerning the random value generation
+   */
+  public randomGenerator = new FluentRandomGenerator()
 
   /**
    * Default constructor. Receives the FluentCheck configuration, which is used for test case generation purposes.
@@ -61,7 +66,8 @@ export class FluentStrategy implements FluentStrategyInterface {
    * Generates a once a collection of inputs for a given arbitrary
    */
   buildArbitraryCollection<A>(arbitrary: Arbitrary<A>, sampleSize = this.configuration.sampleSize): FluentPick<A>[] {
-    return this.isDedupable() ? arbitrary.sampleUnique(sampleSize) : arbitrary.sample(sampleSize)
+    return this.isDedupable() ? arbitrary.sampleUnique(sampleSize, [], this.randomGenerator.generator) :
+      arbitrary.sample(sampleSize, this.randomGenerator.generator)
   }
 
   /**
@@ -94,5 +100,4 @@ export class FluentStrategy implements FluentStrategyInterface {
   handleResult() {
     throw new Error('Method <handleResult> not implemented.')
   }
-
 }
