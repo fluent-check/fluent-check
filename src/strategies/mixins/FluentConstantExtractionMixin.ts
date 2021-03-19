@@ -32,7 +32,7 @@ export function ConstantExtractionBased<TBase extends MixinStrategy>(Base: TBase
      * Parses the numeric tokens already extracted from code.
      */
     parseNumericTokens(tokens: Token[]) {
-      if (this.constants['numeric'].length > this.configuration.maxNumericConst!) return
+      if (this.constants['numeric'].length > this.configuration.maxNumConst!) return
 
       const filteredTokens = tokens.filter(token => {
         return (token.type === 'Punctuator') || (token.type === 'Numeric')
@@ -94,26 +94,26 @@ export function ConstantExtractionBased<TBase extends MixinStrategy>(Base: TBase
 
       this.constants['numeric'] = [...new Set(this.constants['numeric'].concat(constants.slice(0,
         Math.min(constants.length,
-          Math.max(0, this.configuration.maxNumericConst! - this.constants['numeric'].length)))))]
+          Math.max(0, this.configuration.maxNumConst! - this.constants['numeric'].length)))))]
     }
 
     /**
      * Parses the string tokens already extracted from code.
      */
     parseStringTokens(tokens: Token[]) {
-      if (this.constants['string'].length > this.configuration.maxStringConst!) return
+      if (this.constants['string'].length > this.configuration.maxNumConst!) return
 
       const filteredTokens = tokens.filter(token => { return token.type === 'String' })
         .map(token => token.value.substring(1, token.value.length - 1))
 
-      const constants = this.configuration.maxStringMutations! > 0 ? filteredTokens.reduce((acc, value) => {
-        acc = [...new Set(acc.concat(utils.manipulateString(value, this.configuration.maxStringMutations!)))]
+      const constants = this.configuration.maxStringTransformations! > 0 ? filteredTokens.reduce((acc, value) => {
+        acc = [...new Set(acc.concat(utils.manipulateString(value, this.configuration.maxStringTransformations!)))]
         return acc
       }, []) : filteredTokens
 
       this.constants['string'] = [...new Set(this.constants['string'].concat(constants.slice(0,
         Math.min(constants.length,
-          Math.max(0, this.configuration.maxStringConst! - this.constants['string'].length)))))]
+          Math.max(0, this.configuration.maxNumConst! - this.constants['string'].length)))))]
     }
 
     /**

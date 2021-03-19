@@ -13,10 +13,16 @@ export type FluentStrategyConfig = {
   sampleSize: number,
   shrinkSize?: number,
   globSource?: string,
-  maxNumericConst?: number
-  maxStringConst?: number
+  maxNumConst?: number
   numericConstMaxRange?: number
-  maxStringMutations?: number
+  maxStringTransformations?: number
+}
+
+export type ConstantExtractionConfig = {
+  globSource?: string,
+  maxNumConst?: number
+  numericConstMaxRange?: number
+  maxStringTransformations?: number
 }
 
 export type MixinConstructor<T = {}> = new (...args: any[]) => T

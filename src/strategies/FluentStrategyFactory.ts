@@ -7,7 +7,7 @@ import {
   ConstantExtractionBased
 } from './mixins/internal'
 import {FluentStrategy} from './FluentStrategy'
-import {FluentStrategyConfig} from './FluentStrategyTypes'
+import {ConstantExtractionConfig, FluentStrategyConfig} from './FluentStrategyTypes'
 
 export class FluentStrategyFactory {
 
@@ -20,6 +20,22 @@ export class FluentStrategyFactory {
    * Strategy configuration
    */
   public configuration: FluentStrategyConfig = {sampleSize: 1000}
+
+  /**
+   * Builds and returns the FluentStrategy with a specified configuration.
+   */
+  build(): FluentStrategy {
+    return new this.strategy(this.configuration)
+  }
+
+  /**
+   * Default strategy composition.
+   */
+  defaultStrategy() {
+    this.configuration = {...this.configuration, shrinkSize: 500}
+    this.strategy = Shrinkable(Cached(Biased(Dedupable(Random(this.strategy)))))
+    return this
+  }
 
   /**
    * Changes the sample size to be used while sampling test cases.
@@ -71,43 +87,23 @@ export class FluentStrategyFactory {
   }
 
   /**
-   * Enables constant extraction. As additional configuration, there is the possibility of indicating the source from
-   * where constants should be extracted (apart from the test case assertion(s) used by default) and specifying the
-   * maximum range from which constants can be infered.
+   * Enables constant extraction. As additional configuration, there is the possibility of indicating the following
+   * parameters in the config parameter:
+   *
+   * globSource - source from where constants should be extracted, apart from the test case assertion(s) which are
+   *              used by default.
+   * maxNumConst - maximum number of constants to be extracted, either numeric or string based.
+   * numericConstMaxRange - maximum numeric range interval that can be infered.
+   * maxStringTransformations - maximum number of transformations that can be applied to the extracted string constants.
+   *
    */
-  withBasicConstantExtraction(globSource = '', maxNumericConst = 100, maxStringConst = 100) {
-    this.configuration = {...this.configuration, globSource, maxNumericConst, maxStringConst,
-      numericConstMaxRange: 0, maxStringMutations: 0}
+  withConstantExtraction(config?: ConstantExtractionConfig) {
+    this.configuration = {...this.configuration, globSource: config?.globSource || '',
+      maxNumConst: config?.maxNumConst || 100, numericConstMaxRange: config?.numericConstMaxRange || 100,
+      maxStringTransformations: config?.maxStringTransformations || 50
+    }
     this.strategy = ConstantExtractionBased(this.strategy)
     return this
-  }
-
-  /**
-   * The difference between the advanced mode and the basic one relies on the type of extraction made, being the former
-   * more complex by considering the context for numeric constants and mutations for string constants.
-   */
-  withAdvancedConstantExtraction(globSource = '', maxNumericConst = 100, maxStringConst = 100,
-    numericConstMaxRange = 100, maxStringMutations = 50) {
-    this.configuration = {...this.configuration, globSource, maxNumericConst, maxStringConst,
-      numericConstMaxRange, maxStringMutations}
-    this.strategy = ConstantExtractionBased(this.strategy)
-    return this
-  }
-
-  /**
-   * Default strategy composition.
-   */
-  defaultStrategy() {
-    this.configuration = {...this.configuration, shrinkSize: 500}
-    this.strategy = Shrinkable(Cached(Biased(Dedupable(Random(this.strategy)))))
-    return this
-  }
-
-  /**
-   * Builds and returns the FluentStrategy with a specified configuration.
-   */
-  build(): FluentStrategy {
-    return new this.strategy(this.configuration)
   }
 
 }
