@@ -261,6 +261,10 @@ describe('Arbitrary tests', () => {
         .canGenerate({original: -5, value: -5})).to.be.true
       expect(fc.integer(-10, 10).map(a => Math.abs(a), {canGenerate: b => b.value >= -10 && b.value <= 10})
         .canGenerate({original: -5, value: -5})).to.be.true
+
+      expect(fc.array(fc.integer(-10, 0), 2, 5)
+        .map(a => a.map(b => Math.abs(b)), {inverseMap: b => [b.map(x => -x)]})
+        .canGenerate({original: [-5, -3, -2], value: [-5, -3, -2]})).to.be.false
     })
   })
 
