@@ -72,8 +72,8 @@ export class FluentStrategyFactory {
 
   /**
    * Enables constant extraction. As additional configuration, there is the possibility of indicating the source from
-   * where constants should be extracted (apart from the test case assertion(s)) and specifying the maximum range from
-   * which constants can be infered.
+   * where constants should be extracted (apart from the test case assertion(s) used by default) and specifying the
+   * maximum range from which constants can be infered.
    */
   withBasicConstantExtraction(globSource = '', maxNumericConst = 100, maxStringConst = 100) {
     this.configuration = {...this.configuration, globSource, maxNumericConst, maxStringConst,
@@ -82,6 +82,10 @@ export class FluentStrategyFactory {
     return this
   }
 
+  /**
+   * The difference between the advanced mode and the basic one relies on the type of extraction made, being the former
+   * more complex by considering the context for numeric constants and mutations for string constants.
+   */
   withAdvancedConstantExtraction(globSource = '', maxNumericConst = 100, maxStringConst = 100,
     numericConstMaxRange = 100, maxStringMutations = 50) {
     this.configuration = {...this.configuration, globSource, maxNumericConst, maxStringConst,

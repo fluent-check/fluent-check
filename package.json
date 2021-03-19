@@ -7,7 +7,7 @@
   "scripts": {
     "lint": "eslint --ext '.js,.ts' src test",
     "test": "mocha -r ts-node/register test/**/*.test.ts",
-    "debug": "mocha -r ts-node/register test/debug.test.ts",
+    "debug": "mocha -r ts-node/register test/strategies.test.ts",
     "prepare": "tsc"
   },
   "keywords": [
