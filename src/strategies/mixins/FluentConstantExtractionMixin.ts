@@ -23,7 +23,7 @@ export function ConstantExtractionBased<TBase extends MixinStrategy>(Base: TBase
      * Tokenizes either the file or function passed as parameter.
      */
     tokenize(data: Buffer | ((...args: any[]) => boolean)) {
-      const tokens = espree.tokenize(data.toString('utf-8')) //.replace(/['`]/g, '"')
+      const tokens = espree.tokenize(data.toString('utf-8'))
       this.parseNumericTokens(tokens)
       this.parseStringTokens(tokens)
     }
@@ -133,7 +133,6 @@ export function ConstantExtractionBased<TBase extends MixinStrategy>(Base: TBase
       }
     }
 
-    // TODO: Cache constant extraction. Similiar to what happens to the collection
     getArbitraryExtractedConstants<A>(arbitrary: Arbitrary<A>): FluentPick<A>[] {
       if (!this.extractionStatus) {
         this.extractConstants()
