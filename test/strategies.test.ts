@@ -4,23 +4,26 @@ import {expect} from 'chai'
 
 describe('Strategy tests', () => {
   describe('Constants extraction tests', () => {
-    it('should be able to extract numeric constant from assertion', () => {
+    it('should be able to extract constant that is compromising the addition commutative property', () => {
       expect(fc.scenario()
         .config(fc.strategy()
           .withRandomSampling()
-          .withBasicConstantExtraction()
+          .withBias()
+          .withSampleSize(100)
+          .withConstantExtraction()
         )
         .forall('a', fc.integer())
-        .then(({a}) => a !== 10)
+        .forall('b', fc.integer())
+        .then(({a, b}) => a + b === 100 ? a + b === b : a + b === b + a)
         .check()
-      ).to.deep.include({satisfiable: false})
+      ).to.have.property('satisfiable', false)
     })
 
     it('should be able to extract constants and compute numeric range from assertion', () => {
       expect(fc.scenario()
         .config(fc.strategy()
           .defaultStrategy()
-          .withAdvancedConstantExtraction()
+          .withConstantExtraction()
         )
         .exists('a', fc.integer(0, 1000000))
         .then(({a}) => a % 11 === 0 && a > 90000 && a < 90010)
@@ -28,27 +31,12 @@ describe('Strategy tests', () => {
       ).to.deep.include({satisfiable: true, example: {a: 90002}})
     })
 
-    it('finds if addition is commutative', () => {
-      expect(fc.scenario()
-        .config(fc.strategy()
-          .withRandomSampling()
-          .withBias()
-          .withSampleSize(100)
-          .withAdvancedConstantExtraction()
-        )
-        .forall('a', fc.integer())
-        .forall('b', fc.integer())
-        .then(({a, b}) => a + b === 12 ? a + b === b : a + b === b + a)
-        .check()
-      ).to.have.property('satisfiable', false)
-    })
-
     it('should be able to extract string constants from assertion', () => {
       expect(fc.scenario()
         .config(fc.strategy()
           .withRandomSampling()
           .withSampleSize(100)
-          .withBasicConstantExtraction()
+          .withConstantExtraction()
         )
         .exists('a', fc.string())
         .forall('b', fc.string())
@@ -62,7 +50,7 @@ describe('Strategy tests', () => {
       expect(fc.scenario()
         .config(fc.strategy()
           .withRandomSampling()
-          .withAdvancedConstantExtraction()
+          .withConstantExtraction()
         )
         .forall('a', fc.string(1, 10))
         .forall('b', fc.string(1, 10))
