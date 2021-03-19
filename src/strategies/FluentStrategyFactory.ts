@@ -76,16 +76,16 @@ export class FluentStrategyFactory {
    * which constants can be infered.
    */
   withBasicConstantExtraction(globSource = '', maxNumericConst = 100, maxStringConst = 100) {
-    this.configuration = {...this.configuration, globSource, numericConstMaxRange: 0,
-      maxNumericConst, maxStringConst}
+    this.configuration = {...this.configuration, globSource, maxNumericConst, maxStringConst,
+      numericConstMaxRange: 0, maxStringMutations: 0}
     this.strategy = ConstantExtractionBased(this.strategy)
     return this
   }
 
   withAdvancedConstantExtraction(globSource = '', maxNumericConst = 100, maxStringConst = 100,
-    numericConstMaxRange = 100) {
-    this.configuration = {...this.configuration, globSource, numericConstMaxRange,
-      maxNumericConst, maxStringConst}
+    numericConstMaxRange = 100, maxStringMutations = 50) {
+    this.configuration = {...this.configuration, globSource, maxNumericConst, maxStringConst,
+      numericConstMaxRange, maxStringMutations}
     this.strategy = ConstantExtractionBased(this.strategy)
     return this
   }
@@ -96,7 +96,6 @@ export class FluentStrategyFactory {
   defaultStrategy() {
     this.configuration = {...this.configuration, shrinkSize: 500}
     this.strategy = Shrinkable(Cached(Biased(Dedupable(Random(this.strategy)))))
-    // this.strategy = ConstantExtractionBased(Shrinkable(Cached(Biased(Dedupable(Random(this.strategy))))))
     return this
   }
 

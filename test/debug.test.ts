@@ -41,4 +41,18 @@ describe('Debug tests', () => {
       .check()
     ).to.deep.include({satisfiable: true})
   })
+
+  it('Dumb Test #3: test that proves that constant extraction can be very powerfull', () => {
+    expect(fc.scenario()
+      .config(fc.strategy()
+        .withRandomSampling()
+        .withSampleSize(100)
+        .withAdvancedConstantExtraction()
+      )
+      .exists('a', fc.string(1, 10))
+      .exists('b', fc.string(1, 10))
+      .then(({a, b}) => a.concat(b) === 'Hello')
+      .check()
+    ).to.deep.include({satisfiable: true})
+  })
 })
