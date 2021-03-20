@@ -12,7 +12,7 @@ export class FluentStrategyFactory {
   /**
    * Strategy configuration
    */
-  public configuration: FluentConfig = {sampleSize: 1000}
+  public configuration: FluentConfig = {sampleSize: 1000, withStatistics: false}
 
   /**
    * Changes the sample size to be used while sampling test cases.
@@ -60,6 +60,14 @@ export class FluentStrategyFactory {
   withShrinking(shrinkSize = 500) {
     this.configuration = {...this.configuration, shrinkSize}
     this.strategy = Shrinkable(this.strategy)
+    return this
+  }
+
+  /**
+   * Enables the gathering of information and presentation of statistics which results in higher execution time.
+   */
+  withStatistics() {
+    this.configuration = {...this.configuration, withStatistics: true}
     return this
   }
 

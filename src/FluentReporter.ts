@@ -19,8 +19,11 @@ export class FluentReporter extends Error {
     msg.push('\n\nCounter-example:\n')
     msg.push(JSON.stringify(result.example))
 
-    msg.push('\n\nTest cases:\n')
-    msg.push(JSON.stringify(result.testCases))
+    if (result.withStatistics) {
+      msg.push('\n\nTest cases:\n')
+      msg.push(JSON.stringify(result.testCases))
+    }
+
     msg.push('\n')
     this.message = msg.join('')
   }
