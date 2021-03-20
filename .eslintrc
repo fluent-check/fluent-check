@@ -42,7 +42,7 @@
     "@typescript-eslint/no-unused-vars": 0,
     "@typescript-eslint/indent": [1, 2, { "SwitchCase": 1 }],
     "@typescript-eslint/semi": [1, "never"],
-    "@typescript-eslint/strict-boolean-expressions": [1, { "allowString": false, "allowNumber": false, "allowNullableObject": false }],
+    "@typescript-eslint/strict-boolean-expressions": ["error", { "allowString": false, "allowNumber": false, "allowNullableObject": false }],
 
     "no-console": 0,
     "@typescript-eslint/no-non-null-assertion": 0,
