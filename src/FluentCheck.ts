@@ -82,7 +82,7 @@ export class FluentCheck<Rec extends ParentRec, ParentRec extends {}> {
   }
 
   check(child: (testCase: FluentPicks) => FluentResult = () => new FluentResult(true)): FluentResult {
-    if (this.parent) return this.parent.check(testCase => this.run(testCase, child))
+    if (this.parent !== undefined) return this.parent.check(testCase => this.run(testCase, child))
     else {
       this.strategy.randomGenerator.initialize()
       const r = this.run({}, child)
