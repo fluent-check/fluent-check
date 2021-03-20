@@ -8,7 +8,7 @@ import {
   ArbitraryTuple,
   ArbitraryInteger,
   ArbitraryReal,
-  NoArbitrary,
+  NoArbitrary
 } from './internal'
 
 export * from './types'
