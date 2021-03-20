@@ -13,7 +13,7 @@ export class FluentResult {
     public readonly satisfiable = false,
     public example: FluentPicks = {},
     public readonly seed?: number,
-    public readonly execTime: string = '0') { }
+    public readonly execTime?: string) { }
 
   addExample<A>(name: string, value: FluentPick<A>) {
     this.example[name] = value
