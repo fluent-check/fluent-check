@@ -44,9 +44,11 @@
     "space-in-parens": 1,
     "@typescript-eslint/indent": [1, 2, { "SwitchCase": 1 }],
     "@typescript-eslint/semi": [1, "never"],
+    "@typescript-eslint/no-extra-parens": 1,
 
     // Level 0 rules: disabled
     "no-console": 0,
+    "no-extra-parens": 0, // we must disable the base rule as it can report incorrect errors
     "@typescript-eslint/no-unused-vars": 0,
     "@typescript-eslint/no-non-null-assertion": 0,
     "@typescript-eslint/no-explicit-any": 0,

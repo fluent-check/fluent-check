@@ -10,7 +10,7 @@ export function mapArbitrarySize(sz: ArbitrarySize, f: (v: number) => ArbitraryS
 }
 
 export function stringify(object: any) {
-  return (object instanceof Object || object instanceof Array) ? JSON.stringify(object) : object
+  return object instanceof Object || object instanceof Array ? JSON.stringify(object) : object
 }
 
 export const NilArbitrarySize: ArbitrarySize = {value: 0, type: 'exact'}

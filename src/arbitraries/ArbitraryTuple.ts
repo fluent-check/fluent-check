@@ -15,7 +15,7 @@ export class ArbitraryTuple<U extends readonly Arbitrary<any>[], A = UnwrapFluen
 
     for (const a of this.arbitraries) {
       const size = a.size()
-      type = (size.type === 'exact') ? type : 'estimated'
+      type = size.type === 'exact' ? type : 'estimated'
       value *= a.size().value
     }
 
@@ -50,7 +50,7 @@ export class ArbitraryTuple<U extends readonly Arbitrary<any>[], A = UnwrapFluen
   shrink<B extends A>(initial: FluentPick<B>): Arbitrary<A> {
     return fc.union(...this.arbitraries.map((_, selected) =>
       fc.tuple(...this.arbitraries.map((arbitrary, i) =>
-        (selected === i) ?
+        selected === i ?
           arbitrary.shrink({value: initial.value[i], original: initial.original[i]}) :
           fc.constant(initial.value[i])
       )))) as unknown as Arbitrary<A>
