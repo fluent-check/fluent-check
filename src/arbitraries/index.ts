@@ -13,6 +13,7 @@ import {
 
 export * from './types'
 export {Arbitrary} from './internal'
+export {char, hex, base64, ascii, unicode, string} from './string'
 
 export const integer = (min = Number.MIN_SAFE_INTEGER, max = Number.MAX_SAFE_INTEGER): Arbitrary<number> =>
   min > max ? NoArbitrary : (min === max ? new ArbitraryConstant(min) : new ArbitraryInteger(min, max))
@@ -22,9 +23,6 @@ export const real = (min = Number.MIN_SAFE_INTEGER, max = Number.MAX_SAFE_INTEGE
 
 export const nat = (min = 0, max = Number.MAX_SAFE_INTEGER): Arbitrary<number> =>
   max < 0 ? NoArbitrary : integer(Math.max(0, min), max)
-
-export const string = (min = 2, max = 10, chars = 'abcdefghijklmnopqrstuvwxyz'): Arbitrary<string> =>
-  chars === '' ? constant('') : array(integer(0, chars.length - 1).map(n => chars[n]), min, max).map(a => a.join(''))
 
 export const array = <A>(arbitrary: Arbitrary<A>, min = 0, max = 10): Arbitrary<A[]> =>
   min > max ? NoArbitrary : new ArbitraryArray(arbitrary, min, max)
