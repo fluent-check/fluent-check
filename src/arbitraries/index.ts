@@ -13,7 +13,7 @@ import {
 
 export * from './types'
 export {Arbitrary} from './internal'
-export {char, hex, base64, ascii, unicode, string,} from './string'
+export {char, hex, base64, ascii, unicode, string} from './string'
 
 export const integer = (min = Number.MIN_SAFE_INTEGER, max = Number.MAX_SAFE_INTEGER): Arbitrary<number> =>
   min > max ? NoArbitrary : (min === max ? new ArbitraryConstant(min) : new ArbitraryInteger(min, max))
