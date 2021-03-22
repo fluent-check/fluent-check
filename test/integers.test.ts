@@ -57,6 +57,12 @@ describe('Integer tests', () => {
 
   it('finds that adding 1000 makes any number larger and shrinks the example', () => {
     expect(fc.scenario()
+      .config(fc.strategy()
+        .withRandomSampling()
+        .usingCache()
+        .withoutReplacement()
+        .withShrinking()
+      )
       .exists('a', fc.integer())
       .then(({a}) => a + 1000 > a)
       .check()
