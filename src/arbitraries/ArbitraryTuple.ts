@@ -15,11 +15,12 @@ export class ArbitraryTuple<U extends Arbitrary<any>[], A = UnwrapArbitrary<U>> 
 
     for (const a of this.arbitraries) {
       const size = a.size()
-      type = (size.type === 'exact') ? type : 'estimated'
+      type = size.type === 'exact' ? type : 'estimated'
       value *= a.size().value
     }
 
-    return {value, type}
+    // todo: fix credible interval
+    return {value, type, credibleInterval: [value, value]}
   }
 
   pick(generator: () => number): FluentPick<A> | undefined {
@@ -50,7 +51,7 @@ export class ArbitraryTuple<U extends Arbitrary<any>[], A = UnwrapArbitrary<U>> 
   shrink(initial: FluentPick<A>): Arbitrary<A> {
     return fc.union(...this.arbitraries.map((_, selected) =>
       fc.tuple(...this.arbitraries.map((arbitrary, i) =>
-        (selected === i) ?
+        selected === i ?
           arbitrary.shrink({value: initial.value[i], original: initial.original[i]}) :
           fc.constant(initial.value[i])
       )))) as unknown as Arbitrary<A>

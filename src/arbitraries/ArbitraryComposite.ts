@@ -9,9 +9,9 @@ export class ArbitraryComposite<A> extends Arbitrary<A> {
   }
 
   size() {
-    return this.arbitraries.reduce(
-      (acc, e) => mapArbitrarySize(e.size(), v => ({value: acc.value + v, type: acc.type})),
-      NilArbitrarySize
+    return this.arbitraries.reduce((acc, e) =>
+      mapArbitrarySize(e.size(), v => ({value: acc.value + v, type: acc.type, credibleInterval: acc.credibleInterval})),
+    NilArbitrarySize
     )
   }
 

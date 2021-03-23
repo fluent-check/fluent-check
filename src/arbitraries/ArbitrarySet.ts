@@ -17,7 +17,7 @@ export class ArbitrarySet<A> extends Arbitrary<A[]> {
     let size = 0
     for (let i = this.min; i <= this.max; i++) size += comb(this.elements.length, i)
 
-    return {value: size, type: 'exact'}
+    return {value: size, type: 'exact', credibleInterval: [size, size]}
   }
 
   pick(generator: () => number): FluentPick<A[]> | undefined {

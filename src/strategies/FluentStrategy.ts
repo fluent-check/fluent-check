@@ -60,7 +60,7 @@ export class FluentStrategy implements FluentStrategyInterface {
   /**
    * Hook that acts as point of extension of the addArbitrary function and that enables the strategy to be cached.
    */
-  setArbitraryCache<K extends string, A>(_arbitraryName: K) {}
+  setArbitraryCache<K extends string>(_arbitraryName: K) {}
 
   /**
    * Generates a once a collection of inputs for a given arbitrary
@@ -81,14 +81,14 @@ export class FluentStrategy implements FluentStrategyInterface {
    *
    * Returns true if there are still more inputs to be used; otherwise it returns false.
    */
-  hasInput<K extends string>(arbitraryName: K): boolean {
+  hasInput<K extends string>(_arbitraryName: K): boolean {
     throw new Error('Method <hasInput> not implemented.')
   }
 
   /**
    * Retrieves a new input from the arbitraries record.
    */
-  getInput<K extends string, A>(arbitraryName: K): FluentPick<A> {
+  getInput<K extends string, A>(_arbitraryName: K): FluentPick<A> {
     throw new Error('Method <getInput > not implemented.')
   }
 

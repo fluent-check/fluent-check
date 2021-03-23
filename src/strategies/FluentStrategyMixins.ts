@@ -22,8 +22,8 @@ export function Random<TBase extends MixinStrategy>(Base: TBase) {
 
 export function Shrinkable<TBase extends MixinStrategy>(Base: TBase) {
   return class extends Base {
-    shrink<K extends string>(arbitraryName: K, partial: FluentResult | undefined) {
-      const shrinkedArbitrary = this.arbitraries[arbitraryName].arbitrary.shrink(partial!.example[arbitraryName])
+    shrink<K extends string>(arbitraryName: K, partial: FluentResult) {
+      const shrinkedArbitrary = this.arbitraries[arbitraryName].arbitrary.shrink(partial.example[arbitraryName])
       this.arbitraries[arbitraryName].collection = this.buildArbitraryCollection(shrinkedArbitrary,
         this.configuration.shrinkSize)
     }
@@ -40,7 +40,7 @@ export function Dedupable<TBase extends MixinStrategy>(Base: TBase) {
 
 export function Cached<TBase extends MixinStrategy>(Base: TBase) {
   return class extends Base {
-    setArbitraryCache<K extends string, A>(arbitraryName: K) {
+    setArbitraryCache<K extends string>(arbitraryName: K) {
       this.arbitraries[arbitraryName].cache = this.buildArbitraryCollection(this.arbitraries[arbitraryName].arbitrary)
     }
   }

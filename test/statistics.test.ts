@@ -42,7 +42,7 @@ describe('Statistics tests', () => {
     })
 
     it('calculates inverse cumulative probabilities correctly', () => {
-      testProp((dist, trials, p) =>
+      testProp((dist, _trials, _p) =>
         [...Array(11)].forEach((_, p2) => {
           const k = dist.inv(0.1 * p2)
           expect(dist.cdf(k)).to.be.gte(0.1 * p2)

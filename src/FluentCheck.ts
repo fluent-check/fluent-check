@@ -29,7 +29,7 @@ export class FluentCheck<Rec extends ParentRec, ParentRec extends {}> {
   }
 
   given<K extends string, V>(name: K, v: V | ((args: Rec) => V)): FluentCheckGiven<K, V, Rec & Record<K, V>, Rec> {
-    return (v instanceof Function) ?
+    return v instanceof Function ?
       new FluentCheckGivenMutable(this, name, v, this.strategy) :
       new FluentCheckGivenConstant<K, V, Rec & Record<K, V>, Rec>(this, name, v, this.strategy)
   }
@@ -66,7 +66,7 @@ export class FluentCheck<Rec extends ParentRec, ParentRec extends {}> {
   }
 
   check(child: (testCase: WrapFluentPick<any>) => FluentResult = () => new FluentResult(true)): FluentResult {
-    if (this.parent) return this.parent.check(testCase => this.run(testCase, child))
+    if (this.parent !== undefined) return this.parent.check(testCase => this.run(testCase, child))
     else {
       this.strategy.randomGenerator.initialize()
       const r = this.run({} as Rec, child)
@@ -202,8 +202,8 @@ class FluentCheckAssert<Rec extends ParentRec, ParentRec extends {}> extends Flu
 
     super(strategy, parent)
     this.preliminaries = this.pathFromRoot().filter(node =>
-      (node instanceof FluentCheckGivenMutable) ||
-      (node instanceof FluentCheckWhen))
+      node instanceof FluentCheckGivenMutable ||
+      node instanceof FluentCheckWhen)
   }
 
   and(assertion: (args: Rec) => boolean) {

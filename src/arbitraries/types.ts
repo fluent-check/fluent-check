@@ -6,7 +6,7 @@ export type FluentPick<V> = {
 export type ArbitrarySize = {
   value: number
   type: 'exact' | 'estimated'
-  credibleInterval?: [number, number]
+  credibleInterval: [number, number]
 }
 
 export class FluentRandomGenerator {

@@ -7,7 +7,7 @@ describe('Integer tests', () => {
     expect(fc.scenario()
       .exists('b', fc.integer(-10, 10))
       .forall('a', fc.integer())
-      .then(({a, b}) => (a + b) === a && (b + a) === a)
+      .then(({a, b}) => a + b === a && b + a === a)
       .check()
     ).to.deep.include({satisfiable: true, example: {b: 0}})
   })

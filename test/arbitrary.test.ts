@@ -193,13 +193,13 @@ describe('Arbitrary tests', () => {
       })
 
       it('size should be estimated for filtered arbitraries', () => {
-        expect(fc.integer(1, 1000).filter(i => i > 200).filter(i => i < 800).size().credibleInterval![0])
+        expect(fc.integer(1, 1000).filter(i => i > 200).filter(i => i < 800).size().credibleInterval[0])
           .to.be.below(600)
-        expect(fc.integer(1, 1000).filter(i => i > 200).filter(i => i < 800).size().credibleInterval![1])
+        expect(fc.integer(1, 1000).filter(i => i > 200).filter(i => i < 800).size().credibleInterval[1])
           .to.be.above(600)
-        expect(fc.integer(1, 1000).filter(i => i > 200 && i < 800).size().credibleInterval![0])
+        expect(fc.integer(1, 1000).filter(i => i > 200 && i < 800).size().credibleInterval[0])
           .to.be.below(600)
-        expect(fc.integer(1, 1000).filter(i => i > 200 && i < 800).size().credibleInterval![1])
+        expect(fc.integer(1, 1000).filter(i => i > 200 && i < 800).size().credibleInterval[1])
           .to.be.above(600)
       })
 
@@ -407,7 +407,7 @@ describe('Arbitrary tests', () => {
 
     it('should remain no arbitrary when compose with map, and filter', () => {
       expect(fc.empty().map(a => a)).to.eq(fc.empty())
-      expect(fc.empty().filter(a => true)).to.eq(fc.empty())
+      expect(fc.empty().filter(_ => true)).to.eq(fc.empty())
     })
 
     it('should always be satisfiable due to vacuous truth in universal assertions', () => {
