@@ -408,7 +408,7 @@ describe('Arbitrary tests', () => {
 
     it('should remain no arbitrary when compose with map, and filter', () => {
       expect(fc.empty().map(a => a)).to.eq(fc.empty())
-      expect(fc.empty().filter(a => true)).to.eq(fc.empty())
+      expect(fc.empty().filter(_ => true)).to.eq(fc.empty())
     })
 
     it('should always be satisfiable due to vacuous truth in universal assertions', () => {

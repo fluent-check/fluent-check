@@ -1,5 +1,5 @@
 import {ArbitrarySize, FluentPick} from './types'
-import {Arbitrary, NoArbitrary} from './internal'
+import {Arbitrary} from './internal'
 import * as fc from './index'
 
 type UnwrapFluentPick<T> = { [P in keyof T]: T[P] extends fc.Arbitrary<infer E> ? E : T[P] }

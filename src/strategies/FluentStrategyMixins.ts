@@ -40,7 +40,7 @@ export function Dedupable<TBase extends MixinStrategy>(Base: TBase) {
 
 export function Cached<TBase extends MixinStrategy>(Base: TBase) {
   return class extends Base {
-    setArbitraryCache<K extends string, A>(arbitraryName: K) {
+    setArbitraryCache<K extends string>(arbitraryName: K) {
       this.arbitraries[arbitraryName].cache = this.buildArbitraryCollection(this.arbitraries[arbitraryName].arbitrary)
     }
   }

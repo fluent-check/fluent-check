@@ -3,8 +3,6 @@ import {FluentStrategy} from './strategies/FluentStrategy'
 import {FluentStrategyFactory} from './strategies/FluentStrategyFactory'
 
 type UnwrapFluentPick<T> = { [P in keyof T]: T[P] extends FluentPick<infer E> ? E : T[P] }
-type WrapFluentPick<T> = { [P in keyof T]: FluentPick<T[P]> }
-
 type FluentPicks = Record<string, FluentPick<any> | any>
 
 export class FluentResult {
