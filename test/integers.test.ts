@@ -7,7 +7,7 @@ describe('Integer tests', () => {
     expect(fc.scenario()
       .exists('b', fc.integer(-10, 10))
       .forall('a', fc.integer())
-      .then(({a, b}) => (a + b) === a && (b + a) === a)
+      .then(({a, b}) => a + b === a && b + a === a)
       .check()
     ).to.deep.include({satisfiable: true, example: {b: 0}})
   })
@@ -57,6 +57,12 @@ describe('Integer tests', () => {
 
   it('finds that adding 1000 makes any number larger and shrinks the example', () => {
     expect(fc.scenario()
+      .config(fc.strategy()
+        .withRandomSampling()
+        .usingCache()
+        .withoutReplacement()
+        .withShrinking()
+      )
       .exists('a', fc.integer())
       .then(({a}) => a + 1000 > a)
       .check()
