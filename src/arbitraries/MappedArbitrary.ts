@@ -8,17 +8,18 @@ export class MappedArbitrary<A, B> extends Arbitrary<B> {
     public readonly config?: MappedArbitraryExtensions<A,B>
   ) {
     super()
-    this.canGenerate = this.config?.canGenerate || this.canGenerate
+    this.canGenerate = this.config !== undefined && this.config.canGenerate !== undefined ?
+      this.config.canGenerate : this.canGenerate
   }
 
   mapFluentPick(p: FluentPick<A>): FluentPick<B> {
-    const original = ('original' in p && p.original !== undefined) ? p.original : p.value
-    return ({value: this.f(p.value), original})
+    const original = 'original' in p && p.original !== undefined ? p.original : p.value
+    return {value: this.f(p.value), original}
   }
 
-  pick(): FluentPick<B> | undefined {
-    const pick = this.baseArbitrary.pick()
-    return pick ? this.mapFluentPick(pick) : undefined
+  pick(generator: () => number): FluentPick<B> | undefined {
+    const pick = this.baseArbitrary.pick(generator)
+    return pick !== undefined ? this.mapFluentPick(pick) : undefined
   }
 
   // TODO: This is not strictly true when the mapping function is not bijective. I suppose this is
@@ -37,8 +38,9 @@ export class MappedArbitrary<A, B> extends Arbitrary<B> {
   }
 
   canGenerate(pick: FluentPick<B>) {
-    const inverseValues = this.config?.inverseMap ? this.config.inverseMap(pick.value) : [pick.original]
-    return (inverseValues).some(value => this.baseArbitrary.canGenerate({value, original: pick.original}))
+    const inverseValues = this.config !== undefined && this.config.inverseMap !== undefined ?
+      this.config.inverseMap(pick.value) : [pick.original]
+    return inverseValues.some(value => this.baseArbitrary.canGenerate({value, original: pick.original}))
   }
 
   toString(depth = 0) {
