@@ -60,16 +60,6 @@ describe('Math properties tests', () => {
     ).to.have.property('satisfiable', true)
   })
 
-  it('finds if multiplication has precendence over addition', () => {
-    expect(fc.scenario()
-      .forall('a', fc.integer(-10, 10))
-      .forall('b', fc.integer(-10, 10))
-      .forall('c', fc.integer(-10, 10))
-      .then(({a, b, c}) => a + b * c === a + b * c)
-      .check()
-    ).to.have.property('satisfiable', true)
-  })
-
   it('finds the neutral element of addition', () => {
     expect(fc.scenario()
       .exists('a', fc.integer())
