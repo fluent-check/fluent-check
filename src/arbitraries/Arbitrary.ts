@@ -34,7 +34,7 @@ export abstract class Arbitrary<A> {
 
     for (let i = 0; i < sampleSize; i ++) {
       const pick = this.pick(generator)
-      if (pick) result.push(pick)
+      if (pick !== undefined) result.push(pick)
       else break
     }
 
@@ -57,7 +57,7 @@ export abstract class Arbitrary<A> {
 
     while (result.size < bagSize) {
       const r = this.pick(generator)
-      if (!r) break
+      if (r === undefined) break
       if (!result.has(stringify(r.value))) result.set(stringify(r.value), r)
       if (initialSize.type !== 'exact') bagSize = Math.min(sampleSize, this.size().value)
     }
