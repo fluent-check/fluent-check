@@ -1,5 +1,4 @@
-import {FluentConfig} from '../FluentCheck'
-import {FluentStrategy} from './FluentStrategy'
+import {FluentStrategy, FluentConfig} from './FluentStrategy'
 import {Biased, Cached, Dedupable, Random, Shrinkable} from './FluentStrategyMixins'
 
 export class FluentStrategyFactory {
