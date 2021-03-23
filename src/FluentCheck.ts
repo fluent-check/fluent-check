@@ -12,7 +12,7 @@ export class FluentResult {
     public example: PickResult<any> = {},
     public readonly seed?: number,
     public readonly withTestCaseOutput: boolean = false,
-    public readonly testCases: UnwrapFluentPick<FluentPicks>[] = []) {}
+    public readonly testCases: ValueResult<any>[] = []) {}
 
   addExample<A>(name: string, value: FluentPick<A>) {
     this.example[name] = value
@@ -59,7 +59,7 @@ export class FluentCheck<Rec extends ParentRec, ParentRec extends {}> {
   protected run(
     testCase: WrapFluentPick<Rec> | Rec,
     callback: (arg: WrapFluentPick<Rec> | Rec) => FluentResult,
-    testCases: UnwrapFluentPick<FluentPicks>[],
+    testCases: ValueResult<any>[],
     _partial: FluentResult | undefined = undefined): FluentResult {
 
     return callback(testCase)
@@ -70,7 +70,7 @@ export class FluentCheck<Rec extends ParentRec, ParentRec extends {}> {
   }
 
   check(child: (testCase: WrapFluentPick<any>) => FluentResult = () => new FluentResult(true),
-    testCases: UnwrapFluentPick<FluentPicks>[] = []): FluentResult {
+    testCases: ValueResult<any>[] = []): FluentResult {
     if (this.parent !== undefined) return this.parent.check(testCase => this.run(testCase, child, testCases), testCases)
     else {
       this.strategy.randomGenerator.initialize()
@@ -172,7 +172,7 @@ abstract class FluentCheckQuantifier<K extends string, A, Rec extends ParentRec 
   protected run(
     testCase: WrapFluentPick<Rec>,
     callback: (arg: WrapFluentPick<Rec>) => FluentResult,
-    testCases: UnwrapFluentPick<FluentPicks>[],
+    testCases: ValueResult<any>[],
     partial: FluentResult | undefined = undefined,
     depth = 0): FluentResult {
 
@@ -234,7 +234,7 @@ class FluentCheckAssert<Rec extends ParentRec, ParentRec extends {}> extends Flu
 
   protected run(testCase: WrapFluentPick<Rec>,
     callback: (arg: WrapFluentPick<Rec>) => FluentResult,
-    testCases: UnwrapFluentPick<FluentPicks>[]): FluentResult {
+    testCases: ValueResult<any>[]): FluentResult {
     const unwrappedTestCase = FluentCheck.unwrapFluentPick(testCase)
     if (this.strategy.configuration.withTestCaseOutput)
       testCases.push(unwrappedTestCase)
