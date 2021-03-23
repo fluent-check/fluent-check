@@ -12,7 +12,7 @@ export class FluentResult {
     public readonly satisfiable = false,
     public example: FluentPicks = {},
     public readonly seed?: number,
-    public readonly withStatistics: boolean = false,
+    public readonly withTestCaseOutput: boolean = false,
     public readonly testCases: UnwrapFluentPick<FluentPicks>[] = []) {}
 
   addExample<A>(name: string, value: FluentPick<A>) {
@@ -20,7 +20,7 @@ export class FluentResult {
   }
 }
 
-export type FluentConfig = {sampleSize?: number, shrinkSize?: number, withStatistics: boolean}
+export type FluentConfig = {sampleSize?: number, shrinkSize?: number, withTestCaseOutput: boolean}
 
 export class FluentCheck<Rec extends ParentRec, ParentRec extends {}> {
   constructor(public strategy: FluentStrategy = new FluentStrategyFactory().defaultStrategy().build(),
@@ -93,8 +93,8 @@ export class FluentCheck<Rec extends ParentRec, ParentRec extends {}> {
       return new FluentResult(
         r.satisfiable,
         FluentCheck.unwrapFluentPick(r.example),
-        this.strategy.randomGenerator.seeded(),
-        this.strategy.configuration.withStatistics,
+        this.strategy.randomGenerator.seed,
+        this.strategy.configuration.withTestCaseOutput,
         testCases
       )
     }
@@ -253,7 +253,7 @@ class FluentCheckAssert<Rec extends ParentRec, ParentRec extends {}> extends Flu
     testCases: UnwrapFluentPick<FluentPicks>[]
   ) {
     const unwrappedTestCase = FluentCheck.unwrapFluentPick(testCase)
-    if (this.strategy.configuration.withStatistics)
+    if (this.strategy.configuration.withTestCaseOutput)
       testCases.push(unwrappedTestCase)
     return this.assertion({...unwrappedTestCase, ...this.runPreliminaries(unwrappedTestCase)} as Rec) ?
       callback(testCase) :

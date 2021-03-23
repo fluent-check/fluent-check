@@ -20,6 +20,4 @@ export class FluentRandomGenerator {
   }
 
   initialize() { this.generator = this.builder(this.seed) }
-
-  seeded() { return this.generator === Math.random ? undefined : this.seed }
 }
