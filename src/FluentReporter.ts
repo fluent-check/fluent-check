@@ -10,11 +10,16 @@ export class FluentReporter extends Error {
   constructor(result: FluentResult) {
     super()
     this.name = 'Property not satisfiable'
-
     const msg: String[] = []
-    msg.push('\n\nCounter-example:')
+
+    const seed = result.seed?.toString() ?? 'unseeded'
+    msg.push('\n\nSeed: ')
+    msg.push(seed.toString())
+
+    msg.push('\n\nCounter-example:\n')
     msg.push(JSON.stringify(result.example))
-    msg.push('')
-    this.message = msg.join('\n')
+
+    msg.push('\n')
+    this.message = msg.join('')
   }
 }
