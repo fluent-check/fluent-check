@@ -19,7 +19,8 @@ export class ArbitraryTuple<U extends readonly Arbitrary<any>[], A = UnwrapFluen
       value *= a.size().value
     }
 
-    return {value, type}
+    // todo: fix credible interval
+    return {value, type, credibleInterval: [value, value]}
   }
 
   pick(generator: () => number): FluentPick<A> | undefined {

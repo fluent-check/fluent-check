@@ -191,13 +191,13 @@ describe('Arbitrary tests', () => {
       })
 
       it('size should be estimated for filtered arbitraries', () => {
-        expect(fc.integer(1, 1000).filter(i => i > 200).filter(i => i < 800).size().credibleInterval![0])
+        expect(fc.integer(1, 1000).filter(i => i > 200).filter(i => i < 800).size().credibleInterval[0])
           .to.be.below(600)
-        expect(fc.integer(1, 1000).filter(i => i > 200).filter(i => i < 800).size().credibleInterval![1])
+        expect(fc.integer(1, 1000).filter(i => i > 200).filter(i => i < 800).size().credibleInterval[1])
           .to.be.above(600)
-        expect(fc.integer(1, 1000).filter(i => i > 200 && i < 800).size().credibleInterval![0])
+        expect(fc.integer(1, 1000).filter(i => i > 200 && i < 800).size().credibleInterval[0])
           .to.be.below(600)
-        expect(fc.integer(1, 1000).filter(i => i > 200 && i < 800).size().credibleInterval![1])
+        expect(fc.integer(1, 1000).filter(i => i > 200 && i < 800).size().credibleInterval[1])
           .to.be.above(600)
       })
 
