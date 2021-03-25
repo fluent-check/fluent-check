@@ -38,14 +38,6 @@ export class FluentStrategyFactory {
   }
 
   /**
-   * Changes the sample size to be used while sampling test cases.
-   */
-  withSampleSize(sampleSize: number) {
-    this.configuration = {...this.configuration, sampleSize}
-    return this
-  }
-
-  /**
    * Enables sampling without replacement, which avoids testing duplicate test cases.
    */
   withoutReplacement() {
@@ -72,7 +64,8 @@ export class FluentStrategyFactory {
   /**
    * Randomly generates test cases.
    */
-  withRandomSampling() {
+  withRandomSampling(sampleSize = 1000) {
+    this.configuration = {...this.configuration, sampleSize}
     this.strategy = Random(this.strategy)
     return this
   }
@@ -98,10 +91,7 @@ export class FluentStrategyFactory {
    *
    */
   withConstantExtraction(config?: ConstantExtractionConfig) {
-    this.configuration = {...this.configuration, globSource: config?.globSource || '',
-      maxNumConst: config?.maxNumConst || 100, numericConstMaxRange: config?.numericConstMaxRange || 100,
-      maxStringTransformations: config?.maxStringTransformations || 50
-    }
+    this.configuration = {...this.configuration, ...config}
     this.strategy = ConstantExtractionBased(this.strategy)
     return this
   }

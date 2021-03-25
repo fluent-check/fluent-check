@@ -55,14 +55,11 @@ export function ConstantExtractionBased<TBase extends MixinStrategy>(Base: TBase
       }, [])
 
       const constants: number[] = []
-      const lesserThanConstants: number[] = []
-      const greaterThanConstants: number[] = []
 
       for (const pair of numericsAndPunctuators) {
         if (pair.punctuator === undefined) continue
 
-        const punctuator = pair.punctuator.value
-        const value = pair.numeric.includes('.') ?
+        const value = pair.numeric.includes('.') === true ?
           Number.parseFloat(pair.numeric) :
           Number.parseInt(pair.numeric)
 
@@ -70,26 +67,6 @@ export function ConstantExtractionBased<TBase extends MixinStrategy>(Base: TBase
         const increment = (1000 / (1000 * 10 ** decimals))
 
         constants.push(value, +(value + increment).toFixed(decimals), +(value - increment).toFixed(decimals))
-
-        if (['>', '>='].includes(punctuator)) greaterThanConstants.push(+(value + increment).toFixed(decimals))
-        else if (['<', '<='].includes(punctuator)) lesserThanConstants.push(+(value - increment).toFixed(decimals))
-      }
-
-      if (this.configuration.numericConstMaxRange! > 0) {
-        greaterThanConstants.sort((a,b) => a - b)
-        lesserThanConstants.sort((a,b) => a - b)
-
-        let last
-        constants.push(...greaterThanConstants
-          .flatMap(lower => lesserThanConstants.map(upper => ([lower, upper])))
-          .filter(range => (range[0]<range[1] && utils.computeRange(range) <= this.configuration.numericConstMaxRange!))
-          .reduce((nonOverlappingRanges, range) => {
-            if (!last || range[0] > last[1]) nonOverlappingRanges.push(last = range)
-            else if (range[1] > last[1]) last[1] = range[1]
-            return nonOverlappingRanges
-          }, [] as any)
-          .flatMap(range => utils.buildSequentialArray(range))
-        )
       }
 
       this.constants['numeric'] = [...new Set(this.constants['numeric'].concat(constants.slice(0,
@@ -106,10 +83,12 @@ export function ConstantExtractionBased<TBase extends MixinStrategy>(Base: TBase
       const filteredTokens = tokens.filter(token => { return token.type === 'String' })
         .map(token => token.value.substring(1, token.value.length - 1))
 
-      const constants = this.configuration.maxStringTransformations! > 0 ? filteredTokens.reduce((acc, value) => {
-        acc = [...new Set(acc.concat(utils.manipulateString(value, this.configuration.maxStringTransformations!)))]
-        return acc
-      }, []) : filteredTokens
+      const constants: string[] = []
+
+      for (const constant of filteredTokens) {
+        constants.push(constant, constant.slice(0, Math.floor(constant.length / 2)),
+          constant.slice(Math.floor(constant.length / 2), constant.length))
+      }
 
       this.constants['string'] = [...new Set(this.constants['string'].concat(constants.slice(0,
         Math.min(constants.length,
