@@ -6,8 +6,9 @@
   "types": "dist/index.d.ts",
   "scripts": {
     "lint": "eslint --ext '.js,.ts' src test",
-    "test": "mocha -r ts-node/register test/**/*.test.ts",
-    "prepare": "tsc"
+    "test": "mocha -r ts-node/register",
+    "prepare": "tsc",
+    "coverage": "nyc mocha -reporter=min -r ts-node/register -r source-map-support"
   },
   "keywords": [
     "testing",
@@ -32,6 +33,17 @@
     "eslint": "^7.22.0",
     "jstat": "^1.9.4",
     "mocha": "^8.3.2",
+    "nyc": "^15.1.0",
+    "source-map-support": "^0.5.19",
     "ts-node": "^9.1.1"
+  },
+  "nyc": {
+    "extension": [
+      ".ts"
+    ],
+    "exclude": [
+      "**/*.d.ts"
+    ],
+    "all": true
   }
 }
