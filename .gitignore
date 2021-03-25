@@ -3,4 +3,4 @@ node_modules
 .vscode
 src/notebook*.ts
 coverage
-`.nyc_output`
+.nyc_output
