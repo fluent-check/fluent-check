@@ -1,10 +1,10 @@
 import {ArbitrarySize, FluentPick} from './types'
-import {Arbitrary, NoArbitrary} from './internal'
+import {Arbitrary} from './internal'
 import * as fc from './index'
 
-type UnwrapFluentPick<T> = { [P in keyof T]: T[P] extends fc.Arbitrary<infer E> ? E : T[P] }
+type UnwrapArbitrary<T> = { [P in keyof T]: T[P] extends Arbitrary<infer E> ? E : never }
 
-export class ArbitraryTuple<U extends readonly Arbitrary<any>[], A = UnwrapFluentPick<U>> extends Arbitrary<A> {
+export class ArbitraryTuple<U extends Arbitrary<any>[], A = UnwrapArbitrary<U>> extends Arbitrary<A> {
   constructor(public readonly arbitraries: U) {
     super()
   }
@@ -15,19 +15,20 @@ export class ArbitraryTuple<U extends readonly Arbitrary<any>[], A = UnwrapFluen
 
     for (const a of this.arbitraries) {
       const size = a.size()
-      type = (size.type === 'exact') ? type : 'estimated'
+      type = size.type === 'exact' ? type : 'estimated'
       value *= a.size().value
     }
 
-    return {value, type}
+    // todo: fix credible interval
+    return {value, type, credibleInterval: [value, value]}
   }
 
-  pick(): FluentPick<A> | undefined {
+  pick(generator: () => number): FluentPick<A> | undefined {
     const value: any = []
     const original: any[] = []
 
     for (const a of this.arbitraries) {
-      const pick = a.pick()
+      const pick = a.pick(generator)
       if (pick === undefined) return undefined
       else {
         value.push(pick.value)
@@ -47,16 +48,16 @@ export class ArbitraryTuple<U extends readonly Arbitrary<any>[], A = UnwrapFluen
     }))), [{value: [], original: []}])
   }
 
-  shrink<B extends A>(initial: FluentPick<B>): Arbitrary<A> {
+  shrink(initial: FluentPick<A>): Arbitrary<A> {
     return fc.union(...this.arbitraries.map((_, selected) =>
       fc.tuple(...this.arbitraries.map((arbitrary, i) =>
-        (selected === i) ?
+        selected === i ?
           arbitrary.shrink({value: initial.value[i], original: initial.original[i]}) :
           fc.constant(initial.value[i])
       )))) as unknown as Arbitrary<A>
   }
 
-  canGenerate<B extends A>(pick: FluentPick<B>): boolean {
+  canGenerate(pick: FluentPick<A>): boolean {
     for (const i in pick.value)
       if (!this.arbitraries[i as number].canGenerate({value: pick.value[i], original: pick.original[i]}))
         return false

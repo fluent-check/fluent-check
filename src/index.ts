@@ -1,5 +1,6 @@
 import {FluentCheck} from './FluentCheck'
 import {FluentStrategyFactory} from './strategies/FluentStrategyFactory'
+export {expect} from './FluentReporter'
 export const scenario = () => new FluentCheck()
 export const strategy = () => new FluentStrategyFactory()
 export {

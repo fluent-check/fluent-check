@@ -1,10 +1,12 @@
 import * as fc from '../../index'
+import {FluentPick} from '../../arbitraries/types'
 
 /**
  * Counts and returns the number of decimal cases of a given number.
  */
 export function countDecimals(value: number): number {
-  return Math.floor(value) === value ? 0 : value.toString().split('.')[1].length || 0
+  const valueArr = value.toString().split('.')
+  return Math.floor(value) === value || valueArr.length === 0 ? 0 : valueArr[1].length
 }
 
 /**
@@ -12,6 +14,7 @@ export function countDecimals(value: number): number {
  */
 export function computeRange(range: number[]) {
   const rangesDiff = +(range[1] - range[0]).toFixed(Math.max(countDecimals(range[1]), countDecimals(range[0])))
+  // eslint-disable-next-line @typescript-eslint/no-extra-parens
   return rangesDiff * (10 ** countDecimals(rangesDiff)) + 1
 }
 
@@ -22,6 +25,7 @@ export function computeRange(range: number[]) {
 export function buildSequentialArray(range: number[]) {
   const maxDecimalCases = Math.max(countDecimals(range[1]), countDecimals(range[0]))
   const rangesDiff = +(range[1] - range[0]).toFixed(maxDecimalCases)
+  // eslint-disable-next-line @typescript-eslint/no-extra-parens
   const arrayLength = rangesDiff * (10 ** countDecimals(rangesDiff)) + 1
 
   const result: number[] = []
@@ -30,6 +34,7 @@ export function buildSequentialArray(range: number[]) {
 
   while (index++ < arrayLength) {
     result.push(+(range[0] + acc).toFixed(maxDecimalCases))
+    // eslint-disable-next-line @typescript-eslint/no-extra-parens
     acc = +(acc + (1 / (10 ** maxDecimalCases))).toFixed(maxDecimalCases)
   }
 
@@ -45,13 +50,15 @@ export function manipulateString(data: string, numMutations: number): string[] {
     data.slice(Math.floor(data.length / 2), data.length)]
 
   while (numMutations-- > 0) {
+    const pick = fc.char().pick(Math.random) as FluentPick<string>
+
     switch (Math.floor(Math.random() * 3)) {
       case 0: // Insert
-        result.push(Math.round(Math.random()) === 0 ? data.padStart(1, fc.char().pick()!.value) :
-          data.padEnd(1, fc.char().pick()!.value))
+        result.push(Math.round(Math.random()) === 0 ? data.padStart(1, pick.value) :
+          data.padEnd(1, pick.value))
         break
       case 1: // Replace
-        result.push(data.replace(data.charAt(Math.random() * data.length), fc.char().pick()!.value))
+        result.push(data.replace(data.charAt(Math.random() * data.length), pick.value))
         break
       default: // Delete
         result.push(data.replace(data.charAt(Math.random() * data.length), ''))

@@ -1,6 +1,6 @@
 import {ArbitrarySize} from './types'
 
-export const NilArbitrarySize: ArbitrarySize = {value: 0, type: 'exact'}
+export const NilArbitrarySize: ArbitrarySize = {value: 0, type: 'exact', credibleInterval: [0, 0]}
 export const significance = 0.90
 export const lowerCredibleInterval = (1 - significance) / 2
 export const upperCredibleInterval = 1 - lowerCredibleInterval
@@ -15,7 +15,7 @@ export function mapArbitrarySize(sz: ArbitrarySize, f: (v: number) => ArbitraryS
 }
 
 export function stringify(object: any) {
-  return (object instanceof Object || object instanceof Array) ? JSON.stringify(object) : object
+  return object instanceof Object || object instanceof Array ? JSON.stringify(object) : object
 }
 
 /**

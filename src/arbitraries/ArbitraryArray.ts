@@ -13,14 +13,14 @@ export class ArbitraryArray<A> extends Arbitrary<A[]> {
     const sizeUpTo = (v: number, max: number) => {
       return v === 1 ? max + 1 : (1 - v ** (max + 1)) / (1 - v)
     }
-    return mapArbitrarySize(this.arbitrary.size(), v => ({
-      type: 'exact',
-      value: sizeUpTo(v, this.max) - sizeUpTo(v, this.min - 1)
-    }))
+    return mapArbitrarySize(this.arbitrary.size(), v => {
+      const value = sizeUpTo(v, this.max) - sizeUpTo(v, this.min - 1)
+      return {type: 'exact', value, credibleInterval: [value, value]}
+    })
   }
 
-  pick(): FluentPick<A[]> | undefined {
-    const size = Math.floor(Math.random() * (this.max - this.min + 1)) + this.min
+  pick(generator: () => number): FluentPick<A[]> | undefined {
+    const size = Math.floor(generator() * (this.max - this.min + 1)) + this.min
     const fpa = this.arbitrary.sample(size)
 
     const value = fpa.map(v => v.value)

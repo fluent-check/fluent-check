@@ -41,7 +41,10 @@ describe('Strategy tests', () => {
         .exists('a', fc.string())
         .forall('b', fc.string())
         .exists('c', fc.string())
-        .then(({a, b, c}) => a.concat(b).concat(c).includes('before-' && '-after'))
+        .then(({a, b, c}) => {
+          const res = a.concat(b).concat(c)
+          return res.includes('before-') && res.includes('-after')
+        })
         .check()
       ).to.deep.include({satisfiable: true})
     })

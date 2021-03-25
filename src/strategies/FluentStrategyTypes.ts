@@ -6,16 +6,16 @@ export type FluentStrategyArbitrary<A> = {
   pickNum: number
   arbitrary: Arbitrary<A>
   cache?: FluentPick<A>[]
-  collection?: FluentPick<A>[]
+  collection: FluentPick<A>[]
 }
 
 export type FluentStrategyConfig = {
   sampleSize: number,
-  shrinkSize?: number,
-  globSource?: string,
-  maxNumConst?: number
-  numericConstMaxRange?: number
-  maxStringTransformations?: number
+  shrinkSize: number,
+  globSource: string,
+  maxNumConst: number
+  numericConstMaxRange: number
+  maxStringTransformations: number
 }
 
 export type ConstantExtractionConfig = {

@@ -7,13 +7,13 @@ export class MappedArbitrary<A, B> extends Arbitrary<B> {
   }
 
   mapFluentPick(p: FluentPick<A>): FluentPick<B> {
-    const original = ('original' in p && p.original !== undefined) ? p.original : p.value
-    return ({value: this.f(p.value), original})
+    const original = 'original' in p && p.original !== undefined ? p.original : p.value
+    return {value: this.f(p.value), original}
   }
 
-  pick(): FluentPick<B> | undefined {
-    const pick = this.baseArbitrary.pick()
-    return pick ? this.mapFluentPick(pick) : undefined
+  pick(generator: () => number): FluentPick<B> | undefined {
+    const pick = this.baseArbitrary.pick(generator)
+    return pick !== undefined ? this.mapFluentPick(pick) : undefined
   }
 
   // TODO: This is not strictly true when the mapping function is not bijective. I suppose this is

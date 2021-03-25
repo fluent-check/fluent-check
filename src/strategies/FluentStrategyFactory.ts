@@ -19,7 +19,14 @@ export class FluentStrategyFactory {
   /**
    * Strategy configuration
    */
-  public configuration: FluentStrategyConfig = {sampleSize: 1000}
+  public configuration: FluentStrategyConfig = {
+    sampleSize: 1000,
+    shrinkSize: 500,
+    globSource: '',
+    maxNumConst: 100,
+    numericConstMaxRange: 100,
+    maxStringTransformations: 50
+  }
 
   /**
    * Builds and returns the FluentStrategy with a specified configuration.
@@ -98,9 +105,13 @@ export class FluentStrategyFactory {
    *
    */
   withConstantExtraction(config?: ConstantExtractionConfig) {
-    this.configuration = {...this.configuration, globSource: config?.globSource || '',
-      maxNumConst: config?.maxNumConst || 100, numericConstMaxRange: config?.numericConstMaxRange || 100,
-      maxStringTransformations: config?.maxStringTransformations || 50
+    this.configuration = {...this.configuration,
+      globSource: config !== undefined && config.globSource !== undefined ? config.globSource : '',
+      maxNumConst: config !== undefined && config.maxNumConst !== undefined ? config.maxNumConst : 100,
+      numericConstMaxRange: config !== undefined && config.numericConstMaxRange !== undefined ?
+        config.numericConstMaxRange : 100,
+      maxStringTransformations: config !== undefined && config.maxStringTransformations !== undefined ?
+        config.maxStringTransformations : 50
     }
     this.strategy = ConstantExtractionBased(this.strategy)
     return this

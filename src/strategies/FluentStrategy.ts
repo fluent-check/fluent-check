@@ -1,6 +1,8 @@
-import {Arbitrary, FluentPick} from '../arbitraries'
+import {Arbitrary, FluentPick, FluentRandomGenerator} from '../arbitraries'
 import {FluentResult} from '../FluentCheck'
 import {FluentStrategyConfig, StrategyArbitraries} from './FluentStrategyTypes'
+
+export type FluentConfig = { sampleSize?: number, shrinkSize?: number }
 
 export interface FluentStrategyInterface {
   hasInput: <K extends string>(arbitraryName: K) => boolean
@@ -19,6 +21,11 @@ export class FluentStrategy implements FluentStrategyInterface {
    * Contains all the assertions concercing a test case
    */
   public assertions: {(...args: any[]): boolean} [] = []
+
+  /*
+   * Information concerning the random value generation
+   */
+  public randomGenerator = new FluentRandomGenerator()
 
   /**
    * Default constructor. Receives the FluentCheck configuration, which is used for test case generation purposes.
@@ -42,7 +49,7 @@ export class FluentStrategy implements FluentStrategyInterface {
   /**
    * Configures the information relative a specific arbitrary.
    */
-  configArbitrary<K extends string>(arbitraryName: K, partial: FluentResult | undefined, depth: number) {
+  configArbitrary<K extends string, A>(arbitraryName: K, partial: FluentResult | undefined, depth: number) {
     this.arbitraries[arbitraryName].pickNum = 0
     this.arbitraries[arbitraryName].collection = []
 
@@ -50,7 +57,7 @@ export class FluentStrategy implements FluentStrategyInterface {
 
     if (depth === 0)
       this.arbitraries[arbitraryName].collection = this.arbitraries[arbitraryName].cache !== undefined ?
-        this.arbitraries[arbitraryName].cache :
+        this.arbitraries[arbitraryName].cache as FluentPick<A>[] :
         this.buildArbitraryCollection(this.arbitraries[arbitraryName].arbitrary)
     else if (partial !== undefined)
       this.shrink(arbitraryName, partial)
@@ -74,14 +81,14 @@ export class FluentStrategy implements FluentStrategyInterface {
   buildArbitraryCollection<A>(arbitrary: Arbitrary<A>, sampleSize = this.configuration.sampleSize): FluentPick<A>[] {
     const constantsSample = this.getArbitraryExtractedConstants(arbitrary)
     return this.isDedupable() ?
-      arbitrary.sampleUnique(sampleSize, constantsSample) :
-      arbitrary.sample(sampleSize, constantsSample)
+      arbitrary.sampleUnique(sampleSize, constantsSample, this.randomGenerator.generator) :
+      arbitrary.sample(sampleSize, constantsSample, this.randomGenerator.generator)
   }
 
   /**
    * Hook that acts as point of extension of the configArbitrary function and that enables an arbitrary to be shrinked.
    */
-  shrink<K extends string>(_name: K, _partial: FluentResult | undefined) {}
+  shrink<K extends string>(_name: K, _partial: FluentResult) {}
 
   /**
    * Hook that acts as point of extension of the buildArbitraryCollection function and that enables the strategy to use
@@ -116,5 +123,4 @@ export class FluentStrategy implements FluentStrategyInterface {
   handleResult() {
     throw new Error('Method <handleResult> not implemented.')
   }
-
 }

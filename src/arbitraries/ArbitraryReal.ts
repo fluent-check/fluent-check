@@ -5,8 +5,8 @@ export class ArbitraryReal extends ArbitraryInteger {
     super(min, max)
   }
 
-  pick()  {
-    const value = Math.random() * (this.max - this.min) + this.min
+  pick(generator: () => number)  {
+    const value = generator() * (this.max - this.min) + this.min
     return {value, original: value}
   }
 }
