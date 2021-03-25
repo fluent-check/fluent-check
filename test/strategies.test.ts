@@ -7,9 +7,8 @@ describe('Strategy tests', () => {
     it('should be able to extract constant that is compromising the addition commutative property', () => {
       expect(fc.scenario()
         .config(fc.strategy()
-          .withRandomSampling()
+          .withRandomSampling(100)
           .withBias()
-          .withSampleSize(100)
           .withConstantExtraction()
         )
         .forall('a', fc.integer())
@@ -19,23 +18,10 @@ describe('Strategy tests', () => {
       ).to.have.property('satisfiable', false)
     })
 
-    it('should be able to extract constants and compute numeric range from assertion', () => {
-      expect(fc.scenario()
-        .config(fc.strategy()
-          .defaultStrategy()
-          .withConstantExtraction()
-        )
-        .exists('a', fc.integer(0, 1000000))
-        .then(({a}) => a % 11 === 0 && a > 90000 && a < 90010)
-        .check()
-      ).to.deep.include({satisfiable: true, example: {a: 90002}})
-    })
-
     it('should be able to extract string constants from assertion', () => {
       expect(fc.scenario()
         .config(fc.strategy()
-          .withRandomSampling()
-          .withSampleSize(100)
+          .withRandomSampling(100)
           .withConstantExtraction()
         )
         .exists('a', fc.string())

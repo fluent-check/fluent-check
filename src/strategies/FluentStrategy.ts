@@ -18,7 +18,7 @@ export class FluentStrategy implements FluentStrategyInterface {
   public arbitraries: StrategyArbitraries = {}
 
   /**
-   * Contains all the assertions concercing a test case
+   * Contains all the assertions concerning a test case
    */
   public assertions: {(...args: any[]): boolean} [] = []
 
@@ -112,7 +112,7 @@ export class FluentStrategy implements FluentStrategyInterface {
    * Retrieves a new input from the arbitraries record.
    */
   getInput<K extends string, A>(_arbitraryName: K): FluentPick<A> {
-    throw new Error('Method <getInput > not implemented.')
+    throw new Error('Method <getInput> not implemented.')
   }
 
   /**
