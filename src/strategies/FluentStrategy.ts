@@ -15,10 +15,10 @@ export class FluentStrategy implements FluentStrategyInterface {
    */
   public arbitraries: StrategyArbitraries = {}
 
-  /*
-   * Contains all the assertions concerning a test case
+  /**
+   * Contains all the test methods concerning a test case
    */
-  public assertions: {(...args: any[]): boolean} [] = []
+  public testMethods: {(...args: any[]): any} [] = []
 
   /**
    * Information concerning the random value generation
@@ -38,10 +38,25 @@ export class FluentStrategy implements FluentStrategyInterface {
   }
 
   /**
-   * Adds an assertions to the assertions array.
+   * Adds a test method to the testMethods array.
    */
-  addAssertion(f: (...args: any[]) => boolean) {
-    this.assertions.push(f)
+  addTestMethod(f: (...args: any[]) => any) {
+    this.testMethods.push(f)
+  }
+
+  /**
+   * Executes all the need operations concerning the strategy's setup.
+   */
+  setup() {
+    this.randomGenerator.initialize()
+    this.coverageSetup()
+  }
+
+  /**
+   * Executes all the need operations concerning the strategy's tear down.
+   */
+  tearDown() {
+    this.coverageTearDown()
   }
 
   /**
@@ -95,6 +110,18 @@ export class FluentStrategy implements FluentStrategyInterface {
   getArbitraryExtractedConstants<A>(_arbitrary: Arbitrary<A>): FluentPick<A>[] {
     return []
   }
+
+  /**
+   * Hoot that acts as point of extension of the setup function and that enables the strategy to track and use coverage
+   * to drive the testing process by allowing its setup.
+   */
+  coverageSetup() {}
+
+  /**
+   * Hoot that acts as point of extension of the tearDown function and that enables the strategy to tear down all the
+   * coverage based operations.
+   */
+  coverageTearDown() {}
 
   /**
    * Determines whether there are more inputs to be used for test case generation purposes. This function can use

@@ -4,7 +4,8 @@ import {
   Dedupable,
   Random,
   Shrinkable,
-  ConstantExtractionBased
+  ConstantExtractionBased,
+  CoverageGuidance
 } from './mixins/internal'
 import {FluentStrategy} from './FluentStrategy'
 import {ConstantExtractionConfig, FluentStrategyConfig} from './FluentStrategyTypes'
@@ -39,7 +40,7 @@ export class FluentStrategyFactory {
    * Default strategy composition.
    */
   defaultStrategy() {
-    this.configuration = {...this.configuration, shrinkSize: 500}
+    this.configuration = {...this.configuration}
     this.strategy = Shrinkable(Cached(Biased(Dedupable(Random(this.strategy)))))
     return this
   }
@@ -103,4 +104,11 @@ export class FluentStrategyFactory {
     return this
   }
 
+  /**
+   * TODO - Document
+   */
+  withCoverageGuidance() {
+    this.strategy = CoverageGuidance(this.strategy)
+    return this
+  }
 }

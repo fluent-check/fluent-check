@@ -18,7 +18,7 @@ export class FluentResult {
 }
 
 export class FluentCheck<Rec extends ParentRec, ParentRec extends {}> {
-  constructor(public strategy: FluentStrategy = new FluentStrategyFactory().defaultStrategy().build(),
+  constructor(protected strategy: FluentStrategy = new FluentStrategyFactory().defaultStrategy().build(),
     protected readonly parent: FluentCheck<ParentRec, any> | undefined = undefined) {
     if (this.parent !== undefined) this.strategy.randomGenerator = this.parent.strategy.randomGenerator
   }
@@ -68,8 +68,10 @@ export class FluentCheck<Rec extends ParentRec, ParentRec extends {}> {
   check(child: (testCase: WrapFluentPick<any>) => FluentResult = () => new FluentResult(true)): FluentResult {
     if (this.parent !== undefined) return this.parent.check(testCase => this.run(testCase, child))
     else {
-      this.strategy.randomGenerator.initialize()
+      this.strategy.setup()
       const r = this.run({} as Rec, child)
+      this.strategy.tearDown()
+
       return new FluentResult(r.satisfiable, FluentCheck.unwrapFluentPick(r.example),
         this.strategy.randomGenerator.seed)
     }
@@ -94,6 +96,7 @@ class FluentCheckWhen<Rec extends ParentRec, ParentRec extends {}> extends Fluen
     strategy: FluentStrategy) {
 
     super(strategy, parent)
+    this.strategy.addTestMethod(f)
   }
 
   and(f: (givens: Rec) => void) { return this.when(f) }
@@ -125,6 +128,7 @@ class FluentCheckGivenMutable<K extends string, V, Rec extends ParentRec & Recor
     strategy: FluentStrategy) {
 
     super(parent, name, strategy)
+    this.strategy.addTestMethod(factory)
   }
 }
 
@@ -201,7 +205,7 @@ class FluentCheckAssert<Rec extends ParentRec, ParentRec extends {}> extends Flu
     strategy: FluentStrategy) {
 
     super(strategy, parent)
-    this.strategy.addAssertion(assertion)
+    this.strategy.addTestMethod(assertion)
     this.preliminaries = this.pathFromRoot().filter(node =>
       node instanceof FluentCheckGivenMutable ||
       node instanceof FluentCheckWhen)
