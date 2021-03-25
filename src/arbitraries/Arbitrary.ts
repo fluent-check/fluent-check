@@ -1,4 +1,4 @@
-import {ArbitrarySize, FluentPick, MappedArbitraryExtensions} from './types'
+import {ArbitrarySize, FluentPick, XOR} from './types'
 import {ChainedArbitrary, FilteredArbitrary, MappedArbitrary, NoArbitrary} from './internal'
 import {stringify} from './util'
 
@@ -110,8 +110,16 @@ export abstract class Arbitrary<A> {
     return NoArbitrary
   }
 
-  map<B>(f: (a: A) => B, config?: MappedArbitraryExtensions<A,B>): Arbitrary<B> {
-    return new MappedArbitrary(this, f, config)
+  /**
+   * Maps a given arbitrary to a new one based on the transformation function (f). Optionally, a shrinkHelper structure
+   * that mutually exclusively contains either an inverse map function or an entirely new canGenerate method can be
+   * passed. The former allows the mapped arbitrary to be reverted back to its base arbitrary (inverse map === f').
+   * Since some transformations cannot be easily inverted, the latter allows entirely overriding the canGenerate method.
+   */
+  map<B>(f: (a: A) => B,
+    shrinkHelper?: XOR<{inverseMap: (b: B) => A[]},{canGenerate: (pick: FluentPick<B>) => boolean}>
+  ): Arbitrary<B> {
+    return new MappedArbitrary(this, f, shrinkHelper)
   }
 
   filter(f: (a: A) => boolean): Arbitrary<A> { return new FilteredArbitrary(this, f) }
