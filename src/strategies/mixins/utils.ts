@@ -54,9 +54,9 @@ export function extractImports(path: string) {
   for (const file of files) {
     const data = fs.readFileSync(file).toString().split('describe')[0].split('\n')
     const importData = data.filter(x => !x.startsWith('//') && x.includes('import'))
-
+    console.log(importData)
     for (const x of importData) {
-      const relativePath = x.substring(x.indexOf('\'') + 1, x.length - 1)
+      const relativePath = x.substring(x.indexOf('\'') + 1, x.length - 1) as string
       const resolvedPath = !relativePath.includes('/') ? relativePath : resolve(relativePath.replaceAll('../', ''))
 
       const X = x.split('\'')[0].concat('\'' + resolvedPath + '\'')
