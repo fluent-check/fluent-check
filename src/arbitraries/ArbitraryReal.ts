@@ -9,4 +9,8 @@ export class ArbitraryReal extends ArbitraryInteger {
     const value = generator() * (this.max - this.min) + this.min
     return {value, original: value}
   }
+
+  calculateCoverage() {
+    return -1
+  }
 }

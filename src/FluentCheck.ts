@@ -12,7 +12,8 @@ export class FluentResult {
     public example: PickResult<any> = {},
     public readonly seed?: number,
     public readonly withTestCaseOutput: boolean = false,
-    public readonly testCases: ValueResult<any>[] = []) {}
+    public readonly testCases: ValueResult<any>[] = [],
+    public readonly coverages: Record<string, number> = {}) {}
 
   addExample<A>(name: string, value: FluentPick<A>) {
     this.example[name] = value
@@ -80,7 +81,8 @@ export class FluentCheck<Rec extends ParentRec, ParentRec extends {}> {
         FluentCheck.unwrapFluentPick(r.example),
         this.strategy.randomGenerator.seed,
         this.strategy.configuration.withTestCaseOutput,
-        testCases
+        testCases,
+        this.strategy.calculateCoverages()
       )
     }
   }

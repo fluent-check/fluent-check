@@ -26,6 +26,11 @@ export abstract class Arbitrary<A> {
   abstract canGenerate<B extends A>(pick: FluentPick<B>): boolean
 
   /**
+   * Calculates the input coverage of the arbitrary in question
+   */
+  abstract calculateCoverage(): number
+
+  /**
    * Returns a sample of picks of a given size. Sample might contain repeated values
    * and corner cases are not taken into account.
    */

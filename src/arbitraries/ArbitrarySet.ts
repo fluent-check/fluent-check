@@ -32,6 +32,10 @@ export class ArbitrarySet<A> extends Arbitrary<A[]> {
     return {value, original: value}
   }
 
+  calculateCoverage(): number {
+    return -1
+  }
+
   shrink(initial: FluentPick<A[]>): Arbitrary<A[]> {
     if (this.min === initial.value.length) return fc.empty()
 

@@ -100,4 +100,15 @@ export class FluentStrategy implements FluentStrategyInterface {
   handleResult() {
     throw new Error('Method <handleResult> not implemented.')
   }
+
+  /**
+   * This function calculates the coverage of each input.
+   */
+  calculateCoverages(): Record<string, number> {
+    const coverages: Record<string, number> = {}
+    for (const name in this.arbitraries) {
+      coverages[name] = this.arbitraries[name].arbitrary.calculateCoverage()
+    }
+    return coverages
+  }
 }

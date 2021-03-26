@@ -13,6 +13,10 @@ export class ChainedArbitrary<A, B> extends Arbitrary<B> {
     return pick === undefined ? undefined : this.f(pick.value).pick(generator)
   }
 
+  calculateCoverage(): number {
+    return -1
+  }
+
   cornerCases(): FluentPick<B>[] {
     return this.baseArbitrary.cornerCases().flatMap(p => this.f(p.value).cornerCases())
   }
