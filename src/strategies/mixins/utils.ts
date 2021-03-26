@@ -57,7 +57,7 @@ export function extractImports(path: string) {
 
     for (const x of importData) {
       const relativePath = x.substring(x.indexOf('\'') + 1, x.length - 1) as string
-      const resolvedPath = !relativePath.includes('/') ? relativePath : resolve(relativePath.replaceAll('../', ''))
+      const resolvedPath = !relativePath.includes('/') ? relativePath : resolve(relativePath.split('../').join(''))
 
       const X = x.split('\'')[0].concat('\'' + resolvedPath + '\'')
 
