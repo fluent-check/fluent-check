@@ -47,31 +47,25 @@ describe('Generation tests', () => {
   })
 
   it('Generator generates same values in two runs with the same seed', () => {
-    /* We need the test cases list (reporter?) to check this in a way that is not implementation dependent
-
-      const sc1 = fc.scenario()
-        .withGenerator(prng, 1234)
-        .forall('a', fc.integer(-10, 10))
-        .forall('b', fc.integer(-10, 10))
-
-      const sc2 = fc.scenario()
-        .withGenerator(prng, 1234)
-        .forall('a', fc.integer(-10, 10))
-        .forall('b', fc.integer(-10, 10))
-
-      expect(sc1.check().testCases).to.eql(sc1.check().testCases)
-    */
-  })
-
-  it('Generator generates same values in two runs of the same scenario', () => {
-    /* We need the test cases list (reporter?) to check this in a way that is not implementation dependent
-
     const sc1 = fc.scenario()
       .withGenerator(prng, 1234)
       .forall('a', fc.integer(-10, 10))
       .forall('b', fc.integer(-10, 10))
 
-      expect(sc1.check().testCases).to.eql(sc1.check().testCases)
-    */
+    const sc2 = fc.scenario()
+      .withGenerator(prng, 1234)
+      .forall('a', fc.integer(-10, 10))
+      .forall('b', fc.integer(-10, 10))
+
+    expect(sc1.check().testCases).to.eql(sc2.check().testCases)
+  })
+
+  it('Generator generates same values in two runs of the same scenario', () => {
+    const sc1 = fc.scenario()
+      .withGenerator(prng, 1234)
+      .forall('a', fc.integer(-10, 10))
+      .forall('b', fc.integer(-10, 10))
+
+    expect(sc1.check().testCases).to.eql(sc1.check().testCases)
   })
 })
