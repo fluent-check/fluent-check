@@ -82,7 +82,7 @@ export class FluentCheck<Rec extends ParentRec, ParentRec extends {}> {
         this.strategy.randomGenerator.seed,
         this.strategy.configuration.withTestCaseOutput,
         testCases,
-        this.strategy.calculateCoverages()
+        this.strategy.configuration.withTestCaseOutput ? this.strategy.calculateCoverages() : undefined
       )
     }
   }

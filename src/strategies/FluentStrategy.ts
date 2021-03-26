@@ -39,6 +39,7 @@ export class FluentStrategy implements FluentStrategyInterface {
    * Configures the information relative a specific arbitrary.
    */
   configArbitrary<K extends string>(arbitraryName: K, partial: FluentResult | undefined, depth: number) {
+    this.arbitraries[arbitraryName].picked = this.arbitraries[arbitraryName].picked ?? new Set()
     this.arbitraries[arbitraryName].pickNum = 0
     this.arbitraries[arbitraryName].collection = []
 
@@ -107,7 +108,8 @@ export class FluentStrategy implements FluentStrategyInterface {
   calculateCoverages(): Record<string, number> {
     const coverages: Record<string, number> = {}
     for (const name in this.arbitraries) {
-      coverages[name] = this.arbitraries[name].arbitrary.calculateCoverage()
+      const stArb = this.arbitraries[name]
+      coverages[name] = Math.round(stArb.arbitrary.calculateCoverage(stArb.picked.size) * 100000)/1000
     }
     return coverages
   }

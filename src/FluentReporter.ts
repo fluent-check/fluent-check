@@ -23,7 +23,7 @@ export class FluentReporter extends Error {
       msg.push('\n\nTest cases:\n')
       msg.push(JSON.stringify(result.testCases))
 
-      msg.push('\n\nInput coverages:\n')
+      msg.push('\n\nInput coverages(%):\n')
       msg.push(JSON.stringify(result.coverages))
     }
 

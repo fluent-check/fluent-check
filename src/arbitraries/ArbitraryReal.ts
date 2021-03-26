@@ -10,7 +10,7 @@ export class ArbitraryReal extends ArbitraryInteger {
     return {value, original: value}
   }
 
-  calculateCoverage() {
-    return -1
+  calculateCoverage(picks: number) {
+    return picks/100
   }
 }

@@ -32,8 +32,8 @@ export class ArbitrarySet<A> extends Arbitrary<A[]> {
     return {value, original: value}
   }
 
-  calculateCoverage(): number {
-    return -1
+  calculateCoverage(picks: number): number {
+    return picks/100
   }
 
   shrink(initial: FluentPick<A[]>): Arbitrary<A[]> {

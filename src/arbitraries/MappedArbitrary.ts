@@ -16,8 +16,8 @@ export class MappedArbitrary<A, B> extends Arbitrary<B> {
     return pick !== undefined ? this.mapFluentPick(pick) : undefined
   }
 
-  calculateCoverage(): number {
-    return -1
+  calculateCoverage(picks: number): number {
+    return picks/100
   }
 
   // TODO: This is not strictly true when the mapping function is not bijective. I suppose this is

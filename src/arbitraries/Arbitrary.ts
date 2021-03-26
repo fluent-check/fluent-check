@@ -28,7 +28,7 @@ export abstract class Arbitrary<A> {
   /**
    * Calculates the input coverage of the arbitrary in question
    */
-  abstract calculateCoverage(): number
+  abstract calculateCoverage(picks: number): number
 
   /**
    * Returns a sample of picks of a given size. Sample might contain repeated values

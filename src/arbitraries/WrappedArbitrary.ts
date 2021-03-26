@@ -8,7 +8,7 @@ export class WrappedArbitrary<A> extends Arbitrary<A> {
 
   pick(generator: () => number) { return this.baseArbitrary.pick(generator) }
   size() { return this.baseArbitrary.size() }
-  calculateCoverage() { return this.baseArbitrary.calculateCoverage() }
+  calculateCoverage(picks: number) { return this.baseArbitrary.calculateCoverage(picks) }
   cornerCases() { return this.baseArbitrary.cornerCases() }
 
   canGenerate(pick: FluentPick<A>) {

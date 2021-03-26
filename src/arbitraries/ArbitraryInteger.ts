@@ -17,8 +17,8 @@ export class ArbitraryInteger extends Arbitrary<number> {
     return {value, original: value}
   }
 
-  calculateCoverage() {
-    return -1
+  calculateCoverage(picks: number) {
+    return picks/this.size().value
   }
 
   cornerCases() {

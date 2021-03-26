@@ -5,6 +5,7 @@ export type FluentStrategyArbitrary<A> = {
   arbitrary: Arbitrary<A>
   cache?: FluentPick<A>[]
   collection?: FluentPick<A>[]
+  picked: Set<A>
 }
 
 export type StrategyArbitraries = Record<string, FluentStrategyArbitrary<any> | any>
