@@ -12,7 +12,7 @@ export class FluentReporter extends Error {
     this.name = 'Property not satisfiable'
     const msg: String[] = []
 
-    const seed = result.seed?.toString() ?? 'unseeded'
+    const seed = result.seed?.toString() ?? 'Error'
     msg.push('\n\nSeed: ')
     msg.push(seed.toString())
 
