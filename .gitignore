@@ -4,5 +4,3 @@ node_modules
 src/notebook*.ts
 coverage
 .nyc_output
-src/.coverage
-src/.coverage/**/*
