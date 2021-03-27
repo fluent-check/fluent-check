@@ -16,6 +16,7 @@ export type FluentStrategyConfig = {
   maxNumConst: number
   numericConstMaxRange: number
   maxStringTransformations: number
+  importsPath: string
 }
 
 export type ConstantExtractionConfig = {

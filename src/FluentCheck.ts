@@ -1,10 +1,6 @@
-import {Arbitrary, FluentPick, FluentRandomGenerator} from './arbitraries'
 import {FluentStrategy} from './strategies/FluentStrategy'
 import {FluentStrategyFactory} from './strategies/FluentStrategyFactory'
-
-type WrapFluentPick<T> = { [P in keyof T]: FluentPick<T[P]> }
-type PickResult<V> = Record<string, FluentPick<V>>
-type ValueResult<V> = Record<string, V>
+import {Arbitrary, FluentPick, ValueResult, WrapFluentPick, PickResult, FluentRandomGenerator} from './arbitraries'
 
 export class FluentResult {
   constructor(
@@ -226,12 +222,11 @@ class FluentCheckAssert<Rec extends ParentRec, ParentRec extends {}> extends Flu
     return data
   }
 
-  protected run(testCase: WrapFluentPick<Rec>,
-    callback: (arg: WrapFluentPick<Rec>) => FluentResult): FluentResult {
+  protected run(testCase: WrapFluentPick<Rec>, callback: (arg: WrapFluentPick<Rec>) => FluentResult): FluentResult {
     const unwrappedTestCase = FluentCheck.unwrapFluentPick(testCase)
-    return this.assertion({...unwrappedTestCase, ...this.runPreliminaries(unwrappedTestCase)} as Rec) ?
-      callback(testCase) :
-      new FluentResult(false)
+    const inputData = {...unwrappedTestCase, ...this.runPreliminaries(unwrappedTestCase)} as Rec
+    this.strategy.addTestCase(unwrappedTestCase, inputData)
+    return this.assertion(inputData) ? callback(testCase) : new FluentResult(false)
   }
 }
 

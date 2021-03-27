@@ -26,7 +26,8 @@ export class FluentStrategyFactory {
     globSource: '',
     maxNumConst: 100,
     numericConstMaxRange: 100,
-    maxStringTransformations: 50
+    maxStringTransformations: 50,
+    importsPath: 'test'
   }
 
   /**
@@ -107,7 +108,8 @@ export class FluentStrategyFactory {
   /**
    * TODO - Document
    */
-  withCoverageGuidance() {
+  withCoverageGuidance(importsPath = 'test') {
+    this.configuration = {...this.configuration, importsPath}
     this.strategy = CoverageGuidance(this.strategy)
     return this
   }

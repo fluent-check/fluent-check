@@ -1,6 +1,6 @@
-import {Arbitrary, FluentPick, FluentRandomGenerator} from '../arbitraries'
 import {FluentResult} from '../FluentCheck'
 import {FluentStrategyConfig, StrategyArbitraries} from './FluentStrategyTypes'
+import {Arbitrary, FluentPick, ValueResult, FluentRandomGenerator} from '../arbitraries'
 
 export interface FluentStrategyInterface {
   hasInput: <K extends string>(arbitraryName: K) => boolean
@@ -16,12 +16,17 @@ export class FluentStrategy implements FluentStrategyInterface {
   public arbitraries: StrategyArbitraries = {}
 
   /**
-   * Contains all the test methods concerning a test case
+   * Contains all the test methods concerning a test case.
    */
   public testMethods: {(...args: any[]): any} [] = []
 
   /**
-   * Information concerning the random value generation
+   * Contains all the test cases used for a given test.
+   */
+  public testCases: ValueResult<any>[] = []
+
+  /*
+   * Information concerning the random value generation.
    */
   public randomGenerator = new FluentRandomGenerator()
 
@@ -42,6 +47,14 @@ export class FluentStrategy implements FluentStrategyInterface {
    */
   addTestMethod(f: (...args: any[]) => any) {
     this.testMethods.push(f)
+  }
+
+  /**
+   * Adds a new test case to the testCases array.
+   */
+  addTestCase<A>(testCase: ValueResult<A>, inputData: {}) {
+    this.testCases.push(testCase)
+    this.computeCoverage(inputData)
   }
 
   /**
@@ -112,13 +125,19 @@ export class FluentStrategy implements FluentStrategyInterface {
   }
 
   /**
-   * Hoot that acts as point of extension of the setup function and that enables the strategy to track and use coverage
+   * Hook that acts as point of extension of the setup function and that enables the strategy to track and use coverage
    * to drive the testing process by allowing its setup.
    */
   coverageSetup() {}
 
   /**
-   * Hoot that acts as point of extension of the tearDown function and that enables the strategy to tear down all the
+   * Hook that acts as point of extension of the addAssertion function and that enables the strategy to compute coverage
+   * for a given test case.
+   */
+  computeCoverage(_inputData: {}) {}
+
+  /**
+   * Hook that acts as point of extension of the tearDown function and that enables the strategy to tear down all the
    * coverage based operations.
    */
   coverageTearDown() {}

@@ -1,7 +1,6 @@
 import * as fs from 'fs'
-import * as glob from 'glob'
 import {exec} from 'child_process'
-import {dirname, resolve} from 'path'
+import {dirname} from 'path'
 
 /**
  * Counts and returns the number of decimal cases of a given number.
@@ -39,34 +38,4 @@ export function writeDataToFile(path: string, data: string) {
  */
 export function deleteFromFileSystem(path: string) {
   if (fs.existsSync(path)) exec('rm -r ' + path)
-}
-
-/**
- * Extracts all the imports from a given file or directory and returns a string containing a concise version of the
- * imports found with the relative paths converted into absolute ones.
- */
-export function extractImports(path: string) {
-  const files = fs.lstatSync(path).isDirectory() ?
-    glob.sync(path + '/**/*', {nodir: true}) : [path]
-
-  const imports = {}
-
-  for (const file of files) {
-    const data = fs.readFileSync(file).toString().split('describe')[0].split('\n')
-    const importData = data.filter(x => !x.startsWith('//') && x.includes('import'))
-
-    for (const x of importData) {
-      const relativePath = x.substring(x.indexOf('\'') + 1, x.length - 1) as string
-      const resolvedPath = !relativePath.includes('/') ? relativePath : resolve(relativePath.split('../').join(''))
-
-      const X = x.split('\'')[0].concat('\'' + resolvedPath + '\'')
-
-      if (imports[resolvedPath] === undefined) imports[resolvedPath] = X
-      else imports[resolvedPath] = imports[resolvedPath].length < X.length ? X : imports[resolvedPath]
-    }
-  }
-
-  let header = ''
-  Object.entries(imports).forEach(element => { header += element[1] + '\n' })
-  return header + '\n'
 }

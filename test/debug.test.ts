@@ -1,24 +1,18 @@
 import * as fc from '../src/index'
 import {it} from 'mocha'
 import {expect} from 'chai'
-
-class Stack<T> {
-  elements: Array<T> = []
-
-  push = (...e: T[]) => { this.elements.push(...e) }
-  pop = () => { return this.elements.pop() }
-  size = () => { return this.elements.length }
-}
+import {MySum} from '../src/externalClass'
 
 describe('Debug tests', () => {
-  it('....', () => {
+  it('Testing coverage', () => {
     expect(fc.scenario()
-      .config(fc.strategy().defaultStrategy().withCoverageGuidance())
-      .given('stack', () => new Stack<number>())
-      .forall('es', fc.array(fc.integer()))
-      .when(({es, stack}) => stack.push(...es))
-      .then(({es, stack}) => stack.size() === es.length)
-      .and(({stack}) => stack.size() > 0)
-      .check()).to.deep.include({satisfiable: false, example: {es: []}})
+      .config(fc.strategy().defaultStrategy().withCoverageGuidance('test/debug.test.ts'))
+      .forall('a', fc.integer())
+      .forall('b', fc.integer())
+      .then(({a, b}) => {
+        const tmp = new MySum()
+        return tmp.mySum(a,b) === a + b
+      })
+      .check()).to.have.property('satisfiable', true)
   })
 })
