@@ -2,4 +2,3 @@ timeout: '4000'
 spec:
   - 'test/**/*.test.ts'
   # - 'test/debug.test.ts'
-  # - 'test/coverage.test.ts'

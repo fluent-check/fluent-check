@@ -35,7 +35,6 @@ export function CoverageGuidance<TBase extends MixinStrategy>(Base: TBase) {
 
     /**
      * Function responsible for creating all the files needed so that coverage can be tracked.
-     * // TODO - .coverage/methods.ts must exist before running
      */
     coverageSetup() {
       let sourceData = this.extractImports(this.configuration.importsPath)
@@ -66,14 +65,14 @@ export function CoverageGuidance<TBase extends MixinStrategy>(Base: TBase) {
     }
 
     /**
-     * Resets the coverage global variable, removes the instrumented files and cleans the content of the
-     * methods.ts file.
+     * Resets the coverage global variable and removes all the files used for coverage purposes.
      */
     coverageTearDown() {
+      const paths = ['./src/.coverage', './src/.instrumented']
       this.coverageBuilder.resetCoverage()
 
-      utils.deleteFromFileSystem('./src/.instrumented')
-      utils.writeDataToFile('./src/.coverage/methods.ts', '')
+      for (const path of paths)
+        utils.deleteFromFileSystem(path)
     }
 
     /**
