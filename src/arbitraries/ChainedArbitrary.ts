@@ -14,7 +14,7 @@ export class ChainedArbitrary<A, B> extends Arbitrary<B> {
   }
 
   calculateCoverage(picks: number) {
-    return picks/100
+    return picks/this.size().value
   }
 
   cornerCases(): FluentPick<B>[] {

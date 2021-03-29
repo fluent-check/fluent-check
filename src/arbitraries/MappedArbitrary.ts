@@ -17,7 +17,7 @@ export class MappedArbitrary<A, B> extends Arbitrary<B> {
   }
 
   calculateCoverage(picks: number) {
-    return picks/100
+    return picks/this.size().value
   }
 
   // TODO: This is not strictly true when the mapping function is not bijective. I suppose this is

@@ -40,7 +40,7 @@ export class ArbitraryTuple<U extends Arbitrary<any>[], A = UnwrapArbitrary<U>> 
   }
 
   calculateCoverage(picks: number) {
-    return picks/100
+    return picks/this.size().value
   }
 
   cornerCases(): FluentPick<A>[] {
