@@ -5,11 +5,13 @@ import * as schema from '@istanbuljs/schema'
 import * as libInstrument from 'istanbul-lib-instrument'
 
 import {resolve} from 'path'
+import {FluentPick, ValueResult} from '../../arbitraries'
 import {MixinStrategy} from '../FluentStrategyTypes'
 import {FluentCoverage} from '../FluentCoverage'
+import {FluentStrategyInterface} from '../FluentStrategy'
 
 export function CoverageGuidance<TBase extends MixinStrategy>(Base: TBase) {
-  return class extends Base {
+  return class extends Base implements FluentStrategyInterface {
 
     /**
      * Contains all the created names for the test methods.
@@ -58,13 +60,6 @@ export function CoverageGuidance<TBase extends MixinStrategy>(Base: TBase) {
     }
 
     /**
-     * Computes coverage for a given test case.
-     */
-    computeCoverage(inputData: {}) {
-      this.coverageBuilder.compute(inputData)
-    }
-
-    /**
      * Resets the coverage global variable and removes all the files used for coverage purposes.
      */
     coverageTearDown() {
@@ -109,6 +104,29 @@ export function CoverageGuidance<TBase extends MixinStrategy>(Base: TBase) {
       let header = ''
       Object.entries(imports).forEach(element => { header += element[1] + '\n' })
       return header + '\n'
+    }
+
+    /**
+     * TODO - The current implementation is still the same as the Random mixin and therefore needs to be changed.
+     */
+    hasInput<K extends string>(arbitraryName: K): boolean {
+      return this.arbitraries[arbitraryName] !== undefined &&
+        this.arbitraries[arbitraryName].pickNum < this.arbitraries[arbitraryName].collection.length
+    }
+
+    /**
+     * TODO - The current implementation is still the same as the Random mixin and therefore needs to be changed.
+     */
+    getInput<K extends string, A>(arbitraryName: K): FluentPick<A> {
+      return this.arbitraries[arbitraryName].collection[this.arbitraries[arbitraryName].pickNum++]
+    }
+
+    /**
+     * Computes coverage for a given test case and adds it to the testCases array.
+     */
+    handleResult<A>(testCase: ValueResult<A>, inputData: {}) {
+      this.addTestCase(testCase)
+      this.coverageBuilder.compute(inputData)
     }
   }
 }

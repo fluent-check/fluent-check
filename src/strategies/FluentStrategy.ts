@@ -5,7 +5,7 @@ import {Arbitrary, FluentPick, ValueResult, FluentRandomGenerator} from '../arbi
 export interface FluentStrategyInterface {
   hasInput: <K extends string>(arbitraryName: K) => boolean
   getInput: <K extends string, A>(arbitraryName: K) => FluentPick<A>
-  handleResult: () => void
+  handleResult: <A>(testCase: ValueResult<A>, inputData: {}) => void
 }
 
 export class FluentStrategy implements FluentStrategyInterface {
@@ -52,9 +52,8 @@ export class FluentStrategy implements FluentStrategyInterface {
   /**
    * Adds a new test case to the testCases array.
    */
-  addTestCase<A>(testCase: ValueResult<A>, inputData: {}) {
+  addTestCase<A>(testCase: ValueResult<A>) {
     this.testCases.push(testCase)
-    this.computeCoverage(inputData)
   }
 
   /**
@@ -160,11 +159,11 @@ export class FluentStrategy implements FluentStrategyInterface {
   }
 
   /**
-   * When called this function marks the end of one iteration in the test case generation process. So far, this function
-   * is not used but it can be used to perform several operations like keeping a list of generated test cases and save
-   * them to a file or even to track coverage.
+   * When called this function marks the end of one iteration in the test case generation process. This function can be
+   * used to perform several operations like keeping a list of generated test cases and save them to a file or even to
+   * track coverage.
    */
-  handleResult() {
+  handleResult<A>(_testCase: ValueResult<A>, _inputData: {}) {
     throw new Error('Method <handleResult> not implemented.')
   }
 }

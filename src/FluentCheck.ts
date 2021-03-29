@@ -225,7 +225,7 @@ class FluentCheckAssert<Rec extends ParentRec, ParentRec extends {}> extends Flu
   protected run(testCase: WrapFluentPick<Rec>, callback: (arg: WrapFluentPick<Rec>) => FluentResult): FluentResult {
     const unwrappedTestCase = FluentCheck.unwrapFluentPick(testCase)
     const inputData = {...unwrappedTestCase, ...this.runPreliminaries(unwrappedTestCase)} as Rec
-    this.strategy.addTestCase(unwrappedTestCase, inputData)
+    this.strategy.handleResult(unwrappedTestCase, inputData)
     return this.assertion(inputData) ? callback(testCase) : new FluentResult(false)
   }
 }

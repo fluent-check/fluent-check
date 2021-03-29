@@ -6,7 +6,7 @@
 // describe('Debug tests', () => {
 //   it('Testing coverage', () => {
 //     expect(fc.scenario()
-//       .config(fc.strategy().withRandomSampling(10).withCoverageGuidance('test/debug.test.ts'))
+//       .config(fc.strategy().withCoverageGuidance('test/debug.test.ts'))
 //       .forall('a', fc.integer(0, 20))
 //       .forall('b', fc.integer(0, 20))
 //       .then(({a, b}) => {
