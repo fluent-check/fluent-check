@@ -1,6 +1,7 @@
 import * as espree from 'espree'
 import {Arbitrary, FluentPick} from '../arbitraries'
 import {FluentStrategy} from './FluentStrategy'
+import * as libCoverage from 'istanbul-lib-coverage'
 
 export type FluentStrategyArbitrary<A> = {
   pickNum: number
@@ -34,3 +35,6 @@ export type StrategyArbitraries = Record<string, FluentStrategyArbitrary<any>>
 export type StrategyExtractedConstants = Record<string, Array<any>>
 
 export type Token = espree.Token
+
+export type FileCoverage = libCoverage.FileCoverage
+export type CoverageSummary = libCoverage.CoverageSummary

@@ -19,7 +19,7 @@ export function CoverageGuidance<TBase extends MixinStrategy>(Base: TBase) {
     /**
      * Contains a record of all instrument files and their associated source map.
      */
-    public instrumentedFiles: Record<string, string> = {}
+    public instrumentedFiles: string[] = []
 
     /**
      * Instrumenter object.
@@ -40,12 +40,11 @@ export function CoverageGuidance<TBase extends MixinStrategy>(Base: TBase) {
     coverageSetup() {
       let sourceData = this.extractImports(this.configuration.importsPath)
 
-      Object.entries(this.instrumentedFiles).forEach(file => {
-        console.log(file[0])
-        utils.writeDataToFile(file[0] + '.ts', this.instrumenter.instrumentSync(
-          fs.readFileSync(file[0] + '.ts').toString(), file[0] + '.ts'))
-        this.instrumentedFiles[file[0]] = this.instrumenter.lastSourceMap().sourcesContent.join('')
-      })
+      for (const file of this.instrumentedFiles) {
+        const sourceFile = file.split('.instrumented/').join('') + '.ts'
+        utils.writeDataToFile(file + '.ts', this.instrumenter.instrumentSync(
+          fs.readFileSync(sourceFile).toString(), sourceFile))
+      }
 
       for (const method of this.testMethods) {
         this.testMethodsNames.push(utils.generateUniqueMethodIdentifier())
@@ -60,21 +59,21 @@ export function CoverageGuidance<TBase extends MixinStrategy>(Base: TBase) {
     }
 
     /**
-     * TODO - Document
+     * Computes coverage for a given test case.
      */
     computeCoverage(inputData: {}) {
-      // this.coverageBuilder.compute(inputData)
+      this.coverageBuilder.compute(inputData)
     }
 
     /**
-     * Removes all the temporary created files for coverage purposes.
+     * Resets the coverage global variable, removes the instrumented files and cleans the content of the
+     * methods.ts file.
      */
     coverageTearDown() {
       this.coverageBuilder.resetCoverage()
 
-      Object.entries(this.instrumentedFiles).forEach(file => {
-        utils.writeDataToFile(file[0] + '.ts', file[1])
-      })
+      utils.deleteFromFileSystem('./src/.instrumented')
+      utils.writeDataToFile('./src/.coverage/methods.ts', '')
     }
 
     /**
@@ -96,8 +95,9 @@ export function CoverageGuidance<TBase extends MixinStrategy>(Base: TBase) {
           let resolvedPath = relativePath
 
           if (relativePath.includes('/') && !relativePath.includes('@')) {
-            resolvedPath = resolve(relativePath.split('../').join(''))
-            this.instrumentedFiles[resolvedPath] = ''
+            const pathArr = resolve(relativePath.split('../').join('')).split('src/')
+            resolvedPath = pathArr[0] + 'src/.instrumented/' + pathArr[1]
+            this.instrumentedFiles.push(resolvedPath)
           }
 
           const X = x.split('\'')[0].concat('\'' + resolvedPath + '\'')
