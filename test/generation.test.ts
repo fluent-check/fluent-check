@@ -22,11 +22,11 @@ describe('Generation tests', () => {
   })
 
   it('Sampling two similar arbitraries with the same rng produces the same values', () => {
-    expect(fc.integer(-10, 10).sample(10, prng(1))).to.eql(fc.integer(-10, 10).sample(10, prng(1)))
+    expect(fc.integer(-10, 10).sample(10, [], prng(1))).to.eql(fc.integer(-10, 10).sample(10, [], prng(1)))
   })
 
   it('Sampling two similar arbitraries with different rng produces different values', () => {
-    expect(fc.integer(-10, 10).sample(10, prng(1))).to.not.eql(fc.integer(-10, 10).sample(10, prng(2)))
+    expect(fc.integer(-10, 10).sample(10, [], prng(1))).to.not.eql(fc.integer(-10, 10).sample(10, [], prng(2)))
   })
 
   it('Generator generates different values for two similar arbitraries without generator specification', () => {

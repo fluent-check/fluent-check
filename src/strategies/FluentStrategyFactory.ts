@@ -19,7 +19,14 @@ export class FluentStrategyFactory {
   /**
    * Strategy configuration
    */
-  public configuration: FluentStrategyConfig = {sampleSize: 1000}
+  public configuration: FluentStrategyConfig = {
+    sampleSize: 1000,
+    shrinkSize: 500,
+    globSource: '',
+    maxNumConst: 100,
+    numericConstMaxRange: 100,
+    maxStringTransformations: 50
+  }
 
   /**
    * Builds and returns the FluentStrategy with a specified configuration.

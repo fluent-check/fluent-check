@@ -34,7 +34,7 @@ export abstract class Arbitrary<A> {
 
     for (let i = result.length; i < sampleSize; i++) {
       const pick = this.pick(generator)
-      if (pick) result.push(pick)
+      if (pick !== undefined) result.push(pick)
       else break
     }
 

@@ -2,5 +2,6 @@
  * Counts and returns the number of decimal cases of a given number.
  */
 export function countDecimals(value: number): number {
-  return Math.floor(value) === value ? 0 : value.toString().split('.')[1].length || 0
+  const valueArr = value.toString().split('.')
+  return Math.floor(value) === value || valueArr.length === 0 ? 0 : valueArr[1].length
 }

@@ -32,16 +32,16 @@ export function ConstantExtractionBased<TBase extends MixinStrategy>(Base: TBase
      * Parses the numeric tokens already extracted from code.
      */
     parseNumericTokens(tokens: Token[]) {
-      if (this.constants['numeric'].length > this.configuration.maxNumConst!) return
+      if (this.constants['numeric'].length > this.configuration.maxNumConst) return
 
       const filteredTokens = tokens.filter(token => {
-        return (token.type === 'Punctuator') || (token.type === 'Numeric')
+        return token.type === 'Punctuator' || token.type === 'Numeric'
       })
 
       const numericsAndPunctuators = filteredTokens.reduce(function (acc, token, index) {
         if (token.type === 'Numeric') {
-          const leftPunctuatorIndex = (filteredTokens[index - 1] !== undefined &&
-            filteredTokens[index - 1].value !== '-') ? 1 : 2
+          const leftPunctuatorIndex = filteredTokens[index - 1] !== undefined &&
+            filteredTokens[index - 1].value !== '-' ? 1 : 2
 
           acc.push(
             {
@@ -64,21 +64,21 @@ export function ConstantExtractionBased<TBase extends MixinStrategy>(Base: TBase
           Number.parseInt(pair.numeric)
 
         const decimals = utils.countDecimals(value)
-        const increment = (1000 / (1000 * 10 ** decimals))
+        const increment = 1000 / (1000 * 10 ** decimals)
 
         constants.push(value, +(value + increment).toFixed(decimals), +(value - increment).toFixed(decimals))
       }
 
       this.constants['numeric'] = [...new Set(this.constants['numeric'].concat(constants.slice(0,
         Math.min(constants.length,
-          Math.max(0, this.configuration.maxNumConst! - this.constants['numeric'].length)))))]
+          Math.max(0, this.configuration.maxNumConst - this.constants['numeric'].length)))))]
     }
 
     /**
      * Parses the string tokens already extracted from code.
      */
     parseStringTokens(tokens: Token[]) {
-      if (this.constants['string'].length > this.configuration.maxNumConst!) return
+      if (this.constants['string'].length > this.configuration.maxNumConst) return
 
       const filteredTokens = tokens.filter(token => { return token.type === 'String' })
         .map(token => token.value.substring(1, token.value.length - 1))
@@ -92,7 +92,7 @@ export function ConstantExtractionBased<TBase extends MixinStrategy>(Base: TBase
 
       this.constants['string'] = [...new Set(this.constants['string'].concat(constants.slice(0,
         Math.min(constants.length,
-          Math.max(0, this.configuration.maxNumConst! - this.constants['string'].length)))))]
+          Math.max(0, this.configuration.maxNumConst - this.constants['string'].length)))))]
     }
 
     /**
@@ -103,7 +103,7 @@ export function ConstantExtractionBased<TBase extends MixinStrategy>(Base: TBase
         this.tokenize(assertion)
 
       if (this.configuration.globSource !== '') {
-        const files = fs.lstatSync(this.configuration.globSource!).isDirectory() ?
+        const files = fs.lstatSync(this.configuration.globSource).isDirectory() ?
           glob.sync(this.configuration.globSource + '/**/*', {nodir: true}) :
           [this.configuration.globSource]
 
@@ -120,12 +120,14 @@ export function ConstantExtractionBased<TBase extends MixinStrategy>(Base: TBase
 
       const extractedConstants: Array<FluentPick<A>> = []
 
-      if (arbitrary.toString().includes('Map' && 'Array' && 'Integer'))
+      if (arbitrary.toString().includes('Map') && arbitrary.toString().includes('Array')
+        && arbitrary.toString().includes('Integer'))
         for (const elem of this.constants['string'])
           if (arbitrary.canGenerate({value: elem, original: Array.from(elem as string).map(x => x.charCodeAt(0))}))
             extractedConstants.push({value: elem, original: Array.from(elem as string).map(x => x.charCodeAt(0))})
 
-      if (arbitrary.toString().includes('Integer' || 'Constant') && !arbitrary.toString().includes('Array'))
+      if ((arbitrary.toString().includes('Integer') || arbitrary.toString().includes('Constant'))
+            && !arbitrary.toString().includes('Array'))
         for (const elem of this.constants['numeric'])
           if (arbitrary.canGenerate({value: elem, original: elem}))
             extractedConstants.push({value: elem, original: elem})

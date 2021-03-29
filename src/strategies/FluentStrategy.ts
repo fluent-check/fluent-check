@@ -2,8 +2,6 @@ import {Arbitrary, FluentPick, FluentRandomGenerator} from '../arbitraries'
 import {FluentResult} from '../FluentCheck'
 import {FluentStrategyConfig, StrategyArbitraries} from './FluentStrategyTypes'
 
-export type FluentConfig = { sampleSize?: number, shrinkSize?: number }
-
 export interface FluentStrategyInterface {
   hasInput: <K extends string>(arbitraryName: K) => boolean
   getInput: <K extends string, A>(arbitraryName: K) => FluentPick<A>
@@ -17,15 +15,15 @@ export class FluentStrategy implements FluentStrategyInterface {
    */
   public arbitraries: StrategyArbitraries = {}
 
-  /**
-   * Information concerning the random value generation
-   */
-  public randomGenerator = new FluentRandomGenerator()
-
   /*
    * Contains all the assertions concerning a test case
    */
   public assertions: {(...args: any[]): boolean} [] = []
+
+  /**
+   * Information concerning the random value generation
+   */
+  public randomGenerator = new FluentRandomGenerator()
 
   /**
    * Default constructor. Receives the FluentCheck configuration, which is used for test case generation purposes.
@@ -49,7 +47,7 @@ export class FluentStrategy implements FluentStrategyInterface {
   /**
    * Configures the information relative a specific arbitrary.
    */
-  configArbitrary<K extends string>(arbitraryName: K, partial: FluentResult | undefined, depth: number) {
+  configArbitrary<K extends string, A>(arbitraryName: K, partial: FluentResult | undefined, depth: number) {
     this.arbitraries[arbitraryName].pickNum = 0
     this.arbitraries[arbitraryName].collection = []
 
@@ -57,7 +55,7 @@ export class FluentStrategy implements FluentStrategyInterface {
 
     if (depth === 0)
       this.arbitraries[arbitraryName].collection = this.arbitraries[arbitraryName].cache !== undefined ?
-        this.arbitraries[arbitraryName].cache :
+        this.arbitraries[arbitraryName].cache as FluentPick<A>[]:
         this.buildArbitraryCollection(this.arbitraries[arbitraryName].arbitrary)
     else if (partial !== undefined)
       this.shrink(arbitraryName, partial)
