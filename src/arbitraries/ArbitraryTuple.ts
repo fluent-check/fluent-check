@@ -39,7 +39,7 @@ export class ArbitraryTuple<U extends Arbitrary<any>[], A = UnwrapArbitrary<U>> 
     return {value, original}
   }
 
-  calculateCoverage(picks: number): number {
+  calculateCoverage(picks: number) {
     return picks/100
   }
 

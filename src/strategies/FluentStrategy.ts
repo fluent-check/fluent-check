@@ -105,11 +105,12 @@ export class FluentStrategy implements FluentStrategyInterface {
   /**
    * This function calculates the coverage of each input.
    */
-  calculateCoverages(): Record<string, number> {
-    const coverages: Record<string, number> = {}
+  calculateCoverages(): Record<string, number | undefined> {
+    const coverages: Record<string, number | undefined> = {}
     for (const name in this.arbitraries) {
       const stArb = this.arbitraries[name]
-      coverages[name] = Math.round(stArb.arbitrary.calculateCoverage(stArb.picked.size) * 100000)/1000
+      const coverage = stArb.arbitrary.calculateCoverage(stArb.picked.size)
+      coverages[name] = coverage === undefined ? undefined : Math.round(coverage * 100000)/1000
     }
     return coverages
   }

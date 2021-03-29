@@ -25,7 +25,7 @@ export class ArbitraryComposite<A> extends Arbitrary<A> {
   }
 
   calculateCoverage(picks: number) {
-    return picks/100
+    return picks/this.size().value
   }
 
   cornerCases(): FluentPick<A>[] {

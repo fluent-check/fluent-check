@@ -32,7 +32,7 @@ export class ArbitrarySet<A> extends Arbitrary<A[]> {
     return {value, original: value}
   }
 
-  calculateCoverage(picks: number): number {
+  calculateCoverage(picks: number) {
     return picks/100
   }
 

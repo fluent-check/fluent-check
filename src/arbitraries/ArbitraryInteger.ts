@@ -17,7 +17,7 @@ export class ArbitraryInteger extends Arbitrary<number> {
     return {value, original: value}
   }
 
-  calculateCoverage(picks: number) {
+  calculateCoverage(picks: number): number | undefined {
     return picks/this.size().value
   }
 

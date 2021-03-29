@@ -13,7 +13,7 @@ export class FluentResult {
     public readonly seed?: number,
     public readonly withTestCaseOutput: boolean = false,
     public readonly testCases: ValueResult<any>[] = [],
-    public readonly coverages: Record<string, number> = {}) {}
+    public readonly coverages: Record<string, number | undefined> = {}) {}
 
   addExample<A>(name: string, value: FluentPick<A>) {
     this.example[name] = value
