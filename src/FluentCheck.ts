@@ -59,8 +59,7 @@ export class FluentCheck<Rec extends ParentRec, ParentRec extends {}> {
   protected run(
     testCase: WrapFluentPick<Rec> | Rec,
     callback: (arg: WrapFluentPick<Rec> | Rec) => FluentResult,
-    testCases: ValueResult<any>[],
-    _partial: FluentResult | undefined = undefined): FluentResult {
+    _: ValueResult<any>[]): FluentResult {
 
     return callback(testCase)
   }
