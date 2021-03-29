@@ -47,7 +47,7 @@ export class FilteredArbitrary<A> extends WrappedArbitrary<A> {
   }
 
   canGenerate(pick: FluentPick<A>) {
-    return this.baseArbitrary.canGenerate(pick) /* && this.f(pick.value) */
+    return this.baseArbitrary.canGenerate(pick) && this.f(pick.value)
   }
 
   toString(depth = 0) {
