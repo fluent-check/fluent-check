@@ -433,6 +433,7 @@ describe('Arbitrary tests', () => {
     })
 
     it('should always be satisfiable due to vacuous truth in universal assertions', () => {
+      /* istanbul ignore next */
       expect(fc.scenario()
         .forall('empty', fc.empty())
         .then(_ => false)
@@ -441,6 +442,7 @@ describe('Arbitrary tests', () => {
     })
 
     it('should never be satisfiable due to vacuous truth in existential assertions', () => {
+      /* istanbul ignore next */
       expect(fc.scenario()
         .exists('empty', fc.empty())
         .then(_ => true)
