@@ -17,10 +17,6 @@ export class ArbitraryInteger extends Arbitrary<number> {
     return {value, original: value}
   }
 
-  calculateCoverage(picks: number): number | undefined {
-    return picks/this.size().value
-  }
-
   cornerCases() {
     const middle = Math.round((this.min + this.max) / 2)
     const ccs = [... new Set(this.min < 0 && this.max > 0 ?

@@ -24,10 +24,6 @@ export class ArbitraryComposite<A> extends Arbitrary<A> {
     return this.arbitraries[weights.findIndex(s => s > picked)].pick(generator)
   }
 
-  calculateCoverage(picks: number) {
-    return picks/this.size().value
-  }
-
   cornerCases(): FluentPick<A>[] {
     return this.arbitraries.flatMap(a => a.cornerCases())
   }

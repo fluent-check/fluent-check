@@ -32,10 +32,6 @@ export class ArbitraryArray<A> extends Arbitrary<A[]> {
     }
   }
 
-  calculateCoverage(picks: number) {
-    return picks/this.size().value
-  }
-
   shrink(initial: FluentPick<A[]>): Arbitrary<A[]> {
     if (this.min === initial.value.length) return fc.empty()
 

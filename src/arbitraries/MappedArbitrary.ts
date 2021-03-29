@@ -16,10 +16,6 @@ export class MappedArbitrary<A, B> extends Arbitrary<B> {
     return pick !== undefined ? this.mapFluentPick(pick) : undefined
   }
 
-  calculateCoverage(picks: number) {
-    return picks/this.size().value
-  }
-
   // TODO: This is not strictly true when the mapping function is not bijective. I suppose this is
   // a count-distinct problem, so we should probably either count the cardinality with a Set (for
   // small arbitraries), or use a cardinality estimator such as HyperLogLog for big ones. One
