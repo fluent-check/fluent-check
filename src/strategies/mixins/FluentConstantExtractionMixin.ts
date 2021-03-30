@@ -103,9 +103,11 @@ export function ConstantExtractionBased<TBase extends MixinStrategy>(Base: TBase
         this.tokenize(method)
 
       if (this.configuration.globSource !== '') {
-        const files = fs.lstatSync(this.configuration.globSource).isDirectory() ?
-          glob.sync(this.configuration.globSource + '/**/*', {nodir: true}) :
-          [this.configuration.globSource]
+        const files = [... new Set(utils.extractImports(this.configuration.globSource).sourceFiles
+          .map(file => file + '.ts').concat(fs.lstatSync(this.configuration.globSource).isDirectory() ?
+            glob.sync(this.configuration.globSource + '/**/*', {nodir: true}) :
+            [this.configuration.globSource]
+          ))]
 
         for (const file of files)
           this.tokenize(fs.readFileSync(file))
