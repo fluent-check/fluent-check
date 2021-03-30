@@ -20,7 +20,9 @@ export class FluentStrategyTypeFactory {
   }
 
   /**
-   * Generates test cases based on coverage measurements.
+   * Generates test cases based on coverage measurements. Currently, this strategy has the limitation of not allowing a
+   * test suite to depend on data inside the test suite itself. Therefore all data where coverage needs to be measured
+   * should be imported.
    */
   withCoverageGuidance(importsPath = 'test') {
     return new FluentStrategyCoverageFactory(importsPath)
@@ -139,4 +141,5 @@ export class FluentStrategyCoverageFactory extends FluentStrategyFactory {
     this.configuration = {...this.configuration, importsPath}
     this.strategy = CoverageGuidance(this.strategy)
   }
+
 }
