@@ -48,20 +48,20 @@ describe('Strategy tests', () => {
       ).to.deep.include({satisfiable: false})
     })
 
-    it('should be able to detect buffer overflow by build strings with length matching the numerics extracted', () => {
+    it('should be able to build and use strings with length matching the numerics extracted', () => {
       expect(fc.scenario()
         .config(fc.strategy()
           .withRandomSampling(100)
           .withBias()
-          .withConstantExtraction({globSource: 'test/strategies.test.ts'})
+          .withConstantExtraction()
         )
-        .forall('input', fc.string())
+        .forall('input', fc.string(0, 64))
         .then(({input}) => {
-          if (input.length > 20) return false
+          if (input.length >= 20) return false
           return true
         })
         .check()
-      ).to.have.property('satisfiable', true) // TODO - Should be false
+      ).to.have.property('satisfiable', false)
     })
 
   })

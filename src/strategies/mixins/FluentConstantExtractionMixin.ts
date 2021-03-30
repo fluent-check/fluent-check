@@ -3,6 +3,7 @@ import * as espree from 'espree'
 import * as glob from 'glob'
 import * as fs from 'fs'
 import * as utils from './utils'
+import * as fc from '../../index'
 import {Arbitrary, FluentPick} from '../../arbitraries'
 import {MixinStrategy, StrategyExtractedConstants, Token} from '../FluentStrategyTypes'
 
@@ -111,6 +112,11 @@ export function ConstantExtractionBased<TBase extends MixinStrategy>(Base: TBase
 
         for (const file of files)
           this.tokenize(fs.readFileSync(file))
+      }
+
+      for (const numeric of this.constants['numeric']) {
+        if (this.constants['string'].length >= this.configuration.maxNumConst) break
+        this.constants['string'].push(fc.string(numeric, numeric).pick(this.randomGenerator.generator)?.value)
       }
     }
 
