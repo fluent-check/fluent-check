@@ -74,22 +74,4 @@ describe('Generation tests', () => {
 
     expect(sc1.check().testCases).to.eql(sc1.check().testCases)
   })
-
-  it('Generator generates different test cases for two runs with different seeds', () => {
-    const sc1 = fc.scenario()
-      .config(fc.strategy().defaultStrategy().withTestCaseOutput())
-      .withGenerator(prng, 1234)
-      .forall('a', fc.integer(-10, 10))
-      .forall('b', fc.integer(-10, 10))
-      .then(({a, b}) => a+b === b+a)
-
-    const sc2 = fc.scenario()
-      .config(fc.strategy().defaultStrategy().withTestCaseOutput())
-      .withGenerator(prng, 4321)
-      .forall('a', fc.integer(-10, 10))
-      .forall('b', fc.integer(-10, 10))
-      .then(({a, b}) => a+b === b+a)
-
-    expect(sc1.check().testCases).to.not.eql(sc2.check().testCases)
-  })
 })
