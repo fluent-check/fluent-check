@@ -75,3 +75,91 @@ export function extractImports(path: string) {
   Object.entries(imports).forEach(element => { header += element[1] + '\n' })
   return {header: header + '\n', sourceFiles}
 }
+
+/**
+ * Recursively computes and returns all the possible combinations for a given array of arrays.
+ */
+function nwise(data: any[][]) {
+  if (data.length < 2) return data.length === 0 ? data :
+    data[0].reduce((acc, value) => {
+      acc.push([value])
+      return acc
+    }, [])
+  else if (data.length === 2) {
+    return data[0].reduce((acc, value) => {
+      for (const elem of data[1])
+        if (Array.isArray(elem)) acc.push([value].concat(elem))
+        else acc.push([value, elem])
+      return acc
+    }, [])
+  }
+  else return nwise(data.slice(0, data.length - 2).concat([nwise(data.slice(data.length - 2, data.length))]))
+}
+
+/**
+ * Returns all possible pair combinations for a given array of arrays.
+ */
+function pairwise(data: any[][]) {
+  if (data.length < 2) return data.length === 0 ? data :
+    data[0].reduce((acc, value) => {
+      acc.push([value])
+      return acc
+    }, [])
+
+  let unsortedData = [... data]
+  data.sort((x, y) => y.length - x.length)
+
+  unsortedData = unsortedData.map(x => [unsortedData.indexOf(x), data.indexOf(x)])
+
+  const combinations = data[0].reduce((acc, value) => {
+    let subArrIndex = 0
+    acc.push(...Array(data[1].length).fill(value).map(x => [x, data[1][subArrIndex++]]))
+    return acc
+  }, [])
+
+  if (data.length > 2) {
+    let index = 2
+    let inverted = data[1].length === data[2].length ? true : false
+
+    while (index < data.length) {
+      if (inverted) data[index].reverse()
+      let subArrIndex = 0
+
+      for (let i = 0; i < combinations.length; i++) {
+        if (i % data[1].length === 0 && i !== 0) {
+          subArrIndex = 0
+          if (data[index].length % 2 === 0 && data[index-1].length % 2 === 0) data[index].reverse()
+          else data[index].push(data[index].shift())
+        }
+        combinations[i].push(data[index][subArrIndex++])
+        subArrIndex = subArrIndex >= data[index].length ? 0 : subArrIndex
+      }
+      index++
+      inverted = !inverted
+    }
+  }
+
+  const unsortedCombinations: any[][] = []
+
+  for (const combination of combinations) {
+    const tmpArr: any[] = []
+    for (const elem of unsortedData)
+      tmpArr.push(combination[elem[1]])
+    unsortedCombinations.push(tmpArr)
+  }
+
+  return unsortedCombinations
+}
+
+/**
+ * Returns an array with nwise combinations. Currently it only supports nwise (all possible combinations) and
+ * pairwise combinations.
+ */
+export function computeCombinations(data: any[][], N?: number): any[][] {
+  switch (N) {
+    case 2:
+      return pairwise(data.filter(x => x.length > 0))
+    default:
+      return nwise(data.filter(x => x.length > 0))
+  }
+}
