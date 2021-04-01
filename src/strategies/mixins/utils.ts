@@ -128,8 +128,7 @@ function pairwise(data: any[][]) {
       for (let i = 0; i < combinations.length; i++) {
         if (i % data[1].length === 0 && i !== 0) {
           subArrIndex = 0
-          if (data[index].length % 2 === 0 && data[index-1].length % 2 === 0) data[index].reverse()
-          else data[index].push(data[index].shift())
+          data[index].push(data[index].shift())
         }
         combinations[i].push(data[index][subArrIndex++])
         subArrIndex = subArrIndex >= data[index].length ? 0 : subArrIndex
