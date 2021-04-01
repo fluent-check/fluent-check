@@ -104,9 +104,9 @@ describe('Strategy tests', () => {
         .given('b', () => fc.array(fc.boolean()).pick(Math.random)?.value as boolean[])
         .given('c', () => fc.array(fc.integer()).pick(Math.random)?.value as number[])
         .then(({a, b, c}) => {
-          const nwise = utils.computeCombinations([a,b,c]).map(x => x.toString())
-          const pairwise = utils.computeCombinations([a,b,c], 2).map(x => x.toString())
-          return pairwise.every(x => nwise.indexOf(x) !== -1)
+          const nwise = utils.computeCombinations([a,b,c])
+          const pairwise = utils.computeCombinations([a,b,c], 2)
+          return pairwise.every(x => nwise.some(y => x.every(z => y.indexOf(z) !== -1)))
         })
         .check()
       ).to.have.property('satisfiable', true)
@@ -118,23 +118,11 @@ describe('Strategy tests', () => {
         .given('b', () => fc.array(fc.boolean(), 1).pick(Math.random)?.value as boolean[])
         .given('c', () => fc.array(fc.integer(), 1).pick(Math.random)?.value as number[])
         .then(({a, b, c}) => {
-          const allPairs = utils.computeCombinations([a,b])
-            .concat(utils.computeCombinations([b,c]))
-            .concat(utils.computeCombinations([a,c]))
-
           const pairwise = utils.computeCombinations([a,b,c], 2)
-
-          for (const pair of allPairs) {
-            let exists = false
-            for (const elem of pairwise) {
-              if (elem.indexOf(pair[0]) !== -1 && elem.indexOf(pair[1]) !== -1) {
-                exists = true
-                break
-              }
-            }
-            if (!exists) return false
-          }
-          return true
+          const allPairs = [... new Set(utils.computeCombinations([a,b])
+            .concat(utils.computeCombinations([b,c]))
+            .concat(utils.computeCombinations([a,c])))]
+          return allPairs.every(x => pairwise.some(y => x.every(z => y.indexOf(z) !== -1)))
         })
         .check()
       ).to.have.property('satisfiable', true)
