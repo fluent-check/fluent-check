@@ -5,11 +5,9 @@ import * as fs from 'fs'
 import * as utils from './utils'
 import * as fc from '../../index'
 import {Arbitrary, FluentPick} from '../../arbitraries'
-import {MixinStrategy, MixinInstance, StrategyExtractedConstants, Token} from '../FluentStrategyTypes'
+import {MixinStrategy, StrategyExtractedConstants, Token} from '../FluentStrategyTypes'
 
-export function ConstantExtractionBased<TBase extends MixinStrategy>(Base: TBase): {
-  new(...a: any[]): MixinInstance;
-} & TBase {
+export function ConstantExtractionBased<TBase extends MixinStrategy>(Base: TBase) {
   return class extends Base {
 
     /**

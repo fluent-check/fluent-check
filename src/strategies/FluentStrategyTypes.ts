@@ -3,7 +3,6 @@ import {Arbitrary, FluentPick} from '../arbitraries'
 import {FluentStrategy} from './FluentStrategy'
 import * as libCoverage from 'istanbul-lib-coverage'
 
-export declare class MixinInstance {}
 export type MixinConstructor<T = {}> = new (...args: any[]) => T
 export type MixinStrategy = MixinConstructor<FluentStrategy>
 

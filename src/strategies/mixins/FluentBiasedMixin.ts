@@ -1,9 +1,7 @@
 import {Arbitrary, FluentPick} from '../../arbitraries'
-import {MixinStrategy, MixinInstance} from '../FluentStrategyTypes'
+import {MixinStrategy} from '../FluentStrategyTypes'
 
-export function Biased<TBase extends MixinStrategy>(Base: TBase): {
-  new(...a: any[]): MixinInstance;
-} & TBase {
+export function Biased<TBase extends MixinStrategy>(Base: TBase) {
   return class extends Base {
     protected buildArbitraryCollection<A>(
       arbitrary: Arbitrary<A>,

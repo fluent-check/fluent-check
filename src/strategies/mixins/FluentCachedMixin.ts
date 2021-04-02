@@ -1,8 +1,6 @@
-import {MixinStrategy, MixinInstance} from '../FluentStrategyTypes'
+import {MixinStrategy} from '../FluentStrategyTypes'
 
-export function Cached<TBase extends MixinStrategy>(Base: TBase): {
-  new(...a: any[]): MixinInstance;
-} & TBase {
+export function Cached<TBase extends MixinStrategy>(Base: TBase) {
   return class extends Base {
     protected setArbitraryCache<K extends string>(arbitraryName: K) {
       if (this.arbitraries[arbitraryName].cache === undefined)

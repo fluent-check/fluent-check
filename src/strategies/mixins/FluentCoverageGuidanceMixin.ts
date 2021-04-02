@@ -6,11 +6,9 @@ import * as libInstrument from 'istanbul-lib-instrument'
 import {ValueResult} from '../../arbitraries'
 import {FluentCoverage} from '../FluentCoverage'
 import {FluentStrategyInterface} from '../FluentStrategy'
-import {MixinStrategy, MixinInstance} from '../FluentStrategyTypes'
+import {MixinStrategy} from '../FluentStrategyTypes'
 
-export function CoverageGuidance<TBase extends MixinStrategy>(Base: TBase): {
-  new(...a: any[]): MixinInstance;
-} & TBase {
+export function CoverageGuidance<TBase extends MixinStrategy>(Base: TBase) {
   return class extends Base implements FluentStrategyInterface {
 
     /**
