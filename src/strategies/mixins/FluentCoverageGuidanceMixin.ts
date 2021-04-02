@@ -4,34 +4,36 @@ import * as schema from '@istanbuljs/schema'
 import * as libInstrument from 'istanbul-lib-instrument'
 
 import {FluentPick, ValueResult} from '../../arbitraries'
-import {MixinStrategy} from '../FluentStrategyTypes'
 import {FluentCoverage} from '../FluentCoverage'
 import {FluentStrategyInterface} from '../FluentStrategy'
+import {MixinStrategy, MixinInstance} from '../FluentStrategyTypes'
 
-export function CoverageGuidance<TBase extends MixinStrategy>(Base: TBase) {
+export function CoverageGuidance<TBase extends MixinStrategy>(Base: TBase): {
+  new(...a: any[]): MixinInstance;
+} & TBase {
   return class extends Base implements FluentStrategyInterface {
 
     /**
      * Contains all the created names for the test methods.
      */
-    public testMethodsNames: string[] = []
+    private testMethodsNames: string[] = []
 
     /**
      * Instrumenter object.
      */
-    public instrumenter = libInstrument.createInstrumenter({
+    private instrumenter = libInstrument.createInstrumenter({
       parserPlugins: schema.defaults.nyc.parserPlugins.concat('typescript')
     })
 
     /**
      * Coverage object responsible for computing and managing coverage
      */
-    public coverageBuilder!: FluentCoverage
+    private coverageBuilder!: FluentCoverage
 
     /**
      * Function responsible for creating all the files needed so that coverage can be tracked.
      */
-    coverageSetup() {
+    protected coverageSetup() {
       const importInfo = utils.extractImports(this.configuration.importsPath)
       let sourceData: string = importInfo.header
       const instrumentedFiles: string[] = importInfo.sourceFiles
@@ -61,7 +63,7 @@ export function CoverageGuidance<TBase extends MixinStrategy>(Base: TBase) {
     /**
      * Resets the coverage global variable and removes all the files used for coverage purposes.
      */
-    coverageTearDown() {
+    protected coverageTearDown() {
       const paths = ['./src/.coverage', './src/.instrumented']
       this.coverageBuilder.resetCoverage()
 

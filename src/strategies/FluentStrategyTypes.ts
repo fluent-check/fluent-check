@@ -3,6 +3,18 @@ import {Arbitrary, FluentPick} from '../arbitraries'
 import {FluentStrategy} from './FluentStrategy'
 import * as libCoverage from 'istanbul-lib-coverage'
 
+export declare class MixinInstance {}
+export type MixinConstructor<T = {}> = new (...args: any[]) => T
+export type MixinStrategy = MixinConstructor<FluentStrategy>
+
+export type StrategyArbitraries = Record<string, FluentStrategyArbitrary<any>>
+export type StrategyExtractedConstants = Record<string, Array<any>>
+
+export type Token = espree.Token
+
+export type FileCoverage = libCoverage.FileCoverage
+export type CoverageSummary = libCoverage.CoverageSummary
+
 export type FluentStrategyArbitrary<A> = {
   pickNum: number
   arbitrary: Arbitrary<A>
@@ -26,15 +38,3 @@ export type ConstantExtractionConfig = {
   numericConstMaxRange?: number
   maxStringTransformations?: number
 }
-
-export type MixinConstructor<T = {}> = new (...args: any[]) => T
-export type MixinStrategy = MixinConstructor<FluentStrategy>
-
-export type StrategyArbitraries = Record<string, FluentStrategyArbitrary<any>>
-
-export type StrategyExtractedConstants = Record<string, Array<any>>
-
-export type Token = espree.Token
-
-export type FileCoverage = libCoverage.FileCoverage
-export type CoverageSummary = libCoverage.CoverageSummary

@@ -1,8 +1,10 @@
 import {FluentPick, ValueResult} from '../../arbitraries'
 import {FluentStrategyInterface} from '../FluentStrategy'
-import {MixinStrategy} from '../FluentStrategyTypes'
+import {MixinStrategy, MixinInstance} from '../FluentStrategyTypes'
 
-export function Random<TBase extends MixinStrategy>(Base: TBase) {
+export function Random<TBase extends MixinStrategy>(Base: TBase): {
+  new(...a: any[]): MixinInstance;
+} & TBase {
   return class extends Base implements FluentStrategyInterface {
     hasInput<K extends string>(arbitraryName: K): boolean {
       return this.arbitraries[arbitraryName] !== undefined &&

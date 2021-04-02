@@ -33,7 +33,7 @@ export class FluentStrategy implements FluentStrategyInterface {
   /**
    * Default constructor. Receives the FluentCheck configuration, which is used for test case generation purposes.
    */
-  constructor(public readonly configuration: FluentStrategyConfig) {}
+  constructor(protected readonly configuration: FluentStrategyConfig) {}
 
   /**
    * Adds an arbitrary to the arbitraries record
@@ -86,6 +86,13 @@ export class FluentStrategy implements FluentStrategyInterface {
         this.buildArbitraryCollection(this.arbitraries[arbitraryName].arbitrary)
     else if (partial !== undefined)
       this.shrink(arbitraryName, partial)
+  }
+
+  /**
+   * Returns the associated strategy configuration.
+   */
+  getConfiguration(): FluentStrategyConfig {
+    return this.configuration
   }
 
   /**

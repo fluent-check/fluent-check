@@ -1,9 +1,11 @@
 import {FluentResult} from '../../FluentCheck'
-import {MixinStrategy} from '../FluentStrategyTypes'
+import {MixinStrategy, MixinInstance} from '../FluentStrategyTypes'
 
-export function Shrinkable<TBase extends MixinStrategy>(Base: TBase) {
+export function Shrinkable<TBase extends MixinStrategy>(Base: TBase): {
+  new(...a: any[]): MixinInstance;
+} & TBase {
   return class extends Base {
-    shrink<K extends string>(arbitraryName: K, partial: FluentResult) {
+    protected shrink<K extends string>(arbitraryName: K, partial: FluentResult) {
       const shrinkedArbitrary = this.arbitraries[arbitraryName].arbitrary.shrink(partial.example[arbitraryName])
       this.arbitraries[arbitraryName].collection = this.buildArbitraryCollection(shrinkedArbitrary,
         this.configuration.shrinkSize)

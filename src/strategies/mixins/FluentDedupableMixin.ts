@@ -1,8 +1,10 @@
-import {MixinStrategy} from '../FluentStrategyTypes'
+import {MixinStrategy, MixinInstance} from '../FluentStrategyTypes'
 
-export function Dedupable<TBase extends MixinStrategy>(Base: TBase) {
+export function Dedupable<TBase extends MixinStrategy>(Base: TBase): {
+  new(...a: any[]): MixinInstance;
+} & TBase {
   return class extends Base {
-    isDedupable() {
+    protected isDedupable() {
       return true
     }
   }
