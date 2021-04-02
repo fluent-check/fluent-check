@@ -1,10 +1,10 @@
 import {FluentResult} from '../FluentCheck'
 import {FluentStrategyConfig, StrategyArbitraries} from './FluentStrategyTypes'
-import {Arbitrary, FluentPick, ValueResult, FluentRandomGenerator} from '../arbitraries'
+import {Arbitrary, FluentPick, ValueResult, FluentRandomGenerator, WrapFluentPick} from '../arbitraries'
 
 export interface FluentStrategyInterface {
   hasInput: <K extends string>(arbitraryName: K) => boolean
-  getInput: <K extends string, A>(arbitraryName: K) => FluentPick<A>
+  getInput: (name: string) => void
   handleResult: <A>(testCase: ValueResult<A>, inputData: {}) => void
 }
 
@@ -24,6 +24,11 @@ export class FluentStrategy implements FluentStrategyInterface {
    * Contains all the test cases used for a given test.
    */
   protected testCases: ValueResult<any>[] = []
+
+  /**
+   * Current test case being used for testing purposes.
+   */
+  protected currTestCase: WrapFluentPick<any> = {}
 
   /*
    * Information concerning the random value generation.
@@ -54,6 +59,13 @@ export class FluentStrategy implements FluentStrategyInterface {
    */
   addTestCase<A>(testCase: ValueResult<A>) {
     this.testCases.push(testCase)
+  }
+
+  /**
+   * Adds a new input to the current test case structure.
+   */
+  addInputToCurrentTestCase(name: string, value: FluentPick<any>) {
+    this.currTestCase[name] = value
   }
 
   /**
@@ -93,6 +105,13 @@ export class FluentStrategy implements FluentStrategyInterface {
    */
   getConfiguration(): FluentStrategyConfig {
     return this.configuration
+  }
+
+  /**
+   * Returns the current test case
+   */
+  getCurrentTestCase() {
+    return this.currTestCase
   }
 
   /**
@@ -178,7 +197,7 @@ export class FluentStrategy implements FluentStrategyInterface {
   /**
    * Retrieves a new input from the arbitraries record.
    */
-  getInput<K extends string, A>(_arbitraryName: K): FluentPick<A> {
+  getInput(_name: string) {
     throw new Error('Method <getInput> not implemented.')
   }
 

@@ -1,4 +1,4 @@
-import {FluentPick, ValueResult} from '../../arbitraries'
+import {ValueResult} from '../../arbitraries'
 import {FluentStrategyInterface} from '../FluentStrategy'
 import {MixinStrategy, MixinInstance} from '../FluentStrategyTypes'
 
@@ -11,8 +11,8 @@ export function Random<TBase extends MixinStrategy>(Base: TBase): {
         this.arbitraries[arbitraryName].pickNum < this.arbitraries[arbitraryName].collection.length
     }
 
-    getInput<K extends string, A>(arbitraryName: K): FluentPick<A> {
-      return this.arbitraries[arbitraryName].collection[this.arbitraries[arbitraryName].pickNum++]
+    getInput(name: string) {
+      this.addInputToCurrentTestCase(name, this.arbitraries[name].collection[this.arbitraries[name].pickNum++])
     }
 
     /**

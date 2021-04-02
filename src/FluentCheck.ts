@@ -1,6 +1,6 @@
 import {FluentStrategy} from './strategies/FluentStrategy'
 import {FluentStrategyFactory} from './strategies/FluentStrategyFactory'
-import {Arbitrary, FluentPick, ValueResult, WrapFluentPick, PickResult, FluentRandomGenerator} from './arbitraries'
+import {Arbitrary, FluentPick, ValueResult, PickResult, FluentRandomGenerator} from './arbitraries'
 
 export class FluentResult {
   constructor(
@@ -49,26 +49,25 @@ export class FluentCheck<Rec extends ParentRec, ParentRec extends {}> {
     return new FluentCheckGenerator(this, generator, this.strategy, seed)
   }
 
-  protected run(
-    testCase: WrapFluentPick<Rec> | Rec,
-    callback: (arg: WrapFluentPick<Rec> | Rec) => FluentResult): FluentResult {
-
-    return callback(testCase)
+  protected run(callback: () => FluentResult): FluentResult {
+    return callback()
   }
 
   protected pathFromRoot(): FluentCheck<any, any>[] {
     return this.parent !== undefined ? [...this.parent.pathFromRoot(), this] : [this]
   }
 
-  check(child: (testCase: WrapFluentPick<any>) => FluentResult = () => new FluentResult(true)): FluentResult {
-    if (this.parent !== undefined) return this.parent.check(testCase => this.run(testCase, child))
+  check(child: () => FluentResult = () => new FluentResult(true)): FluentResult {
+    if (this.parent !== undefined) return this.parent.check(() => this.run(child))
     else {
       this.strategy.setup()
-      const r = this.run({} as Rec, child)
+      const r = this.run(child)
       this.strategy.tearDown()
 
-      return new FluentResult(r.satisfiable, FluentCheck.unwrapFluentPick(r.example),
-        this.strategy.getRandomGenerator().seed)
+      return new FluentResult(r.satisfiable,
+        FluentCheck.unwrapFluentPick(r.example),
+        this.strategy.getRandomGenerator().seed
+      )
     }
   }
 
@@ -135,9 +134,9 @@ class FluentCheckGivenConstant<K extends string, V, Rec extends ParentRec & Reco
     super(parent, name, strategy)
   }
 
-  protected run(testCase: Rec, callback: (arg: Rec) => FluentResult) {
-    testCase[this.name as string] = this.value
-    return callback(testCase)
+  protected run(callback: () => FluentResult) {
+    this.strategy.addInputToCurrentTestCase(this.name as string, {value: this.value})
+    return callback()
   }
 }
 
@@ -155,19 +154,18 @@ abstract class FluentCheckQuantifier<K extends string, A, Rec extends ParentRec 
   }
 
   protected run(
-    testCase: WrapFluentPick<Rec>,
-    callback: (arg: WrapFluentPick<Rec>) => FluentResult,
+    callback: () => FluentResult,
     partial: FluentResult | undefined = undefined,
     depth = 0): FluentResult {
 
     this.strategy.configArbitrary(this.name, partial, depth)
 
     while (this.strategy.hasInput(this.name)) {
-      testCase[this.name] = this.strategy.getInput(this.name)
-      const result = callback(testCase)
+      this.strategy.getInput(this.name)
+      const result = callback()
       if (result.satisfiable === this.breakValue) {
-        result.addExample(this.name, testCase[this.name])
-        return this.run(testCase, callback, result, depth + 1)
+        result.addExample(this.name, this.strategy.getCurrentTestCase()[this.name])
+        return this.run(callback, result, depth + 1)
       }
     }
 
@@ -217,11 +215,11 @@ class FluentCheckAssert<Rec extends ParentRec, ParentRec extends {}> extends Flu
     return data
   }
 
-  protected run(testCase: WrapFluentPick<Rec>, callback: (arg: WrapFluentPick<Rec>) => FluentResult): FluentResult {
-    const unwrappedTestCase = FluentCheck.unwrapFluentPick(testCase)
+  protected run(callback: () => FluentResult): FluentResult {
+    const unwrappedTestCase = FluentCheck.unwrapFluentPick(this.strategy.getCurrentTestCase())
     const inputData = {...unwrappedTestCase, ...this.runPreliminaries(unwrappedTestCase)} as Rec
     this.strategy.handleResult(unwrappedTestCase, inputData)
-    return this.assertion(inputData) ? callback(testCase) : new FluentResult(false)
+    return this.assertion(inputData) ? callback() : new FluentResult(false)
   }
 }
 

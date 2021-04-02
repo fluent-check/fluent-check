@@ -3,7 +3,7 @@ import * as utils from './utils'
 import * as schema from '@istanbuljs/schema'
 import * as libInstrument from 'istanbul-lib-instrument'
 
-import {FluentPick, ValueResult} from '../../arbitraries'
+import {ValueResult} from '../../arbitraries'
 import {FluentCoverage} from '../FluentCoverage'
 import {FluentStrategyInterface} from '../FluentStrategy'
 import {MixinStrategy, MixinInstance} from '../FluentStrategyTypes'
@@ -82,8 +82,8 @@ export function CoverageGuidance<TBase extends MixinStrategy>(Base: TBase): {
     /**
      * TODO - The current implementation is still the same as the Random mixin and therefore needs to be changed.
      */
-    getInput<K extends string, A>(arbitraryName: K): FluentPick<A> {
-      return this.arbitraries[arbitraryName].collection[this.arbitraries[arbitraryName].pickNum++]
+    getInput(name: string) {
+      this.addInputToCurrentTestCase(name, this.arbitraries[name].collection[this.arbitraries[name].pickNum++])
     }
 
     /**
