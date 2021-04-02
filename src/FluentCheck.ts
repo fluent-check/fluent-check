@@ -16,7 +16,6 @@ export class FluentResult {
 export class FluentCheck<Rec extends ParentRec, ParentRec extends {}> {
   constructor(protected strategy: FluentStrategy = new FluentStrategyFactory().defaultStrategy().build(),
     protected readonly parent: FluentCheck<ParentRec, any> | undefined = undefined) {
-    if (this.parent !== undefined) this.strategy.randomGenerator = this.parent.strategy.randomGenerator
   }
 
   config(strategy: FluentStrategyFactory) {
@@ -69,7 +68,7 @@ export class FluentCheck<Rec extends ParentRec, ParentRec extends {}> {
       this.strategy.tearDown()
 
       return new FluentResult(r.satisfiable, FluentCheck.unwrapFluentPick(r.example),
-        this.strategy.randomGenerator.seed)
+        this.strategy.getRandomGenerator().seed)
     }
   }
 
@@ -79,10 +78,6 @@ export class FluentCheck<Rec extends ParentRec, ParentRec extends {}> {
     return result
   }
 
-  setRandomGenerator(prng: FluentRandomGenerator) {
-    this.strategy.randomGenerator = prng
-    this.parent?.setRandomGenerator(prng)
-  }
 }
 
 class FluentCheckWhen<Rec extends ParentRec, ParentRec extends {}> extends FluentCheck<Rec, ParentRec> {
@@ -238,7 +233,6 @@ class FluentCheckGenerator<Rec extends ParentRec, ParentRec extends {}> extends 
     readonly seed?: number
   ) {
     super(strategy, parent)
-
-    this.setRandomGenerator(new FluentRandomGenerator(rngBuilder, seed))
+    this.strategy.setRandomGenerator(new FluentRandomGenerator(rngBuilder, seed))
   }
 }

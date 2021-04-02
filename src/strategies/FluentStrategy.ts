@@ -13,22 +13,22 @@ export class FluentStrategy implements FluentStrategyInterface {
   /**
    * Record of all the arbitraries used for composing a given test case.
    */
-  public arbitraries: StrategyArbitraries = {}
+  protected arbitraries: StrategyArbitraries = {}
 
   /**
    * Contains all the test methods concerning a test case.
    */
-  public testMethods: {(...args: any[]): any} [] = []
+  protected testMethods: {(...args: any[]): any} [] = []
 
   /**
    * Contains all the test cases used for a given test.
    */
-  public testCases: ValueResult<any>[] = []
+  protected testCases: ValueResult<any>[] = []
 
   /*
    * Information concerning the random value generation.
    */
-  public randomGenerator = new FluentRandomGenerator()
+  protected randomGenerator = new FluentRandomGenerator()
 
   /**
    * Default constructor. Receives the FluentCheck configuration, which is used for test case generation purposes.
@@ -89,21 +89,38 @@ export class FluentStrategy implements FluentStrategyInterface {
   }
 
   /**
+   * Returns the associated random generator.
+   */
+  getRandomGenerator(): FluentRandomGenerator {
+    return this.randomGenerator
+  }
+
+  /**
+   * Sets the current random generator.
+   */
+  setRandomGenerator(prng: FluentRandomGenerator) {
+    this.randomGenerator = prng
+  }
+
+  /**
    * Determines whether uniqueness should be taken into account while generating samples.
    */
-  isDedupable() {
+  protected isDedupable() {
     return false
   }
 
   /**
    * Hook that acts as point of extension of the addArbitrary function and that enables the strategy to be cached.
    */
-  setArbitraryCache<K extends string>(_arbitraryName: K) {}
+  protected setArbitraryCache<K extends string>(_arbitraryName: K) {}
 
   /**
    * Generates a once a collection of inputs for a given arbitrary
    */
-  buildArbitraryCollection<A>(arbitrary: Arbitrary<A>, sampleSize = this.configuration.sampleSize): FluentPick<A>[] {
+  protected buildArbitraryCollection<A>(
+    arbitrary: Arbitrary<A>,
+    sampleSize = this.configuration.sampleSize
+  ): FluentPick<A>[] {
     const constantsSample = this.getArbitraryExtractedConstants(arbitrary)
     return this.isDedupable() ?
       arbitrary.sampleUnique(sampleSize, constantsSample, this.randomGenerator.generator) :
@@ -113,13 +130,13 @@ export class FluentStrategy implements FluentStrategyInterface {
   /**
    * Hook that acts as point of extension of the configArbitrary function and that enables an arbitrary to be shrinked.
    */
-  shrink<K extends string>(_name: K, _partial: FluentResult | undefined) {}
+  protected shrink<K extends string>(_name: K, _partial: FluentResult | undefined) {}
 
   /**
    * Hook that acts as point of extension of the buildArbitraryCollection function and that enables the strategy to use
    * extracted constants from code in the test cases.
    */
-  getArbitraryExtractedConstants<A>(_arbitrary: Arbitrary<A>): FluentPick<A>[] {
+  protected getArbitraryExtractedConstants<A>(_arbitrary: Arbitrary<A>): FluentPick<A>[] {
     return []
   }
 
@@ -127,19 +144,19 @@ export class FluentStrategy implements FluentStrategyInterface {
    * Hook that acts as point of extension of the setup function and that enables the strategy to track and use coverage
    * to drive the testing process by allowing its setup.
    */
-  coverageSetup() {}
+  protected coverageSetup() {}
 
   /**
    * Hook that acts as point of extension of the addAssertion function and that enables the strategy to compute coverage
    * for a given test case.
    */
-  computeCoverage(_inputData: {}) {}
+  protected computeCoverage(_inputData: {}) {}
 
   /**
    * Hook that acts as point of extension of the tearDown function and that enables the strategy to tear down all the
    * coverage based operations.
    */
-  coverageTearDown() {}
+  protected coverageTearDown() {}
 
   /**
    * Determines whether there are more inputs to be used for test case generation purposes. This function can use
