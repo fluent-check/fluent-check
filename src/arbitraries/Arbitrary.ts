@@ -8,7 +8,7 @@ export abstract class Arbitrary<A> {
    *
    * The returned size can be exact or an estimation.
    */
-  abstract size(): ArbitrarySize
+  abstract size(_?: number): ArbitrarySize
 
   /**
    * Generates a random element. This operation is stateless.

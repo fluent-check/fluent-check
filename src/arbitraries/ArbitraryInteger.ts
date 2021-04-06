@@ -7,7 +7,7 @@ export class ArbitraryInteger extends Arbitrary<number> {
     super()
   }
 
-  size(): ArbitrarySize {
+  size(_?: number): ArbitrarySize {
     const value = this.max - this.min + 1
     return {value, type: 'exact', credibleInterval: [value, value]}
   }

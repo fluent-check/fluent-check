@@ -21,13 +21,18 @@ export class FluentStatistician {
   /**
    * This function calculates the coverage of each input.
    */
-  calculateCoverages(): Record<string, number> {
+  calculateCoverages(ntestCases: number): [number, Record<string, number>] {
     const coverages: Record<string, number> = {}
+    let scSize = 1
+
     for (const name in this.arbitraries) {
       const stArb = this.arbitraries[name]
       const coverage = stArb.arbitrary.calculateCoverage(stArb.picked.size, this.configuration.realPrecision)
       coverages[name] = Math.round(coverage * 10000000)/100000
+      scSize *= stArb.arbitrary.size(this.configuration.realPrecision).value
     }
-    return coverages
+
+    const scCoverage = ntestCases / scSize
+    return [Math.round(scCoverage * 10000000)/100000, coverages]
   }
 }

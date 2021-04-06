@@ -212,6 +212,10 @@ describe('Arbitrary tests', () => {
       expect(fc.integer(0, 10).shrink({value: 5}).size()).to.have.property('value', 5)
     })
 
+    it('should return the correct size of a real arbitrary', () => {
+      expect(fc.real(0, 10).size(2)).to.have.property('value', 1001)
+    })
+
     it('should return the correct size of a composite arbitrary', () => {
       expect(fc.union(fc.boolean(), fc.boolean(), fc.boolean()).size()).to.have.property('value', 6)
     })

@@ -16,7 +16,7 @@ export class FluentResult {
     public readonly withTestCaseOutput: boolean = false,
     public readonly withInputSpaceCoverage: boolean = false,
     public readonly testCases: ValueResult<any>[] = [],
-    public readonly coverages: Record<string, number> = {}) {}
+    public readonly coverages: [number, Record<string, number>] = [0, {}]) {}
 
   addExample<A>(name: string, value: FluentPick<A>) {
     this.example[name] = value
@@ -96,7 +96,7 @@ export class FluentCheck<Rec extends ParentRec, ParentRec extends {}> {
         this.statistician.reporterConfiguration.withInputSpaceCoverage,
         testCases,
         this.statistician.reporterConfiguration.withInputSpaceCoverage ?
-          this.statistician.calculateCoverages() : undefined
+          this.statistician.calculateCoverages(new Set(testCases.map(x=>JSON.stringify(x))).size) : undefined
       )
     }
   }

@@ -25,8 +25,11 @@ export class FluentReporter extends Error {
     }
 
     if (result.withInputSpaceCoverage) {
+      msg.push('\n\nScenario input coverage(%): ')
+      msg.push(result.coverages[0].toString())
+
       msg.push('\n\nInput coverages(%):\n')
-      msg.push(JSON.stringify(result.coverages))
+      msg.push(JSON.stringify(result.coverages[1]))
     }
 
     msg.push('\n')
