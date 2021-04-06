@@ -1,6 +1,8 @@
 import {StrategyArbitraries} from '../strategies/FluentStrategyTypes'
 
-export type FluentStatConfig = { withTestCaseOutput: boolean }
+export type FluentReporterConfig = { withTestCaseOutput: boolean, withInputSpaceCoverage: boolean }
+
+export type FluentStatConfig = { gatherTestCases: boolean, gatherArbitraryTestCases: boolean }
 
 export class FluentStatistician {
 
@@ -10,9 +12,19 @@ export class FluentStatistician {
   public arbitraries: StrategyArbitraries = {}
 
   /**
-   * Default constructor. Receives the FluentCheck configuration, which is used for test case generation purposes.
+   * Statistician configuration
    */
-  constructor(public readonly configuration: FluentStatConfig) {}
+  public configuration: FluentStatConfig
+
+  /**
+   * Default constructor.
+   */
+  constructor(public readonly reporterConfiguration: FluentReporterConfig) {
+    this.configuration = {
+      gatherTestCases: this.reporterConfiguration.withTestCaseOutput,
+      gatherArbitraryTestCases: this.reporterConfiguration.withInputSpaceCoverage
+    }
+  }
 
   /**
    * This function calculates the coverage of each input.

@@ -22,7 +22,9 @@ export class FluentReporter extends Error {
     if (result.withTestCaseOutput) {
       msg.push('\n\nTest cases:\n')
       msg.push(JSON.stringify(result.testCases))
+    }
 
+    if (result.withInputSpaceCoverage) {
       msg.push('\n\nInput coverages(%):\n')
       msg.push(JSON.stringify(result.coverages))
     }

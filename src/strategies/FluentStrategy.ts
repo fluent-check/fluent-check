@@ -26,7 +26,7 @@ export class FluentStrategy implements FluentStrategyInterface {
   /**
    * Configuration of the statistician
    */
-  public statConfiguration: FluentStatConfig = {withTestCaseOutput: false}
+  public statConfiguration: FluentStatConfig = {gatherTestCases: false, gatherArbitraryTestCases: false}
 
   /**
    * Default constructor. Receives the FluentCheck configuration, which is used for test case generation purposes.

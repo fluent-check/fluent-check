@@ -1,4 +1,4 @@
-import {FluentStatistician, FluentStatConfig} from './FluentStatistician'
+import {FluentStatistician, FluentReporterConfig} from './FluentStatistician'
 
 export class FluentStatisticianFactory {
 
@@ -8,9 +8,9 @@ export class FluentStatisticianFactory {
   private statistician = FluentStatistician
 
   /**
-   * Strategy configuration
+   * Statistician configuration
    */
-  public configuration: FluentStatConfig = {withTestCaseOutput: false}
+  public configuration: FluentReporterConfig = {withTestCaseOutput: false, withInputSpaceCoverage: false}
 
   /**
    * Enables the gathering of information and presentation of statistics which results in higher execution time.
@@ -21,7 +21,15 @@ export class FluentStatisticianFactory {
   }
 
   /**
-   * Builds and returns the FluentStrategy with a specified configuration.
+   * Enables the calculation and output of input space coverage
+   */
+  withInputSpaceCoverage() {
+    this.configuration = {...this.configuration, withInputSpaceCoverage: true}
+    return this
+  }
+
+  /**
+   * Builds and returns the FluentStatistician with a specified configuration.
    */
   build(): FluentStatistician {
     return new this.statistician(this.configuration)

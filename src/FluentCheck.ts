@@ -14,6 +14,7 @@ export class FluentResult {
     public example: PickResult<any> = {},
     public readonly seed?: number,
     public readonly withTestCaseOutput: boolean = false,
+    public readonly withInputSpaceCoverage: boolean = false,
     public readonly testCases: ValueResult<any>[] = [],
     public readonly coverages: Record<string, number | undefined> = {}) {}
 
@@ -91,9 +92,11 @@ export class FluentCheck<Rec extends ParentRec, ParentRec extends {}> {
         r.satisfiable,
         FluentCheck.unwrapFluentPick(r.example),
         this.strategy.randomGenerator.seed,
-        this.statistician.configuration.withTestCaseOutput,
+        this.statistician.reporterConfiguration.withTestCaseOutput,
+        this.statistician.reporterConfiguration.withInputSpaceCoverage,
         testCases,
-        this.statistician.configuration.withTestCaseOutput ? this.statistician.calculateCoverages() : undefined
+        this.statistician.reporterConfiguration.withInputSpaceCoverage ?
+          this.statistician.calculateCoverages() : undefined
       )
     }
   }
@@ -256,7 +259,7 @@ class FluentCheckAssert<Rec extends ParentRec, ParentRec extends {}> extends Flu
     testCases: ValueResult<any>[]): FluentResult {
 
     const unwrappedTestCase = FluentCheck.unwrapFluentPick(testCase)
-    if (this.statistician.configuration.withTestCaseOutput)
+    if (this.statistician.configuration.gatherTestCases)
       testCases.push(unwrappedTestCase)
     return this.assertion({...unwrappedTestCase, ...this.runPreliminaries(unwrappedTestCase)} as Rec) ?
       callback(testCase) :
