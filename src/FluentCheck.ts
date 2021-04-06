@@ -1,4 +1,6 @@
 import {Arbitrary, FluentPick, FluentRandomGenerator} from './arbitraries'
+import {FluentStatistician} from './statistics/FluentStatistician'
+import {FluentStatisticianFactory} from './statistics/FluentStatisticianFactory'
 import {FluentStrategy} from './strategies/FluentStrategy'
 import {FluentStrategyFactory} from './strategies/FluentStrategyFactory'
 
@@ -22,39 +24,49 @@ export class FluentResult {
 
 export class FluentCheck<Rec extends ParentRec, ParentRec extends {}> {
   constructor(public strategy: FluentStrategy = new FluentStrategyFactory().defaultStrategy().build(),
+    public statistician: FluentStatistician = new FluentStatisticianFactory().build(),
     protected readonly parent: FluentCheck<ParentRec, any> | undefined = undefined) {
     if (this.parent !== undefined) this.strategy.randomGenerator = this.parent.strategy.randomGenerator
+    this.strategy.statConfiguration = this.statistician.configuration
+    this.statistician.arbitraries = this.strategy.arbitraries
   }
 
   config(strategy: FluentStrategyFactory) {
     this.strategy = strategy.build()
+    this.statistician.arbitraries = this.strategy.arbitraries
+    return this
+  }
+
+  configStatistics(statistician: FluentStatisticianFactory) {
+    this.statistician = statistician.build()
+    this.strategy.statConfiguration = this.statistician.configuration
     return this
   }
 
   given<K extends string, V>(name: K, v: V | ((args: Rec) => V)): FluentCheckGiven<K, V, Rec & Record<K, V>, Rec> {
     return v instanceof Function ?
-      new FluentCheckGivenMutable(this, name, v, this.strategy) :
-      new FluentCheckGivenConstant<K, V, Rec & Record<K, V>, Rec>(this, name, v, this.strategy)
+      new FluentCheckGivenMutable(this, name, v, this.strategy, this.statistician) :
+      new FluentCheckGivenConstant<K, V, Rec & Record<K, V>, Rec>(this, name, v, this.strategy, this.statistician)
   }
 
   when(f: (givens: Rec) => void): FluentCheckWhen<Rec, ParentRec> {
-    return new FluentCheckWhen(this, f, this.strategy)
+    return new FluentCheckWhen(this, f, this.strategy, this.statistician)
   }
 
   forall<K extends string, A>(name: K, a: Arbitrary<A>): FluentCheck<Rec & Record<K, A>, Rec> {
-    return new FluentCheckUniversal(this, name, a, this.strategy)
+    return new FluentCheckUniversal(this, name, a, this.strategy, this.statistician)
   }
 
   exists<K extends string, A>(name: K, a: Arbitrary<A>): FluentCheck<Rec & Record<K, A>, Rec> {
-    return new FluentCheckExistential(this, name, a, this.strategy)
+    return new FluentCheckExistential(this, name, a, this.strategy, this.statistician)
   }
 
   then(f: (arg: Rec) => boolean): FluentCheckAssert<Rec, ParentRec> {
-    return new FluentCheckAssert(this, f, this.strategy)
+    return new FluentCheckAssert(this, f, this.strategy, this.statistician)
   }
 
   withGenerator(generator: (seed: number) => () => number, seed?: number): FluentCheckGenerator<Rec, ParentRec> {
-    return new FluentCheckGenerator(this, generator, this.strategy, seed)
+    return new FluentCheckGenerator(this, generator, this.strategy, this.statistician, seed)
   }
 
   protected run(
@@ -79,9 +91,9 @@ export class FluentCheck<Rec extends ParentRec, ParentRec extends {}> {
         r.satisfiable,
         FluentCheck.unwrapFluentPick(r.example),
         this.strategy.randomGenerator.seed,
-        this.strategy.configuration.withTestCaseOutput,
+        this.statistician.configuration.withTestCaseOutput,
         testCases,
-        this.strategy.configuration.withTestCaseOutput ? this.strategy.calculateCoverages() : undefined
+        this.statistician.configuration.withTestCaseOutput ? this.statistician.calculateCoverages() : undefined
       )
     }
   }
@@ -102,9 +114,10 @@ class FluentCheckWhen<Rec extends ParentRec, ParentRec extends {}> extends Fluen
   constructor(
     protected readonly parent: FluentCheck<ParentRec, any>,
     public readonly f: (givens: Rec) => void,
-    strategy: FluentStrategy) {
+    strategy: FluentStrategy,
+    statistician: FluentStatistician) {
 
-    super(strategy, parent)
+    super(strategy, statistician, parent)
   }
 
   and(f: (givens: Rec) => void) { return this.when(f) }
@@ -116,9 +129,10 @@ abstract class FluentCheckGiven<K extends string, V, Rec extends ParentRec & Rec
   constructor(
     protected readonly parent: FluentCheck<ParentRec, any>,
     public readonly name: K,
-    strategy: FluentStrategy) {
+    strategy: FluentStrategy,
+    statistician: FluentStatistician) {
 
-    super(strategy, parent)
+    super(strategy, statistician, parent)
   }
 
   and<NK extends string, V>(name: NK, f: ((args: Rec) => V) | V) {
@@ -133,9 +147,10 @@ class FluentCheckGivenMutable<K extends string, V, Rec extends ParentRec & Recor
     protected readonly parent: FluentCheck<ParentRec, any>,
     public readonly name: K,
     public readonly factory: (args: ParentRec) => V,
-    strategy: FluentStrategy) {
+    strategy: FluentStrategy,
+    statistician: FluentStatistician) {
 
-    super(parent, name, strategy)
+    super(parent, name, strategy, statistician)
   }
 }
 
@@ -146,9 +161,10 @@ class FluentCheckGivenConstant<K extends string, V, Rec extends ParentRec & Reco
     protected readonly parent: FluentCheck<ParentRec, any>,
     public readonly name: K,
     public readonly value: V,
-    strategy: FluentStrategy) {
+    strategy: FluentStrategy,
+    statistician: FluentStatistician) {
 
-    super(parent, name, strategy)
+    super(parent, name, strategy, statistician)
   }
 
   protected run(testCase: Rec, callback: (arg: Rec) => FluentResult) {
@@ -164,9 +180,10 @@ abstract class FluentCheckQuantifier<K extends string, A, Rec extends ParentRec 
     protected readonly parent: FluentCheck<ParentRec, any>,
     public readonly name: K,
     public readonly a: Arbitrary<A>,
-    strategy: FluentStrategy) {
+    strategy: FluentStrategy,
+    statistician: FluentStatistician) {
 
-    super(strategy, parent)
+    super(strategy, statistician, parent)
     this.strategy.addArbitrary(this.name, a)
   }
 
@@ -210,9 +227,10 @@ class FluentCheckAssert<Rec extends ParentRec, ParentRec extends {}> extends Flu
   constructor(
     protected readonly parent: FluentCheck<ParentRec, any>,
     public readonly assertion: (args: Rec) => boolean,
-    strategy: FluentStrategy) {
+    strategy: FluentStrategy,
+    statistician: FluentStatistician) {
 
-    super(strategy, parent)
+    super(strategy, statistician, parent)
     this.preliminaries = this.pathFromRoot().filter(node =>
       node instanceof FluentCheckGivenMutable ||
       node instanceof FluentCheckWhen)
@@ -236,8 +254,9 @@ class FluentCheckAssert<Rec extends ParentRec, ParentRec extends {}> extends Flu
   protected run(testCase: WrapFluentPick<Rec>,
     callback: (arg: WrapFluentPick<Rec>) => FluentResult,
     testCases: ValueResult<any>[]): FluentResult {
+
     const unwrappedTestCase = FluentCheck.unwrapFluentPick(testCase)
-    if (this.strategy.configuration.withTestCaseOutput)
+    if (this.statistician.configuration.withTestCaseOutput)
       testCases.push(unwrappedTestCase)
     return this.assertion({...unwrappedTestCase, ...this.runPreliminaries(unwrappedTestCase)} as Rec) ?
       callback(testCase) :
@@ -248,11 +267,12 @@ class FluentCheckAssert<Rec extends ParentRec, ParentRec extends {}> extends Flu
 class FluentCheckGenerator<Rec extends ParentRec, ParentRec extends {}> extends FluentCheck<Rec, ParentRec> {
   constructor(
     protected readonly parent: FluentCheck<ParentRec, any>,
-    readonly rngBuilder: (seed: number) => () => number,
+    rngBuilder: (seed: number) => () => number,
     strategy: FluentStrategy,
-    readonly seed?: number
+    statistician: FluentStatistician,
+    seed?: number
   ) {
-    super(strategy, parent)
+    super(strategy, statistician, parent)
 
     this.setRandomGenerator(new FluentRandomGenerator(rngBuilder, seed))
   }

@@ -11,7 +11,7 @@ describe('Test case tests', () => {
 
   it('Test cases contain at least one value', () => {
     const sc1 = fc.scenario()
-      .config(fc.strategy().defaultStrategy().withTestCaseOutput())
+      .configStatistics(fc.statistics().withTestCaseOutput())
       .withGenerator(prng, 1234)
       .forall('a', fc.integer(-10, 10))
       .forall('b', fc.integer(-10, 10))
@@ -22,7 +22,8 @@ describe('Test case tests', () => {
 
   it('Test cases contain the correct arbitraries', () => {
     const sc1 = fc.scenario()
-      .config(fc.strategy().defaultStrategy().withTestCaseOutput().withSampleSize(1))
+      .config(fc.strategy().defaultStrategy().withSampleSize(1))
+      .configStatistics(fc.statistics().withTestCaseOutput())
       .withGenerator(prng, 1234)
       .forall('a', fc.integer(-10, 10))
       .forall('b', fc.integer(-10, 10))
@@ -34,7 +35,8 @@ describe('Test case tests', () => {
   describe('Same type as arbitrary', () => {
     it('Array', () => {
       const sc1 = fc.scenario()
-        .config(fc.strategy().defaultStrategy().withTestCaseOutput().withSampleSize(1))
+        .config(fc.strategy().defaultStrategy().withSampleSize(1))
+        .configStatistics(fc.statistics().withTestCaseOutput())
         .withGenerator(prng, 1234)
         .forall('a', fc.array(fc.integer(-10, 10), 1, 1))
         .then(({a}) => a === a)
@@ -46,7 +48,8 @@ describe('Test case tests', () => {
 
     it('Boolean', () => {
       const sc1 = fc.scenario()
-        .config(fc.strategy().defaultStrategy().withTestCaseOutput().withSampleSize(1))
+        .config(fc.strategy().defaultStrategy().withSampleSize(1))
+        .configStatistics(fc.statistics().withTestCaseOutput())
         .withGenerator(prng, 1234)
         .forall('a', fc.boolean())
         .then(({a}) => a === a)
@@ -58,7 +61,8 @@ describe('Test case tests', () => {
 
     it('Composite', () => {
       const sc1 = fc.scenario()
-        .config(fc.strategy().defaultStrategy().withTestCaseOutput().withSampleSize(1))
+        .config(fc.strategy().defaultStrategy().withSampleSize(1))
+        .configStatistics(fc.statistics().withTestCaseOutput())
         .withGenerator(prng, 1234)
         .exists('a', fc.union(fc.string(1, 1), fc.string(1, 1)))
         .then(({a}) => a === a)
@@ -70,7 +74,8 @@ describe('Test case tests', () => {
 
     it('Constant', () => {
       const sc1 = fc.scenario()
-        .config(fc.strategy().defaultStrategy().withTestCaseOutput().withSampleSize(1))
+        .config(fc.strategy().defaultStrategy().withSampleSize(1))
+        .configStatistics(fc.statistics().withTestCaseOutput())
         .withGenerator(prng, 1234)
         .forall('a', fc.constant(5))
         .then(({a}) => a === 5)
@@ -82,7 +87,8 @@ describe('Test case tests', () => {
 
     it('Integer', () => {
       const sc1 = fc.scenario()
-        .config(fc.strategy().defaultStrategy().withTestCaseOutput().withSampleSize(1))
+        .config(fc.strategy().defaultStrategy().withSampleSize(1))
+        .configStatistics(fc.statistics().withTestCaseOutput())
         .withGenerator(prng, 1234)
         .forall('a', fc.integer(-10, 10))
         .then(({a}) => a === a)
@@ -94,7 +100,8 @@ describe('Test case tests', () => {
 
     it('Real', () => {
       const sc1 = fc.scenario()
-        .config(fc.strategy().defaultStrategy().withTestCaseOutput().withSampleSize(1))
+        .config(fc.strategy().defaultStrategy().withSampleSize(1))
+        .configStatistics(fc.statistics().withTestCaseOutput())
         .withGenerator(prng, 1234)
         .forall('a', fc.real(-10, 10))
         .then(({a}) => a === a)
@@ -106,7 +113,8 @@ describe('Test case tests', () => {
 
     it('Set', () => {
       const sc1 = fc.scenario()
-        .config(fc.strategy().defaultStrategy().withTestCaseOutput().withSampleSize(1))
+        .config(fc.strategy().defaultStrategy().withSampleSize(1))
+        .configStatistics(fc.statistics().withTestCaseOutput())
         .withGenerator(prng, 1234)
         .forall('a', fc.set([1, 2, 3]))
         .then(({a}) => a === a)
@@ -118,7 +126,8 @@ describe('Test case tests', () => {
 
     it('Tuple', () => {
       const sc1 = fc.scenario()
-        .config(fc.strategy().defaultStrategy().withTestCaseOutput().withSampleSize(1))
+        .config(fc.strategy().defaultStrategy().withSampleSize(1))
+        .configStatistics(fc.statistics().withTestCaseOutput())
         .withGenerator(prng, 1234)
         .forall('a', fc.tuple(fc.integer(-10, 10), fc.string(1, 1)))
         .then(({a}) => a === a)
@@ -133,7 +142,8 @@ describe('Test case tests', () => {
 
     it('Chain', () => {
       const sc1 = fc.scenario()
-        .config(fc.strategy().defaultStrategy().withTestCaseOutput().withSampleSize(1))
+        .config(fc.strategy().defaultStrategy().withSampleSize(1))
+        .configStatistics(fc.statistics().withTestCaseOutput())
         .withGenerator(prng, 1234)
         .forall('a', fc.integer(2, 2).chain(i => fc.array(fc.constant(i), i, i)))
         .then(({a}) => a === a)
@@ -145,7 +155,8 @@ describe('Test case tests', () => {
 
     it('Filter', () => {
       const sc1 = fc.scenario()
-        .config(fc.strategy().defaultStrategy().withTestCaseOutput().withSampleSize(1))
+        .config(fc.strategy().defaultStrategy().withSampleSize(1))
+        .configStatistics(fc.statistics().withTestCaseOutput())
         .withGenerator(prng, 1234)
         .forall('a', fc.integer(-10,10).filter(n => n > 0))
         .then(({a}) => a === a)

@@ -1,8 +1,9 @@
 import {Arbitrary, FluentPick, FluentRandomGenerator} from '../arbitraries'
 import {FluentResult} from '../FluentCheck'
+import {FluentStatConfig} from '../statistics/FluentStatistician'
 import {StrategyArbitraries} from './FluentStrategyTypes'
 
-export type FluentConfig = { sampleSize?: number, shrinkSize?: number, withTestCaseOutput: boolean }
+export type FluentConfig = { sampleSize?: number, shrinkSize?: number }
 
 export interface FluentStrategyInterface {
   hasInput: <K extends string>(arbitraryName: K) => boolean
@@ -21,6 +22,11 @@ export class FluentStrategy implements FluentStrategyInterface {
    * Information concerning the random value generation
    */
   public randomGenerator = new FluentRandomGenerator()
+
+  /**
+   * Configuration of the statistician
+   */
+  public statConfiguration: FluentStatConfig = {withTestCaseOutput: false}
 
   /**
    * Default constructor. Receives the FluentCheck configuration, which is used for test case generation purposes.
@@ -100,18 +106,5 @@ export class FluentStrategy implements FluentStrategyInterface {
    */
   handleResult() {
     throw new Error('Method <handleResult> not implemented.')
-  }
-
-  /**
-   * This function calculates the coverage of each input.
-   */
-  calculateCoverages(): Record<string, number | undefined> {
-    const coverages: Record<string, number | undefined> = {}
-    for (const name in this.arbitraries) {
-      const stArb = this.arbitraries[name]
-      const coverage = stArb.arbitrary.calculateCoverage(stArb.picked.size)
-      coverages[name] = coverage === undefined ? coverage : Math.round(coverage * 10000000)/100000
-    }
-    return coverages
   }
 }
