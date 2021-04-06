@@ -1,4 +1,4 @@
-import {FluentStatistician, FluentReporterConfig} from './FluentStatistician'
+import {FluentStatistician, FluentStatConfig, FluentReporterConfig} from './FluentStatistician'
 
 export class FluentStatisticianFactory {
 
@@ -8,23 +8,33 @@ export class FluentStatisticianFactory {
   private statistician = FluentStatistician
 
   /**
+   * Reporter configuration
+   */
+  public repConfiguration: FluentReporterConfig = {withTestCaseOutput: false, withInputSpaceCoverage: false}
+
+  /**
    * Statistician configuration
    */
-  public configuration: FluentReporterConfig = {withTestCaseOutput: false, withInputSpaceCoverage: false}
+  public configuration: FluentStatConfig = {realPrecision: 3, gatherTestCases: false, gatherArbitraryTestCases: false}
 
   /**
    * Enables the gathering of information and presentation of statistics which results in higher execution time.
    */
   withTestCaseOutput() {
-    this.configuration = {...this.configuration, withTestCaseOutput: true}
+    this.repConfiguration = {...this.repConfiguration, withTestCaseOutput: true}
+    this.configuration = {...this.configuration, gatherTestCases: true}
     return this
   }
 
   /**
-   * Enables the calculation and output of input space coverage
+   * Enables the calculation and output of input space coverage. Allows the specification of the amount of
+   * decimal places to use when calculating coverage ofreal type arbitraries
    */
-  withInputSpaceCoverage() {
-    this.configuration = {...this.configuration, withInputSpaceCoverage: true}
+  withInputSpaceCoverage(precision?: number) {
+    this.repConfiguration = {...this.repConfiguration, withInputSpaceCoverage: true}
+    this.configuration = {...this.configuration, gatherArbitraryTestCases: true}
+    if (precision !== undefined)
+      this.configuration = {...this.configuration,realPrecision: precision}
     return this
   }
 
@@ -32,7 +42,7 @@ export class FluentStatisticianFactory {
    * Builds and returns the FluentStatistician with a specified configuration.
    */
   build(): FluentStatistician {
-    return new this.statistician(this.configuration)
+    return new this.statistician(this.configuration, this.repConfiguration)
   }
 
 }

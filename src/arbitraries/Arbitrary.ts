@@ -28,7 +28,7 @@ export abstract class Arbitrary<A> {
   /**
    * Calculates the input coverage of the arbitrary in question
    */
-  calculateCoverage(picks: number): number | undefined {
+  calculateCoverage(picks: number, _?: number): number {
     return picks/this.size().value
   }
 

@@ -16,7 +16,7 @@ export class FluentResult {
     public readonly withTestCaseOutput: boolean = false,
     public readonly withInputSpaceCoverage: boolean = false,
     public readonly testCases: ValueResult<any>[] = [],
-    public readonly coverages: Record<string, number | undefined> = {}) {}
+    public readonly coverages: Record<string, number> = {}) {}
 
   addExample<A>(name: string, value: FluentPick<A>) {
     this.example[name] = value
