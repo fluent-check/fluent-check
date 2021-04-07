@@ -3,10 +3,11 @@ import * as utils from './utils'
 import * as schema from '@istanbuljs/schema'
 import * as libInstrument from 'istanbul-lib-instrument'
 
-import {ValueResult} from '../../arbitraries'
+import {FluentResult} from '../../FluentCheck'
 import {FluentCoverage} from '../FluentCoverage'
-import {FluentStrategyInterface} from '../FluentStrategy'
 import {MixinStrategy} from '../FluentStrategyTypes'
+import {Arbitrary, ValueResult, FluentPick} from '../../arbitraries'
+import {FluentStrategyInterface} from '../FluentStrategy'
 
 export function CoverageGuidance<TBase extends MixinStrategy>(Base: TBase) {
   return class extends Base implements FluentStrategyInterface {
@@ -67,6 +68,35 @@ export function CoverageGuidance<TBase extends MixinStrategy>(Base: TBase) {
 
       for (const path of paths)
         utils.deleteFromFileSystem(path)
+    }
+
+    /**
+     * TODO - The current implementation is still the same as the Random mixin and therefore needs to be changed.
+     */
+    addArbitrary<K extends string, A>(arbitraryName: K, a: Arbitrary<A>) {
+      this.arbitraries[arbitraryName] = {
+        arbitrary: a,
+        pickNum: 0,
+        collection: []
+      }
+
+      this.setArbitraryCache(arbitraryName)
+    }
+
+    /**
+     * TODO - The current implementation is still the same as the Random mixin and therefore needs to be changed.
+     */
+    configArbitrary<K extends string, A>(arbitraryName: K, partial: FluentResult | undefined, depth: number) {
+      this.arbitraries[arbitraryName].pickNum = 0
+      this.arbitraries[arbitraryName].collection = []
+
+      if (depth === 0)
+        this.arbitraries[arbitraryName].collection = this.arbitraries[arbitraryName].cache !== undefined ?
+          this.arbitraries[arbitraryName].cache as FluentPick<A>[]:
+          this.buildArbitraryCollection(this.arbitraries[arbitraryName].arbitrary,
+            this.getArbitraryExtractedConstants(this.arbitraries[arbitraryName].arbitrary))
+      else if (partial !== undefined)
+        this.shrink(arbitraryName, partial)
     }
 
     /**

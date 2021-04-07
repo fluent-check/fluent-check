@@ -3,6 +3,9 @@ import {FluentStrategyConfig, StrategyArbitraries} from './FluentStrategyTypes'
 import {Arbitrary, FluentPick, ValueResult, FluentRandomGenerator, WrapFluentPick} from '../arbitraries'
 
 export interface FluentStrategyInterface {
+  addArbitrary: <K extends string, A>(arbitraryName: K, a: Arbitrary<A>) => void
+  configArbitrary: <K extends string>(_arbitraryName: K, _partial: FluentResult | undefined, _depth: number) => void
+
   hasInput: <K extends string>(arbitraryName: K) => boolean
   getInput: (name: string) => void
   handleResult: <A>(testCase: ValueResult<A>, inputData: {}) => void
@@ -41,13 +44,6 @@ export class FluentStrategy implements FluentStrategyInterface {
   constructor(protected readonly configuration: FluentStrategyConfig) {}
 
   /**
-   * Adds an arbitrary to the arbitraries record
-   */
-  addArbitrary<K extends string, A>(arbitraryName: K, a: Arbitrary<A>) {
-    this.arbitraries[arbitraryName] = {arbitrary: a, pickNum: 0, collection: []}
-  }
-
-  /**
    * Adds a test method to the testMethods array.
    */
   addTestMethod(f: (...args: any[]) => any) {
@@ -84,23 +80,6 @@ export class FluentStrategy implements FluentStrategyInterface {
   }
 
   /**
-   * Configures the information relative a specific arbitrary.
-   */
-  configArbitrary<K extends string, A>(arbitraryName: K, partial: FluentResult | undefined, depth: number) {
-    this.arbitraries[arbitraryName].pickNum = 0
-    this.arbitraries[arbitraryName].collection = []
-
-    this.setArbitraryCache(arbitraryName)
-
-    if (depth === 0)
-      this.arbitraries[arbitraryName].collection = this.arbitraries[arbitraryName].cache !== undefined ?
-        this.arbitraries[arbitraryName].cache as FluentPick<A>[]:
-        this.buildArbitraryCollection(this.arbitraries[arbitraryName].arbitrary)
-    else if (partial !== undefined)
-      this.shrink(arbitraryName, partial)
-  }
-
-  /**
    * Returns the associated strategy configuration.
    */
   getConfiguration(): FluentStrategyConfig {
@@ -128,6 +107,10 @@ export class FluentStrategy implements FluentStrategyInterface {
     this.randomGenerator = prng
   }
 
+  //////////////////////
+  // OVERRIDE METHODS //
+  //////////////////////
+
   /**
    * Determines whether uniqueness should be taken into account while generating samples.
    */
@@ -136,22 +119,26 @@ export class FluentStrategy implements FluentStrategyInterface {
   }
 
   /**
-   * Hook that acts as point of extension of the addArbitrary function and that enables the strategy to be cached.
-   */
-  protected setArbitraryCache<K extends string>(_arbitraryName: K) {}
-
-  /**
    * Generates a once a collection of inputs for a given arbitrary
    */
   protected buildArbitraryCollection<A>(
     arbitrary: Arbitrary<A>,
+    currSample: FluentPick<A>[],
     sampleSize = this.configuration.sampleSize
   ): FluentPick<A>[] {
-    const constantsSample = this.getArbitraryExtractedConstants(arbitrary)
     return this.isDedupable() ?
-      arbitrary.sampleUnique(sampleSize, constantsSample, this.randomGenerator.generator) :
-      arbitrary.sample(sampleSize, constantsSample, this.randomGenerator.generator)
+      arbitrary.sampleUnique(sampleSize, currSample, this.randomGenerator.generator) :
+      arbitrary.sample(sampleSize, currSample, this.randomGenerator.generator)
   }
+
+  //////////////////
+  // HOOK METHODS //
+  //////////////////
+
+  /**
+   * Hook that acts as point of extension of the addArbitrary function and that enables the strategy to be cached.
+   */
+  protected setArbitraryCache<K extends string>(_arbitraryName: K) {}
 
   /**
    * Hook that acts as point of extension of the configArbitrary function and that enables an arbitrary to be shrinked.
@@ -183,6 +170,24 @@ export class FluentStrategy implements FluentStrategyInterface {
    * coverage based operations.
    */
   protected coverageTearDown() {}
+
+  ///////////////////////
+  // INTERFACE METHODS //
+  ///////////////////////
+
+  /**
+   * Adds an arbitrary to the arbitraries record
+   */
+  addArbitrary<K extends string, A>(_arbitraryName: K, _a: Arbitrary<A>) {
+    throw new Error('Method <addArbitrary> not implemented.')
+  }
+
+  /**
+   * Configures the information relative a specific arbitrary.
+   */
+  configArbitrary<K extends string>(_arbitraryName: K, _partial: FluentResult | undefined, _depth: number) {
+    throw new Error('Method <configArbitrary> not implemented.')
+  }
 
   /**
    * Determines whether there are more inputs to be used for test case generation purposes. This function can use
