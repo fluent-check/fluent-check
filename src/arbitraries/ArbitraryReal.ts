@@ -6,7 +6,7 @@ export class ArbitraryReal extends ArbitraryInteger {
     super(min, max)
   }
 
-  size(precision = 0): ArbitrarySize {
+  size(precision = 10): ArbitrarySize {
     const value = 1 + (this.max - this.min) * 10 ** precision
     return {value, type: 'exact', credibleInterval: [value, value]}
   }
