@@ -15,10 +15,9 @@ export type FileCoverage = libCoverage.FileCoverage
 export type CoverageSummary = libCoverage.CoverageSummary
 
 export type FluentStrategyArbitrary<A> = {
-  pickNum: number
   arbitrary: Arbitrary<A>
-  cache?: FluentPick<A>[]
   collection: FluentPick<A>[]
+  cache?: FluentPick<A>[]
 }
 
 export type FluentStrategyConfig = {

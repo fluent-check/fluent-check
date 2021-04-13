@@ -3,10 +3,10 @@ import * as utils from './utils'
 import * as schema from '@istanbuljs/schema'
 import * as libInstrument from 'istanbul-lib-instrument'
 
-import {FluentResult} from '../../FluentCheck'
+import {FluentCheck} from '../../FluentCheck'
 import {FluentCoverage} from '../FluentCoverage'
 import {MixinStrategy} from '../FluentStrategyTypes'
-import {Arbitrary, ValueResult, FluentPick} from '../../arbitraries'
+import {WrapFluentPick} from '../../arbitraries'
 import {FluentStrategyInterface} from '../FluentStrategy'
 
 export function CoverageGuidance<TBase extends MixinStrategy>(Base: TBase) {
@@ -73,53 +73,25 @@ export function CoverageGuidance<TBase extends MixinStrategy>(Base: TBase) {
     /**
      * TODO - The current implementation is still the same as the Random mixin and therefore needs to be changed.
      */
-    addArbitrary<K extends string, A>(arbitraryName: K, a: Arbitrary<A>) {
-      this.arbitraries[arbitraryName] = {
-        arbitrary: a,
-        pickNum: 0,
-        collection: []
-      }
-
-      this.setArbitraryCache(arbitraryName)
+    hasInput(): boolean {
+      return true
     }
 
     /**
      * TODO - The current implementation is still the same as the Random mixin and therefore needs to be changed.
      */
-    configArbitrary<K extends string, A>(arbitraryName: K, partial: FluentResult | undefined, depth: number) {
-      this.arbitraries[arbitraryName].pickNum = 0
-      this.arbitraries[arbitraryName].collection = []
-
-      if (depth === 0)
-        this.arbitraries[arbitraryName].collection = this.arbitraries[arbitraryName].cache !== undefined ?
-          this.arbitraries[arbitraryName].cache as FluentPick<A>[]:
-          this.buildArbitraryCollection(this.arbitraries[arbitraryName].arbitrary,
-            this.getArbitraryExtractedConstants(this.arbitraries[arbitraryName].arbitrary))
-      else if (partial !== undefined)
-        this.shrink(arbitraryName, partial)
-    }
-
-    /**
-     * TODO - The current implementation is still the same as the Random mixin and therefore needs to be changed.
-     */
-    hasInput<K extends string>(arbitraryName: K): boolean {
-      return this.arbitraries[arbitraryName] !== undefined &&
-        this.arbitraries[arbitraryName].pickNum < this.arbitraries[arbitraryName].collection.length
-    }
-
-    /**
-     * TODO - The current implementation is still the same as the Random mixin and therefore needs to be changed.
-     */
-    getInput(name: string) {
-      this.addInputToCurrentTestCase(name, this.arbitraries[name].collection[this.arbitraries[name].pickNum++])
+    getInput(): WrapFluentPick<any> {
+      this.currTestCase = this.testCaseCollection.shift() as WrapFluentPick<any>
+      return this.currTestCase
     }
 
     /**
      * Computes coverage for a given test case and adds it to the testCases array.
      */
-    handleResult<A>(testCase: ValueResult<A>, inputData: {}) {
-      this.addTestCase(testCase)
-      this.coverageBuilder.compute(inputData)
+    handleResult(inputData: any[]) {
+      this.addTestCase(FluentCheck.unwrapFluentPick(this.currTestCase))
+      inputData.forEach(x => this.coverageBuilder.compute(x))
     }
+
   }
 }

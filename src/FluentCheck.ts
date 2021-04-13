@@ -4,7 +4,7 @@ import {Arbitrary, FluentPick, ValueResult, PickResult, FluentRandomGenerator} f
 
 export class FluentResult {
   constructor(
-    public readonly satisfiable = false,
+    public satisfiable = false,
     public example: PickResult<any> = {},
     public readonly seed?: number) { }
 
@@ -57,8 +57,12 @@ export class FluentCheck<Rec extends ParentRec, ParentRec extends {}> {
     return this.parent !== undefined ? [...this.parent.pathFromRoot(), this] : [this]
   }
 
-  check(child: () => FluentResult = () => new FluentResult(true)): FluentResult {
-    if (this.parent !== undefined) return this.parent.check(() => this.run(child))
+  check(): FluentResult {
+    return new FluentCheckRunner(this, this.strategy).verify()
+  }
+
+  verify(child: () => FluentResult = () => new FluentResult(true)): FluentResult {
+    if (this.parent !== undefined) return this.parent.verify(() => this.run(child))
     else {
       this.strategy.setup()
       const r = this.run(child)
@@ -134,14 +138,15 @@ class FluentCheckGivenConstant<K extends string, V, Rec extends ParentRec & Reco
     super(parent, name, strategy)
   }
 
-  protected run(callback: () => FluentResult) {
-    this.strategy.addInputToCurrentTestCase(this.name as string, {value: this.value})
-    return callback()
-  }
 }
 
 abstract class FluentCheckQuantifier<K extends string, A, Rec extends ParentRec & Record<K, A>, ParentRec extends {}>
   extends FluentCheck<Rec, ParentRec> {
+
+  abstract breakValue: boolean
+
+  private context: Map<string, boolean> = new Map()
+  private partialContext: Map<string, boolean> = new Map()
 
   constructor(
     protected readonly parent: FluentCheck<ParentRec, any>,
@@ -155,24 +160,89 @@ abstract class FluentCheckQuantifier<K extends string, A, Rec extends ParentRec 
 
   protected run(
     callback: () => FluentResult,
-    partial: FluentResult | undefined = undefined,
-    depth = 0): FluentResult {
+    partial: FluentResult | undefined = undefined
+  ): FluentResult {
 
-    this.strategy.configArbitrary(this.name, partial, depth)
+    const result = callback()
 
-    while (this.strategy.hasInput(this.name)) {
-      this.strategy.getInput(this.name)
-      const result = callback()
-      if (result.satisfiable === this.breakValue) {
-        result.addExample(this.name, this.strategy.getCurrentTestCase()[this.name])
-        return this.run(callback, result, depth + 1)
-      }
-    }
+    if (Object.keys(result.example).length === 0) return partial !== undefined ? partial : result
+    else if (result.example[this.name] === undefined || this.breakValue !== result.satisfiable ||
+      this.strategy.shrink(this.name, result) === false) return result
 
-    return partial ?? new FluentResult(!this.breakValue)
+    this.strategy.updateArbitraryCollections(this.name, result.example)
+    this.strategy.generateTestCaseCollection()
+
+    return this.run(callback, result)
   }
 
-  abstract breakValue: boolean
+  /**
+   * Updates its own context.
+   */
+  selfUpdateContext(testCase: ValueResult<any>, assertionResult: boolean) {
+    this.context.set(JSON.stringify(testCase), assertionResult)
+  }
+
+  /**
+   * Updates its quantifier parent based on its own context, which is already updated at this point in the program
+   * execution flow.
+   */
+  updateParentQuantifierContext(
+    testCase: ValueResult<any>,
+    assertionResult: boolean,
+    parentQuantifier: FluentCheckQuantifier<K, A, unknown, any>
+  ) {
+    const contextKeyObject: ValueResult<any> = {}
+
+    for (const testCaseKey of Object.keys(testCase))
+      if (testCaseKey === this.name) break
+      else contextKeyObject[testCaseKey] = testCase[testCaseKey]
+
+    const key: [string, boolean] = ['', false]
+    const contextKey = JSON.stringify(contextKeyObject)
+
+    if (parentQuantifier.partialContext.size === 0) parentQuantifier.partialContext.set(contextKey, assertionResult)
+    else if (this.strategy.getTestCaseCollection().length === 0) key[0] = contextKey
+    else if (!parentQuantifier.partialContext.has(contextKey)) {
+      key[0] = parentQuantifier.partialContext.keys().next().value
+      key[1] = true
+    }
+
+    if (key[0].length > 0) {
+      const value = Array.from(this.context.entries()).filter(x =>
+        x[0].substring(1, x[0].length - 1).includes(key[0].substring(1, key[0].length - 1))
+      ).map(x => x[1])
+
+      parentQuantifier.context.set(key[0], this.breakValue ? value.some(x => x) : value.every(x => x))
+      parentQuantifier.partialContext.clear()
+
+      if (!key[1]) parentQuantifier.partialContext.set(contextKey, assertionResult)
+    }
+  }
+
+  /**
+   * Returns true if the early stop condition was met. Otherwise, returns false.
+   */
+  earlyStopConditionStatus(): boolean {
+    return this.breakValue ?
+      Array.from(this.context.values()).some(x => x) :
+      Array.from(this.context.values()).some(x => !x)
+  }
+
+  /**
+   * Returns the quantifier context.
+   */
+  getContext() {
+    return this.context
+  }
+
+  /**
+   * Cleans both the quantifier context and partial context.
+   */
+  cleanContexts() {
+    this.context.clear()
+    this.partialContext.clear()
+  }
+
 }
 
 class FluentCheckUniversal<K extends string, A, Rec extends ParentRec & Record<K, A>, ParentRec extends {}>
@@ -185,7 +255,8 @@ class FluentCheckExistential<K extends string, A, Rec extends ParentRec & Record
   breakValue = true
 }
 
-class FluentCheckAssert<Rec extends ParentRec, ParentRec extends {}> extends FluentCheck<Rec, ParentRec> {
+class FluentCheckAssert<Rec extends ParentRec, ParentRec extends {}>
+  extends FluentCheck<Rec, ParentRec> {
   preliminaries: FluentCheck<unknown, any>[]
 
   constructor(
@@ -194,32 +265,17 @@ class FluentCheckAssert<Rec extends ParentRec, ParentRec extends {}> extends Flu
     strategy: FluentStrategy) {
 
     super(strategy, parent)
-    this.strategy.addTestMethod(assertion)
+
     this.preliminaries = this.pathFromRoot().filter(node =>
+      node instanceof FluentCheckWhen ||
       node instanceof FluentCheckGivenMutable ||
-      node instanceof FluentCheckWhen)
+      node instanceof FluentCheckGivenConstant)
+
+    this.strategy.addTestMethod(assertion)
   }
 
   and(assertion: (args: Rec) => boolean) {
     return this.then(assertion)
-  }
-
-  private runPreliminaries<T>(testCase: ValueResult<T>): Rec {
-    const data = { } as Rec
-
-    this.preliminaries.forEach(node => {
-      if (node instanceof FluentCheckGivenMutable) data[node.name] = node.factory({...testCase, ...data})
-      else if (node instanceof FluentCheckWhen) node.f({...testCase, ...data})
-    })
-
-    return data
-  }
-
-  protected run(callback: () => FluentResult): FluentResult {
-    const unwrappedTestCase = FluentCheck.unwrapFluentPick(this.strategy.getCurrentTestCase())
-    const inputData = {...unwrappedTestCase, ...this.runPreliminaries(unwrappedTestCase)} as Rec
-    this.strategy.handleResult(unwrappedTestCase, inputData)
-    return this.assertion(inputData) ? callback() : new FluentResult(false)
   }
 }
 
@@ -233,4 +289,92 @@ class FluentCheckGenerator<Rec extends ParentRec, ParentRec extends {}> extends 
     super(strategy, parent)
     this.strategy.setRandomGenerator(new FluentRandomGenerator(rngBuilder, seed))
   }
+}
+
+class FluentCheckRunner<K extends string, A, Rec extends ParentRec, ParentRec extends {}>
+  extends FluentCheck<Rec, ParentRec> {
+  asserts: FluentCheckAssert<unknown, any>[]
+  quantifiers: FluentCheckQuantifier<K, A, unknown, any>[]
+  runnerBreakValue: boolean | undefined = undefined
+
+  constructor(
+    protected readonly parent: FluentCheck<ParentRec, any>,
+    strategy: FluentStrategy
+  ) {
+    super(strategy, parent)
+
+    this.strategy.configArbitraries()
+
+    this.asserts = this.pathFromRoot().filter(node => node instanceof FluentCheckAssert)
+      .map(x => x as FluentCheckAssert<unknown, any>)
+    this.quantifiers = this.pathFromRoot().filter(node => node instanceof FluentCheckQuantifier)
+      .reverse().map(x => x as FluentCheckQuantifier<K, A, unknown, any>)
+    this.runnerBreakValue = this.quantifiers.length > 0 && this.quantifiers.map(val => val.breakValue)
+      .every((val, _, arr) => val === arr[0]) ? this.quantifiers[0].breakValue : undefined
+  }
+
+  private runPreliminaries<T>(testCase: ValueResult<T>, preliminaries: FluentCheck<unknown, any>[]): Rec {
+    const data = { } as Rec
+
+    preliminaries.forEach(node => {
+      if (node instanceof FluentCheckGivenConstant) data[node.name] = node.value
+      else if (node instanceof FluentCheckGivenMutable) data[node.name] = node.factory({...testCase, ...data})
+      else if (node instanceof FluentCheckWhen) node.f({...testCase, ...data})
+    })
+
+    return data
+  }
+
+  private runAssertions(): [boolean, Rec[]] {
+    const inputData: Rec[] = []
+    let assertionResult = true
+    const unwrappedTestCase = FluentCheck.unwrapFluentPick(this.strategy.getCurrentTestCase())
+
+    for (const node of this.asserts) {
+      inputData.push({...unwrappedTestCase, ...this.runPreliminaries(unwrappedTestCase, node.preliminaries)} as Rec)
+      assertionResult = assertionResult && node.assertion(inputData[inputData.length - 1])
+      if (!assertionResult) break
+    }
+
+    return [assertionResult, inputData]
+  }
+
+  protected run(): FluentResult {
+    if (this.quantifiers.length === 0) return new FluentResult(this.runAssertions()[0])
+
+    const result = new FluentResult(!this.quantifiers[this.quantifiers.length - 1].breakValue)
+
+    if (this.runnerBreakValue === undefined) this.quantifiers.forEach(node => node.cleanContexts())
+
+    while (this.strategy.hasInput()) {
+      this.strategy.getInput()
+      const assertionsData = this.runAssertions()
+      this.strategy.handleResult(assertionsData[1])
+
+      if (this.runnerBreakValue !== undefined && this.runnerBreakValue === assertionsData[0]) {
+        result.satisfiable = assertionsData[0]
+        this.quantifiers.forEach(node => result.addExample(node.name, this.strategy.getCurrentTestCase()[node.name]))
+        return result
+      }
+
+      this.quantifiers[0].selfUpdateContext(this.strategy.getCurrentTestCase(), assertionsData[0])
+      for (let i = 0; i < this.quantifiers.length - 1; i++) {
+        this.quantifiers[i].updateParentQuantifierContext(this.strategy.getCurrentTestCase(),
+          assertionsData[0], this.quantifiers[i+1])
+      }
+
+      for (let i = 1; i < this.quantifiers.length; i++) {
+        if (this.quantifiers[i].getContext().size >= 1 && this.quantifiers[i].earlyStopConditionStatus()) {
+          result.satisfiable = this.quantifiers[i].breakValue
+          // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+          result.example = JSON.parse(Array.from(this.quantifiers[i].getContext().entries())
+            .find(x => x[1] === this.quantifiers[i].breakValue)![0])
+          return result
+        }
+      }
+    }
+
+    return result
+  }
+
 }

@@ -95,11 +95,16 @@ function nwise(data: any[][]) {
 
 /**
  * Returns all possible pair combinations for a given array of arrays.
+ *
  */
 function pairwise(data: any[][]) {
+  // TODO - Must ensure that the returned array is ordered so that the early stop conditions in the FluentCheck runner
+  // can work properly.
+
   if (data.length < 2) return data.length === 0 ?
     data : data[0].reduce((acc, value) => acc.concat([[value]]), [])
 
+  // TODO - Must ensure that the same order is returned. An unsort needs to be performed
   data.sort((x, y) => y.length - x.length)
 
   const combinations = data[0].reduce((acc, value) => {
@@ -131,14 +136,16 @@ function pairwise(data: any[][]) {
 }
 
 /**
- * Returns an array with nwise combinations. Currently it only supports nwise (all possible combinations) and
- * pairwise combinations.
+ * Returns an array with nwise combinations. Currently it only supports complete-wise and
+ * pair-wise combinations.
  */
 export function computeCombinations(data: any[][], N?: number): any[][] {
+  if (data.some(x => x.length === 0)) return []
+
   switch (N) {
     case 2:
-      return pairwise(data.filter(x => x.length > 0))
+      return data.length === 2 ? nwise(data) : pairwise(data)
     default:
-      return nwise(data.filter(x => x.length > 0))
+      return nwise(data)
   }
 }

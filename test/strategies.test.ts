@@ -67,42 +67,11 @@ describe('Strategy tests', () => {
   })
 
   describe('Combinator tests', () => {
-    it('finds that the total number of possible combinations is equal to the sub arrays\' cartesian product', () => {
-      expect(fc.scenario()
-        .config(fc.strategy().withRandomSampling(10))
-        .forall('a', fc.array(fc.string()))
-        .forall('b', fc.array(fc.boolean()))
-        .forall('c', fc.array(fc.integer()))
-        .then(({a, b, c}) => {
-          const data: any[][] = [a, b, c]
-          return utils.computeCombinations(data).length === data.filter(x => x.length > 0)
-            .map(x => x.length)
-            .reduce((acc, value) => acc === 0 ? 1 * value : acc * value, 0)
-        })
-        .check()
-      ).to.have.property('satisfiable', true)
-    })
-
-    it('finds that the total number of pairwise combinations is equal to: T = max(X) * max(X \\ max(X))', () => {
-      expect(fc.scenario()
-        .config(fc.strategy().withRandomSampling(10))
-        .forall('a', fc.array(fc.string()))
-        .forall('b', fc.array(fc.boolean()))
-        .forall('c', fc.array(fc.integer()))
-        .then(({a, b, c}) => {
-          const data = [a,b,c].sort((x, y) => y.length - x.length)
-          return utils.computeCombinations(data, 2).length === (data[1].length === 0 ?
-            data[0].length : data[0].length * data[1].length)
-        })
-        .check()
-      ).to.have.property('satisfiable', true)
-    })
-
     it('finds that the set of pairwise combinations is a subset of all possible combinations', () => {
       expect(fc.scenario()
-        .given('a', () => fc.array(fc.string()).pick(Math.random)?.value as string[])
-        .given('b', () => fc.array(fc.boolean()).pick(Math.random)?.value as boolean[])
-        .given('c', () => fc.array(fc.integer()).pick(Math.random)?.value as number[])
+        .given('a', fc.array(fc.string()).pick(Math.random)?.value as string[])
+        .given('b', fc.array(fc.boolean()).pick(Math.random)?.value as boolean[])
+        .given('c', fc.array(fc.integer()).pick(Math.random)?.value as number[])
         .then(({a, b, c}) => {
           const nwise = utils.computeCombinations([a,b,c])
           const pairwise = utils.computeCombinations([a,b,c], 2)
@@ -114,9 +83,9 @@ describe('Strategy tests', () => {
 
     it('finds that the set of pairwise combinations contains all possible pairwise combinations', () => {
       expect(fc.scenario()
-        .given('a', () => fc.array(fc.string(), 1).pick(Math.random)?.value as string[])
-        .given('b', () => fc.array(fc.boolean(), 1).pick(Math.random)?.value as boolean[])
-        .given('c', () => fc.array(fc.integer(), 1).pick(Math.random)?.value as number[])
+        .given('a', fc.array(fc.string(), 1).pick(Math.random)?.value as string[])
+        .given('b', fc.array(fc.boolean(), 1).pick(Math.random)?.value as boolean[])
+        .given('c', fc.array(fc.integer(), 1).pick(Math.random)?.value as number[])
         .then(({a, b, c}) => {
           const pairwise = utils.computeCombinations([a,b,c], 2)
           const allPairs = [... new Set(utils.computeCombinations([a,b])
