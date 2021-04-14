@@ -172,6 +172,13 @@ export class FluentStrategy implements FluentStrategyInterface {
   }
 
   /**
+   * Returns the current test case collection pick.
+   */
+  getTestCaseCollectionPick() {
+    return this.testCaseCollectionPick
+  }
+
+  /**
    * Returns the associated random generator.
    */
   getRandomGenerator(): FluentRandomGenerator {

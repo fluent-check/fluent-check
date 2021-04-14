@@ -201,7 +201,8 @@ abstract class FluentCheckQuantifier<K extends string, A, Rec extends ParentRec 
     const contextKey = JSON.stringify(contextKeyObject)
 
     if (parentQuantifier.partialContext.size === 0) parentQuantifier.partialContext.set(contextKey, assertionResult)
-    else if (this.strategy.getTestCaseCollection().length === 0) key[0] = contextKey
+    else if (this.strategy.getTestCaseCollectionPick() === this.strategy.getTestCaseCollection().length)
+      key[0] = contextKey
     else if (!parentQuantifier.partialContext.has(contextKey)) {
       key[0] = parentQuantifier.partialContext.keys().next().value
       key[1] = true
