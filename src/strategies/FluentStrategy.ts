@@ -18,6 +18,11 @@ export class FluentStrategy implements FluentStrategyInterface {
   protected arbitraries: StrategyArbitraries = {}
 
   /**
+   * Maps the arbitraries' keys to the respective test case index
+   */
+  protected arbitrariesKeysIndex: string[] = []
+
+  /**
    * Contains all the test methods concerning a test case.
    */
   protected testMethods: {(...args: any[]): any} [] = []
@@ -86,13 +91,14 @@ export class FluentStrategy implements FluentStrategyInterface {
    * Configures the information relative to the arbitraries.
    */
   configArbitraries<A>() {
-    Object.keys(this.arbitraries).forEach(name => {
+    for (const name in this.arbitraries) {
       this.arbitraries[name].collection = this.arbitraries[name].cache !== undefined ?
         this.arbitraries[name].cache as FluentPick<A>[]:
         this.buildArbitraryCollection(this.arbitraries[name].arbitrary,
           this.getArbitraryExtractedConstants(this.arbitraries[name].arbitrary))
-    })
+    }
 
+    this.arbitrariesKeysIndex = Object.keys(this.arbitraries)
     this.generateTestCaseCollection()
   }
 
@@ -104,9 +110,10 @@ export class FluentStrategy implements FluentStrategyInterface {
    */
   updateArbitraryCollections<A>(arbitraryName = '', testCase = {}) {
     this.testCaseCollection = []
+
     let arbitraryFound = false
 
-    Object.keys(this.arbitraries).forEach(name => {
+    for (const name in this.arbitraries) {
       if (name === arbitraryName) arbitraryFound = true
       else {
         if (!arbitraryFound) this.arbitraries[name].collection = [testCase[name]]
@@ -116,17 +123,21 @@ export class FluentStrategy implements FluentStrategyInterface {
             this.buildArbitraryCollection(this.arbitraries[name].arbitrary,
               this.getArbitraryExtractedConstants(this.arbitraries[name].arbitrary))
       }
-    })
+    }
   }
 
   /**
    * Generates the test case collection.
+   *
+   * TODO - This method, when called repeatedly can be time-consuming. We need to look out for faster ways to generate
+   * the test case collection.
    */
   generateTestCaseCollection() {
     this.testCaseCollectionPick = 0
+
     utils.computeCombinations(Object.values(this.arbitraries).map(x => x.collection)).forEach(testCase => {
       this.testCaseCollection.push(testCase.reduce((acc, value, index) => {
-        acc[Object.keys(this.arbitraries)[index]] = value
+        acc[this.arbitrariesKeysIndex[index]] = value
         return acc
       }, {}))
     })

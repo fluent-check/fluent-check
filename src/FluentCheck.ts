@@ -145,8 +145,6 @@ abstract class FluentCheckQuantifier<K extends string, A, Rec extends ParentRec 
 
   abstract breakValue: boolean
 
-  // TODO - The following structures are making the Garbage Collector spend a lot of time on its tasks, due to the high
-  // rate of operations that are made on these structures.
   private context: Map<string, boolean> = new Map()
   private partialContext: Map<string, boolean> = new Map()
 
@@ -171,7 +169,6 @@ abstract class FluentCheckQuantifier<K extends string, A, Rec extends ParentRec 
     else if (result.example[this.name] === undefined || this.breakValue !== result.satisfiable ||
       this.strategy.shrink(this.name, result) === false) return result
 
-    // TODO - The following operations can be time-consuming. We need to look out for an alternative if possible.
     this.strategy.updateArbitraryCollections(this.name, result.example)
     this.strategy.generateTestCaseCollection()
 
@@ -180,8 +177,6 @@ abstract class FluentCheckQuantifier<K extends string, A, Rec extends ParentRec 
 
   /**
    * Updates its own context.
-   *
-   * TODO - This method can be called frequently, so it needs to be fully optimized.
    */
   selfUpdateContext(testCase: ValueResult<any>, assertionResult: boolean) {
     this.context.set(JSON.stringify(testCase), assertionResult)
@@ -190,8 +185,6 @@ abstract class FluentCheckQuantifier<K extends string, A, Rec extends ParentRec 
   /**
    * Updates its quantifier parent based on its own context, which is already updated at this point in the program
    * execution flow.
-   *
-   * TODO - This method can be called frequently, so it needs to be fully optimized.
    */
   updateParentQuantifierContext(
     testCase: ValueResult<any>,
@@ -200,7 +193,7 @@ abstract class FluentCheckQuantifier<K extends string, A, Rec extends ParentRec 
   ) {
     const contextKeyObject: ValueResult<any> = {}
 
-    for (const testCaseKey of Object.keys(testCase))
+    for (const testCaseKey in testCase)
       if (testCaseKey === this.name) break
       else contextKeyObject[testCaseKey] = testCase[testCaseKey]
 
@@ -215,8 +208,10 @@ abstract class FluentCheckQuantifier<K extends string, A, Rec extends ParentRec 
     }
 
     if (key[0].length > 0) {
+      const testCaseKey = key[0].substring(1, key[0].length - 1)
+
       const value = Array.from(this.context.entries()).filter(x =>
-        x[0].substring(1, x[0].length - 1).includes(key[0].substring(1, key[0].length - 1))
+        x[0].substring(1, x[0].length - 1).includes(testCaseKey)
       ).map(x => x[1])
 
       parentQuantifier.context.set(key[0], this.breakValue ? value.some(x => x) : value.every(x => x))
@@ -228,8 +223,6 @@ abstract class FluentCheckQuantifier<K extends string, A, Rec extends ParentRec 
 
   /**
    * Returns true if the early stop condition was met. Otherwise, returns false.
-   *
-   * TODO - This method can be called frequently, so it needs to be fully optimized.
    */
   earlyStopConditionStatus(): boolean {
     return this.breakValue ?
