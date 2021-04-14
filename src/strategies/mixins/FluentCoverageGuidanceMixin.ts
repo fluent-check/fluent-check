@@ -81,7 +81,7 @@ export function CoverageGuidance<TBase extends MixinStrategy>(Base: TBase) {
      * TODO - The current implementation is still the same as the Random mixin and therefore needs to be changed.
      */
     getInput(): WrapFluentPick<any> {
-      this.currTestCase = this.testCaseCollection.shift() as WrapFluentPick<any>
+      this.currTestCase = this.testCaseCollection[this.testCaseCollectionPick++] as WrapFluentPick<any>
       return this.currTestCase
     }
 

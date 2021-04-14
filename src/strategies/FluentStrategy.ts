@@ -33,6 +33,11 @@ export class FluentStrategy implements FluentStrategyInterface {
   protected testCaseCollection: WrapFluentPick<any>[] = []
 
   /**
+   * Indicates which test case is being used from the test case collection structure.
+   */
+  protected testCaseCollectionPick = 0
+
+  /**
    * Current test case being used for testing purposes.
    */
   protected currTestCase: WrapFluentPick<any> = {}
@@ -118,6 +123,7 @@ export class FluentStrategy implements FluentStrategyInterface {
    * Generates the test case collection.
    */
   generateTestCaseCollection() {
+    this.testCaseCollectionPick = 0
     utils.computeCombinations(Object.values(this.arbitraries).map(x => x.collection)).forEach(testCase => {
       this.testCaseCollection.push(testCase.reduce((acc, value, index) => {
         acc[Object.keys(this.arbitraries)[index]] = value

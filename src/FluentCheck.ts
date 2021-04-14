@@ -145,6 +145,8 @@ abstract class FluentCheckQuantifier<K extends string, A, Rec extends ParentRec 
 
   abstract breakValue: boolean
 
+  // TODO - The following structures are making the Garbage Collector spend a lot of time on its tasks, due to the high
+  // rate of operations that are made on these structures.
   private context: Map<string, boolean> = new Map()
   private partialContext: Map<string, boolean> = new Map()
 
@@ -169,6 +171,7 @@ abstract class FluentCheckQuantifier<K extends string, A, Rec extends ParentRec 
     else if (result.example[this.name] === undefined || this.breakValue !== result.satisfiable ||
       this.strategy.shrink(this.name, result) === false) return result
 
+    // TODO - The following operations can be time-consuming. We need to look out for an alternative if possible.
     this.strategy.updateArbitraryCollections(this.name, result.example)
     this.strategy.generateTestCaseCollection()
 
@@ -177,6 +180,8 @@ abstract class FluentCheckQuantifier<K extends string, A, Rec extends ParentRec 
 
   /**
    * Updates its own context.
+   *
+   * TODO - This method can be called frequently, so it needs to be fully optimized.
    */
   selfUpdateContext(testCase: ValueResult<any>, assertionResult: boolean) {
     this.context.set(JSON.stringify(testCase), assertionResult)
@@ -185,6 +190,8 @@ abstract class FluentCheckQuantifier<K extends string, A, Rec extends ParentRec 
   /**
    * Updates its quantifier parent based on its own context, which is already updated at this point in the program
    * execution flow.
+   *
+   * TODO - This method can be called frequently, so it needs to be fully optimized.
    */
   updateParentQuantifierContext(
     testCase: ValueResult<any>,
@@ -221,6 +228,8 @@ abstract class FluentCheckQuantifier<K extends string, A, Rec extends ParentRec 
 
   /**
    * Returns true if the early stop condition was met. Otherwise, returns false.
+   *
+   * TODO - This method can be called frequently, so it needs to be fully optimized.
    */
   earlyStopConditionStatus(): boolean {
     return this.breakValue ?
@@ -351,25 +360,28 @@ class FluentCheckRunner<K extends string, A, Rec extends ParentRec, ParentRec ex
       const assertionsData = this.runAssertions()
       this.strategy.handleResult(assertionsData[1])
 
-      if (this.runnerBreakValue !== undefined && this.runnerBreakValue === assertionsData[0]) {
-        result.satisfiable = assertionsData[0]
-        this.quantifiers.forEach(node => result.addExample(node.name, this.strategy.getCurrentTestCase()[node.name]))
-        return result
-      }
-
-      this.quantifiers[0].selfUpdateContext(this.strategy.getCurrentTestCase(), assertionsData[0])
-      for (let i = 0; i < this.quantifiers.length - 1; i++) {
-        this.quantifiers[i].updateParentQuantifierContext(this.strategy.getCurrentTestCase(),
-          assertionsData[0], this.quantifiers[i+1])
-      }
-
-      for (let i = 1; i < this.quantifiers.length; i++) {
-        if (this.quantifiers[i].getContext().size >= 1 && this.quantifiers[i].earlyStopConditionStatus()) {
-          result.satisfiable = this.quantifiers[i].breakValue
-          // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-          result.example = JSON.parse(Array.from(this.quantifiers[i].getContext().entries())
-            .find(x => x[1] === this.quantifiers[i].breakValue)![0])
+      if (this.runnerBreakValue !== undefined) {
+        if (this.runnerBreakValue === assertionsData[0]) {
+          result.satisfiable = assertionsData[0]
+          this.quantifiers.forEach(node => result.addExample(node.name, this.strategy.getCurrentTestCase()[node.name]))
           return result
+        }
+      }
+      else {
+        this.quantifiers[0].selfUpdateContext(this.strategy.getCurrentTestCase(), assertionsData[0])
+        for (let i = 0; i < this.quantifiers.length - 1; i++) {
+          this.quantifiers[i].updateParentQuantifierContext(this.strategy.getCurrentTestCase(),
+            assertionsData[0], this.quantifiers[i+1])
+        }
+
+        for (let i = 1; i < this.quantifiers.length; i++) {
+          if (this.quantifiers[i].getContext().size >= 1 && this.quantifiers[i].earlyStopConditionStatus()) {
+            result.satisfiable = this.quantifiers[i].breakValue
+            // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+            result.example = JSON.parse(Array.from(this.quantifiers[i].getContext().entries())
+              .find(x => x[1] === this.quantifiers[i].breakValue)![0])
+            return result
+          }
         }
       }
     }
