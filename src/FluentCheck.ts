@@ -1,6 +1,7 @@
 import {Arbitrary, FluentPick, FluentRandomGenerator} from './arbitraries'
 import {FluentStrategy} from './strategies/FluentStrategy'
 import {FluentStrategyFactory} from './strategies/FluentStrategyFactory'
+import now from 'performance-now'
 
 type WrapFluentPick<T> = { [P in keyof T]: FluentPick<T[P]> }
 type PickResult<V> = Record<string, FluentPick<V>>
@@ -11,6 +12,7 @@ export class FluentResult {
     public readonly satisfiable = false,
     public example: PickResult<any> = {},
     public readonly seed?: number,
+    public readonly execTime?: string,
     public readonly withTestCaseOutput: boolean = false,
     public readonly testCases: ValueResult<any>[] = []) {}
 
@@ -20,9 +22,12 @@ export class FluentResult {
 }
 
 export class FluentCheck<Rec extends ParentRec, ParentRec extends {}> {
+  protected readonly startInstant
+
   constructor(public strategy: FluentStrategy = new FluentStrategyFactory().defaultStrategy().build(),
     protected readonly parent: FluentCheck<ParentRec, any> | undefined = undefined) {
-    if (this.parent !== undefined) this.strategy.randomGenerator = this.parent.strategy.randomGenerator
+    this.parent === undefined ? 
+    this.startInstant = now() : this.strategy.randomGenerator = this.parent.strategy.randomGenerator
   }
 
   config(strategy: FluentStrategyFactory) {
@@ -73,11 +78,13 @@ export class FluentCheck<Rec extends ParentRec, ParentRec extends {}> {
     if (this.parent !== undefined) return this.parent.check(testCase => this.run(testCase, child, testCases), testCases)
     else {
       this.strategy.randomGenerator.initialize()
+
       const r = this.run({} as Rec, child, testCases)
       return new FluentResult(
         r.satisfiable,
         FluentCheck.unwrapFluentPick(r.example),
         this.strategy.randomGenerator.seed,
+        (now() - this.startInstant).toFixed(5),
         this.strategy.configuration.withTestCaseOutput,
         testCases
       )

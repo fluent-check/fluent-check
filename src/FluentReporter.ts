@@ -12,6 +12,12 @@ export class FluentReporter extends Error {
     this.name = 'Property not satisfiable'
     const msg: String[] = []
 
+    const execTime = result.execTime?.toString() ?? 'error'
+    msg.push('\n\nExecution time: ')
+    msg.push(execTime)
+    if (result.execTime !== undefined)
+      msg.push('ms')
+
     msg.push('\n\nCounter-example:\n')
     msg.push(JSON.stringify(result.example))
 
