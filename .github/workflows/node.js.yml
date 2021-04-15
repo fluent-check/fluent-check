@@ -21,7 +21,14 @@ jobs:
         node-version: ${{ matrix.node-version }}
     - name: Install dependencies
       run: npm install
+    - name: Execute Linter
+      run: npm run lint
     - name: Run tests
       run: npm test
-    - name: Lint
-      run: npm run lint
+    - name: Runs NYC Coverage
+      run: npm run coverage > coverage.txt
+    - name: Archive code coverage results
+      uses: actions/upload-artifact@v2
+      with:
+        name: code-coverage-report
+        path: coverage.txt

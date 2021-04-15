@@ -1,9 +1,15 @@
-import {FluentPick} from './types'
+import {FluentPick, XOR} from './types'
 import {Arbitrary} from './internal'
 
 export class MappedArbitrary<A, B> extends Arbitrary<B> {
-  constructor(public readonly baseArbitrary: Arbitrary<A>, public readonly f: (a: A) => B) {
+  constructor(
+    public readonly baseArbitrary: Arbitrary<A>,
+    public readonly f: (a: A) => B,
+    public readonly shrinkHelper?: XOR<{inverseMap: (b: B) => A[]},{canGenerate: (pick: FluentPick<B>) => boolean}>
+  ) {
     super()
+    this.canGenerate = this.shrinkHelper !== undefined && this.shrinkHelper.canGenerate !== undefined ?
+      this.shrinkHelper.canGenerate : this.canGenerate
   }
 
   mapFluentPick(p: FluentPick<A>): FluentPick<B> {
@@ -32,8 +38,9 @@ export class MappedArbitrary<A, B> extends Arbitrary<B> {
   }
 
   canGenerate(pick: FluentPick<B>) {
-    /* && pick.value === this.f(pick.original) */
-    return this.baseArbitrary.canGenerate({value: pick.original, original: pick.original})
+    const inverseValues = this.shrinkHelper !== undefined && this.shrinkHelper.inverseMap !== undefined ?
+      this.shrinkHelper.inverseMap(pick.value) : [pick.original]
+    return inverseValues.some(value => this.baseArbitrary.canGenerate({value, original: pick.original}))
   }
 
   toString(depth = 0) {
