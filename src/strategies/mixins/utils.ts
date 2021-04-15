@@ -77,6 +77,52 @@ export function extractImports(path: string) {
 }
 
 /**
+ * Merges two subarrays of a given array.
+ */
+function merge(arr: any[][], map: Map<number, Map<any, number>>, l: number, m: number, r: number) {
+  const n1 = m - l + 1
+  const n2 = r - m
+
+  const L: any[][] = []
+  const R: any[][] = []
+
+  for (let i = 0; i < n1; ++i) L.push(arr[l + i])
+  for (let j = 0; j < n2; ++j) R.push(arr[m + 1 + j])
+
+  let k = l
+  let i = 0, j = 0
+
+  while (i < n1 && j < n2) {
+    let isSmaller = false
+    for (let z = 0; z < L[i].length; z++) {
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+      const w = map.get(z)!.get(L[i][z])! - map.get(z)!.get(R[j][z])!
+      if (w > 0) break
+      else if (w < 0) {
+        isSmaller = true
+        break
+      }
+    }
+    if (isSmaller) arr[k++] = L[i++]
+    else arr[k++] = R[j++]
+  }
+  while (i < n1) { arr[k++] = L[i++] }
+  while (j < n2) { arr[k++] = R[j++] }
+}
+
+/**
+ * Algorithm used to order the pairwise combinations.
+ */
+function mergeSort(arr: any[][], map: Map<number, Map<any, number>>, l: number, r:number) {
+  if (l < r) {
+    const m = Math.floor(l + (r-l)/2)
+    mergeSort(arr, map, l, m)
+    mergeSort(arr, map, m + 1, r)
+    merge(arr, map, l, m, r)
+  }
+}
+
+/**
  * Recursively computes and returns all the possible combinations for a given array of arrays.
  */
 function nwise(data: any[][]) {
@@ -85,7 +131,7 @@ function nwise(data: any[][]) {
   else if (data.length === 2) {
     return data[0].reduce((acc, value) => {
       for (const elem of data[1])
-        if (Array.isArray(elem)) acc.push([value].concat(elem))
+        if (Array.isArray(elem)) acc.push([value, ...elem])
         else acc.push([value, elem])
       return acc
     }, [])
@@ -95,22 +141,29 @@ function nwise(data: any[][]) {
 
 /**
  * Returns all possible pair combinations for a given array of arrays.
- *
  */
 function pairwise(data: any[][]) {
-  // TODO - Must ensure that the returned array is ordered so that the early stop conditions in the FluentCheck runner
-  // can work properly.
-
   if (data.length < 2) return data.length === 0 ?
     data : data[0].reduce((acc, value) => acc.concat([[value]]), [])
 
-  // TODO - Must ensure that the same order is returned. An unsort needs to be performed
-  data.sort((x, y) => y.length - x.length)
+  const dataMap: Map<number, Map<any, number>> = new Map()
+  for (let i = 0; i < data.length; i++) {
+    dataMap.set(i, new Map())
+    for (let j = 0; j < data[i].length; j++)
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+      dataMap.get(i)!.set(data[i][j], j)
+  }
 
-  const combinations = data[0].reduce((acc, value) => {
+  let originalData = [... data]
+
+  data.sort((x, y) => y.length - x.length)
+  originalData = originalData.map(x => [originalData.indexOf(x), data.indexOf(x)])
+
+  const combinations: any[][] = []
+  for (const value of data[0]) {
     let subArrIndex = 0
-    return acc.concat([...Array(data[1].length).fill(value).map(x => [x, data[1][subArrIndex++]])])
-  }, [])
+    combinations.push(...Array(data[1].length).fill(value).map(x => [x, data[1][subArrIndex++]]))
+  }
 
   let currIndex = 2
   let reverse = data.length > 2 && data[1].length === data[2].length ? true : false
@@ -132,7 +185,18 @@ function pairwise(data: any[][]) {
     reverse = !reverse
   }
 
-  return combinations
+  const unsortedCombinations: any[][] = []
+
+  for (const combination of combinations) {
+    const tmpArr: any[] = []
+    for (const elem of originalData)
+      tmpArr.push(combination[elem[1]])
+    unsortedCombinations.push(tmpArr)
+  }
+
+  mergeSort(unsortedCombinations, dataMap, 0, unsortedCombinations.length - 1)
+
+  return unsortedCombinations
 }
 
 /**
