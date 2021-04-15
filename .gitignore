@@ -1,4 +1,6 @@
 dist
 node_modules
 .vscode
-src/notebook.ts
+src/notebook*.ts
+coverage
+.nyc_output

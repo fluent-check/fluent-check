@@ -2,7 +2,7 @@ import {Arbitrary, FluentPick, FluentRandomGenerator} from '../arbitraries'
 import {FluentResult} from '../FluentCheck'
 import {StrategyArbitraries} from './FluentStrategyTypes'
 
-export type FluentConfig = { sampleSize?: number, shrinkSize?: number }
+export type FluentConfig = { sampleSize?: number, shrinkSize?: number, withTestCaseOutput: boolean }
 
 export interface FluentStrategyInterface {
   hasInput: <K extends string>(arbitraryName: K) => boolean
