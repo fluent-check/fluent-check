@@ -26,8 +26,8 @@ export class FluentCheck<Rec extends ParentRec, ParentRec extends {}> {
 
   constructor(public strategy: FluentStrategy = new FluentStrategyFactory().defaultStrategy().build(),
     protected readonly parent: FluentCheck<ParentRec, any> | undefined = undefined) {
-    this.parent === undefined ? 
-    this.startInstant = now() : this.strategy.randomGenerator = this.parent.strategy.randomGenerator
+    this.parent === undefined ?
+      this.startInstant = now() : this.strategy.randomGenerator = this.parent.strategy.randomGenerator
   }
 
   config(strategy: FluentStrategyFactory) {

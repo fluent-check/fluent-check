@@ -17,7 +17,7 @@ export class FluentReporter extends Error {
     msg.push(execTime)
     if (result.execTime !== undefined)
       msg.push('ms')
-    
+
     const seed = result.seed?.toString() ?? 'Error'
     msg.push('\n\nSeed: ')
     msg.push(seed.toString())
