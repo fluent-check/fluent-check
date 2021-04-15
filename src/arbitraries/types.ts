@@ -10,6 +10,7 @@ export type ArbitrarySize = {
 }
 
 export type ArbitraryCoverage = Record<string, number | [number, number]>
+export type ScenarioCoverage = number | [number, number]
 
 export class FluentRandomGenerator {
   generator!: () => number

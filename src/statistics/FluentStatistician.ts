@@ -1,4 +1,4 @@
-import {ArbitraryCoverage} from '../arbitraries'
+import {ArbitraryCoverage, ScenarioCoverage} from '../arbitraries'
 import {StrategyArbitraries} from '../strategies/FluentStrategyTypes'
 
 export type FluentReporterConfig = { withTestCaseOutput: boolean, withInputSpaceCoverage: boolean }
@@ -22,20 +22,31 @@ export class FluentStatistician {
   /**
    * This function calculates the coverage of each input.
    */
-  calculateCoverages(ntestCases: number): [number, ArbitraryCoverage] {
+  calculateCoverages(ntestCases: number): [ScenarioCoverage, ArbitraryCoverage] {
     const coverages: ArbitraryCoverage = {}
+    const scInterval = [1, 1]
     let scSize = 1
+    let scType = 'exact'
 
     for (const name in this.arbitraries) {
       const stArb = this.arbitraries[name]
       const coverage = stArb.arbitrary.calculateCoverage(stArb.picked.size, this.configuration.realPrecision)
       coverages[name] = Array.isArray(coverage) ?
-        [Math.round(coverage[0] * 10000000)/100000, Math.round(coverage[1] * 10000000)/100000] :
+        [Math.round(coverage[1] * 10000000)/100000, Math.round(coverage[0] * 10000000)/100000] :
         Math.round(coverage * 10000000)/100000
-      scSize *= stArb.arbitrary.size(this.configuration.realPrecision).value
+
+      const strArbSz = stArb.arbitrary.size(this.configuration.realPrecision)
+      scSize *= strArbSz.value
+      scType = scType === 'exact' && strArbSz.type === 'exact' ? 'exact' : 'estimated'
+      scInterval[0] *= strArbSz.credibleInterval[0]
+      scInterval[1] *= strArbSz.credibleInterval[1]
     }
 
-    const scCoverage = ntestCases / scSize
-    return [Math.round(scCoverage * 10000000)/100000, coverages]
+    const scCoverage: ScenarioCoverage = scType === 'exact' ?
+      Math.round(ntestCases / scSize * 10000000)/100000 :
+      [Math.round(ntestCases / scInterval[1] * 10000000)/100000,
+        Math.round(ntestCases / scInterval[0] * 10000000)/100000]
+
+    return [scCoverage, coverages]
   }
 }
