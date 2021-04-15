@@ -21,10 +21,11 @@ export type FluentStrategyArbitrary<A> = {
 }
 
 export type FluentStrategyConfig = {
-  sampleSize: number,
-  shrinkSize: number,
-  globSource: string,
+  sampleSize: number
+  shrinkSize: number
+  globSource: string
   maxNumConst: number
+  pairwise: boolean
   numericConstMaxRange: number
   maxStringTransformations: number
   importsPath: string

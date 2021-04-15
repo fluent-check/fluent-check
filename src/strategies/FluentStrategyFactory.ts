@@ -45,6 +45,7 @@ export class FluentStrategyFactory {
     shrinkSize: 500,
     globSource: '',
     maxNumConst: 100,
+    pairwise: false,
     numericConstMaxRange: 100,
     maxStringTransformations: 50,
     importsPath: 'test'
@@ -88,6 +89,14 @@ export class FluentStrategyFactory {
   withConstantExtraction(config?: ConstantExtractionConfig) {
     this.configuration = {...this.configuration, ...config}
     this.strategy = ConstantExtractionBased(this.strategy)
+    return this
+  }
+
+  /**
+   * Enables pairwise testing.
+   */
+  withPairWiseTesting() {
+    this.configuration = {...this.configuration, pairwise: true}
     return this
   }
 

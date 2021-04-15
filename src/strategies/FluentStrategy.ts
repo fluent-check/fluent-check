@@ -135,7 +135,9 @@ export class FluentStrategy implements FluentStrategyInterface {
   generateTestCaseCollection() {
     this.testCaseCollectionPick = 0
 
-    utils.computeCombinations(Object.values(this.arbitraries).map(x => x.collection)).forEach(testCase => {
+    utils.computeCombinations(Object.values(this.arbitraries).map(x => x.collection),
+      this.configuration.pairwise ? 2 : Number.MAX_VALUE
+    ).forEach(testCase => {
       this.testCaseCollection.push(testCase.reduce((acc, value, index) => {
         acc[this.arbitrariesKeysIndex[index]] = value
         return acc
