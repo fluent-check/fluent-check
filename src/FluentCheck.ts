@@ -1,4 +1,4 @@
-import {Arbitrary, FluentPick, FluentRandomGenerator} from './arbitraries'
+import {Arbitrary, ArbitraryCoverage, FluentPick, FluentRandomGenerator} from './arbitraries'
 import {FluentStatistician} from './statistics/FluentStatistician'
 import {FluentStatisticianFactory} from './statistics/FluentStatisticianFactory'
 import {FluentStrategy} from './strategies/FluentStrategy'
@@ -16,7 +16,7 @@ export class FluentResult {
     public readonly withTestCaseOutput: boolean = false,
     public readonly withInputSpaceCoverage: boolean = false,
     public readonly testCases: ValueResult<any>[] = [],
-    public readonly coverages: [number, Record<string, number>] = [0, {}]) {}
+    public readonly coverages: [number, ArbitraryCoverage] = [0, {}]) {}
 
   addExample<A>(name: string, value: FluentPick<A>) {
     this.example[name] = value

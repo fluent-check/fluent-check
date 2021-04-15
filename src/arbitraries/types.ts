@@ -9,6 +9,8 @@ export type ArbitrarySize = {
   credibleInterval: [number, number]
 }
 
+export type ArbitraryCoverage = Record<string, number | [number, number]>
+
 export class FluentRandomGenerator {
   generator!: () => number
 

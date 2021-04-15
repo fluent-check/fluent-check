@@ -28,8 +28,10 @@ export abstract class Arbitrary<A> {
   /**
    * Calculates the input coverage of the arbitrary in question
    */
-  calculateCoverage(picks: number, _?: number): number {
-    return picks/this.size().value
+  calculateCoverage(picks: number, _?: number): number | [number, number] {
+    const sz = this.size()
+    return sz.type === 'exact' ?
+      picks/this.size().value : [picks/this.size().credibleInterval[0], picks/this.size().credibleInterval[1]]
   }
 
   /**

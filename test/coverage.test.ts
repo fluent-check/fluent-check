@@ -6,7 +6,7 @@ describe('Input space coverage tests', () => {
   it('Scenario coverage is calculated correctly', () => {
     const sc = fc.scenario()
       .config(fc.strategy().defaultStrategy().withSampleSize(100))
-      .configStatistics(fc.statistics().withTestCaseOutput().withInputSpaceCoverage(2))
+      .configStatistics(fc.statistics().withTestCaseOutput().withInputSpaceCoverage())
       .forall('a', fc.integer(-100,100))
       .forall('b', fc.integer(0,300))
       .then(({a, b}) => a + b === a + b)
@@ -15,16 +15,27 @@ describe('Input space coverage tests', () => {
     expect(sc.coverages[0]).equal(16.52865)
   })
 
-  it('Arbitrary coverage is calculated correctly', () => {
+  it('Exact arbitrary coverage is calculated correctly', () => {
     const sc = fc.scenario()
       .config(fc.strategy().defaultStrategy().withSampleSize(100))
-      .configStatistics(fc.statistics().withTestCaseOutput().withInputSpaceCoverage(2))
+      .configStatistics(fc.statistics().withTestCaseOutput().withInputSpaceCoverage())
       .forall('a', fc.integer(-100,100))
-      .forall('b', fc.integer(0,300))
-      .then(({a, b}) => a + b === a + b)
+      .then(({a}) => a === a)
       .check()
 
     expect(sc.coverages[1]['a']).equal(49.75124)
-    expect(sc.coverages[1]['b']).equal(33.22259)
+  })
+
+  it('Estimated arbitrary coverage is calculated correctly', () => {
+    const prng = (seed: number) => () => (seed = seed * 16807 % 2147483647) / 2147483647
+    const sc = fc.scenario()
+      .config(fc.strategy().defaultStrategy().withSampleSize(100))
+      .configStatistics(fc.statistics().withTestCaseOutput().withInputSpaceCoverage())
+      .withGenerator(prng, 1234)
+      .forall('a', fc.integer(0, 200).filter(x => x > 10).filter(x => x < 190))
+      .then(({a}) => a === a)
+      .check()
+
+    expect(sc.coverages[1]['a']).eql([59.13416, 55.11267])
   })
 })
