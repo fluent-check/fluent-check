@@ -13,7 +13,11 @@ export function Random<TBase extends MixinStrategy>(Base: TBase) {
     }
 
     getInput<K extends string, A>(arbitraryName: K): FluentPick<A> {
-      return this.arbitraries[arbitraryName].collection[this.arbitraries[arbitraryName].pickNum++]
+      const pick = this.arbitraries[arbitraryName].collection[this.arbitraries[arbitraryName].pickNum++]
+      const check = this.statConfiguration ?? {gatherArbitraryTestCases: false}
+      if (check.gatherArbitraryTestCases)
+        this.arbitraries[arbitraryName].picked.add(JSON.stringify(pick.value))
+      return pick
     }
 
     handleResult() {}

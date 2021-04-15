@@ -26,8 +26,18 @@ export class FluentReporter extends Error {
     msg.push(JSON.stringify(result.example))
 
     if (result.withTestCaseOutput) {
-      msg.push('\n\nTest cases:\n')
+      msg.push('\n\nTest cases (')
+      msg.push(result.testCases.length.toString())
+      msg.push('):\n')
       msg.push(JSON.stringify(result.testCases))
+    }
+
+    if (result.withInputSpaceCoverage) {
+      msg.push('\n\nScenario input coverage(%): ')
+      msg.push(JSON.stringify(result.coverages[0]))
+
+      msg.push('\n\nInput coverages(%):\n')
+      msg.push(JSON.stringify(result.coverages[1]))
     }
 
     msg.push('\n')

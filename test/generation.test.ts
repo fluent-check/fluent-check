@@ -48,14 +48,14 @@ describe('Generation tests', () => {
 
   it('Generator generates same values in two runs with the same seed', () => {
     const sc1 = fc.scenario()
-      .config(fc.strategy().defaultStrategy().withTestCaseOutput())
+      .configStatistics(fc.statistics().withTestCaseOutput())
       .withGenerator(prng, 1234)
       .forall('a', fc.integer(-10, 10))
       .forall('b', fc.integer(-10, 10))
       .then(({a, b}) => a+b === b+a)
 
     const sc2 = fc.scenario()
-      .config(fc.strategy().defaultStrategy().withTestCaseOutput())
+      .configStatistics(fc.statistics().withTestCaseOutput())
       .withGenerator(prng, 1234)
       .forall('a', fc.integer(-10, 10))
       .forall('b', fc.integer(-10, 10))
@@ -66,7 +66,7 @@ describe('Generation tests', () => {
 
   it('Generator generates same values in two runs of the same scenario', () => {
     const sc1 = fc.scenario()
-      .config(fc.strategy().defaultStrategy().withTestCaseOutput())
+      .configStatistics(fc.statistics().withTestCaseOutput())
       .withGenerator(prng, 1234)
       .forall('a', fc.integer(-10, 10))
       .forall('b', fc.integer(-10, 10))

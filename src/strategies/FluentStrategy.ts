@@ -1,8 +1,9 @@
 import {Arbitrary, FluentPick, FluentRandomGenerator} from '../arbitraries'
 import {FluentResult} from '../FluentCheck'
+import {FluentStatConfig} from '../statistics/FluentStatistician'
 import {StrategyArbitraries} from './FluentStrategyTypes'
 
-export type FluentConfig = { sampleSize?: number, shrinkSize?: number, withTestCaseOutput: boolean }
+export type FluentConfig = { sampleSize?: number, shrinkSize?: number }
 
 export interface FluentStrategyInterface {
   hasInput: <K extends string>(arbitraryName: K) => boolean
@@ -23,6 +24,11 @@ export class FluentStrategy implements FluentStrategyInterface {
   public randomGenerator = new FluentRandomGenerator()
 
   /**
+   * Configuration of the statistician
+   */
+  public statConfiguration?: FluentStatConfig
+
+  /**
    * Default constructor. Receives the FluentCheck configuration, which is used for test case generation purposes.
    */
   constructor(public readonly configuration: FluentConfig) {}
@@ -39,6 +45,7 @@ export class FluentStrategy implements FluentStrategyInterface {
    * Configures the information relative a specific arbitrary.
    */
   configArbitrary<K extends string>(arbitraryName: K, partial: FluentResult | undefined, depth: number) {
+    this.arbitraries[arbitraryName].picked = this.arbitraries[arbitraryName].picked ?? new Set()
     this.arbitraries[arbitraryName].pickNum = 0
     this.arbitraries[arbitraryName].collection = []
 

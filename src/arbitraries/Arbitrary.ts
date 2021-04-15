@@ -8,7 +8,7 @@ export abstract class Arbitrary<A> {
    *
    * The returned size can be exact or an estimation.
    */
-  abstract size(): ArbitrarySize
+  abstract size(_?: number): ArbitrarySize
 
   /**
    * Generates a random element. This operation is stateless.
@@ -24,6 +24,15 @@ export abstract class Arbitrary<A> {
    * TODO: should we include an "unknown" result?
    */
   abstract canGenerate<B extends A>(pick: FluentPick<B>): boolean
+
+  /**
+   * Calculates the input coverage of the arbitrary in question
+   */
+  calculateCoverage(picks: number, _?: number): number | [number, number] {
+    const sz = this.size()
+    return sz.type === 'exact' ?
+      picks/this.size().value : [picks/this.size().credibleInterval[0], picks/this.size().credibleInterval[1]]
+  }
 
   /**
    * Returns a sample of picks of a given size. Sample might contain repeated values
