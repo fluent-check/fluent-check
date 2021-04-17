@@ -3,6 +3,7 @@ import * as utils from './utils'
 import * as schema from '@istanbuljs/schema'
 import * as libInstrument from 'istanbul-lib-instrument'
 
+import {performance} from 'perf_hooks'
 import {FluentCheck} from '../../FluentCheck'
 import {FluentCoverage} from '../FluentCoverage'
 import {MixinStrategy} from '../FluentStrategyTypes'
@@ -74,7 +75,9 @@ export function CoverageGuidance<TBase extends MixinStrategy>(Base: TBase) {
      * TODO - The current implementation is still the same as the Random mixin and therefore needs to be changed.
      */
     hasInput(): boolean {
-      return true
+      this.currTime = performance.now()
+      if (this.configuration.timeout < this.currTime - (this.initTime ?? this.currTime)) return false
+      else return true
     }
 
     /**

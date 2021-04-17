@@ -1,4 +1,5 @@
 import * as utils from './mixins/utils'
+import {performance} from 'perf_hooks'
 
 import {FluentResult} from '../FluentCheck'
 import {FluentStrategyConfig, StrategyArbitraries} from './FluentStrategyTypes'
@@ -47,6 +48,16 @@ export class FluentStrategy implements FluentStrategyInterface {
    */
   protected currTestCase: WrapFluentPick<any> = {}
 
+  /**
+   * The initial high resolution millisecond timestamp.
+   */
+  protected initTime: number | undefined = undefined
+
+  /**
+   * The current high resolution millisecond timestamp.
+   */
+  protected currTime: number | undefined = undefined
+
   /*
    * Information concerning the random value generation.
    */
@@ -85,6 +96,13 @@ export class FluentStrategy implements FluentStrategyInterface {
   setup() {
     this.randomGenerator.initialize()
     this.coverageSetup()
+  }
+
+  /**
+   * Initializes the initial high resolution millisecond timestamp.
+   */
+  initializeTimer() {
+    this.initTime = performance.now()
   }
 
   /**
