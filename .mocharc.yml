@@ -1,6 +1,5 @@
 timeout: '4000'
 spec:
-  - 'test/**/*.test.ts'
-  # - 'test/**/!(coverage)*.test.ts'
+  - 'test/**/!(coverage)*.test.ts'
   # - 'test/coverage.test.ts'
   
