@@ -130,7 +130,7 @@ export class FluentStrategy implements FluentStrategyInterface {
    * Generates the test case collection.
    *
    * TODO - This method, when called repeatedly can be time-consuming. We need to look out for faster ways to generate
-   * the test case collection.
+   * the test case collection if possible.
    */
   generateTestCaseCollection() {
     this.testCaseCollectionPick = 0

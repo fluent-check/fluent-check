@@ -2,18 +2,4 @@ timeout: '4000' # Timeout should either be increased or removed in coverage test
 spec:
   - 'test/**/!(coverage)*.test.ts'
   # - 'test/coverage.test.ts'
-  # - 'test/arbitrary.test.ts'
-  # - 'test/booleans.test.ts'
-  # - 'test/composite.test.ts'
-  # - 'test/debug.test.ts'
-  # - 'test/generation.test.ts'
-  # - 'test/integers.test.ts'
-  # - 'test/math.test.ts'
-  # - 'test/nats.test.ts'
-  # - 'test/reals.test.ts'
-  # - 'test/reporter.test.ts'
-  # - 'test/stack.test.ts'
-  # - 'test/statistics.test.ts'
-  # - 'test/strategies.test.ts'
-  # - 'test/strings.test.ts'
   
