@@ -10,7 +10,7 @@ export class FluentStatisticianFactory {
   /**
    * Reporter configuration
    */
-  public repConfiguration: FluentReporterConfig = {withTestCaseOutput: false, withInputSpaceCoverage: false}
+  public repConfiguration: FluentReporterConfig = {withTestCaseOutput: false, withInputSpaceCoverage: false, withOutputOnSuccess: false}
 
   /**
    * Statistician configuration
@@ -35,6 +35,14 @@ export class FluentStatisticianFactory {
     this.configuration = {...this.configuration, gatherArbitraryTestCases: true}
     if (precision !== undefined)
       this.configuration = {...this.configuration,realPrecision: precision}
+    return this
+  }
+
+  /**
+   * Enables the output of information in case of success
+   */
+   withOutputOnSuccess() {
+    this.repConfiguration = {...this.repConfiguration, withOutputOnSuccess: true}
     return this
   }
 
