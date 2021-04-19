@@ -1,7 +1,7 @@
 import {ArbitraryCoverage, ScenarioCoverage} from '../arbitraries'
 import {StrategyArbitraries} from '../strategies/FluentStrategyTypes'
 
-export type FluentReporterConfig = { withTestCaseOutput: boolean, withInputSpaceCoverage: boolean }
+export type FluentReporterConfig = { withTestCaseOutput: boolean, withInputSpaceCoverage: boolean, withOutputOnSuccess: boolean}
 
 export type FluentStatConfig = { realPrecision: number, gatherTestCases: boolean, gatherArbitraryTestCases: boolean }
 
