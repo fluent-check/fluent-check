@@ -2,7 +2,7 @@ import {FluentResult} from './FluentCheck'
 
 export function expect(result: FluentResult): void | never {
   if (result.satisfiable) {
-    if(result.withOutputOnSuccess)
+    if (result.withOutputOnSuccess)
       console.log(assembleInfo(result))
   } else
     throw new FluentReporter(result)
@@ -11,12 +11,12 @@ export function expect(result: FluentResult): void | never {
 export class FluentReporter extends Error {
   constructor(result: FluentResult) {
     super()
-    this.name = 'Property not satisfiable'  
+    this.name = 'Property not satisfiable'
     this.message = assembleInfo(result)
   }
 }
 
-function assembleInfo(result: FluentResult): string{
+function assembleInfo(result: FluentResult): string {
   const msg: String[] = []
 
   const execTime = result.execTime?.toString() ?? 'error'
@@ -50,5 +50,5 @@ function assembleInfo(result: FluentResult): string{
   }
 
   msg.push('\n')
-  return msg.join('')  
+  return msg.join('')
 }

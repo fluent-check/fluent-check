@@ -10,12 +10,20 @@ export class FluentStatisticianFactory {
   /**
    * Reporter configuration
    */
-  public repConfiguration: FluentReporterConfig = {withTestCaseOutput: false, withInputSpaceCoverage: false, withOutputOnSuccess: false}
+  public repConfiguration: FluentReporterConfig = {
+    withTestCaseOutput: false,
+    withInputSpaceCoverage: false,
+    withOutputOnSuccess: false
+  }
 
   /**
    * Statistician configuration
    */
-  public configuration: FluentStatConfig = {realPrecision: 3, gatherTestCases: false, gatherArbitraryTestCases: false}
+  public configuration: FluentStatConfig = {
+    realPrecision: 3,
+    gatherTestCases: false,
+    gatherArbitraryTestCases: false
+  }
 
   /**
    * Enables the gathering of information and presentation of statistics which results in higher execution time.
@@ -41,7 +49,7 @@ export class FluentStatisticianFactory {
   /**
    * Enables the output of information in case of success
    */
-   withOutputOnSuccess() {
+  withOutputOnSuccess() {
     this.repConfiguration = {...this.repConfiguration, withOutputOnSuccess: true}
     return this
   }
