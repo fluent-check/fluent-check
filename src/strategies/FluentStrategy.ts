@@ -281,7 +281,8 @@ export class FluentStrategy implements FluentStrategyInterface {
 
   /**
    * Determines whether there are more inputs to be used for test case generation purposes. This function can use
-   * several factors (e.g. input size, time) to determine whether the generation process should be stoped or not.
+   * several factors (e.g. input size, time, code coverage) to determine whether the generation process should be
+   * stoped or not.
    *
    * Returns true if there are still more inputs to be used; otherwise it returns false.
    */

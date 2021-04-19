@@ -22,6 +22,11 @@ export class FluentCoverage {
   private coverageSummary = istanbulLibCoverage.createCoverageSummary()
 
   /**
+   * Indicates the total code coverage percentage.
+   */
+  private totalCoverage = 0
+
+  /**
    * Object that contains the coverage information associated with each file involved in the testing process.
    */
   private coverageFiles: Record<string, FileCoverage> = {}
@@ -93,6 +98,23 @@ export class FluentCoverage {
    */
   getBranchesCoveragePercentage(coverageSummary = this.coverageSummary): number {
     return coverageSummary.data.branches.pct
+  }
+
+  /**
+   * Returns the current total code coverage percentage.
+   */
+  getTotalCoverage(): number {
+    return this.totalCoverage
+  }
+
+  /**
+   * Updates the current total code coverage percentage.
+   */
+  updateTotalCoverage() {
+    this.totalCoverage = +((this.getLinesCoveragePercentage()
+      + this.getStatementsCoveragePercentage()
+      + this.getFunctionsCoveragePercentage()
+      + this.getBranchesCoveragePercentage()) / 4).toFixed(2)
   }
 
   /**

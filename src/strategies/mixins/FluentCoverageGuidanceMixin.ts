@@ -71,18 +71,13 @@ export function CoverageGuidance<TBase extends MixinStrategy>(Base: TBase) {
         utils.deleteFromFileSystem(path)
     }
 
-    /**
-     * TODO - The current implementation is still the same as the Random mixin and therefore needs to be changed.
-     */
     hasInput(): boolean {
       this.currTime = performance.now()
-      if (this.configuration.timeout < this.currTime - (this.initTime ?? this.currTime)) return false
+      if (this.coverageBuilder.getTotalCoverage() >= this.configuration.coveragePercentage ||
+        this.configuration.timeout < this.currTime - (this.initTime ?? this.currTime)) return false
       else return true
     }
 
-    /**
-     * TODO - The current implementation is still the same as the Random mixin and therefore needs to be changed.
-     */
     getInput(): WrapFluentPick<any> {
       this.currTestCase = this.testCaseCollection[this.testCaseCollectionPick++] as WrapFluentPick<any>
       return this.currTestCase
@@ -94,6 +89,7 @@ export function CoverageGuidance<TBase extends MixinStrategy>(Base: TBase) {
     handleResult(inputData: any[]) {
       this.addTestCase(FluentCheck.unwrapFluentPick(this.currTestCase))
       inputData.forEach(x => this.coverageBuilder.compute(x))
+      this.coverageBuilder.updateTotalCoverage()
     }
 
   }
