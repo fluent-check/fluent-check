@@ -75,6 +75,12 @@ export function CoverageGuidance<TBase extends MixinStrategy>(Base: TBase) {
         utils.deleteFromFileSystem(path)
     }
 
+    /**
+     * Generates each arbitrary seed collection, which is based on the arbitrary corner cases and extracted
+     * constants from the code, and defines the arbitrary collection as equal to the previous and already
+     * defined seed collection. Once all of the arbitrary collections are properly defined, it generates the
+     * test case collection to be used during the testing process.
+     */
     configArbitraries() {
       for (const name in this.arbitraries) {
         this.arbitraries[name].seedCollection = this.arbitraries[name].arbitrary.cornerCases().concat(
@@ -86,22 +92,24 @@ export function CoverageGuidance<TBase extends MixinStrategy>(Base: TBase) {
       this.generateTestCaseCollection()
     }
 
+    /**
+     * Returns false if either the minimum coverage or defined timeout are reached. Otherwise, it checks
+     * whether a new test case collection should be created or not, and creates it if needed through a
+     * series of mutations applied to each arbitrary seed collection. Regardless of the need for creating
+     * a test case collection, it ends up returning true.
+     */
     hasInput(): boolean {
       this.currTime = performance.now()
+
       if (this.coverageBuilder.getTotalCoverage() >= this.configuration.coveragePercentage ||
         this.configuration.timeout < this.currTime - (this.initTime ?? this.currTime)) return false
       else if (this.testCaseCollectionPick >= this.testCaseCollection.length) {
         for (const name in this.arbitraries) {
           this.arbitraries[name].collection = []
-          // TODO - Input should be mutated. The mutation is done by the respective arbitrary.
-          // eslint-disable-next-line @typescript-eslint/no-unused-vars
-          for (const input of this.arbitraries[name].seedCollection) {
-            // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+          for (const input of this.arbitraries[name].seedCollection)
             this.arbitraries[name].collection.push(this.arbitraries[name].arbitrary
-              .pick(this.randomGenerator.generator)!)
-          }
+              .mutate(input, this.randomGenerator.generator))
         }
-
         this.testCaseCollectionPick = 0
         this.testCaseCollectionMutationStatus = true
         this.generateTestCaseCollection()
@@ -110,6 +118,9 @@ export function CoverageGuidance<TBase extends MixinStrategy>(Base: TBase) {
       return true
     }
 
+    /**
+     * Updates the current input being used for testing purposes and returns it.
+     */
     getInput(): WrapFluentPick<any> {
       this.currTestCase = this.testCaseCollection[this.testCaseCollectionPick++] as WrapFluentPick<any>
       return this.currTestCase

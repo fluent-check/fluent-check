@@ -281,11 +281,8 @@ export class FluentStrategy implements FluentStrategyInterface {
   }
 
   /**
-   * Determines whether there are more inputs to be used for test case generation purposes. This function can use
-   * several factors (e.g. input size, time, code coverage) to determine whether the generation process should be
-   * stoped or not.
-   *
-   * Returns true if there are still more inputs to be used; otherwise it returns false.
+   * Determines whether there are more inputs to be used in testing process. It returns false
+   * if the testing process should be stopped, and true otherwise.
    */
   hasInput(): boolean {
     throw new Error('Method <hasInput> not implemented.')
@@ -299,9 +296,8 @@ export class FluentStrategy implements FluentStrategyInterface {
   }
 
   /**
-   * When called this function marks the end of one iteration in the test case generation process. This function can be
-   * used to perform several operations like keeping a list of generated test cases and save them to a file or even to
-   * track coverage.
+   * This function can be used to perform several operations associated with a specific test case, which result
+   * is known at this point.
    */
   handleResult(_inputData: any[]) {
     throw new Error('Method <handleResult> not implemented.')
