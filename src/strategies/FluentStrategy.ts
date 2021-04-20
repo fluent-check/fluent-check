@@ -30,11 +30,10 @@ export class FluentStrategy implements FluentStrategyInterface {
   protected testMethods: {(...args: any[]): any} [] = []
 
   /**
-   * Contains all the test cases used for a given test.
-   *
-   * TODO - This should include all data and not only arbitraries' data. This should also be a Set to avoid duplicates.
+   * Contains all the test cases used for a given test. Each test case considers all the input data
+   * used by the respective test assertions.
    */
-  protected testCases: ValueResult<any>[] = []
+  protected testCases: Set<ValueResult<any>> = new Set()
 
   /**
    * Contains all the test cases that are expected to used for a given test
@@ -87,10 +86,10 @@ export class FluentStrategy implements FluentStrategyInterface {
   }
 
   /**
-   * Adds a new test case to the testCases array.
+   * Adds a new test case to the testCases set.
    */
   addTestCase<A>(testCase: ValueResult<A>) {
-    this.testCases.push(testCase)
+    this.testCases.add(testCase)
   }
 
   /**
@@ -168,21 +167,28 @@ export class FluentStrategy implements FluentStrategyInterface {
   /**
    * Returns the current test case
    */
-  getCurrentTestCase() {
+  getCurrentTestCase(): WrapFluentPick<any> {
     return this.currTestCase
+  }
+
+  /**
+   * Returns a set of all used test cases.
+   */
+  getTestCases(): Set<ValueResult<any>> {
+    return this.testCases
   }
 
   /**
    * Returns the current test case collection.
    */
-  getTestCaseCollection() {
+  getTestCaseCollection(): WrapFluentPick<any>[] {
     return this.testCaseCollection
   }
 
   /**
    * Returns the current test case collection pick.
    */
-  getTestCaseCollectionPick() {
+  getTestCaseCollectionPick(): number {
     return this.testCaseCollectionPick
   }
 

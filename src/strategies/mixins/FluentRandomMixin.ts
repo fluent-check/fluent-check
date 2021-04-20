@@ -1,6 +1,5 @@
 import {performance} from 'perf_hooks'
 
-import {FluentCheck} from '../../FluentCheck'
 import {MixinStrategy} from '../FluentStrategyTypes'
 import {FluentStrategyInterface} from '../FluentStrategy'
 import {WrapFluentPick, FluentPick} from '../../arbitraries'
@@ -31,8 +30,8 @@ export function Random<TBase extends MixinStrategy>(Base: TBase) {
       return this.currTestCase
     }
 
-    handleResult(_inputData: any[]) {
-      this.addTestCase(FluentCheck.unwrapFluentPick(this.currTestCase))
+    handleResult(inputData: any[]) {
+      inputData.forEach(data => this.addTestCase(data))
     }
 
   }

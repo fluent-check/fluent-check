@@ -4,7 +4,6 @@ import * as schema from '@istanbuljs/schema'
 import * as libInstrument from 'istanbul-lib-instrument'
 
 import {performance} from 'perf_hooks'
-import {FluentCheck} from '../../FluentCheck'
 import {FluentCoverage} from '../FluentCoverage'
 import {MixinStrategy} from '../FluentStrategyTypes'
 import {WrapFluentPick} from '../../arbitraries'
@@ -121,8 +120,11 @@ export function CoverageGuidance<TBase extends MixinStrategy>(Base: TBase) {
      * case should be favored and its inputs added to the respective arbitrary seed collection.
      */
     handleResult(inputData: any[]) {
-      this.addTestCase(FluentCheck.unwrapFluentPick(this.currTestCase))
-      inputData.forEach(x => this.coverageBuilder.compute(x))
+      inputData.forEach(data => {
+        this.addTestCase(data)
+        this.coverageBuilder.compute(data)
+      })
+
       this.coverageBuilder.updateTotalCoverage()
 
       if (this.testCaseCollectionMutationStatus && this.coverageBuilder.compare())
