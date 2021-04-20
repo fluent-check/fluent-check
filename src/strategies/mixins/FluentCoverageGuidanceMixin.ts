@@ -71,6 +71,15 @@ export function CoverageGuidance<TBase extends MixinStrategy>(Base: TBase) {
         utils.deleteFromFileSystem(path)
     }
 
+    configArbitraries() {
+      for (const name in this.arbitraries)
+        this.arbitraries[name].collection = this.arbitraries[name].arbitrary.cornerCases().concat(
+          this.getArbitraryExtractedConstants(this.arbitraries[name].arbitrary))
+
+      this.arbitrariesKeysIndex = Object.keys(this.arbitraries)
+      this.generateTestCaseCollection()
+    }
+
     hasInput(): boolean {
       this.currTime = performance.now()
       if (this.coverageBuilder.getTotalCoverage() >= this.configuration.coveragePercentage ||

@@ -153,12 +153,13 @@ export class FluentStrategyRandomFactory extends FluentStrategyFactory {
 export class FluentStrategyCoverageFactory extends FluentStrategyFactory {
 
   /**
-   * Default constructor for coverage-guided search strategies.
+   * Default constructor for coverage-guided search strategies. By default constants extraction and
+   * pairwise combinations are considered.
    */
   constructor(importsPath) {
     super()
-    this.configuration = {...this.configuration, importsPath}
-    this.strategy = Cached(Biased(Dedupable(CoverageGuidance(this.strategy))))
+    this.configuration = {...this.configuration, importsPath, pairwise: true}
+    this.strategy = ConstantExtractionBased(CoverageGuidance(this.strategy))
   }
 
   /**

@@ -7,7 +7,6 @@ describe('Coverage tests', () => {
     expect(fc.scenario()
       .config(fc.strategy()
         .withCoverageGuidance('test/coverage.test.ts')
-        .withConstantExtraction()
         .withTimeout(2000)
         .withMinimumCoverage(100)
       )

@@ -6,6 +6,7 @@ import {FluentStrategyConfig, StrategyArbitraries} from './FluentStrategyTypes'
 import {Arbitrary, FluentPick, ValueResult, FluentRandomGenerator, WrapFluentPick} from '../arbitraries'
 
 export interface FluentStrategyInterface {
+  configArbitraries: () => void
   hasInput: () => boolean
   getInput: () => WrapFluentPick<any>
   handleResult: (inputData: any[]) => void
@@ -103,21 +104,6 @@ export class FluentStrategy implements FluentStrategyInterface {
    */
   initializeTimer() {
     this.initTime = performance.now()
-  }
-
-  /**
-   * Configures the information relative to the arbitraries.
-   */
-  configArbitraries<A>() {
-    for (const name in this.arbitraries) {
-      this.arbitraries[name].collection = this.arbitraries[name].cache !== undefined ?
-        this.arbitraries[name].cache as FluentPick<A>[]:
-        this.buildArbitraryCollection(this.arbitraries[name].arbitrary,
-          this.getArbitraryExtractedConstants(this.arbitraries[name].arbitrary))
-    }
-
-    this.arbitrariesKeysIndex = Object.keys(this.arbitraries)
-    this.generateTestCaseCollection()
   }
 
   /**
@@ -278,6 +264,13 @@ export class FluentStrategy implements FluentStrategyInterface {
   ///////////////////////
   // INTERFACE METHODS //
   ///////////////////////
+
+  /**
+   * Configures the information relative to the arbitraries according to the base strategy selected.
+   */
+  configArbitraries(): void {
+    throw new Error('Method <configArbitraries> not implemented.')
+  }
 
   /**
    * Determines whether there are more inputs to be used for test case generation purposes. This function can use

@@ -3,10 +3,22 @@ import {performance} from 'perf_hooks'
 import {FluentCheck} from '../../FluentCheck'
 import {MixinStrategy} from '../FluentStrategyTypes'
 import {FluentStrategyInterface} from '../FluentStrategy'
-import {WrapFluentPick} from '../../arbitraries'
+import {WrapFluentPick, FluentPick} from '../../arbitraries'
 
 export function Random<TBase extends MixinStrategy>(Base: TBase) {
   return class extends Base implements FluentStrategyInterface {
+
+    configArbitraries<A>() {
+      for (const name in this.arbitraries) {
+        this.arbitraries[name].collection = this.arbitraries[name].cache !== undefined ?
+          this.arbitraries[name].cache as FluentPick<A>[]:
+          this.buildArbitraryCollection(this.arbitraries[name].arbitrary,
+            this.getArbitraryExtractedConstants(this.arbitraries[name].arbitrary))
+      }
+
+      this.arbitrariesKeysIndex = Object.keys(this.arbitraries)
+      this.generateTestCaseCollection()
+    }
 
     hasInput(): boolean {
       this.currTime = performance.now()
