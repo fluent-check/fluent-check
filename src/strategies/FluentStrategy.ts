@@ -31,6 +31,8 @@ export class FluentStrategy implements FluentStrategyInterface {
 
   /**
    * Contains all the test cases used for a given test.
+   *
+   * TODO - This should include all data and not only arbitraries' data. This should also be a Set to avoid duplicates.
    */
   protected testCases: ValueResult<any>[] = []
 
@@ -73,7 +75,7 @@ export class FluentStrategy implements FluentStrategyInterface {
    * Adds an arbitrary to the arbitraries record
    */
   addArbitrary<K extends string, A>(arbitraryName: K, a: Arbitrary<A>) {
-    this.arbitraries[arbitraryName] = {arbitrary: a, collection: []}
+    this.arbitraries[arbitraryName] = {arbitrary: a, collection: [], seedCollection: []}
     this.setArbitraryCache(arbitraryName)
   }
 

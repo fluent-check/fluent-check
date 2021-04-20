@@ -19,6 +19,11 @@ export function CoverageGuidance<TBase extends MixinStrategy>(Base: TBase) {
     private testMethodsNames: string[] = []
 
     /**
+     * Indicates whether the current test case collection inputs are the result of a mutation or not.
+     */
+    private testCaseCollectionMutationStatus = false
+
+    /**
      * Instrumenter object.
      */
     private instrumenter = libInstrument.createInstrumenter({
@@ -72,9 +77,11 @@ export function CoverageGuidance<TBase extends MixinStrategy>(Base: TBase) {
     }
 
     configArbitraries() {
-      for (const name in this.arbitraries)
-        this.arbitraries[name].collection = this.arbitraries[name].arbitrary.cornerCases().concat(
+      for (const name in this.arbitraries) {
+        this.arbitraries[name].seedCollection = this.arbitraries[name].arbitrary.cornerCases().concat(
           this.getArbitraryExtractedConstants(this.arbitraries[name].arbitrary))
+        this.arbitraries[name].collection = this.arbitraries[name].seedCollection
+      }
 
       this.arbitrariesKeysIndex = Object.keys(this.arbitraries)
       this.generateTestCaseCollection()
@@ -84,7 +91,24 @@ export function CoverageGuidance<TBase extends MixinStrategy>(Base: TBase) {
       this.currTime = performance.now()
       if (this.coverageBuilder.getTotalCoverage() >= this.configuration.coveragePercentage ||
         this.configuration.timeout < this.currTime - (this.initTime ?? this.currTime)) return false
-      else return true
+      else if (this.testCaseCollectionPick >= this.testCaseCollection.length) {
+        for (const name in this.arbitraries) {
+          this.arbitraries[name].collection = []
+          // TODO - Input should be mutated. The mutation is done by the respective arbitrary.
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
+          for (const input of this.arbitraries[name].seedCollection) {
+            // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+            this.arbitraries[name].collection.push(this.arbitraries[name].arbitrary
+              .pick(this.randomGenerator.generator)!)
+          }
+        }
+
+        this.testCaseCollectionPick = 0
+        this.testCaseCollectionMutationStatus = true
+        this.generateTestCaseCollection()
+      }
+
+      return true
     }
 
     getInput(): WrapFluentPick<any> {
@@ -93,12 +117,18 @@ export function CoverageGuidance<TBase extends MixinStrategy>(Base: TBase) {
     }
 
     /**
-     * Computes coverage for a given test case and adds it to the testCases array.
+     * Computes coverage for a given test case and adds it to the testCases array. It also checks if the test
+     * case should be favored and its inputs added to the respective arbitrary seed collection.
      */
     handleResult(inputData: any[]) {
       this.addTestCase(FluentCheck.unwrapFluentPick(this.currTestCase))
       inputData.forEach(x => this.coverageBuilder.compute(x))
       this.coverageBuilder.updateTotalCoverage()
+
+      if (this.testCaseCollectionMutationStatus && this.coverageBuilder.compare())
+        for (const name in this.arbitraries)
+          this.arbitraries[name].seedCollection = [... new Set(this.arbitraries[name].seedCollection
+            .concat([this.currTestCase[name]]))]
     }
 
   }

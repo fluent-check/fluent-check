@@ -379,6 +379,9 @@ class FluentCheckRunner<K extends string, A, Rec extends ParentRec, ParentRec ex
           }
         }
       }
+
+      if (this.strategy.getTestCaseCollectionPick() === this.strategy.getTestCaseCollection().length)
+        this.quantifiers.forEach(node => node.cleanContexts())
     }
 
     return result
