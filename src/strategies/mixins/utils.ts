@@ -75,3 +75,70 @@ export function extractImports(path: string) {
   Object.entries(imports).forEach(element => { header += element[1] + '\n' })
   return {header: header + '\n', sourceFiles}
 }
+
+/**
+ * Recursively computes and returns all the possible combinations for a given array of arrays.
+ */
+function nwise(data: any[][]) {
+  if (data.length < 2) return data.length === 0 ?
+    data : data[0].reduce((acc, value) => acc.concat([[value]]), [])
+  else if (data.length === 2) {
+    return data[0].reduce((acc, value) => {
+      for (const elem of data[1])
+        if (Array.isArray(elem)) acc.push([value].concat(elem))
+        else acc.push([value, elem])
+      return acc
+    }, [])
+  }
+  else return nwise(data.slice(0, data.length - 2).concat([nwise(data.slice(data.length - 2, data.length))]))
+}
+
+/**
+ * Returns all possible pair combinations for a given array of arrays.
+ */
+function pairwise(data: any[][]) {
+  if (data.length < 2) return data.length === 0 ?
+    data : data[0].reduce((acc, value) => acc.concat([[value]]), [])
+
+  data.sort((x, y) => y.length - x.length)
+
+  const combinations = data[0].reduce((acc, value) => {
+    let subArrIndex = 0
+    return acc.concat([...Array(data[1].length).fill(value).map(x => [x, data[1][subArrIndex++]])])
+  }, [])
+
+  let currIndex = 2
+  let reverse = data.length > 2 && data[1].length === data[2].length ? true : false
+
+  while (currIndex < data.length) {
+    if (reverse) data[currIndex].reverse()
+    let currSubArrIndex = 0
+
+    for (let i = 0; i < combinations.length; i++) {
+      if (i % data[1].length === 0 && i !== 0) {
+        currSubArrIndex = 0
+        data[currIndex].push(data[currIndex].shift())
+      }
+      combinations[i].push(data[currIndex][currSubArrIndex++])
+      currSubArrIndex = currSubArrIndex >= data[currIndex].length ? 0 : currSubArrIndex
+    }
+
+    currIndex++
+    reverse = !reverse
+  }
+
+  return combinations
+}
+
+/**
+ * Returns an array with nwise combinations. Currently it only supports nwise (all possible combinations) and
+ * pairwise combinations.
+ */
+export function computeCombinations(data: any[][], N?: number): any[][] {
+  switch (N) {
+    case 2:
+      return pairwise(data.filter(x => x.length > 0))
+    default:
+      return nwise(data.filter(x => x.length > 0))
+  }
+}
