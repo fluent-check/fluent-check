@@ -48,5 +48,21 @@ describe('Strategy tests', () => {
       ).to.deep.include({satisfiable: false})
     })
 
+    it('should be able to build and use strings with length matching the numerics extracted', () => {
+      expect(fc.scenario()
+        .config(fc.strategy()
+          .withRandomSampling(100)
+          .withBias()
+          .withConstantExtraction()
+        )
+        .forall('input', fc.string(0, 64))
+        .then(({input}) => {
+          if (input.length >= 20) return false
+          return true
+        })
+        .check()
+      ).to.have.property('satisfiable', false)
+    })
+
   })
 })

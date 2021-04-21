@@ -1,4 +1,4 @@
-timeout: '4000' # Timeout should be either increased or removed in coverage tests.
+timeout: '4000' # Timeout should either be increased or removed in coverage tests.
 spec:
   - 'test/**/!(coverage)*.test.ts'
   # - 'test/coverage.test.ts'
