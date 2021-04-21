@@ -1,3 +1,7 @@
+export type WrapFluentPick<T> = { [P in keyof T]: FluentPick<T[P]> }
+export type PickResult<V> = Record<string, FluentPick<V>>
+export type ValueResult<V> = Record<string, V>
+
 export type FluentPick<V> = {
   value: V
   original?: any

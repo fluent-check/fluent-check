@@ -4,28 +4,50 @@ import {
   Dedupable,
   Random,
   Shrinkable,
-  ConstantExtractionBased
+  ConstantExtractionBased,
+  CoverageGuidance
 } from './mixins/internal'
 import {FluentStrategy} from './FluentStrategy'
 import {ConstantExtractionConfig, FluentStrategyConfig} from './FluentStrategyTypes'
+
+export class FluentStrategyTypeFactory {
+
+  /**
+   * Randomly generates test cases.
+   */
+  withRandomSampling(sampleSize = 1000) {
+    return new FluentStrategyRandomFactory(sampleSize)
+  }
+
+  /**
+   * Generates test cases based on coverage measurements. Currently, this strategy has the limitation of not allowing a
+   * test suite to depend on data inside the test suite itself. Therefore all data where coverage needs to be measured
+   * should be imported.
+   */
+  withCoverageGuidance(importsPath = 'test') {
+    return new FluentStrategyCoverageFactory(importsPath)
+  }
+
+}
 
 export class FluentStrategyFactory {
 
   /**
    * Strategy mixin composition
    */
-  private strategy = FluentStrategy
+  protected strategy = FluentStrategy
 
   /**
    * Strategy configuration
    */
-  public configuration: FluentStrategyConfig = {
+  protected configuration: FluentStrategyConfig = {
     sampleSize: 1000,
     shrinkSize: 500,
     globSource: '',
     maxNumConst: 100,
     numericConstMaxRange: 100,
-    maxStringTransformations: 50
+    maxStringTransformations: 50,
+    importsPath: 'test'
   }
 
   /**
@@ -39,16 +61,8 @@ export class FluentStrategyFactory {
    * Default strategy composition.
    */
   defaultStrategy() {
-    this.configuration = {...this.configuration, shrinkSize: 500}
+    this.configuration = {...this.configuration}
     this.strategy = Shrinkable(Cached(Biased(Dedupable(Random(this.strategy)))))
-    return this
-  }
-
-  /**
-   * Enables sampling without replacement, which avoids testing duplicate test cases.
-   */
-  withoutReplacement() {
-    this.strategy = Dedupable(this.strategy)
     return this
   }
 
@@ -57,32 +71,6 @@ export class FluentStrategyFactory {
    */
   withBias() {
     this.strategy = Biased(this.strategy)
-    return this
-  }
-
-  /**
-   * Caches the generated samples to avoid being constantly generating new samples.
-   */
-  usingCache() {
-    this.strategy = Cached(this.strategy)
-    return this
-  }
-
-  /**
-   * Randomly generates test cases.
-   */
-  withRandomSampling(sampleSize = 1000) {
-    this.configuration = {...this.configuration, sampleSize}
-    this.strategy = Random(this.strategy)
-    return this
-  }
-
-  /**
-   * Enables shrinking. It is also possible to configure the shrinking size, which by default is 500.
-   */
-  withShrinking(shrinkSize = 500) {
-    this.configuration = {...this.configuration, shrinkSize}
-    this.strategy = Shrinkable(this.strategy)
     return this
   }
 
@@ -101,6 +89,57 @@ export class FluentStrategyFactory {
     this.configuration = {...this.configuration, ...config}
     this.strategy = ConstantExtractionBased(this.strategy)
     return this
+  }
+
+}
+
+export class FluentStrategyRandomFactory extends FluentStrategyFactory {
+
+  /**
+   * Default constructor for random-based search strategies.
+   */
+  constructor(sampleSize) {
+    super()
+    this.configuration = {...this.configuration, sampleSize}
+    this.strategy = Random(this.strategy)
+  }
+
+  /**
+   * Enables sampling without replacement, which avoids testing duplicate test cases.
+   */
+  withoutReplacement() {
+    this.strategy = Dedupable(this.strategy)
+    return this
+  }
+
+  /**
+   * Caches the generated samples to avoid being constantly generating new samples.
+   */
+  usingCache() {
+    this.strategy = Cached(this.strategy)
+    return this
+  }
+
+  /**
+   * Enables shrinking. It is also possible to configure the shrinking size, which by default is 500.
+   */
+  withShrinking(shrinkSize = 500) {
+    this.configuration = {...this.configuration, shrinkSize}
+    this.strategy = Shrinkable(this.strategy)
+    return this
+  }
+
+}
+
+export class FluentStrategyCoverageFactory extends FluentStrategyFactory {
+
+  /**
+   * Default constructor for coverage-guided search strategies.
+   */
+  constructor(importsPath) {
+    super()
+    this.configuration = {...this.configuration, importsPath}
+    this.strategy = CoverageGuidance(this.strategy)
   }
 
 }

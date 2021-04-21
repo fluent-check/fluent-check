@@ -1,11 +1,11 @@
-import {Arbitrary, FluentPick, FluentRandomGenerator} from '../arbitraries'
 import {FluentResult} from '../FluentCheck'
 import {FluentStrategyConfig, StrategyArbitraries} from './FluentStrategyTypes'
+import {Arbitrary, FluentPick, ValueResult, FluentRandomGenerator} from '../arbitraries'
 
 export interface FluentStrategyInterface {
   hasInput: <K extends string>(arbitraryName: K) => boolean
   getInput: <K extends string, A>(arbitraryName: K) => FluentPick<A>
-  handleResult: () => void
+  handleResult: <A>(testCase: ValueResult<A>, inputData: {}) => void
 }
 
 export class FluentStrategy implements FluentStrategyInterface {
@@ -15,13 +15,18 @@ export class FluentStrategy implements FluentStrategyInterface {
    */
   public arbitraries: StrategyArbitraries = {}
 
-  /*
-   * Contains all the assertions concerning a test case
+  /**
+   * Contains all the test methods concerning a test case.
    */
-  public assertions: {(...args: any[]): boolean} [] = []
+  public testMethods: {(...args: any[]): any} [] = []
 
   /**
-   * Information concerning the random value generation
+   * Contains all the test cases used for a given test.
+   */
+  public testCases: ValueResult<any>[] = []
+
+  /*
+   * Information concerning the random value generation.
    */
   public randomGenerator = new FluentRandomGenerator()
 
@@ -38,10 +43,32 @@ export class FluentStrategy implements FluentStrategyInterface {
   }
 
   /**
-   * Adds an assertions to the assertions array.
+   * Adds a test method to the testMethods array.
    */
-  addAssertion(f: (...args: any[]) => boolean) {
-    this.assertions.push(f)
+  addTestMethod(f: (...args: any[]) => any) {
+    this.testMethods.push(f)
+  }
+
+  /**
+   * Adds a new test case to the testCases array.
+   */
+  addTestCase<A>(testCase: ValueResult<A>) {
+    this.testCases.push(testCase)
+  }
+
+  /**
+   * Executes all the need operations concerning the strategy's setup.
+   */
+  setup() {
+    this.randomGenerator.initialize()
+    this.coverageSetup()
+  }
+
+  /**
+   * Executes all the need operations concerning the strategy's tear down.
+   */
+  tearDown() {
+    this.coverageTearDown()
   }
 
   /**
@@ -97,6 +124,24 @@ export class FluentStrategy implements FluentStrategyInterface {
   }
 
   /**
+   * Hook that acts as point of extension of the setup function and that enables the strategy to track and use coverage
+   * to drive the testing process by allowing its setup.
+   */
+  coverageSetup() {}
+
+  /**
+   * Hook that acts as point of extension of the addAssertion function and that enables the strategy to compute coverage
+   * for a given test case.
+   */
+  computeCoverage(_inputData: {}) {}
+
+  /**
+   * Hook that acts as point of extension of the tearDown function and that enables the strategy to tear down all the
+   * coverage based operations.
+   */
+  coverageTearDown() {}
+
+  /**
    * Determines whether there are more inputs to be used for test case generation purposes. This function can use
    * several factors (e.g. input size, time) to determine whether the generation process should be stoped or not.
    *
@@ -114,11 +159,11 @@ export class FluentStrategy implements FluentStrategyInterface {
   }
 
   /**
-   * When called this function marks the end of one iteration in the test case generation process. So far, this function
-   * is not used but it can be used to perform several operations like keeping a list of generated test cases and save
-   * them to a file or even to track coverage.
+   * When called this function marks the end of one iteration in the test case generation process. This function can be
+   * used to perform several operations like keeping a list of generated test cases and save them to a file or even to
+   * track coverage.
    */
-  handleResult() {
+  handleResult<A>(_testCase: ValueResult<A>, _inputData: {}) {
     throw new Error('Method <handleResult> not implemented.')
   }
 }

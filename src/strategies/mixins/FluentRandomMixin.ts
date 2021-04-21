@@ -1,4 +1,4 @@
-import {FluentPick} from '../../arbitraries'
+import {FluentPick, ValueResult} from '../../arbitraries'
 import {FluentStrategyInterface} from '../FluentStrategy'
 import {MixinStrategy} from '../FluentStrategyTypes'
 
@@ -13,6 +13,11 @@ export function Random<TBase extends MixinStrategy>(Base: TBase) {
       return this.arbitraries[arbitraryName].collection[this.arbitraries[arbitraryName].pickNum++]
     }
 
-    handleResult() {}
+    /**
+     * Simply adds a new test case to the testCases array.
+     */
+    handleResult<A>(testCase: ValueResult<A>, _inputData: {}) {
+      this.addTestCase(testCase)
+    }
   }
 }

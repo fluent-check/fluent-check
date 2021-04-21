@@ -99,8 +99,8 @@ export function ConstantExtractionBased<TBase extends MixinStrategy>(Base: TBase
      * Extracts the constants from a set of functions and files and returns an array of FluentPicks.
      */
     extractConstants() {
-      for (const assertion of this.assertions)
-        this.tokenize(assertion)
+      for (const method of this.testMethods)
+        this.tokenize(method)
 
       if (this.configuration.globSource !== '') {
         const files = fs.lstatSync(this.configuration.globSource).isDirectory() ?
