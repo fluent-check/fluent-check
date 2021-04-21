@@ -32,6 +32,7 @@ export type FluentStrategyConfig = {
   importsPath: string
   timeout: number
   coveragePercentage: number
+  maxNumMutations: number
 }
 
 export type ConstantExtractionConfig = {

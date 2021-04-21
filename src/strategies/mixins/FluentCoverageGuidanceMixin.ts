@@ -107,8 +107,8 @@ export function CoverageGuidance<TBase extends MixinStrategy>(Base: TBase) {
         for (const name in this.arbitraries) {
           this.arbitraries[name].collection = []
           for (const input of this.arbitraries[name].seedCollection)
-            this.arbitraries[name].collection.push(this.arbitraries[name].arbitrary
-              .mutate(input, this.randomGenerator.generator))
+            this.arbitraries[name].collection.push(... this.arbitraries[name].arbitrary
+              .mutate(input, this.randomGenerator.generator, this.configuration.maxNumMutations))
         }
         this.testCaseCollectionPick = 0
         this.testCaseCollectionMutationStatus = true

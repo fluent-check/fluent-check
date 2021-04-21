@@ -1,10 +1,21 @@
+import * as fc from './index'
+import * as util from './util'
 import {ArbitrarySize, FluentPick} from './types'
 import {Arbitrary, NoArbitrary} from './internal'
-import * as fc from './index'
 
 export class ArbitraryInteger extends Arbitrary<number> {
+
+  private valueMutator: Function[] = []
+
   constructor(public min = Number.MIN_SAFE_INTEGER, public max = Number.MAX_SAFE_INTEGER) {
     super()
+
+    this.valueMutator = [
+      (_: () => number, value: number) => value,
+      (generator: () => number, _: number) => util.getRandomInt(generator, this.min, this.max),
+      (generator: () => number, value: number) => util.getRandomInt(generator, this.min, value),
+      (generator: () => number, value: number) => util.getRandomInt(generator, value, this.max),
+    ]
   }
 
   size(): ArbitrarySize {
@@ -48,6 +59,44 @@ export class ArbitraryInteger extends Arbitrary<number> {
 
   canGenerate(pick: FluentPick<number>) {
     return pick.value >= this.min && pick.value <= this.max
+  }
+
+  mutate(pick: FluentPick<number>, generator: () => number, maxNumMutations: number): FluentPick<number>[] {
+    let numMutations = util.getRandomInt(generator, 1, maxNumMutations)
+    const result: FluentPick<number>[] = []
+
+    while (numMutations-- >= 1) {
+      const newValue = this.valueMutator[util.getRandomInt(generator, 0, 3)](generator, pick.value)
+
+      switch (util.getRandomInt(generator, 0, 3)) {
+        case 0:
+          result.push({
+            value: Math.min(this.max, pick.value + newValue),
+            original: Math.min(this.max, pick.original + newValue)
+          })
+          break
+        case 1:
+          result.push({
+            value: Math.max(this.min, pick.value - newValue),
+            original: Math.max(this.min, pick.original - newValue)
+          })
+          break
+        case 2:
+          result.push({
+            value: Math.min(this.max, pick.value * newValue),
+            original: Math.min(this.max, pick.original * newValue)
+          })
+          break
+        case 3:
+          result.push({
+            value: newValue === 0 ? 0 : Math.max(this.min, Math.floor(pick.value / newValue)),
+            original: newValue === 0 ? 0 : Math.max(this.min, Math.floor(pick.original / newValue))
+          })
+          break
+      }
+    }
+
+    return [... new Set(result.filter(x => this.canGenerate(x)))]
   }
 
   toString(depth = 0) { return ' '.repeat(depth * 2) + `Integer Arbitrary: min = ${this.min} max = ${this.max}` }

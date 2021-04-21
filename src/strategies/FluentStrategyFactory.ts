@@ -50,7 +50,8 @@ export class FluentStrategyFactory {
     maxStringTransformations: 50,
     importsPath: 'test',
     timeout: Number.MAX_SAFE_INTEGER,
-    coveragePercentage: 100
+    coveragePercentage: 100,
+    maxNumMutations: 1
   }
 
   /**
@@ -165,8 +166,16 @@ export class FluentStrategyCoverageFactory extends FluentStrategyFactory {
   /**
    * Defines the minimum coverage that needs to be achieved before stopping the testing process.
    */
-  withMinimumCoverage(coveragePercentage = 100) {
+  withMinimumCoverage(coveragePercentage) {
     this.configuration = {...this.configuration, coveragePercentage}
+    return this
+  }
+
+  /**
+   * Defines the maximum number of mutations applied to each arbitrary variable of a given test case.
+   */
+  withMaxNumMutationsPerArbitrary(maxNumMutations) {
+    this.configuration = {...this.configuration, maxNumMutations}
     return this
   }
 
