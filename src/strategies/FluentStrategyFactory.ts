@@ -48,7 +48,8 @@ export class FluentStrategyFactory {
     pairwise: false,
     numericConstMaxRange: 100,
     maxStringTransformations: 50,
-    importsPath: 'test'
+    importsPath: 'test',
+    timeout: Number.MAX_SAFE_INTEGER
   }
 
   /**
@@ -56,15 +57,6 @@ export class FluentStrategyFactory {
    */
   build(): FluentStrategy {
     return new this.strategy(this.configuration)
-  }
-
-  /**
-   * Default strategy composition.
-   */
-  defaultStrategy() {
-    this.configuration = {...this.configuration}
-    this.strategy = Shrinkable(Cached(Biased(Dedupable(Random(this.strategy)))))
-    return this
   }
 
   /**
@@ -100,6 +92,14 @@ export class FluentStrategyFactory {
     return this
   }
 
+  /**
+   * Enables stop testing after a given timeout is reached.
+   */
+  withTimeout(timeout = Number.MAX_SAFE_INTEGER) {
+    this.configuration = {...this.configuration, timeout}
+    return this
+  }
+
 }
 
 export class FluentStrategyRandomFactory extends FluentStrategyFactory {
@@ -111,6 +111,15 @@ export class FluentStrategyRandomFactory extends FluentStrategyFactory {
     super()
     this.configuration = {...this.configuration, sampleSize}
     this.strategy = Random(this.strategy)
+  }
+
+  /**
+   * Default strategy composition.
+   */
+  defaultStrategy() {
+    this.configuration = {...this.configuration}
+    this.strategy = Shrinkable(Cached(Biased(Dedupable(Random(this.strategy)))))
+    return this
   }
 
   /**

@@ -1,5 +1,5 @@
 import {FluentStrategy} from './strategies/FluentStrategy'
-import {FluentStrategyFactory} from './strategies/FluentStrategyFactory'
+import {FluentStrategyFactory, FluentStrategyRandomFactory} from './strategies/FluentStrategyFactory'
 import {Arbitrary, FluentPick, ValueResult, PickResult, FluentRandomGenerator} from './arbitraries'
 
 export class FluentResult {
@@ -14,7 +14,7 @@ export class FluentResult {
 }
 
 export class FluentCheck<Rec extends ParentRec, ParentRec extends {}> {
-  constructor(protected strategy: FluentStrategy = new FluentStrategyFactory().defaultStrategy().build(),
+  constructor(protected strategy: FluentStrategy = new FluentStrategyRandomFactory(1000).defaultStrategy().build(),
     protected readonly parent: FluentCheck<ParentRec, any> | undefined = undefined) {
   }
 
@@ -306,14 +306,15 @@ class FluentCheckRunner<K extends string, A, Rec extends ParentRec, ParentRec ex
   ) {
     super(strategy, parent)
 
-    this.strategy.configArbitraries()
-
     this.asserts = this.pathFromRoot().filter(node => node instanceof FluentCheckAssert)
       .map(x => x as FluentCheckAssert<unknown, any>)
     this.quantifiers = this.pathFromRoot().filter(node => node instanceof FluentCheckQuantifier)
       .reverse().map(x => x as FluentCheckQuantifier<K, A, unknown, any>)
     this.runnerBreakValue = this.quantifiers.length > 0 && this.quantifiers.map(val => val.breakValue)
       .every((val, _, arr) => val === arr[0]) ? this.quantifiers[0].breakValue : undefined
+
+    this.strategy.configArbitraries()
+    this.strategy.initializeTimer()
   }
 
   private runPreliminaries<T>(testCase: ValueResult<T>, preliminaries: FluentCheck<unknown, any>[]): Rec {

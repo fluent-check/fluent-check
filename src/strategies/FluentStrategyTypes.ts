@@ -29,6 +29,7 @@ export type FluentStrategyConfig = {
   numericConstMaxRange: number
   maxStringTransformations: number
   importsPath: string
+  timeout: number
 }
 
 export type ConstantExtractionConfig = {
