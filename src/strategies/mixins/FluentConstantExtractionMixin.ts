@@ -13,17 +13,17 @@ export function ConstantExtractionBased<TBase extends MixinStrategy>(Base: TBase
     /**
      * Indicates whether the extraction process was already performed (True) or not (False).
      */
-    public extractionStatus = false
+    private extractionStatus = false
 
     /**
      * Record that contains all the constants extracted.
      */
-    public constants: StrategyExtractedConstants = {'numeric': [] as number[], 'string': [] as string[]}
+    private constants: StrategyExtractedConstants = {'numeric': [] as number[], 'string': [] as string[]}
 
     /**
      * Tokenizes either the file or function passed as parameter.
      */
-    tokenize(data: Buffer | ((...args: any[]) => boolean)) {
+    private tokenize(data: Buffer | ((...args: any[]) => boolean)) {
       const tokens = espree.tokenize(data.toString('utf-8'))
       this.parseNumericTokens(tokens)
       this.parseStringTokens(tokens)
@@ -32,7 +32,7 @@ export function ConstantExtractionBased<TBase extends MixinStrategy>(Base: TBase
     /**
      * Parses the numeric tokens already extracted from code.
      */
-    parseNumericTokens(tokens: Token[]) {
+    private parseNumericTokens(tokens: Token[]) {
       if (this.constants['numeric'].length > this.configuration.maxNumConst) return
 
       const filteredTokens = tokens.filter(token => {
@@ -78,7 +78,7 @@ export function ConstantExtractionBased<TBase extends MixinStrategy>(Base: TBase
     /**
      * Parses the string tokens already extracted from code.
      */
-    parseStringTokens(tokens: Token[]) {
+    private parseStringTokens(tokens: Token[]) {
       if (this.constants['string'].length > this.configuration.maxNumConst) return
 
       const filteredTokens = tokens.filter(token => { return token.type === 'String' })
@@ -99,7 +99,7 @@ export function ConstantExtractionBased<TBase extends MixinStrategy>(Base: TBase
     /**
      * Extracts the constants from a set of functions and files and returns an array of FluentPicks.
      */
-    extractConstants() {
+    private extractConstants() {
       for (const method of this.testMethods)
         this.tokenize(method)
 
@@ -120,7 +120,7 @@ export function ConstantExtractionBased<TBase extends MixinStrategy>(Base: TBase
       }
     }
 
-    getArbitraryExtractedConstants<A>(arbitrary: Arbitrary<A>): FluentPick<A>[] {
+    protected getArbitraryExtractedConstants<A>(arbitrary: Arbitrary<A>): FluentPick<A>[] {
       if (!this.extractionStatus) {
         this.extractConstants()
         this.extractionStatus = !this.extractionStatus

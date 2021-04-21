@@ -2,3 +2,4 @@ timeout: '4000' # Timeout should either be increased or removed in coverage test
 spec:
   - 'test/**/!(coverage)*.test.ts'
   # - 'test/coverage.test.ts'
+  

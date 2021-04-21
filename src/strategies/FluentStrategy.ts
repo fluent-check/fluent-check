@@ -1,11 +1,13 @@
+import * as utils from './mixins/utils'
+
 import {FluentResult} from '../FluentCheck'
 import {FluentStrategyConfig, StrategyArbitraries} from './FluentStrategyTypes'
-import {Arbitrary, FluentPick, ValueResult, FluentRandomGenerator} from '../arbitraries'
+import {Arbitrary, FluentPick, ValueResult, FluentRandomGenerator, WrapFluentPick} from '../arbitraries'
 
 export interface FluentStrategyInterface {
-  hasInput: <K extends string>(arbitraryName: K) => boolean
-  getInput: <K extends string, A>(arbitraryName: K) => FluentPick<A>
-  handleResult: <A>(testCase: ValueResult<A>, inputData: {}) => void
+  hasInput: () => boolean
+  getInput: () => WrapFluentPick<any>
+  handleResult: (inputData: any[]) => void
 }
 
 export class FluentStrategy implements FluentStrategyInterface {
@@ -13,33 +15,54 @@ export class FluentStrategy implements FluentStrategyInterface {
   /**
    * Record of all the arbitraries used for composing a given test case.
    */
-  public arbitraries: StrategyArbitraries = {}
+  protected arbitraries: StrategyArbitraries = {}
+
+  /**
+   * Maps the arbitraries' keys to the respective test case index
+   */
+  protected arbitrariesKeysIndex: string[] = []
 
   /**
    * Contains all the test methods concerning a test case.
    */
-  public testMethods: {(...args: any[]): any} [] = []
+  protected testMethods: {(...args: any[]): any} [] = []
 
   /**
    * Contains all the test cases used for a given test.
    */
-  public testCases: ValueResult<any>[] = []
+  protected testCases: ValueResult<any>[] = []
+
+  /**
+   * Contains all the test cases that are expected to used for a given test
+   */
+  protected testCaseCollection: WrapFluentPick<any>[] = []
+
+  /**
+   * Indicates which test case is being used from the test case collection structure.
+   */
+  protected testCaseCollectionPick = 0
+
+  /**
+   * Current test case being used for testing purposes.
+   */
+  protected currTestCase: WrapFluentPick<any> = {}
 
   /*
    * Information concerning the random value generation.
    */
-  public randomGenerator = new FluentRandomGenerator()
+  protected randomGenerator = new FluentRandomGenerator()
 
   /**
    * Default constructor. Receives the FluentCheck configuration, which is used for test case generation purposes.
    */
-  constructor(public readonly configuration: FluentStrategyConfig) {}
+  constructor(protected readonly configuration: FluentStrategyConfig) {}
 
   /**
    * Adds an arbitrary to the arbitraries record
    */
   addArbitrary<K extends string, A>(arbitraryName: K, a: Arbitrary<A>) {
-    this.arbitraries[arbitraryName] = {arbitrary: a, pickNum: 0, collection: []}
+    this.arbitraries[arbitraryName] = {arbitrary: a, collection: []}
+    this.setArbitraryCache(arbitraryName)
   }
 
   /**
@@ -65,6 +88,64 @@ export class FluentStrategy implements FluentStrategyInterface {
   }
 
   /**
+   * Configures the information relative to the arbitraries.
+   */
+  configArbitraries<A>() {
+    for (const name in this.arbitraries) {
+      this.arbitraries[name].collection = this.arbitraries[name].cache !== undefined ?
+        this.arbitraries[name].cache as FluentPick<A>[]:
+        this.buildArbitraryCollection(this.arbitraries[name].arbitrary,
+          this.getArbitraryExtractedConstants(this.arbitraries[name].arbitrary))
+    }
+
+    this.arbitrariesKeysIndex = Object.keys(this.arbitraries)
+    this.generateTestCaseCollection()
+  }
+
+  /**
+   * Updates each arbitrary collection. This function is called when an arbitrary with a given name has been shrinked.
+   * When that happens all the arbitraries prior to such arbitrary are set to have a collection equal to the value
+   * present in the test case, which is passed as an argument. The remaining arbitraries are set to have a collection
+   * equal to its cache. If the cache is not active then a new collection is generated.
+   */
+  updateArbitraryCollections<A>(arbitraryName = '', testCase = {}) {
+    this.testCaseCollection = []
+
+    let arbitraryFound = false
+
+    for (const name in this.arbitraries) {
+      if (name === arbitraryName) arbitraryFound = true
+      else {
+        if (!arbitraryFound) this.arbitraries[name].collection = [testCase[name]]
+        else
+          this.arbitraries[name].collection = this.arbitraries[name].cache !== undefined ?
+            this.arbitraries[name].cache as FluentPick<A>[]:
+            this.buildArbitraryCollection(this.arbitraries[name].arbitrary,
+              this.getArbitraryExtractedConstants(this.arbitraries[name].arbitrary))
+      }
+    }
+  }
+
+  /**
+   * Generates the test case collection.
+   *
+   * TODO - This method, when called repeatedly can be time-consuming. We need to look out for faster ways to generate
+   * the test case collection if possible.
+   */
+  generateTestCaseCollection() {
+    this.testCaseCollectionPick = 0
+
+    utils.computeCombinations(Object.values(this.arbitraries).map(x => x.collection),
+      this.configuration.pairwise ? 2 : Number.MAX_VALUE
+    ).forEach(testCase => {
+      this.testCaseCollection.push(testCase.reduce((acc, value, index) => {
+        acc[this.arbitrariesKeysIndex[index]] = value
+        return acc
+      }, {}))
+    })
+  }
+
+  /**
    * Executes all the need operations concerning the strategy's tear down.
    */
   tearDown() {
@@ -72,74 +153,113 @@ export class FluentStrategy implements FluentStrategyInterface {
   }
 
   /**
-   * Configures the information relative a specific arbitrary.
+   * Returns the associated strategy configuration.
    */
-  configArbitrary<K extends string, A>(arbitraryName: K, partial: FluentResult | undefined, depth: number) {
-    this.arbitraries[arbitraryName].pickNum = 0
-    this.arbitraries[arbitraryName].collection = []
-
-    this.setArbitraryCache(arbitraryName)
-
-    if (depth === 0)
-      this.arbitraries[arbitraryName].collection = this.arbitraries[arbitraryName].cache !== undefined ?
-        this.arbitraries[arbitraryName].cache as FluentPick<A>[]:
-        this.buildArbitraryCollection(this.arbitraries[arbitraryName].arbitrary)
-    else if (partial !== undefined)
-      this.shrink(arbitraryName, partial)
+  getConfiguration(): FluentStrategyConfig {
+    return this.configuration
   }
+
+  /**
+   * Returns the current test case
+   */
+  getCurrentTestCase() {
+    return this.currTestCase
+  }
+
+  /**
+   * Returns the current test case collection.
+   */
+  getTestCaseCollection() {
+    return this.testCaseCollection
+  }
+
+  /**
+   * Returns the current test case collection pick.
+   */
+  getTestCaseCollectionPick() {
+    return this.testCaseCollectionPick
+  }
+
+  /**
+   * Returns the associated random generator.
+   */
+  getRandomGenerator(): FluentRandomGenerator {
+    return this.randomGenerator
+  }
+
+  /**
+   * Sets the current random generator.
+   */
+  setRandomGenerator(prng: FluentRandomGenerator) {
+    this.randomGenerator = prng
+  }
+
+  //////////////////////
+  // OVERRIDE METHODS //
+  //////////////////////
+
+  /**
+   * Shrinks an arbitrary with a given name for a considered test case. It returns true if the shrinking is possible.
+   * Otherwise it returns false.
+   */
+  shrink<K extends string>(_name: K, _partial: FluentResult | undefined): boolean { return false }
 
   /**
    * Determines whether uniqueness should be taken into account while generating samples.
    */
-  isDedupable() {
+  protected isDedupable() {
     return false
   }
 
   /**
-   * Hook that acts as point of extension of the addArbitrary function and that enables the strategy to be cached.
-   */
-  setArbitraryCache<K extends string>(_arbitraryName: K) {}
-
-  /**
    * Generates a once a collection of inputs for a given arbitrary
    */
-  buildArbitraryCollection<A>(arbitrary: Arbitrary<A>, sampleSize = this.configuration.sampleSize): FluentPick<A>[] {
-    const constantsSample = this.getArbitraryExtractedConstants(arbitrary)
+  protected buildArbitraryCollection<A>(
+    arbitrary: Arbitrary<A>,
+    currSample: FluentPick<A>[],
+    sampleSize = this.configuration.sampleSize
+  ): FluentPick<A>[] {
     return this.isDedupable() ?
-      arbitrary.sampleUnique(sampleSize, constantsSample, this.randomGenerator.generator) :
-      arbitrary.sample(sampleSize, constantsSample, this.randomGenerator.generator)
+      arbitrary.sampleUnique(sampleSize, currSample, this.randomGenerator.generator) :
+      arbitrary.sample(sampleSize, currSample, this.randomGenerator.generator)
   }
 
+  //////////////////
+  // HOOK METHODS //
+  //////////////////
+
   /**
-   * Hook that acts as point of extension of the configArbitrary function and that enables an arbitrary to be shrinked.
+   * Hook that acts as point of extension of the addArbitrary function and that enables the strategy to be cached.
    */
-  shrink<K extends string>(_name: K, _partial: FluentResult | undefined) {}
+  protected setArbitraryCache<K extends string>(_arbitraryName: K) {}
 
   /**
    * Hook that acts as point of extension of the buildArbitraryCollection function and that enables the strategy to use
    * extracted constants from code in the test cases.
    */
-  getArbitraryExtractedConstants<A>(_arbitrary: Arbitrary<A>): FluentPick<A>[] {
-    return []
-  }
+  protected getArbitraryExtractedConstants<A>(_arbitrary: Arbitrary<A>): FluentPick<A>[] { return [] }
 
   /**
    * Hook that acts as point of extension of the setup function and that enables the strategy to track and use coverage
    * to drive the testing process by allowing its setup.
    */
-  coverageSetup() {}
+  protected coverageSetup() {}
 
   /**
    * Hook that acts as point of extension of the addAssertion function and that enables the strategy to compute coverage
    * for a given test case.
    */
-  computeCoverage(_inputData: {}) {}
+  protected computeCoverage(_inputData: {}) {}
 
   /**
    * Hook that acts as point of extension of the tearDown function and that enables the strategy to tear down all the
    * coverage based operations.
    */
-  coverageTearDown() {}
+  protected coverageTearDown() {}
+
+  ///////////////////////
+  // INTERFACE METHODS //
+  ///////////////////////
 
   /**
    * Determines whether there are more inputs to be used for test case generation purposes. This function can use
@@ -147,14 +267,14 @@ export class FluentStrategy implements FluentStrategyInterface {
    *
    * Returns true if there are still more inputs to be used; otherwise it returns false.
    */
-  hasInput<K extends string>(_arbitraryName: K): boolean {
+  hasInput(): boolean {
     throw new Error('Method <hasInput> not implemented.')
   }
 
   /**
-   * Retrieves a new input from the arbitraries record.
+   * Updates the current input being used for testing purposes and returns it.
    */
-  getInput<K extends string, A>(_arbitraryName: K): FluentPick<A> {
+  getInput(): WrapFluentPick<any> {
     throw new Error('Method <getInput> not implemented.')
   }
 
@@ -163,7 +283,8 @@ export class FluentStrategy implements FluentStrategyInterface {
    * used to perform several operations like keeping a list of generated test cases and save them to a file or even to
    * track coverage.
    */
-  handleResult<A>(_testCase: ValueResult<A>, _inputData: {}) {
+  handleResult(_inputData: any[]) {
     throw new Error('Method <handleResult> not implemented.')
   }
+
 }

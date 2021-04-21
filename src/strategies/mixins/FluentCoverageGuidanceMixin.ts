@@ -3,9 +3,10 @@ import * as utils from './utils'
 import * as schema from '@istanbuljs/schema'
 import * as libInstrument from 'istanbul-lib-instrument'
 
-import {FluentPick, ValueResult} from '../../arbitraries'
-import {MixinStrategy} from '../FluentStrategyTypes'
+import {FluentCheck} from '../../FluentCheck'
 import {FluentCoverage} from '../FluentCoverage'
+import {MixinStrategy} from '../FluentStrategyTypes'
+import {WrapFluentPick} from '../../arbitraries'
 import {FluentStrategyInterface} from '../FluentStrategy'
 
 export function CoverageGuidance<TBase extends MixinStrategy>(Base: TBase) {
@@ -14,24 +15,24 @@ export function CoverageGuidance<TBase extends MixinStrategy>(Base: TBase) {
     /**
      * Contains all the created names for the test methods.
      */
-    public testMethodsNames: string[] = []
+    private testMethodsNames: string[] = []
 
     /**
      * Instrumenter object.
      */
-    public instrumenter = libInstrument.createInstrumenter({
+    private instrumenter = libInstrument.createInstrumenter({
       parserPlugins: schema.defaults.nyc.parserPlugins.concat('typescript')
     })
 
     /**
      * Coverage object responsible for computing and managing coverage
      */
-    public coverageBuilder!: FluentCoverage
+    private coverageBuilder!: FluentCoverage
 
     /**
      * Function responsible for creating all the files needed so that coverage can be tracked.
      */
-    coverageSetup() {
+    protected coverageSetup() {
       const importInfo = utils.extractImports(this.configuration.importsPath)
       let sourceData: string = importInfo.header
       const instrumentedFiles: string[] = importInfo.sourceFiles
@@ -61,7 +62,7 @@ export function CoverageGuidance<TBase extends MixinStrategy>(Base: TBase) {
     /**
      * Resets the coverage global variable and removes all the files used for coverage purposes.
      */
-    coverageTearDown() {
+    protected coverageTearDown() {
       const paths = ['./src/.coverage', './src/.instrumented']
       this.coverageBuilder.resetCoverage()
 
@@ -72,24 +73,25 @@ export function CoverageGuidance<TBase extends MixinStrategy>(Base: TBase) {
     /**
      * TODO - The current implementation is still the same as the Random mixin and therefore needs to be changed.
      */
-    hasInput<K extends string>(arbitraryName: K): boolean {
-      return this.arbitraries[arbitraryName] !== undefined &&
-        this.arbitraries[arbitraryName].pickNum < this.arbitraries[arbitraryName].collection.length
+    hasInput(): boolean {
+      return true
     }
 
     /**
      * TODO - The current implementation is still the same as the Random mixin and therefore needs to be changed.
      */
-    getInput<K extends string, A>(arbitraryName: K): FluentPick<A> {
-      return this.arbitraries[arbitraryName].collection[this.arbitraries[arbitraryName].pickNum++]
+    getInput(): WrapFluentPick<any> {
+      this.currTestCase = this.testCaseCollection[this.testCaseCollectionPick++] as WrapFluentPick<any>
+      return this.currTestCase
     }
 
     /**
      * Computes coverage for a given test case and adds it to the testCases array.
      */
-    handleResult<A>(testCase: ValueResult<A>, inputData: {}) {
-      this.addTestCase(testCase)
-      this.coverageBuilder.compute(inputData)
+    handleResult(inputData: any[]) {
+      this.addTestCase(FluentCheck.unwrapFluentPick(this.currTestCase))
+      inputData.forEach(x => this.coverageBuilder.compute(x))
     }
+
   }
 }

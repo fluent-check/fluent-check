@@ -1,23 +1,23 @@
-import {FluentPick, ValueResult} from '../../arbitraries'
-import {FluentStrategyInterface} from '../FluentStrategy'
+import {FluentCheck} from '../../FluentCheck'
 import {MixinStrategy} from '../FluentStrategyTypes'
+import {FluentStrategyInterface} from '../FluentStrategy'
+import {WrapFluentPick} from '../../arbitraries'
 
 export function Random<TBase extends MixinStrategy>(Base: TBase) {
   return class extends Base implements FluentStrategyInterface {
-    hasInput<K extends string>(arbitraryName: K): boolean {
-      return this.arbitraries[arbitraryName] !== undefined &&
-        this.arbitraries[arbitraryName].pickNum < this.arbitraries[arbitraryName].collection.length
+
+    hasInput(): boolean {
+      return this.testCaseCollectionPick < this.testCaseCollection.length
     }
 
-    getInput<K extends string, A>(arbitraryName: K): FluentPick<A> {
-      return this.arbitraries[arbitraryName].collection[this.arbitraries[arbitraryName].pickNum++]
+    getInput(): WrapFluentPick<any> {
+      this.currTestCase = this.testCaseCollection[this.testCaseCollectionPick++] as WrapFluentPick<any>
+      return this.currTestCase
     }
 
-    /**
-     * Simply adds a new test case to the testCases array.
-     */
-    handleResult<A>(testCase: ValueResult<A>, _inputData: {}) {
-      this.addTestCase(testCase)
+    handleResult(_inputData: any[]) {
+      this.addTestCase(FluentCheck.unwrapFluentPick(this.currTestCase))
     }
+
   }
 }

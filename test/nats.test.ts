@@ -15,6 +15,7 @@ describe('Nat tests', () => {
     ).to.have.property('satisfiable', true)
   })
 
+  // TODO - This test is time-consuming. It should be refactored while maintaining its purpose.
   it('should return a NoArbitrary if max < 0', () => {
     expect(
       fc.scenario()
