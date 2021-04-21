@@ -26,7 +26,8 @@ export abstract class Arbitrary<A> {
   abstract canGenerate<B extends A>(pick: FluentPick<B>): boolean
 
   /**
-   * TODO - Should become abstract.
+   * TODO - This function should be noted abstract and each arbitrary should implement its own mutate function with its
+   * own logic.
    */
   mutate(_pick: FluentPick<A>, generator: () => number, _maxNumMutations: number): FluentPick<A>[] {
     let mutatedPick = this.pick(generator)

@@ -11,8 +11,8 @@ describe('Coverage tests', () => {
         .withMinimumCoverage(100)
         .withMaxNumMutationsPerArbitrary(5)
       )
-      .forall('a', fc.integer(-1000, 1000))
-      .forall('b', fc.integer(-1000, 1000))
+      .forall('a', fc.integer())
+      .forall('b', fc.integer())
       .then(({a, b}) => {
         if (a === 10) return true
         else if (a + b === 57) return a - b === a + b //else if (a + b < 2) return a - b === a + b
