@@ -49,7 +49,8 @@ export class FluentStrategyFactory {
     numericConstMaxRange: 100,
     maxStringTransformations: 50,
     importsPath: 'test',
-    timeout: Number.MAX_SAFE_INTEGER
+    timeout: Number.MAX_SAFE_INTEGER,
+    coveragePercentage: 100
   }
 
   /**
@@ -157,7 +158,15 @@ export class FluentStrategyCoverageFactory extends FluentStrategyFactory {
   constructor(importsPath) {
     super()
     this.configuration = {...this.configuration, importsPath}
-    this.strategy = CoverageGuidance(this.strategy)
+    this.strategy = Cached(Biased(Dedupable(CoverageGuidance(this.strategy))))
+  }
+
+  /**
+   * Defines the minimum coverage that needs to be achieved before stopping the testing process.
+   */
+  withMinimumCoverage(coveragePercentage = 100) {
+    this.configuration = {...this.configuration, coveragePercentage}
+    return this
   }
 
 }

@@ -30,6 +30,7 @@ export type FluentStrategyConfig = {
   maxStringTransformations: number
   importsPath: string
   timeout: number
+  coveragePercentage: number
 }
 
 export type ConstantExtractionConfig = {

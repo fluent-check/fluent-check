@@ -5,7 +5,12 @@ import {expect} from 'chai'
 describe('Coverage tests', () => {
   it('Mock up test for coverage purposes', () => {
     expect(fc.scenario()
-      .config(fc.strategy().withCoverageGuidance('test/coverage.test.ts').withTimeout(2000))
+      .config(fc.strategy()
+        .withCoverageGuidance('test/coverage.test.ts')
+        .withConstantExtraction()
+        .withTimeout(2000)
+        .withMinimumCoverage(100)
+      )
       .forall('a', fc.integer(0, 20))
       .forall('b', fc.integer(0, 20))
       .then(({a, b}) => {
