@@ -5,9 +5,9 @@ import {FluentStrategy} from './strategies/FluentStrategy'
 import {FluentStrategyFactory} from './strategies/FluentStrategyFactory'
 import now from 'performance-now'
 
+export type ValueResult<V> = Record<string, V>
 type WrapFluentPick<T> = { [P in keyof T]: FluentPick<T[P]> }
 type PickResult<V> = Record<string, FluentPick<V>>
-type ValueResult<V> = Record<string, V>
 
 export class FluentResult {
   constructor(
