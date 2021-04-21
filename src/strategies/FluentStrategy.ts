@@ -6,6 +6,7 @@ import {FluentStrategyConfig, StrategyArbitraries} from './FluentStrategyTypes'
 import {Arbitrary, FluentPick, ValueResult, FluentRandomGenerator, WrapFluentPick} from '../arbitraries'
 
 export interface FluentStrategyInterface {
+  configArbitraries: () => void
   hasInput: () => boolean
   getInput: () => WrapFluentPick<any>
   handleResult: (inputData: any[]) => void
@@ -29,9 +30,10 @@ export class FluentStrategy implements FluentStrategyInterface {
   protected testMethods: {(...args: any[]): any} [] = []
 
   /**
-   * Contains all the test cases used for a given test.
+   * Contains all the test cases used for a given test. Each test case considers all the input data
+   * used by the respective test assertions.
    */
-  protected testCases: ValueResult<any>[] = []
+  protected testCases: Set<ValueResult<any>> = new Set()
 
   /**
    * Contains all the test cases that are expected to used for a given test
@@ -72,7 +74,7 @@ export class FluentStrategy implements FluentStrategyInterface {
    * Adds an arbitrary to the arbitraries record
    */
   addArbitrary<K extends string, A>(arbitraryName: K, a: Arbitrary<A>) {
-    this.arbitraries[arbitraryName] = {arbitrary: a, collection: []}
+    this.arbitraries[arbitraryName] = {arbitrary: a, collection: [], seedCollection: []}
     this.setArbitraryCache(arbitraryName)
   }
 
@@ -84,10 +86,10 @@ export class FluentStrategy implements FluentStrategyInterface {
   }
 
   /**
-   * Adds a new test case to the testCases array.
+   * Adds a new test case to the testCases set.
    */
   addTestCase<A>(testCase: ValueResult<A>) {
-    this.testCases.push(testCase)
+    this.testCases.add(testCase)
   }
 
   /**
@@ -103,21 +105,6 @@ export class FluentStrategy implements FluentStrategyInterface {
    */
   initializeTimer() {
     this.initTime = performance.now()
-  }
-
-  /**
-   * Configures the information relative to the arbitraries.
-   */
-  configArbitraries<A>() {
-    for (const name in this.arbitraries) {
-      this.arbitraries[name].collection = this.arbitraries[name].cache !== undefined ?
-        this.arbitraries[name].cache as FluentPick<A>[]:
-        this.buildArbitraryCollection(this.arbitraries[name].arbitrary,
-          this.getArbitraryExtractedConstants(this.arbitraries[name].arbitrary))
-    }
-
-    this.arbitrariesKeysIndex = Object.keys(this.arbitraries)
-    this.generateTestCaseCollection()
   }
 
   /**
@@ -180,21 +167,28 @@ export class FluentStrategy implements FluentStrategyInterface {
   /**
    * Returns the current test case
    */
-  getCurrentTestCase() {
+  getCurrentTestCase(): WrapFluentPick<any> {
     return this.currTestCase
+  }
+
+  /**
+   * Returns a set of all used test cases.
+   */
+  getTestCases(): Set<ValueResult<any>> {
+    return this.testCases
   }
 
   /**
    * Returns the current test case collection.
    */
-  getTestCaseCollection() {
+  getTestCaseCollection(): WrapFluentPick<any>[] {
     return this.testCaseCollection
   }
 
   /**
    * Returns the current test case collection pick.
    */
-  getTestCaseCollectionPick() {
+  getTestCaseCollectionPick(): number {
     return this.testCaseCollectionPick
   }
 
@@ -280,11 +274,15 @@ export class FluentStrategy implements FluentStrategyInterface {
   ///////////////////////
 
   /**
-   * Determines whether there are more inputs to be used for test case generation purposes. This function can use
-   * several factors (e.g. input size, time, code coverage) to determine whether the generation process should be
-   * stoped or not.
-   *
-   * Returns true if there are still more inputs to be used; otherwise it returns false.
+   * Configures the information relative to the arbitraries according to the base strategy selected.
+   */
+  configArbitraries(): void {
+    throw new Error('Method <configArbitraries> not implemented.')
+  }
+
+  /**
+   * Determines whether there are more inputs to be used in testing process. It returns false
+   * if the testing process should be stopped, and true otherwise.
    */
   hasInput(): boolean {
     throw new Error('Method <hasInput> not implemented.')
@@ -298,9 +296,8 @@ export class FluentStrategy implements FluentStrategyInterface {
   }
 
   /**
-   * When called this function marks the end of one iteration in the test case generation process. This function can be
-   * used to perform several operations like keeping a list of generated test cases and save them to a file or even to
-   * track coverage.
+   * This function can be used to perform several operations associated with a specific test case, which result
+   * is known at this point.
    */
   handleResult(_inputData: any[]) {
     throw new Error('Method <handleResult> not implemented.')

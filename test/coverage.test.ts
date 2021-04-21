@@ -7,17 +7,17 @@ describe('Coverage tests', () => {
     expect(fc.scenario()
       .config(fc.strategy()
         .withCoverageGuidance('test/coverage.test.ts')
-        .withConstantExtraction()
         .withTimeout(2000)
         .withMinimumCoverage(100)
       )
-      .forall('a', fc.integer(0, 20))
-      .forall('b', fc.integer(0, 20))
+      .forall('a', fc.integer())
+      .forall('b', fc.integer())
       .then(({a, b}) => {
         if (a === 10) return true
-        else if (a + b < 2) return a - b === a + b
+        else if (a + b === 57) return a - b === a + b //else if (a + b < 2) return a - b === a + b
         return a + b === b + a
       })
       .check()).to.deep.include({satisfiable: false})
   })
+
 })

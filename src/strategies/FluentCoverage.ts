@@ -101,6 +101,13 @@ export class FluentCoverage {
   }
 
   /**
+   * Returns the current coverage summary.
+   */
+  getCoverageSummary(): CoverageSummary {
+    return this.coverageSummary
+  }
+
+  /**
    * Returns the current total code coverage percentage.
    */
   getTotalCoverage(): number {
