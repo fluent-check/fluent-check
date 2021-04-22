@@ -109,6 +109,7 @@ export function CoverageGuidance<TBase extends MixinStrategy>(Base: TBase) {
           for (const input of this.arbitraries[name].seedCollection)
             this.arbitraries[name].collection.push(... this.arbitraries[name].arbitrary
               .mutate(input, this.randomGenerator.generator, this.configuration.maxNumMutations))
+          // TODO - Make sure that the arbitrary collection contains unique values
         }
         this.testCaseCollectionPick = 0
         this.testCaseCollectionMutationStatus = true

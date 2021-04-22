@@ -62,6 +62,9 @@ export class ArbitraryInteger extends Arbitrary<number> {
   }
 
   mutate(pick: FluentPick<number>, generator: () => number, maxNumMutations: number): FluentPick<number>[] {
+    const result: FluentPick<number>[] = []
+    let numMutations = util.getRandomInt(1, maxNumMutations, generator)
+
     const valueMutator = [
       (_: () => number, value: number)         => value,
       (generator: () => number, _: number)     => this.generate(this.min, this.max, generator),
@@ -69,10 +72,7 @@ export class ArbitraryInteger extends Arbitrary<number> {
       (generator: () => number, value: number) => this.generate(value, this.max, generator),
     ]
 
-    const result: FluentPick<number>[] = []
-    let numMutations = util.getRandomInt(1, maxNumMutations, generator)
-
-    while (numMutations-- >= 1) {
+    while (numMutations-- > 0) {
       const newValue = valueMutator[util.getRandomInt(0, MAX_VALUE_MUTATOR, generator)](generator, pick.value)
 
       switch (util.getRandomInt(0, MAX_ARITHMETIC_OP, generator)) {

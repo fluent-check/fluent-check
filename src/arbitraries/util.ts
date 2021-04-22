@@ -70,3 +70,11 @@ export function getRandomInt(min, max, generator: () => number) {
   max = Math.floor(max)
   return Math.floor(generator() * (max - min + 1)) + min
 }
+
+/**
+ * Returns a random boolean value with 50% probability of getting true  and 50% of
+ * getting false.
+ */
+export function getRandomBoolean(generator: () => number) {
+  return generator() < 0.5
+}

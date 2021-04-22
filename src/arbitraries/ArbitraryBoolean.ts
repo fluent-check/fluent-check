@@ -7,7 +7,7 @@ export class ArbitraryBoolean extends MappedArbitrary<number, boolean> {
   shrink(_: FluentPick<boolean>) { return NoArbitrary }
   canGenerate(pick: FluentPick<boolean>) { return pick.value !== undefined }
   mutate(pick: FluentPick<boolean>, _: () => number, __: number): FluentPick<boolean>[] {
-    return [pick.value === true ? {value: false, original: 1} : {value: true, original: 0}]
+    return [{value: !pick.value, original: pick.original ^= 1}]
   }
   toString(depth = 0) { return ' '.repeat(2 * depth) + 'Boolean Arbitrary' }
 }
