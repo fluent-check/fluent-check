@@ -7,7 +7,6 @@ const MAX_VALUE_MUTATOR = 3
 const MAX_ARITHMETIC_OP = 3
 
 export class ArbitraryInteger extends Arbitrary<number> {
-
   constructor(public min = Number.MIN_SAFE_INTEGER, public max = Number.MAX_SAFE_INTEGER) {
     super()
   }
