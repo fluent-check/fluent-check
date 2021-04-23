@@ -63,7 +63,11 @@ export class ArbitraryInteger extends Arbitrary<number> {
 
   mutate(pick: FluentPick<number>, generator: () => number, maxNumMutations: number): FluentPick<number>[] {
     const result: FluentPick<number>[] = []
-    let numMutations = util.getRandomInt(1, maxNumMutations, generator)
+
+    const arbitrarySize = this.size()
+    const numMutations = arbitrarySize.type === 'exact' ?
+      Math.min(arbitrarySize.value - 1, util.getRandomInt(1, maxNumMutations, generator)) :
+      util.getRandomInt(1, maxNumMutations, generator)
 
     const valueMutator = [
       (_: () => number, value: number)         => value,
@@ -72,41 +76,27 @@ export class ArbitraryInteger extends Arbitrary<number> {
       (generator: () => number, value: number) => this.generate(value, this.max, generator),
     ]
 
-    while (numMutations-- > 0) {
-      const newValue = valueMutator[util.getRandomInt(0, MAX_VALUE_MUTATOR, generator)](generator, pick.value)
-
+    while (result.length < numMutations) {
+      let newValue = valueMutator[util.getRandomInt(0, MAX_VALUE_MUTATOR, generator)](generator, pick.value)
       switch (util.getRandomInt(0, MAX_ARITHMETIC_OP, generator)) {
         case 0: // Addition
-          result.push({
-            value: Math.min(this.max, pick.value + newValue),
-            original: Math.min(this.max, pick.original + newValue)
-          })
+          newValue = Math.min(this.max, pick.value + newValue)
           break
         case 1: // Subtraction
-          result.push({
-            value: Math.max(this.min, pick.value - newValue),
-            original: Math.max(this.min, pick.original - newValue)
-          })
+          newValue = Math.max(this.min, pick.value - newValue)
           break
         case 2: // Multiplication
-          result.push({
-            value: Math.min(this.max, pick.value * newValue),
-            original: Math.min(this.max, pick.original * newValue)
-          })
+          newValue = Math.min(this.max, pick.value * newValue)
           break
         case 3: // Division
-          result.push({
-            value: newValue === 0 ? 0 : Math.max(this.min, Math.floor(pick.value / newValue)),
-            original: newValue === 0 ? 0 : Math.max(this.min, Math.floor(pick.original / newValue))
-          })
+          newValue = newValue === 0 ? 0 : Math.max(this.min, Math.floor(pick.value / newValue))
           break
       }
+      const mutatedPick: FluentPick<number> = {value: newValue, original: newValue}
+      if (this.canGenerate(mutatedPick) && result.every(x => x.value !== mutatedPick.value))result.push(mutatedPick)
     }
 
-    return result.reduce((acc, pick) => {
-      if (this.canGenerate(pick) && acc.every(x => x.value !== pick.value)) acc.push(pick)
-      return acc
-    }, [] as FluentPick<number>[])
+    return result
   }
 
   toString(depth = 0) { return ' '.repeat(depth * 2) + `Integer Arbitrary: min = ${this.min} max = ${this.max}` }

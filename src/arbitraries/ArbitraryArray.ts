@@ -51,14 +51,18 @@ export class ArbitraryArray<A> extends Arbitrary<A[]> {
 
   mutate(pick: FluentPick<A[]>, generator: () => number, maxNumMutations: number): FluentPick<A[]>[] {
     const result: FluentPick<A[]>[] = []
-    let numMutations = util.getRandomInt(1, maxNumMutations, generator)
 
-    while (numMutations-- > 0) {
-      const newArray: FluentPick<A[]> = {value: [], original: []}
-      const newArraySize = util.getRandomBoolean(generator) ?
+    const arbitrarySize = this.arbitrary.size()
+    const numMutations = arbitrarySize.type === 'exact' ?
+      Math.min(arbitrarySize.value - 1, util.getRandomInt(1, maxNumMutations, generator)) :
+      util.getRandomInt(1, maxNumMutations, generator)
+
+    while (result.length < numMutations) {
+      const mutatedPick: FluentPick<A[]> = {value: [], original: []}
+      const mutatedPickSize = util.getRandomBoolean(generator) ?
         pick.value.length : util.getRandomInt(this.min, this.max, generator)
 
-      for (let i = 0; i < newArraySize; i++) {
+      for (let i = 0; i < mutatedPickSize; i++) {
         let newPick: FluentPick<A> | undefined = undefined
         if (i < pick.value.length && util.getRandomBoolean(generator))
           newPick = {value: pick.value[i], original: pick.original[i]}
@@ -67,16 +71,13 @@ export class ArbitraryArray<A> extends Arbitrary<A[]> {
         else newPick = this.arbitrary.pick(generator)
 
         if (newPick !== undefined) {
-          newArray.value.push(newPick.value)
-          newArray.original.push(newPick.original)
+          mutatedPick.value.push(newPick.value)
+          mutatedPick.original.push(newPick.original)
         }
       }
-      result.push(newArray)
+      if (this.canGenerate(mutatedPick) && result.every(x => x.value !== mutatedPick.value)) result.push(mutatedPick)
     }
-    return result.reduce((acc, pick) => {
-      if (this.canGenerate(pick) && acc.every(x => x.value !== pick.value)) acc.push(pick)
-      return acc
-    }, [] as FluentPick<A[]>[])
+    return result
   }
 
   cornerCases(): FluentPick<A[]>[] {

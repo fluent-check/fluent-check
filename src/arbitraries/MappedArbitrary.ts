@@ -50,17 +50,19 @@ export class MappedArbitrary<A, B> extends Arbitrary<B> {
       this.shrinkHelper.inverseMap(pick)[0] : pick.original
 
     const result: FluentPick<B>[] = []
-    let numMutations = util.getRandomInt(1, maxNumMutations, generator)
 
-    while (numMutations-- > 0) {
-      result.push(this.mapFluentPick(this.baseArbitrary
-        .mutate({value: inverseValue, original: pick.original}, generator, 1)[0]))
+    const baseArbitrarySize = this.baseArbitrary.size()
+    const numMutations = baseArbitrarySize.type === 'exact' ?
+      Math.min(baseArbitrarySize.value - 1, util.getRandomInt(1, maxNumMutations, generator)) :
+      util.getRandomInt(1, maxNumMutations, generator)
+
+    while (result.length < numMutations) {
+      const mutatedPick = this.mapFluentPick(this.baseArbitrary
+        .mutate({value: inverseValue, original: pick.original}, generator, 1)[0])
+      if (this.canGenerate(mutatedPick) && result.every(x => x.value !== mutatedPick.value)) result.push(mutatedPick)
     }
 
-    return result.reduce((acc, pick) => {
-      if (this.canGenerate(pick) && acc.every(x => x.value !== pick.value)) acc.push(pick)
-      return acc
-    }, [] as FluentPick<B>[])
+    return result
   }
 
   toString(depth = 0) {
