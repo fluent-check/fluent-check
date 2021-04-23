@@ -1,3 +1,4 @@
+import * as util from './util'
 import {FluentPick, XOR} from './types'
 import {Arbitrary} from './internal'
 
@@ -5,7 +6,8 @@ export class MappedArbitrary<A, B> extends Arbitrary<B> {
   constructor(
     public readonly baseArbitrary: Arbitrary<A>,
     public readonly f: (a: A) => B,
-    public readonly shrinkHelper?: XOR<{inverseMap: (b: B) => A[]},{canGenerate: (pick: FluentPick<B>) => boolean}>
+    public readonly shrinkHelper?: XOR<{inverseMap: (b: FluentPick<B>) => A[]},
+    {canGenerate: (pick: FluentPick<B>) => boolean}>
   ) {
     super()
     this.canGenerate = this.shrinkHelper !== undefined && this.shrinkHelper.canGenerate !== undefined ?
@@ -39,8 +41,26 @@ export class MappedArbitrary<A, B> extends Arbitrary<B> {
 
   canGenerate(pick: FluentPick<B>) {
     const inverseValues = this.shrinkHelper !== undefined && this.shrinkHelper.inverseMap !== undefined ?
-      this.shrinkHelper.inverseMap(pick.value) : [pick.original]
+      this.shrinkHelper.inverseMap(pick) : [pick.original]
     return inverseValues.some(value => this.baseArbitrary.canGenerate({value, original: pick.original}))
+  }
+
+  mutate(pick: FluentPick<B>, generator: () => number, maxNumMutations: number): FluentPick<B>[] {
+    const inverseValue = this.shrinkHelper !== undefined && this.shrinkHelper.inverseMap !== undefined ?
+      this.shrinkHelper.inverseMap(pick)[0] : pick.original
+
+    const result: FluentPick<B>[] = []
+    let numMutations = util.getRandomInt(1, maxNumMutations, generator)
+
+    while (numMutations-- > 0) {
+      result.push(this.mapFluentPick(this.baseArbitrary
+        .mutate({value: inverseValue, original: pick.original}, generator, 1)[0]))
+    }
+
+    return result.reduce((acc, pick) => {
+      if (this.canGenerate(pick) && acc.every(x => x.value !== pick.value)) acc.push(pick)
+      return acc
+    }, [] as FluentPick<B>[])
   }
 
   toString(depth = 0) {

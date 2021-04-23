@@ -1,9 +1,13 @@
-import {ArbitrarySize} from './types'
+import {ArbitrarySize, FluentPick} from './types'
 
 export const NilArbitrarySize: ArbitrarySize = {value: 0, type: 'exact', credibleInterval: [0, 0]}
 export const significance = 0.90
 export const lowerCredibleInterval = (1 - significance) / 2
 export const upperCredibleInterval = 1 - lowerCredibleInterval
+
+const UTF8   = 'max = 1112063'
+const UTF16  = 'max = 1114111'
+export const BASE64 = 'base64Mapper'
 
 export function mapArbitrarySize(sz: ArbitrarySize, f: (v: number) => ArbitrarySize): ArbitrarySize {
   const result = f(sz.value)
@@ -42,6 +46,13 @@ export function base64Mapper(v: number) {
 }
 
 /**
+ * Reverts the mapping from base64.
+ */
+export function base64InverseMapper(v: FluentPick<string>) {
+  return [v.original.map((x) => String.fromCodePoint(base64Mapper(x))).join('')]
+}
+
+/**
  * Maps a given number to UTF-8 encoding. Values between 0xD800 and 0xDFFF are specifically reserved for
  * use with UTF-16 [https://tools.ietf.org/html/rfc2781].
  *
@@ -50,6 +61,27 @@ export function base64Mapper(v: number) {
 export function utf8Mapper(v: number) {
   if (v < 0xd800) return printableCharactersMapper(v)
   return v + (0xdfff + 1 - 0xd800)
+}
+
+/**
+ * Reverts the mapping from utf-8.
+ */
+export function utf8InverseMapper(v: FluentPick<string>) {
+  return [v.original.map(x => String.fromCodePoint(utf8Mapper(x)))]
+}
+
+/**
+ * Reverts the mapping from utf-16.
+ */
+export function utf16InverseMapper(v: FluentPick<string>) {
+  return [v.original.map(x => String.fromCodePoint(printableCharactersMapper(x)))]
+}
+
+export function getInverseMapper(charArb: string): (v: FluentPick<string>) => any[] {
+  if (charArb.includes(BASE64)) return base64InverseMapper
+  else if (charArb.includes(UTF8)) return utf8InverseMapper
+  else if (charArb.includes(UTF16)) return utf16InverseMapper
+  else return (v: FluentPick<string>) => [v.value.split('')]
 }
 
 /**
