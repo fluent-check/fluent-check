@@ -52,7 +52,7 @@ export class ArbitraryArray<A> extends Arbitrary<A[]> {
   mutate(pick: FluentPick<A[]>, generator: () => number, maxNumMutations: number): FluentPick<A[]>[] {
     const result: FluentPick<A[]>[] = []
 
-    const arbitrarySize = this.arbitrary.size()
+    const arbitrarySize = this.size()
     const numMutations = arbitrarySize.type === 'exact' ?
       Math.min(arbitrarySize.value - 1, util.getRandomInt(1, maxNumMutations, generator)) :
       util.getRandomInt(1, maxNumMutations, generator)

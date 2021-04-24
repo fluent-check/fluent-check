@@ -1,6 +1,7 @@
-import {ArbitrarySize, FluentPick} from './types'
-import {Arbitrary} from './internal'
 import * as fc from './index'
+import * as util from './util'
+import {Arbitrary} from './internal'
+import {ArbitrarySize, FluentPick} from './types'
 
 type UnwrapArbitrary<T> = { [P in keyof T]: T[P] extends Arbitrary<infer E> ? E : never }
 
@@ -19,7 +20,7 @@ export class ArbitraryTuple<U extends Arbitrary<any>[], A = UnwrapArbitrary<U>> 
       value *= a.size().value
     }
 
-    // todo: fix credible interval
+    // TODO: fix credible interval
     return {value, type, credibleInterval: [value, value]}
   }
 
@@ -63,6 +64,35 @@ export class ArbitraryTuple<U extends Arbitrary<any>[], A = UnwrapArbitrary<U>> 
         return false
 
     return true
+  }
+
+  mutate(pick: FluentPick<A>, generator: () => number, maxNumMutations: number): FluentPick<A>[] {
+    const result: FluentPick<A>[] = []
+
+    const arbitrarySize = this.size()
+    const numMutations = arbitrarySize.type === 'exact' ?
+      Math.min(arbitrarySize.value - 1, util.getRandomInt(1, maxNumMutations, generator)) :
+      util.getRandomInt(1, maxNumMutations, generator)
+
+    while (result.length < numMutations) {
+      const value: any = []
+      const original: any[] = []
+
+      for (const i in pick.value) {
+        const partial = this.arbitraries[i as number].mutate({
+          value: pick.value[i as number],
+          original: pick.original[i as number]
+        }, generator, 1)
+
+        value.push(partial.length === 0 ? pick.value[i as number] : partial[0].value)
+        original.push(partial.length === 0 ? pick.original[i as number] : partial[0].original)
+      }
+
+      const mutatedPick: FluentPick<A> = {value, original}
+      if (this.canGenerate(mutatedPick) && result.every(x => x.value !== mutatedPick.value)) result.push(mutatedPick)
+    }
+
+    return result
   }
 
   toString(depth = 0) {

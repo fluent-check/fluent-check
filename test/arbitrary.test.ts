@@ -56,7 +56,9 @@ describe('Arbitrary tests', () => {
     expect(fc.scenario()
       .exists('point', fc.tuple(
         fc.integer(50, 1000).filter(x => x > 100),
-        fc.string(1, 10, fc.char('a')).filter(x => x.length > 2)).map(([a, b]) => [a * 2, '_'.concat(b)]))
+        fc.string(1, 10, fc.char('a')).filter(x => x.length > 2)).map(([a, b]) => [a * 2, '_'.concat(b)], {
+        inverseMap: x => [[(x.value[0] as number) / 2, (x.value[1] as string).substring(1)]]
+      }))
       .check()).to.deep.include({satisfiable: true, example: {point: [202, '_aaa']}})
   })
 
