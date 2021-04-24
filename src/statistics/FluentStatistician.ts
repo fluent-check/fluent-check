@@ -69,7 +69,7 @@ export class FluentStatistician {
     const indexedTestCases: number[] = testCases.map(x => {
       let testIdx = 0
       const prev: string[] = []
-      for(const k in x){
+      for (const k in x) {
         let arbIdx = x[k].index
         prev.forEach(p => {
           arbIdx *= arbSizes[p]
@@ -80,6 +80,6 @@ export class FluentStatistician {
       return testIdx
     })
 
-    return 0
+    return indexedTestCases.length
   }
 }
