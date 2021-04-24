@@ -1,3 +1,4 @@
+import * as util from './util'
 import {FluentPick} from './types'
 import {Arbitrary} from './internal'
 
@@ -19,6 +20,22 @@ export class ChainedArbitrary<A, B> extends Arbitrary<B> {
 
   canGenerate<B>(_: FluentPick<B>): boolean {
     return true
+  }
+
+  mutate(_: FluentPick<B>, generator: () => number, maxNumMutations: number): FluentPick<B>[] {
+    const result: FluentPick<B>[] = []
+
+    const arbitrarySize = this.size()
+    const numMutations = arbitrarySize.type === 'exact' ?
+      Math.min(arbitrarySize.value - 1, util.getRandomInt(1, maxNumMutations, generator)) :
+      util.getRandomInt(1, maxNumMutations, generator)
+
+    while (result.length < numMutations) {
+      const mutatedPick = this.pick(generator)
+      if (mutatedPick !== undefined && result.every(x => x.value !== mutatedPick.value)) result.push(mutatedPick)
+    }
+
+    return result
   }
 
   toString(depth = 0) {
