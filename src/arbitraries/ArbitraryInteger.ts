@@ -14,7 +14,7 @@ export class ArbitraryInteger extends Arbitrary<number> {
 
   pick(generator: () => number) {
     const value = Math.floor(generator() * (this.max - this.min + 1)) + this.min
-    return {value, original: value}
+    return {value, original: value, index: value}
   }
 
   cornerCases() {

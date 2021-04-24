@@ -63,29 +63,21 @@ export class FluentStatistician {
    * This function calculates the confidence level of the scenario
    */
   calculateConfidenceLevel(testCases: ValueResult<any>[]) {
+    const arbSizes = Object.keys(this.arbitraries).map(k => {
+      return this.arbitraries[k].arbitrary.size(this.configuration.realPrecision).credibleInterval[1]
+    })
     const indexedTestCases: number[] = testCases.map(x => {
-      let idx = 0
+      let testIdx = 0
       const prev: string[] = []
       for(const k in x){
-        let org = x[k].original
-        console.log(org)
-        if(Array.isArray(org)){
-          const subArbSize = this.arbitraries[k].arbitrary.arbitrary.size(this.configuration.realPrecision).credibleInterval[1]
-          org = org.reduce((acc, n) => [acc[0] + n * subArbSize ** acc[1], acc[1] + 1], [0, 0])[0]
-        }
-        console.log(org)
+        let arbIdx = x[k].index
         prev.forEach(p => {
-          org *= this.arbitraries[p].arbitrary.size(this.configuration.realPrecision).credibleInterval[1]
-          console.log(this.arbitraries[p].arbitrary.size(this.configuration.realPrecision).credibleInterval[1])
+          arbIdx *= arbSizes[p]
         })
-        console.log(org)
-        idx += org
+        testIdx += arbIdx
         prev.push(k)
-        console.log('-')
       }
-      console.log(idx)
-      console.log('---')
-      return idx
+      return testIdx
     })
 
     return 0

@@ -58,9 +58,11 @@ export class FluentStatisticianFactory {
   /**
    * Enables the calculation of the confidence level
    */
-  withConfidenceLevel() {
+  withConfidenceLevel(precision?: number) {
     this.repConfiguration = {...this.repConfiguration, withConfidenceLevel: true}
     this.configuration = {...this.configuration, gatherTestCases: true}
+    if (precision !== undefined)
+      this.configuration = {...this.configuration,realPrecision: precision}
     return this
   }
 

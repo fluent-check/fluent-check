@@ -13,7 +13,7 @@ export class ArbitraryReal extends ArbitraryInteger {
 
   pick(generator: () => number)  {
     const value = generator() * (this.max - this.min) + this.min
-    return {value, original: value}
+    return {value, original: value, index: value}
   }
 
   calculateCoverage(picks: number, precision: number): number {
