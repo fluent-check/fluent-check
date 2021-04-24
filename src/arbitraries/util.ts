@@ -110,3 +110,13 @@ export function getRandomInt(min, max, generator: () => number) {
 export function getRandomBoolean(generator: () => number) {
   return generator() < 0.5
 }
+
+/**
+ * Returns the number of distinct elements of a given an array.
+ */
+export function distinct<A>(arr: A[]): number {
+  const arrMap: Map<A, number> = new Map()
+  // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+  arr.forEach(x => arrMap.set(x, arrMap.has(x) ? arrMap.get(x)! + 1 : 1))
+  return Array.from(arrMap.values()).filter(x => x === 1).length
+}

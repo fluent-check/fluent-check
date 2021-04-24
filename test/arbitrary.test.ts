@@ -389,6 +389,7 @@ describe('Arbitrary tests', () => {
       expect(fc.set(['a', 'b', 'c'], 1, 3) .canGenerate({value: ['a', 'b', 'c']})).to.be.true
       expect(fc.set(['a', 'b', 'c'], 1, 3) .canGenerate({value: ['a', 'b', 'd']})).to.be.false
       expect(fc.set(['a', 'b', 'c'], 1, 2) .canGenerate({value: ['a', 'b', 'c']})).to.be.false
+      expect(fc.set(['a', 'b', 'c'], 1, 2) .canGenerate({value: ['a', 'b', 'b']})).to.be.false
       expect(fc.set([], 0, 0).canGenerate({value: []})).to.be.true
       expect(fc.set([], 1, 2).canGenerate({value: []})).to.be.false
     })
