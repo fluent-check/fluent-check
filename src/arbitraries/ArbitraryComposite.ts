@@ -47,7 +47,8 @@ export class ArbitraryComposite<A> extends Arbitrary<A> {
 
     while (result.length < numMutations) {
       const mutatedPick = baseArbitrary.mutate(pick, generator, 1)[0]
-      if (baseArbitrary.canGenerate(mutatedPick) && result.every(x => x.value !== mutatedPick.value))
+      if (mutatedPick === undefined) return result
+      else if (baseArbitrary.canGenerate(mutatedPick) && result.every(x => x.value !== mutatedPick.value))
         result.push(mutatedPick)
     }
 

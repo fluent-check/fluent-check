@@ -59,17 +59,14 @@ export class ArbitraryArray<A> extends Arbitrary<A[]> {
         pick.value.length : util.getRandomInt(this.min, this.max, generator)
 
       for (let i = 0; i < mutatedPickSize; i++) {
-        let newPick: FluentPick<A> | undefined = undefined
+        let newPick: FluentPick<A> = {value: pick.value[i], original: pick.original[i]}
         if (i < pick.value.length && util.getRandomBoolean(generator))
-          newPick = {value: pick.value[i], original: pick.original[i]}
-        else if (i < pick.value.length)
-          newPick = this.arbitrary.mutate({value: pick.value[i],original: pick.original[i]},generator,1)[0]
-        else newPick = this.arbitrary.pick(generator)
+          newPick = this.arbitrary.mutate({value: pick.value[i], original: pick.original[i]},generator,1)[0] ?? newPick
+        else if (i >= pick.value.length)
+          newPick = this.arbitrary.pick(generator) ?? newPick
 
-        if (newPick !== undefined) {
-          mutatedPick.value.push(newPick.value)
-          mutatedPick.original.push(newPick.original)
-        }
+        mutatedPick.value.push(newPick.value)
+        mutatedPick.original.push(newPick.original)
       }
       if (this.canGenerate(mutatedPick) && result.every(x => x.value !== mutatedPick.value)) result.push(mutatedPick)
     }
