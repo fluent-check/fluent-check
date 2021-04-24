@@ -13,7 +13,8 @@ export class FluentStatisticianFactory {
   public repConfiguration: FluentReporterConfig = {
     withTestCaseOutput: false,
     withInputSpaceCoverage: false,
-    withOutputOnSuccess: false
+    withOutputOnSuccess: false,
+    withConfidenceLevel: false
   }
 
   /**
@@ -40,7 +41,7 @@ export class FluentStatisticianFactory {
    */
   withInputSpaceCoverage(precision?: number) {
     this.repConfiguration = {...this.repConfiguration, withInputSpaceCoverage: true}
-    this.configuration = {...this.configuration, gatherArbitraryTestCases: true}
+    this.configuration = {...this.configuration, gatherTestCases: true, gatherArbitraryTestCases: true}
     if (precision !== undefined)
       this.configuration = {...this.configuration,realPrecision: precision}
     return this
@@ -55,10 +56,18 @@ export class FluentStatisticianFactory {
   }
 
   /**
+   * Enables the calculation of the confidence level
+   */
+  withConfidenceLevel() {
+    this.repConfiguration = {...this.repConfiguration, withConfidenceLevel: true}
+    this.configuration = {...this.configuration, gatherTestCases: true}
+    return this
+  }
+
+  /**
    * Builds and returns the FluentStatistician with a specified configuration.
    */
   build(): FluentStatistician {
     return new this.statistician(this.configuration, this.repConfiguration)
   }
-
 }

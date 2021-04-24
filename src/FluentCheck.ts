@@ -1,13 +1,14 @@
-import {Arbitrary, ArbitraryCoverage, FluentPick, FluentRandomGenerator, ScenarioCoverage} from './arbitraries'
+import {Arbitrary, ArbitraryCoverage, FluentPick,
+  FluentRandomGenerator, ScenarioCoverage, ValueResult} from './arbitraries'
 import {FluentStatistician} from './statistics/FluentStatistician'
 import {FluentStatisticianFactory} from './statistics/FluentStatisticianFactory'
 import {FluentStrategy} from './strategies/FluentStrategy'
 import {FluentStrategyFactory} from './strategies/FluentStrategyFactory'
 import now from 'performance-now'
 
-export type ValueResult<V> = Record<string, V>
 type WrapFluentPick<T> = { [P in keyof T]: FluentPick<T[P]> }
 type PickResult<V> = Record<string, FluentPick<V>>
+type TestCases = {wrapped: WrapFluentPick<any>[], unwrapped: ValueResult<any>[]}
 
 export class FluentResult {
   constructor(
@@ -18,8 +19,10 @@ export class FluentResult {
     public readonly withTestCaseOutput: boolean = false,
     public readonly withInputSpaceCoverage: boolean = false,
     public readonly withOutputOnSuccess: boolean = false,
+    public readonly withConfidenceLevel: boolean = false,
     public readonly testCases: ValueResult<any>[] = [],
-    public readonly coverages: [ScenarioCoverage, ArbitraryCoverage] = [0, {}]) {}
+    public readonly coverages: [ScenarioCoverage, ArbitraryCoverage] = [0, {}],
+    public readonly confidenceLevel: number = 0) {}
 
   addExample<A>(name: string, value: FluentPick<A>) {
     this.example[name] = value
@@ -79,7 +82,7 @@ export class FluentCheck<Rec extends ParentRec, ParentRec extends {}> {
   protected run(
     testCase: WrapFluentPick<Rec> | Rec,
     callback: (arg: WrapFluentPick<Rec> | Rec) => FluentResult,
-    _: ValueResult<any>[]): FluentResult {
+    _: TestCases): FluentResult {
 
     return callback(testCase)
   }
@@ -89,7 +92,7 @@ export class FluentCheck<Rec extends ParentRec, ParentRec extends {}> {
   }
 
   check(child: (testCase: WrapFluentPick<any>) => FluentResult = () => new FluentResult(true),
-    testCases: ValueResult<any>[] = []): FluentResult {
+    testCases: TestCases = {wrapped: [], unwrapped: []}): FluentResult {
     if (this.parent !== undefined) return this.parent.check(testCase => this.run(testCase, child, testCases), testCases)
     else {
       this.strategy.randomGenerator.initialize()
@@ -103,9 +106,12 @@ export class FluentCheck<Rec extends ParentRec, ParentRec extends {}> {
         this.statistician.reporterConfiguration.withTestCaseOutput,
         this.statistician.reporterConfiguration.withInputSpaceCoverage,
         this.statistician.reporterConfiguration.withOutputOnSuccess,
-        testCases,
+        this.statistician.reporterConfiguration.withConfidenceLevel,
+        testCases.unwrapped,
         this.statistician.reporterConfiguration.withInputSpaceCoverage ?
-          this.statistician.calculateCoverages(new Set(testCases.map(x=>JSON.stringify(x))).size) : undefined
+          this.statistician.calculateCoverages(new Set(testCases.unwrapped.map(x=>JSON.stringify(x))).size) : undefined,
+        this.statistician.reporterConfiguration.withConfidenceLevel ?
+          this.statistician.calculateConfidenceLevel(testCases.wrapped) : undefined
       )
     }
   }
@@ -202,7 +208,7 @@ abstract class FluentCheckQuantifier<K extends string, A, Rec extends ParentRec 
   protected run(
     testCase: WrapFluentPick<Rec>,
     callback: (arg: WrapFluentPick<Rec>) => FluentResult,
-    testCases: ValueResult<any>[],
+    testCases: TestCases,
     partial: FluentResult | undefined = undefined,
     depth = 0): FluentResult {
 
@@ -265,11 +271,13 @@ class FluentCheckAssert<Rec extends ParentRec, ParentRec extends {}> extends Flu
 
   protected run(testCase: WrapFluentPick<Rec>,
     callback: (arg: WrapFluentPick<Rec>) => FluentResult,
-    testCases: ValueResult<any>[]): FluentResult {
+    testCases: TestCases): FluentResult {
 
     const unwrappedTestCase = FluentCheck.unwrapFluentPick(testCase)
-    if (this.statistician.configuration.gatherTestCases)
-      testCases.push(unwrappedTestCase)
+    if (this.statistician.configuration.gatherTestCases) {
+      testCases.wrapped.push({...testCase})
+      testCases.unwrapped.push(unwrappedTestCase)
+    }
     return this.assertion({...unwrappedTestCase, ...this.runPreliminaries(unwrappedTestCase)} as Rec) ?
       callback(testCase) :
       new FluentResult(false)

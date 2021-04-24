@@ -1,10 +1,11 @@
-import {ArbitraryCoverage, ScenarioCoverage} from '../arbitraries'
+import {ArbitraryCoverage, ScenarioCoverage, ValueResult} from '../arbitraries'
 import {StrategyArbitraries} from '../strategies/FluentStrategyTypes'
 
 export type FluentReporterConfig = {
   withTestCaseOutput: boolean,
   withInputSpaceCoverage: boolean,
-  withOutputOnSuccess: boolean
+  withOutputOnSuccess: boolean,
+  withConfidenceLevel: boolean
 }
 
 export type FluentStatConfig = {
@@ -56,5 +57,37 @@ export class FluentStatistician {
         Math.round(ntestCases / scInterval[0] * 10000000)/100000]
 
     return [scCoverage, coverages]
+  }
+
+  /**
+   * This function calculates the confidence level of the scenario
+   */
+  calculateConfidenceLevel(testCases: ValueResult<any>[]) {
+    const indexedTestCases: number[] = testCases.map(x => {
+      let idx = 0
+      const prev: string[] = []
+      for(const k in x){
+        let org = x[k].original
+        console.log(org)
+        if(Array.isArray(org)){
+          const subArbSize = this.arbitraries[k].arbitrary.arbitrary.size(this.configuration.realPrecision).credibleInterval[1]
+          org = org.reduce((acc, n) => [acc[0] + n * subArbSize ** acc[1], acc[1] + 1], [0, 0])[0]
+        }
+        console.log(org)
+        prev.forEach(p => {
+          org *= this.arbitraries[p].arbitrary.size(this.configuration.realPrecision).credibleInterval[1]
+          console.log(this.arbitraries[p].arbitrary.size(this.configuration.realPrecision).credibleInterval[1])
+        })
+        console.log(org)
+        idx += org
+        prev.push(k)
+        console.log('-')
+      }
+      console.log(idx)
+      console.log('---')
+      return idx
+    })
+
+    return 0
   }
 }

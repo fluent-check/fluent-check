@@ -1,5 +1,6 @@
-import {FluentResult, ValueResult} from './FluentCheck'
+import {FluentResult} from './FluentCheck'
 import {existsSync, createWriteStream} from 'fs'
+import {ValueResult} from './arbitraries'
 
 export function expect(result: FluentResult): void | never {
   if (result.satisfiable) {
@@ -64,6 +65,13 @@ function assembleInfo(result: FluentResult): string {
       msg.push(JSON.stringify(result.coverages[1][name]))
       msg.push('%\n')
     }
+  } else
+    msg.push('\n')
+
+  if (result.withConfidenceLevel) {
+    msg.push('\nConfidence level: ')
+    msg.push(JSON.stringify(result.confidenceLevel))
+    msg.push('%\n')
   }
 
   msg.push('\n------------------------------------------------------------------------\n')
