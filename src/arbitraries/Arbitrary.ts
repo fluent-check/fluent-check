@@ -26,14 +26,10 @@ export abstract class Arbitrary<A> {
   abstract canGenerate<B extends A>(pick: FluentPick<B>): boolean
 
   /**
-   * TODO - This function should be noted abstract and each arbitrary should implement its own mutate function with its
-   * own logic.
+   * Mutates a given pick and returns an array containing all the performed mutations. Each arbitrary implements its
+   * own mutate logic function.
    */
-  mutate(_pick: FluentPick<A>, generator: () => number, _maxNumMutations: number): FluentPick<A>[] {
-    let mutatedPick = this.pick(generator)
-    while (mutatedPick === undefined) { mutatedPick = this.pick(generator) }
-    return [mutatedPick]
-  }
+  abstract mutate(pick: FluentPick<A>, generator: () => number, maxNumMutations: number): FluentPick<A>[]
 
   /**
    * Returns a sample of picks of a given size. Sample might contain repeated values
