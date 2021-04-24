@@ -63,11 +63,7 @@ export class ArbitraryInteger extends Arbitrary<number> {
 
   mutate(pick: FluentPick<number>, generator: () => number, maxNumMutations: number): FluentPick<number>[] {
     const result: FluentPick<number>[] = []
-
-    const arbitrarySize = this.size()
-    const numMutations = arbitrarySize.type === 'exact' ?
-      Math.min(arbitrarySize.value - 1, util.getRandomInt(1, maxNumMutations, generator)) :
-      util.getRandomInt(1, maxNumMutations, generator)
+    const numMutations = util.computeNumMutations(this.size(), generator, maxNumMutations)
 
     const valueMutator = [
       (_: () => number, value: number)         => value,

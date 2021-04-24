@@ -112,6 +112,14 @@ export function getRandomBoolean(generator: () => number) {
 }
 
 /**
+ * Computes the number of mutations to be performed. It takes into consideration the fact that the number of mutations
+ * to be made cannot exceed the total number of possible mutations regardless of the value of maxNumMutations.
+ */
+export function computeNumMutations(size: ArbitrarySize, generator: () => number, maxNumMutations: number): number {
+  return Math.min(size.value - 1, getRandomInt(1, maxNumMutations, generator))
+}
+
+/**
  * Returns the number of distinct elements of a given an array.
  */
 export function distinct<A>(arr: A[]): number {

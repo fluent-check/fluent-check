@@ -1,7 +1,7 @@
 import {FluentPick} from './types'
 import {BetaDistribution} from '../statistics'
 import {Arbitrary, NoArbitrary, WrappedArbitrary} from './internal'
-import {lowerCredibleInterval, mapArbitrarySize, upperCredibleInterval, getRandomInt} from './util'
+import {lowerCredibleInterval, mapArbitrarySize, upperCredibleInterval, computeNumMutations} from './util'
 
 export class FilteredArbitrary<A> extends WrappedArbitrary<A> {
   sizeEstimation: BetaDistribution
@@ -52,11 +52,7 @@ export class FilteredArbitrary<A> extends WrappedArbitrary<A> {
 
   mutate(pick: FluentPick<A>, generator: () => number, maxNumMutations: number): FluentPick<A>[] {
     const result: FluentPick<A>[] = []
-
-    const arbitrarySize = this.baseArbitrary.size()
-    const numMutations = arbitrarySize.type === 'exact' ?
-      Math.min(arbitrarySize.value - 1, getRandomInt(1, maxNumMutations, generator)) :
-      getRandomInt(1, maxNumMutations, generator)
+    const numMutations = computeNumMutations(this.size(), generator, maxNumMutations)
 
     while (result.length < numMutations) {
       const mutatedPick = this.baseArbitrary.mutate(pick, generator, 1)[0]

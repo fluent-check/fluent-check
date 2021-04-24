@@ -24,11 +24,7 @@ export class ChainedArbitrary<A, B> extends Arbitrary<B> {
 
   mutate(_: FluentPick<B>, generator: () => number, maxNumMutations: number): FluentPick<B>[] {
     const result: FluentPick<B>[] = []
-
-    const arbitrarySize = this.size()
-    const numMutations = arbitrarySize.type === 'exact' ?
-      Math.min(arbitrarySize.value - 1, util.getRandomInt(1, maxNumMutations, generator)) :
-      util.getRandomInt(1, maxNumMutations, generator)
+    const numMutations = util.computeNumMutations(this.size(), generator, maxNumMutations)
 
     while (result.length < numMutations) {
       const mutatedPick = this.pick(generator)

@@ -51,11 +51,7 @@ export class ArbitrarySet<A> extends Arbitrary<A[]> {
 
   mutate(_: FluentPick<A[]>, generator: () => number, maxNumMutations: number): FluentPick<A[]>[] {
     const result: FluentPick<A[]>[] = []
-
-    const arbitrarySize = this.size()
-    const numMutations = arbitrarySize.type === 'exact' ?
-      Math.min(arbitrarySize.value - 1, util.getRandomInt(1, maxNumMutations, generator)) :
-      util.getRandomInt(1, maxNumMutations, generator)
+    const numMutations = util.computeNumMutations(this.size(), generator, maxNumMutations)
 
     while (result.length < numMutations) {
       const mutatedPick = this.pick(generator)
