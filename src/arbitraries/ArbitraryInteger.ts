@@ -3,7 +3,7 @@ import * as util from './util'
 import {ArbitrarySize, FluentPick} from './types'
 import {Arbitrary, NoArbitrary} from './internal'
 
-const MAX_VALUE_MUTATOR = 3
+const MAX_VALUE_MUTATOR = 2
 const MAX_ARITHMETIC_OP = 3
 
 export class ArbitraryInteger extends Arbitrary<number> {
@@ -66,10 +66,9 @@ export class ArbitraryInteger extends Arbitrary<number> {
     const numMutations = util.computeNumMutations(this.size(), generator, maxNumMutations)
 
     const valueMutator = [
-      (_: () => number, value: number)         => value,
-      (generator: () => number, _: number)     => this.generate(this.min, this.max, generator),
-      (generator: () => number, value: number) => this.generate(this.min, value, generator),
-      (generator: () => number, value: number) => this.generate(value, this.max, generator),
+      (generator: () => number, _: number)     => this.generate(0, this.max - this.min, generator),
+      (generator: () => number, value: number) => this.generate(0, value - this.min, generator),
+      (generator: () => number, value: number) => this.generate(0, this.max - value, generator),
     ]
 
     while (result.length < numMutations) {
