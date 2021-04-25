@@ -5,6 +5,8 @@ import {ArbitrarySize, FluentPick} from './types'
 
 type UnwrapArbitrary<T> = { [P in keyof T]: T[P] extends Arbitrary<infer E> ? E : never }
 
+const MAX_TUPLE_OP = 2
+
 export class ArbitraryTuple<U extends Arbitrary<any>[], A = UnwrapArbitrary<U>> extends Arbitrary<A> {
   constructor(public readonly arbitraries: U) {
     super()
@@ -74,16 +76,32 @@ export class ArbitraryTuple<U extends Arbitrary<any>[], A = UnwrapArbitrary<U>> 
       const value: any = []
       const original: any[] = []
 
-      // TODO - This should be change to be include the following operations: (a) mutate only one element,
-      // (b) mutate both. Currently both elements are being mutated.
-      for (const i in pick.value) {
-        const partial = this.arbitraries[i as number].mutate({
-          value: pick.value[i as number],
-          original: pick.original[i as number]
-        }, generator, 1)
+      const mutationID = util.getRandomInt(0, MAX_TUPLE_OP, generator)
+      switch (mutationID) {
+        case 0:
+        case 1:
+          // eslint-disable-next-line no-case-declarations
+          const partial = this.arbitraries[mutationID].mutate({
+            value: pick.value[mutationID],
+            original: pick.original[mutationID]
+          }, generator, 1)
 
-        value.push(partial.length === 0 ? pick.value[i as number] : partial[0].value)
-        original.push(partial.length === 0 ? pick.original[i as number] : partial[0].original)
+          value.push(... partial.length === 0 ? pick.value as any :
+            mutationID === 0 ? [partial[0].value, pick.value[1]] : [pick.value[0], partial[0].value])
+          original.push(... partial.length === 0 ? pick.original as any :
+            mutationID === 0 ? [partial[0].original, pick.original[1]] : [pick.original[0], partial[0].original])
+          break
+        case 2:
+          for (const i in pick.value) {
+            const partial = this.arbitraries[i as number].mutate({
+              value: pick.value[i as number],
+              original: pick.original[i as number]
+            }, generator, 1)
+
+            value.push(partial.length === 0 ? pick.value[i as number] : partial[0].value)
+            original.push(partial.length === 0 ? pick.original[i as number] : partial[0].original)
+          }
+          break
       }
 
       const mutatedPick: FluentPick<A> = {value, original}
