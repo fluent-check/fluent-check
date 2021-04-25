@@ -49,13 +49,15 @@ export class ArbitrarySet<A> extends Arbitrary<A[]> {
            pick.value.every(v => this.elements.includes(v))
   }
 
-  mutate(_: FluentPick<A[]>, generator: () => number, maxNumMutations: number): FluentPick<A[]>[] {
+  mutate(pick: FluentPick<A[]>, generator: () => number, maxNumMutations: number): FluentPick<A[]>[] {
     const result: FluentPick<A[]>[] = []
     const numMutations = util.computeNumMutations(this.size(), generator, maxNumMutations)
 
     while (result.length < numMutations) {
       const mutatedPick = this.pick(generator)
-      if (mutatedPick !== undefined && result.every(x => x.value !== mutatedPick.value)) result.push(mutatedPick)
+      if (mutatedPick !== undefined
+        && JSON.stringify(pick.value) !== JSON.stringify(mutatedPick.value)
+        && result.every(x => JSON.stringify(x.value) !== JSON.stringify(mutatedPick.value))) result.push(mutatedPick)
     }
 
     return result

@@ -88,7 +88,9 @@ export class ArbitraryInteger extends Arbitrary<number> {
           break
       }
       const mutatedPick: FluentPick<number> = {value: newValue, original: newValue}
-      if (this.canGenerate(mutatedPick) && result.every(x => x.value !== mutatedPick.value)) result.push(mutatedPick)
+      if (this.canGenerate(mutatedPick)
+      && pick.value !== mutatedPick.value
+      && result.every(x => x.value !== mutatedPick.value)) result.push(mutatedPick)
     }
 
     return result

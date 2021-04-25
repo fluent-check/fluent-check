@@ -74,6 +74,8 @@ export class ArbitraryTuple<U extends Arbitrary<any>[], A = UnwrapArbitrary<U>> 
       const value: any = []
       const original: any[] = []
 
+      // TODO - This should be change to be include the following operations: (a) mutate only one element,
+      // (b) mutate both. Currently both elements are being mutated.
       for (const i in pick.value) {
         const partial = this.arbitraries[i as number].mutate({
           value: pick.value[i as number],
@@ -85,7 +87,9 @@ export class ArbitraryTuple<U extends Arbitrary<any>[], A = UnwrapArbitrary<U>> 
       }
 
       const mutatedPick: FluentPick<A> = {value, original}
-      if (this.canGenerate(mutatedPick) && result.every(x => x.value !== mutatedPick.value)) result.push(mutatedPick)
+      if (this.canGenerate(mutatedPick)
+      && JSON.stringify(pick.value) !== JSON.stringify(mutatedPick.value)
+      && result.every(x => JSON.stringify(x.value) !== JSON.stringify(mutatedPick.value))) result.push(mutatedPick)
     }
 
     return result

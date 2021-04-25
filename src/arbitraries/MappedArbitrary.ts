@@ -56,7 +56,9 @@ export class MappedArbitrary<A, B> extends Arbitrary<B> {
       const newPick = this.baseArbitrary.mutate({value: inverseValue, original: pick.original}, generator, 1)[0]
       if (newPick === undefined) return result
       const mutatedPick = this.mapFluentPick(newPick)
-      if (this.canGenerate(mutatedPick) && result.every(x => x.value !== mutatedPick.value)) result.push(mutatedPick)
+      if (this.canGenerate(mutatedPick)
+      && JSON.stringify(pick.value) !== JSON.stringify(mutatedPick.value)
+      && result.every(x => JSON.stringify(x.value) !== JSON.stringify(mutatedPick.value))) result.push(mutatedPick)
     }
 
     return result

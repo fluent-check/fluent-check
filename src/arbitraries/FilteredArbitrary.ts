@@ -57,8 +57,9 @@ export class FilteredArbitrary<A> extends WrappedArbitrary<A> {
     while (result.length < numMutations) {
       const mutatedPick = this.baseArbitrary.mutate(pick, generator, 1)[0]
       if (mutatedPick === undefined) return result
-      else if (this.canGenerate(mutatedPick) && result.every(x => x.value !== mutatedPick.value))
-        result.push(mutatedPick)
+      else if (this.canGenerate(mutatedPick)
+      && JSON.stringify(pick.value) !== JSON.stringify(mutatedPick.value)
+      && result.every(x => JSON.stringify(x.value) !== JSON.stringify(mutatedPick.value))) result.push(mutatedPick)
     }
 
     return result
