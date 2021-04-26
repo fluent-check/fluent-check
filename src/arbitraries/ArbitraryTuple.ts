@@ -35,7 +35,7 @@ export class ArbitraryTuple<U extends Arbitrary<any>[], A = UnwrapArbitrary<U>> 
       else {
         value.push(pick.value)
         original.push(pick.original)
-        
+
         let pickIdx = pick.index ?? 0
         prev.forEach(p => {
           pickIdx *= p.size().credibleInterval[1]
