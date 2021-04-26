@@ -26,9 +26,13 @@ export class ArbitraryArray<A> extends Arbitrary<A[]> {
     const value = fpa.map(v => v.value)
     const original = fpa.map(v => v.original)
 
+    const index = original.reduce((acc, n) =>
+      [acc[0] + n * this.arbitrary.size().credibleInterval[1] ** acc[1], acc[1] + 1], [0, 0])[0]
+
     return {
       value,
-      original: original.every(o => o === undefined) ? value : original
+      original: original.every(o => o === undefined) ? value : original,
+      index
     }
   }
 
