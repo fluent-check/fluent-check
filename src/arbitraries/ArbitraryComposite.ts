@@ -26,7 +26,7 @@ export class ArbitraryComposite<A> extends Arbitrary<A> {
     const pick = this.arbitraries[idx].pick(generator)
     if (pick !== undefined && pick.index !== undefined)
       for (let i = 0; i < idx; i++)
-        pick.index += this.arbitraries[i].size().value
+        pick.index += this.arbitraries[i].size().credibleInterval[1]
     return pick
   }
 
