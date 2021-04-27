@@ -80,6 +80,28 @@ export class FluentStatisticianFactory {
   }
 
   /**
+   * Enables all options
+   */
+  withAll(precision?: number) {
+    this.repConfiguration = {
+      withTestCaseOutput: true,
+      withInputSpaceCoverage: true,
+      withOutputOnSuccess: true,
+      withConfidenceLevel: true,
+      withGraphics: true
+    }
+    this.configuration = {
+      realPrecision: 3,
+      gatherTestCases: true,
+      gatherArbitraryTestCases: true,
+      calculateInputScenarioIndexes: true
+    }
+    if (precision !== undefined)
+      this.configuration = {...this.configuration,realPrecision: precision}
+    return this
+  }
+
+  /**
    * Builds and returns the FluentStatistician with a specified configuration.
    */
   build(): FluentStatistician {
