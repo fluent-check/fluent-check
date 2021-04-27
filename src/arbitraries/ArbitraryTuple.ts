@@ -23,14 +23,14 @@ export class ArbitraryTuple<U extends Arbitrary<any>[], A = UnwrapArbitrary<U>> 
     return {value, type, credibleInterval: [value, value]}
   }
 
-  pick(generator: () => number): FluentPick<A> | undefined {
+  pick(generator: () => number, precision?: number): FluentPick<A> | undefined {
     const value: any = []
     const original: any[] = []
 
     let index = 0
     const prev: Arbitrary<any>[] = []
     for (const a of this.arbitraries) {
-      const pick = a.pick(generator)
+      const pick = a.pick(generator, precision)
       if (pick === undefined) return undefined
       else {
         value.push(pick.value)

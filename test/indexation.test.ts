@@ -23,8 +23,8 @@ describe('Indexation tests', () => {
 
   it('Real index is calculated correctly', () => {
     // requires change in code so pick receives the used precision and can accurately index
-    const arb = fc.real(0, 1).pick(prng(1234)) ?? {index: 0}
-    expect(arb.index).to.equal(0.009657739666131204)
+    const arb = fc.real(0, 1).pick(prng(1234), 5) ?? {index: 0}
+    expect(arb.index).to.equal(965)
   })
 
   it('Set index is calculated correctly', () => {

@@ -12,7 +12,7 @@ export class ArbitraryInteger extends Arbitrary<number> {
     return {value, type: 'exact', credibleInterval: [value, value]}
   }
 
-  pick(generator: () => number) {
+  pick(generator: () => number, _?: number) {
     const value = Math.floor(generator() * (this.max - this.min + 1)) + this.min
     return {value, original: value, index: value}
   }
