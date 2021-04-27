@@ -29,15 +29,8 @@ describe('Indexation tests tests', () => {
     expect(arb.index).to.equal(14)
   })
 
-  it('Tuple', () => {
-    
-  })
-
-  it('Chain', () => {
-    
-  })
-
-  it('Filter', () => {
-     
+  it('Tuple', () => { // generates [3, -1], which index should be 3 + 21 * (-1) = -18
+    const arb = fc.tuple(fc.integer(-10, 10), fc.integer(-10, 10)).pick(prng(289999999)) ?? {index: 0}
+    expect(arb.index).to.equal(-18)
   })
 })
