@@ -27,14 +27,16 @@ export class ArbitraryArray<A> extends Arbitrary<A[]> {
     const original = fpa.map(v => v.original)
     const indexes = fpa.map(v => v.index ?? 0)
 
-    const index = indexes.reduce((acc, n) =>
-      [acc[0] + n * this.arbitrary.size().credibleInterval[1] ** acc[1], acc[1] + 1], [0, 0])[0]
-
     return {
       value,
       original: original.every(o => o === undefined) ? value : original,
-      index
+      index: this.calculateIndex(indexes)
     }
+  }
+
+  calculateIndex(indexes) {
+    return indexes.reduce((acc, n) =>
+      [acc[0] + n * this.arbitrary.size().credibleInterval[1] ** acc[1], acc[1] + 1], [0, 0])[0]
   }
 
   shrink(initial: FluentPick<A[]>): Arbitrary<A[]> {
@@ -54,8 +56,12 @@ export class ArbitraryArray<A> extends Arbitrary<A[]> {
 
   cornerCases(): FluentPick<A[]>[] {
     return this.arbitrary.cornerCases().flatMap(cc => [
-      {value: Array(this.min).fill(cc.value), original: Array(this.min).fill(cc.original)},
-      {value: Array(this.max).fill(cc.value), original: Array(this.max).fill(cc.original)}
+      {value: Array(this.min).fill(cc.value),
+        original: Array(this.min).fill(cc.original),
+        index: this.calculateIndex(Array(this.min).fill(cc.index))},
+      {value: Array(this.max).fill(cc.value),
+        original: Array(this.max).fill(cc.original),
+        index: this.calculateIndex(Array(this.min).fill(cc.index))}
     ]).filter(v => v !== undefined) as FluentPick<A[]>[]
   }
 

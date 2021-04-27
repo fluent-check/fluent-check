@@ -23,7 +23,7 @@ export class ArbitraryInteger extends Arbitrary<number> {
       [0, this.min, middle, this.max] : [this.min, middle, this.max])]
       .sort((a,b) => Math.abs(a) - Math.abs(b))
 
-    return ccs.map(value => ({value, original: value}))
+    return ccs.map(value => ({value, original: value, index: value}))
   }
 
   shrink(initial: FluentPick<number>): Arbitrary<number> {
