@@ -11,19 +11,13 @@ export class ArbitrarySet<A> extends Arbitrary<A[]> {
     this.max = Math.min(max, elements.length)
   }
 
-  sizeUntil(target: number): number {
+  size(): ArbitrarySize {
     const comb = (n: number, s: number) => { return factorial (n) / (factorial(s) * factorial(n - s)) }
 
     let size = 0
-    for (let i = this.min; i <= target; i++) size += comb(this.elements.length, i)
+    for (let i = this.min; i <= this.max; i++) size += comb(this.elements.length, i)
 
-    return size
-  }
-
-  size(): ArbitrarySize {
-    const value = this.sizeUntil(this.max)
-
-    return {value, type: 'exact', credibleInterval: [value, value]}
+    return {value: size, type: 'exact', credibleInterval: [size, size]}
   }
 
   pick(generator: () => number): FluentPick<A[]> | undefined {
@@ -40,12 +34,11 @@ export class ArbitrarySet<A> extends Arbitrary<A[]> {
     const value = Array.from(pick).sort()
     const original = Array.from(pick_o).sort()
 
-    let indexForSize = 0
-    for (let i = 0; i < size - 1; i++) {
-      const n = original[i] > 0 ? original[i] - i : 0
-      indexForSize += n * (this.elements.length - i - 1)
-    }
-    const index = this.sizeUntil(size - 1) + indexForSize
+    let index = 0
+    original.forEach(o => {
+        index += 2 ** o
+      }
+    )
 
     return {value, original, index}
   }
