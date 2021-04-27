@@ -36,9 +36,8 @@ export class ArbitrarySet<A> extends Arbitrary<A[]> {
 
     let index = 0
     original.forEach(o => {
-        index += 2 ** o
-      }
-    )
+      index += 2 ** o
+    })
 
     return {value, original, index}
   }

@@ -5,13 +5,15 @@ export type FluentReporterConfig = {
   withTestCaseOutput: boolean,
   withInputSpaceCoverage: boolean,
   withOutputOnSuccess: boolean,
-  withConfidenceLevel: boolean
+  withConfidenceLevel: boolean,
+  withGraphics: boolean
 }
 
 export type FluentStatConfig = {
   realPrecision: number,
   gatherTestCases: boolean,
-  gatherArbitraryTestCases: boolean
+  gatherArbitraryTestCases: boolean,
+  calculateInputScenarioIndexes: boolean
 }
 
 export class FluentStatistician {
@@ -59,13 +61,11 @@ export class FluentStatistician {
     return [scCoverage, coverages]
   }
 
-  /**
-   * This function calculates the confidence level of the scenario
-   */
-  calculateConfidenceLevel(testCases: ValueResult<any>[]) {
-    const arbSizes = Object.keys(this.arbitraries).map(k => {
-      return this.arbitraries[k].arbitrary.size(this.configuration.realPrecision).credibleInterval[1]
-    })
+  calculateInputScenarioIndexes(testCases: ValueResult<any>[]) {
+    const arbSizes = {}
+    for (const k in this.arbitraries)
+      arbSizes[k] = this.arbitraries[k].arbitrary.size(this.configuration.realPrecision).credibleInterval[1]
+
     const indexedTestCases: number[] = testCases.map(x => {
       let testIdx = 0
       const prev: string[] = []
@@ -80,6 +80,14 @@ export class FluentStatistician {
       return testIdx
     })
 
-    return indexedTestCases.length
+    return indexedTestCases
+  }
+
+  /**
+   * This function calculates the confidence level of the scenario
+   */
+  calculateConfidenceLevel(indexes: number[]) {
+
+    return indexes.length
   }
 }

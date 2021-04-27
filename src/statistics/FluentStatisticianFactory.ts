@@ -14,7 +14,8 @@ export class FluentStatisticianFactory {
     withTestCaseOutput: false,
     withInputSpaceCoverage: false,
     withOutputOnSuccess: false,
-    withConfidenceLevel: false
+    withConfidenceLevel: false,
+    withGraphics: false
   }
 
   /**
@@ -23,7 +24,8 @@ export class FluentStatisticianFactory {
   public configuration: FluentStatConfig = {
     realPrecision: 3,
     gatherTestCases: false,
-    gatherArbitraryTestCases: false
+    gatherArbitraryTestCases: false,
+    calculateInputScenarioIndexes: false
   }
 
   /**
@@ -60,7 +62,18 @@ export class FluentStatisticianFactory {
    */
   withConfidenceLevel(precision?: number) {
     this.repConfiguration = {...this.repConfiguration, withConfidenceLevel: true}
-    this.configuration = {...this.configuration, gatherTestCases: true}
+    this.configuration = {...this.configuration, gatherTestCases: true, calculateInputScenarioIndexes: true}
+    if (precision !== undefined)
+      this.configuration = {...this.configuration,realPrecision: precision}
+    return this
+  }
+
+  /**
+   * Enables generation of graphics
+   */
+  withGraphics(precision?: number) {
+    this.repConfiguration = {...this.repConfiguration, withGraphics: true}
+    this.configuration = {...this.configuration, gatherTestCases: true, calculateInputScenarioIndexes: true}
     if (precision !== undefined)
       this.configuration = {...this.configuration,realPrecision: precision}
     return this
