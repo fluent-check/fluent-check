@@ -67,7 +67,7 @@ export class ArbitrarySet<A> extends Arbitrary<A[]> {
     const max: A[] = []
     for (let i = 0; i < this.max; i++) max.push(this.elements[i])
 
-    return [{value: min, original: min, index: this.calculateIndex(min)}, 
+    return [{value: min, original: min, index: this.calculateIndex(min)},
       {value: max, original: max, index: this.calculateIndex(max)}]
   }
 

@@ -52,7 +52,7 @@ export class ArbitraryTuple<U extends Arbitrary<any>[], A = UnwrapArbitrary<U>> 
     const cornerCases = this.arbitraries.map(a => a.cornerCases())
 
     const sizes: number[] = []
-    for(const arb of this.arbitraries)
+    for (const arb of this.arbitraries)
       sizes.push(arb.size().credibleInterval[1])
     const getPrevSizes = (index: number) => {
       let size = 1
