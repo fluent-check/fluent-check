@@ -64,7 +64,7 @@ export class ArbitraryTuple<U extends Arbitrary<any>[], A = UnwrapArbitrary<U>> 
     return cornerCases.reduce((acc, cc, idx) => acc.flatMap(a => cc.map(b => ({
       value: [...a.value, b.value],
       original: [...a.original, b.original],
-      index: a.index !== undefined && b.index !== undefined ? a.index + b.index * getPrevSizes(idx) : 0
+      index: a.index !== undefined && b.index !== undefined ? a.index + b.index * getPrevSizes(idx) : -1
     }))), [{value: [], original: [], index: 0}])
   }
 

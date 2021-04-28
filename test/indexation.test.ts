@@ -11,7 +11,7 @@ describe('Indexation tests', () => {
 
   it('Array index is calculated correctly', () => {
     const arb = fc.array(fc.integer(-10, 10), 2, 3)
-    const pick = arb.pick(prng(123456)) ?? {index: 0}
+    const pick = arb.pick(prng(123456)) ?? {index: -1}
 
     expect(pick.index).to.equal(1325)
     expect(arb.cornerCases().map(c => c.index)).to.eql([220, 5071, 0, 441, 440, 9701])
@@ -19,7 +19,7 @@ describe('Indexation tests', () => {
 
   it('Integer index is calculated correctly', () => {
     const arb = fc.integer(-10, 10)
-    const pick = fc.integer(-10, 10).pick(prng(9999)) ?? {index: 0}
+    const pick = fc.integer(-10, 10).pick(prng(9999)) ?? {index: -1}
 
     expect(pick.index).to.equal(1)
     expect(arb.cornerCases().map(c => c.index)).to.eql([10, 0, 20])
@@ -27,7 +27,7 @@ describe('Indexation tests', () => {
 
   it('Real index is calculated correctly', () => {
     const arb = fc.real(-1, 1)
-    const pick = arb.pick(prng(1234), 5) ?? {index: 0}
+    const pick = arb.pick(prng(1234), 5) ?? {index: -1}
 
     expect(pick.index).to.equal(1931)
     expect(arb.cornerCases().map(c => c.index)).to.eql([1, 0, 2])
@@ -35,7 +35,7 @@ describe('Indexation tests', () => {
 
   it('Set index is calculated correctly', () => {
     const arb = fc.set([0, 1, 2, 3])
-    const pick = arb.pick(prng(289999999)) ?? {index: 0}
+    const pick = arb.pick(prng(289999999)) ?? {index: -1}
 
     expect(pick.index).to.equal(14)
     expect(arb.cornerCases().map(c => c.index)).to.eql([0, 15])
@@ -43,7 +43,7 @@ describe('Indexation tests', () => {
 
   it('Tuple index is calculated correctly', () => {
     const arb = fc.tuple(fc.integer(-10, 10), fc.integer(-10, 10))
-    const pick = arb.pick(prng(289999999)) ?? {index: 0}
+    const pick = arb.pick(prng(289999999)) ?? {index: -1}
 
     expect(pick.index).to.equal(202)
     expect(arb.cornerCases().map(c => c.index)).to.eql([220, 10, 430, 210, 0, 420, 230, 20, 440])
