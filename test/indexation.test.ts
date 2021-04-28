@@ -10,13 +10,11 @@ describe('Indexation tests', () => {
   )
 
   it('Array index is calculated correctly', () => {
-    /*
     const arb = fc.array(fc.integer(-10, 10), 2, 3)
-    const pick = arb.pick(prng(1234)) ?? {index: 0}
+    const pick = arb.pick(prng(123456)) ?? {index: 0}
 
-    expect(pick.index).to.equal(174)
-    expect(arb.cornerCases().map(c => c.index)).to.eql([0, 442, -220, -4188, 220, 5072])
-    */
+    expect(pick.index).to.equal(1325)
+    expect(arb.cornerCases().map(c => c.index)).to.eql([220, 5071, 0, 441, 440, 9701])
   })
 
   it('Integer index is calculated correctly', () => {
