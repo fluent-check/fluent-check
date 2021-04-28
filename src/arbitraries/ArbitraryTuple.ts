@@ -51,10 +51,21 @@ export class ArbitraryTuple<U extends Arbitrary<any>[], A = UnwrapArbitrary<U>> 
   cornerCases(): FluentPick<A>[] {
     const cornerCases = this.arbitraries.map(a => a.cornerCases())
 
-    return cornerCases.reduce((acc, cc) => acc.flatMap(a => cc.map(b => ({
+    const sizes: number[] = []
+    for(const arb of this.arbitraries)
+      sizes.push(arb.size().credibleInterval[1])
+    const getPrevSizes = (index: number) => {
+      let size = 1
+      for (let i = 0; i < index; i++)
+        size *= sizes[i]
+      return size
+    }
+
+    return cornerCases.reduce((acc, cc, idx) => acc.flatMap(a => cc.map(b => ({
       value: [...a.value, b.value],
-      original: [...a.original, b.original]
-    }))), [{value: [], original: []}])
+      original: [...a.original, b.original],
+      index: a.index !== undefined && b.index !== undefined ? a.index + b.index * getPrevSizes(idx) : 0
+    }))), [{value: [], original: [], index: 0}])
   }
 
   shrink(initial: FluentPick<A>): Arbitrary<A> {
