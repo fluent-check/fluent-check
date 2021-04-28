@@ -14,7 +14,7 @@ export class ArbitraryInteger extends Arbitrary<number> {
 
   pick(generator: () => number, _?: number) {
     const value = Math.floor(generator() * (this.max - this.min + 1)) + this.min
-    return {value, original: value, index: value}
+    return {value, original: value, index: value - this.min}
   }
 
   cornerCases() {
@@ -23,7 +23,7 @@ export class ArbitraryInteger extends Arbitrary<number> {
       [0, this.min, middle, this.max] : [this.min, middle, this.max])]
       .sort((a,b) => Math.abs(a) - Math.abs(b))
 
-    return ccs.map(value => ({value, original: value, index: value}))
+    return ccs.map(value => ({value, original: value, index: value - this.min}))
   }
 
   shrink(initial: FluentPick<number>): Arbitrary<number> {

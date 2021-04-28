@@ -13,7 +13,7 @@ export class ArbitraryReal extends ArbitraryInteger {
 
   pick(generator: () => number, precision?: number)  {
     const value = generator() * (this.max - this.min) + this.min
-    const index = precision !== undefined ? Math.floor(value * 10 ** precision) : value
+    const index = precision !== undefined ? Math.floor((value - this.min) * 10 ** precision) : value - this.min
     return {value, original: value, index}
   }
 
