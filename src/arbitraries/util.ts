@@ -130,8 +130,8 @@ export function distinct<A>(arr: A[]): number {
 }
 
 /**
- * Returns true if the arbitrary represents a String. Otherwise, it returns false.
+ * Returns true if the MappedArbitrary represents a string. Otherwise, it returns false.
  */
 export function isString(arb: string): boolean {
-  return arb.match(/Map Arbitrary: f = a.+return a.join\(''\)/g) !== undefined
+  return arb.includes('a.join(\'\')')
 }
