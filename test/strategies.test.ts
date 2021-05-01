@@ -64,6 +64,34 @@ describe('Strategy tests', () => {
         .check()
       ).to.have.property('satisfiable', false)
     })
+
+    it('should be able to extract a string constant and use it on an array of strings', () => {
+      expect(fc.scenario()
+        .config(fc.strategy()
+          .withRandomSampling(100)
+          .withBias()
+          .withConstantExtraction()
+        )
+        .exists('a', fc.array(fc.string(), 2, 5))
+        .exists('b', fc.string())
+        .then(({a, b}) => b === 'special' && a.includes(b))
+        .check()
+      ).to.have.property('satisfiable', true)
+    })
+
+    it('should be able to extract a numeric constant and use it on an array of numbers', () => {
+      expect(fc.scenario()
+        .config(fc.strategy()
+          .withRandomSampling(100)
+          .withBias()
+          .withConstantExtraction()
+        )
+        .exists('a', fc.array(fc.real(), 2, 5))
+        .exists('b', fc.integer())
+        .then(({a, b}) => b === 10 && a.includes(b))
+        .check()
+      ).to.have.property('satisfiable', true)
+    })
   })
 
   describe('Combinator tests', () => {

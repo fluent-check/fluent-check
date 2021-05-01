@@ -4,6 +4,7 @@ import * as util from './util'
 import {FluentPick} from './types'
 import {mapArbitrarySize} from './util'
 import {Arbitrary} from './internal'
+import {StrategyExtractedConstants} from '../strategies/FluentStrategyTypes'
 
 export class ArbitraryArray<A> extends Arbitrary<A[]> {
   constructor(public arbitrary: Arbitrary<A>, public min = 0, public max = 10) {
@@ -80,6 +81,28 @@ export class ArbitraryArray<A> extends Arbitrary<A[]> {
       {value: Array(this.min).fill(cc.value), original: Array(this.min).fill(cc.original)},
       {value: Array(this.max).fill(cc.value), original: Array(this.max).fill(cc.original)}
     ]).filter(v => v !== undefined) as FluentPick<A[]>[]
+  }
+
+  extractedConstants(constants: StrategyExtractedConstants): FluentPick<A[]>[] {
+    const baseArbitraryConstants = this.arbitrary.extractedConstants(constants)
+    return baseArbitraryConstants.reduce((acc, val, idx) => {
+      let j = idx
+      const tmpArr: FluentPick<A[]> = {value: [], original: []}
+
+      while (tmpArr.value.length < baseArbitraryConstants.length) {
+        tmpArr.value.push(baseArbitraryConstants[j].value)
+        tmpArr.original.push(baseArbitraryConstants[j].original)
+        j = j + 1 === baseArbitraryConstants.length ? 0 : j + 1
+      }
+
+      if (tmpArr.value.length < this.min) {
+        tmpArr.value.push(... Array(this.min - tmpArr.value.length).fill(tmpArr.value[tmpArr.value.length - 1]))
+        tmpArr.original.push(... Array(this.min - tmpArr.value.length).fill(tmpArr.original[tmpArr.value.length - 1]))
+      }
+
+      acc.push(tmpArr)
+      return acc
+    }, [] as FluentPick<A[]>[])
   }
 
   toString(depth = 0): string {
