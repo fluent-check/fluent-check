@@ -2,7 +2,7 @@ import {FluentResult} from './FluentCheck'
 import {existsSync, createWriteStream, writeFileSync} from 'fs'
 import {ValueResult} from './arbitraries'
 import {JSDOM} from 'jsdom'
-import * as d3 from 'd3'
+import {select, scaleLinear, axisBottom} from 'd3'
 
 export function expect(result: FluentResult): void | never {
   if (result.satisfiable) {
@@ -119,17 +119,41 @@ function generateIncrementalFileName(filename: string, extension: string) {
 }
 
 function generateGraphs(indexes: number[]) {
-  const dom = new JSDOM('<!DOCTYPE html><body></body>')
-  const body = d3.select(dom.window.document.querySelector('body'))
-  const svg = body.append('svg').attr('width', 100).attr('height', 100).attr('xmlns', 'http://www.w3.org/2000/svg')
-  svg.append('rect')
-    .attr('x', 10)
-    .attr('y', 10)
-    .attr('width', 80)
-    .attr('height', 80)
-    .style('fill', 'orange')
+  const maxIndex = Math.max.apply(null, indexes)
 
-  const filename = generateIncrementalFileName('graphs', '.svg')
+  const margin = 25
+  const width = maxIndex*3
+
+  const dom = new JSDOM('<!DOCTYPE html><body></body>')
+  const body = select(dom.window.document.querySelector('body'))
+  const svg = body.append('svg').attr('width', width + 2 * margin)
+    .attr('height', 2 * margin).attr('xmlns', 'http://www.w3.org/2000/svg')
+
+  //background
+  svg.append('rect')
+    .attr('width', '100%')
+    .attr('height', '100%')
+    .attr('fill', 'white');
+
+  //axis
+  const x = scaleLinear()
+    .domain([0, maxIndex])
+    .range([margin, width + margin])
+  svg.append('g')
+    .attr('transform', 'translate(0,' + (margin) + ')')
+    .call(axisBottom(x))
+
+  //values
+  svg.selectAll('whatever')
+    .data(indexes)
+    .enter()
+    .append('rect')
+      .attr('width', 1)
+      .attr('height', 6)
+      .attr('fill', 'red')
+      .attr('transform', function(v) { return 'translate(' + x(v) + ',' + (margin - 3) + ')'})
+
+  const filename = generateIncrementalFileName('graph', '.svg')
   writeFileSync(filename, body.html())
   return indexes.length.toString()
 }
