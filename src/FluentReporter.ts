@@ -74,6 +74,11 @@ function assembleInfo(result: FluentResult): string {
     msg.push('%\n')
   }
 
+  if(result.withGraphs) {
+    msg.push('\nGraphs created in ')
+    msg.push(generateGraphs(result.inputScenarioIndexes))
+  }
+
   msg.push('\n------------------------------------------------------------------------\n')
   return msg.join('')
 }
@@ -104,4 +109,8 @@ function writeTestCases(testCases: ValueResult<any>[]): string {
   })
 
   return filename
+}
+
+function generateGraphs(indexes: number[]){
+  return 'hi.txt'
 }
