@@ -1,3 +1,4 @@
+import {graph1D, graph2D, graphs} from '../arbitraries'
 import {FluentStatistician, FluentStatConfig, FluentReporterConfig} from './FluentStatistician'
 
 export class FluentStatisticianFactory {
@@ -27,6 +28,8 @@ export class FluentStatisticianFactory {
     gatherArbitraryTestCases: false
   }
 
+  public graphs: graphs = {oneD: [], twoD: []}
+
   /**
    * Enables the gathering of information and presentation of statistics which results in higher execution time.
    */
@@ -40,12 +43,17 @@ export class FluentStatisticianFactory {
    * Enables the calculation and output of input space coverage. Allows the specification of the amount of
    * decimal places to use when calculating coverage ofreal type arbitraries
    */
-  withInputSpaceCoverage(precision?: number) {
+  withInputSpaceCoverage() {
     this.repConfiguration = {...this.repConfiguration, withInputSpaceCoverage: true}
     this.configuration = {...this.configuration, gatherTestCases: true, gatherArbitraryTestCases: true}
-    if (precision !== undefined)
-      this.configuration = {...this.configuration,realPrecision: precision}
     return this
+  }
+
+  /**
+   * Sets the precision used to calculate the Real input space size
+   */
+  withPrecision(precision: number) {
+    this.configuration = {...this.configuration,realPrecision: precision}
   }
 
   /**
@@ -59,22 +67,31 @@ export class FluentStatisticianFactory {
   /**
    * Enables the calculation of the confidence level
    */
-  withConfidenceLevel(precision?: number) {
+  withConfidenceLevel() {
     this.repConfiguration = {...this.repConfiguration, withConfidenceLevel: true}
     this.configuration = {...this.configuration, gatherTestCases: true}
-    if (precision !== undefined)
-      this.configuration = {...this.configuration,realPrecision: precision}
     return this
   }
 
   /**
-   * Enables generation of graphs
+   * States that a graph should be generated using the specified indexing function that can only return
+   * 1 value due to it generating a 1D graph
    */
-  withGraphs(precision?: number) {
+  with1DGraph(f: graph1D) {
     this.repConfiguration = {...this.repConfiguration, withGraphs: true}
     this.configuration = {...this.configuration, gatherTestCases: true}
-    if (precision !== undefined)
-      this.configuration = {...this.configuration,realPrecision: precision}
+    this.graphs.oneD.push(f)
+    return this
+  }
+
+  /**
+   * States that a graph should be generated using the specified indexing function that can only return
+   * 2 values in [x,y] form due to it generating a 2D graph
+   */
+  with2DGraph(f: graph2D) {
+    this.repConfiguration = {...this.repConfiguration, withGraphs: true}
+    this.configuration = {...this.configuration, gatherTestCases: true}
+    this.graphs.twoD.push(f)
     return this
   }
 
@@ -103,6 +120,6 @@ export class FluentStatisticianFactory {
    * Builds and returns the FluentStatistician with a specified configuration.
    */
   build(): FluentStatistician {
-    return new this.statistician(this.configuration, this.repConfiguration)
+    return new this.statistician(this.configuration, this.repConfiguration, this.graphs)
   }
 }

@@ -1,12 +1,11 @@
-import {Arbitrary, ArbitraryCoverage, FluentPick,
-  FluentRandomGenerator, ScenarioCoverage} from './arbitraries'
+import {Arbitrary, ArbitraryCoverage, FluentPick, FluentRandomGenerator,
+  indexCollection, ScenarioCoverage, ValueResult} from './arbitraries'
 import {FluentStatistician} from './statistics/FluentStatistician'
 import {FluentStatisticianFactory} from './statistics/FluentStatisticianFactory'
 import {FluentStrategy} from './strategies/FluentStrategy'
 import {FluentStrategyFactory} from './strategies/FluentStrategyFactory'
 import now from 'performance-now'
 
-type ValueResult<V> = Record<string, V>
 type WrapFluentPick<T> = { [P in keyof T]: FluentPick<T[P]> }
 type PickResult<V> = Record<string, FluentPick<V>>
 type TestCases = {wrapped: WrapFluentPick<any>[], unwrapped: ValueResult<any>[]}
@@ -24,7 +23,7 @@ export class FluentResult {
     public readonly withGraphs: boolean = false,
     public readonly testCases: ValueResult<any>[] = [],
     public readonly coverages: [ScenarioCoverage, ArbitraryCoverage] = [0, {}],
-    public readonly originaltestCases: ValueResult<any>[] = [],
+    public readonly indexesForGraphs: indexCollection = {oneD: [], twoD: []},
     public readonly confidenceLevel: number = 0) {}
 
   addExample<A>(name: string, value: FluentPick<A>) {
@@ -114,7 +113,8 @@ export class FluentCheck<Rec extends ParentRec, ParentRec extends {}> {
         testCases.unwrapped,
         this.statistician.reporterConfiguration.withInputSpaceCoverage ?
           this.statistician.calculateCoverages(new Set(testCases.unwrapped.map(x=>JSON.stringify(x))).size) : undefined,
-        testCases.wrapped.map(e => e.original),
+        this.statistician.reporterConfiguration.withGraphs ?
+          this.statistician.calculateIndexes(testCases.wrapped.map(e => e.original)) : undefined,
         this.statistician.reporterConfiguration.withConfidenceLevel ?
           this.statistician.calculateConfidenceLevel() : undefined
       )

@@ -9,11 +9,18 @@ export type ArbitrarySize = {
   credibleInterval: [number, number]
 }
 
+export type ValueResult<V> = Record<string, V>
+
 type Without<T, U> = { [P in Exclude<keyof T, keyof U>]?: never }
 export type XOR<T, U> = (T | U) extends object ? (Without<T, U> & U) | (Without<U, T> & T) : T | U
 
 export type ArbitraryCoverage = Record<string, number | [number, number]>
 export type ScenarioCoverage = number | [number, number]
+
+export type graph1D = (testCase: ValueResult<number | number[]>, sizes: ValueResult<number>) => number
+export type graph2D = (testCase: ValueResult<number | number[]>, sizes: ValueResult<number>) => [number, number]
+export type graphs = {oneD: graph1D[], twoD: graph2D[]}
+export type indexCollection = {oneD: number[][], twoD: [number,number][][]}
 
 export class FluentRandomGenerator {
   generator!: () => number

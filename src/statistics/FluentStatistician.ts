@@ -1,4 +1,4 @@
-import {ArbitraryCoverage, ScenarioCoverage} from '../arbitraries'
+import {ArbitraryCoverage, graphs, indexCollection, ScenarioCoverage, ValueResult} from '../arbitraries'
 import {StrategyArbitraries} from '../strategies/FluentStrategyTypes'
 
 export type FluentReporterConfig = {
@@ -26,7 +26,8 @@ export class FluentStatistician {
    * Default constructor.
    */
   constructor(public readonly configuration: FluentStatConfig,
-    public readonly reporterConfiguration: FluentReporterConfig) {
+    public readonly reporterConfiguration: FluentReporterConfig,
+    public graphs: graphs) {
   }
 
   /**
@@ -58,6 +59,30 @@ export class FluentStatistician {
         Math.round(ntestCases / scInterval[0] * 10000000)/100000]
 
     return [scCoverage, coverages]
+  }
+
+  calculateIndexes(testCases: ValueResult<number | number[]>[]): indexCollection {
+    const indexesCollection: indexCollection = {oneD: [], twoD: []}
+
+    const sizes: ValueResult<number> = {}
+    for (const k in this.arbitraries)
+      sizes[k] = this.arbitraries[k].arbitrary.size(this.configuration.realPrecision).credibleInterval[1]
+
+    for (const f of this.graphs.oneD) {
+      const indexes: number[] = []
+      for (const tc of testCases)
+        indexes.push(f(tc, sizes))
+      indexesCollection.oneD.push(indexes)
+    }
+
+    for (const f of this.graphs.twoD) {
+      const indexes: [number, number][] = []
+      for (const tc of testCases)
+        indexes.push(f(tc, sizes))
+      indexesCollection.twoD.push(indexes)
+    }
+
+    return indexesCollection
   }
 
   /**
