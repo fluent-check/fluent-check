@@ -87,7 +87,18 @@ export class FluentStatistician {
    * This function calculates the confidence level of the scenario
    */
   calculateConfidenceLevel(indexes: number[]) {
+    const n = indexes.length
+    const mean = indexes.reduce((acc, idx) => acc + idx, 0)/n
+    const stdDev = () => {
+      let sum = 0
+      indexes.forEach(idx => {sum += Math.abs(idx - mean) ** 2})
+      return Math.sqrt(sum / n)
+    }
+    const max = Math.max.apply(null, indexes)
+    const confIntHalf = (max - mean)
 
-    return indexes.length
+    const z = (confIntHalf * Math.sqrt(n)) / stdDev()
+
+    return z
   }
 }
