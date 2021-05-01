@@ -1,5 +1,6 @@
 import {FluentPick} from './types'
 import {Arbitrary} from './internal'
+import {StrategyExtractedConstants} from '../strategies/FluentStrategyTypes'
 
 export class WrappedArbitrary<A> extends Arbitrary<A> {
   constructor(public readonly baseArbitrary: NonNullable<Arbitrary<A>>) {
@@ -9,6 +10,10 @@ export class WrappedArbitrary<A> extends Arbitrary<A> {
   pick(generator: () => number) { return this.baseArbitrary.pick(generator) }
   size() { return this.baseArbitrary.size() }
   cornerCases() { return this.baseArbitrary.cornerCases() }
+
+  extractedConstants(constants: StrategyExtractedConstants): FluentPick<A>[] {
+    return this.baseArbitrary.extractedConstants(constants)
+  }
 
   canGenerate(pick: FluentPick<A>) {
     return this.baseArbitrary.canGenerate(pick)
