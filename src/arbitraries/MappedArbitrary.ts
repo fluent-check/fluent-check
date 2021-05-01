@@ -1,6 +1,7 @@
 import * as util from './util'
-import {FluentPick, XOR} from './types'
 import {Arbitrary} from './internal'
+import {FluentPick, XOR} from './types'
+import {StrategyExtractedConstants} from '../strategies/FluentStrategyTypes'
 
 export class MappedArbitrary<A, B> extends Arbitrary<B> {
   constructor(
@@ -65,6 +66,19 @@ export class MappedArbitrary<A, B> extends Arbitrary<B> {
     }
 
     return result
+  }
+
+  extractedConstants(constants: StrategyExtractedConstants): FluentPick<B>[] {
+    const extractedConstants: FluentPick<B>[] = []
+
+    if (util.isString(this.toString().split('\n')[0])) {
+      constants['string'].forEach(elem => {
+        if (this.canGenerate({value: elem, original: Array.from(elem as string).map(x => x.charCodeAt(0))}))
+          extractedConstants.push({value: elem, original: Array.from(elem as string).map(x => x.charCodeAt(0))})
+      })
+    }
+
+    return extractedConstants
   }
 
   toString(depth = 0) {

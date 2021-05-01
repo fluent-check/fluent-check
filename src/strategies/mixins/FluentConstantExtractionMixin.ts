@@ -106,6 +106,9 @@ export function ConstantExtractionBased<TBase extends MixinStrategy>(Base: TBase
      * Extracts the constants from a set of functions and files and returns an array of FluentPicks.
      */
     private extractConstants() {
+      if (this.extractionStatus) return
+      else this.extractionStatus = !this.extractionStatus
+
       for (const method of this.testMethods)
         this.tokenize(method)
 
@@ -127,26 +130,8 @@ export function ConstantExtractionBased<TBase extends MixinStrategy>(Base: TBase
     }
 
     protected getArbitraryExtractedConstants<A>(arbitrary: Arbitrary<A>): FluentPick<A>[] {
-      if (!this.extractionStatus) {
-        this.extractConstants()
-        this.extractionStatus = !this.extractionStatus
-      }
-
-      const extractedConstants: Array<FluentPick<A>> = []
-
-      if (arbitrary.toString().includes('Map') && arbitrary.toString().includes('Array')
-        && arbitrary.toString().includes('Integer'))
-        for (const elem of this.constants['string'])
-          if (arbitrary.canGenerate({value: elem, original: Array.from(elem as string).map(x => x.charCodeAt(0))}))
-            extractedConstants.push({value: elem, original: Array.from(elem as string).map(x => x.charCodeAt(0))})
-
-      if ((arbitrary.toString().includes('Integer') || arbitrary.toString().includes('Real') ||
-      arbitrary.toString().includes('Constant')) && !arbitrary.toString().includes('Array'))
-        for (const elem of this.constants['numeric'])
-          if (arbitrary.canGenerate({value: elem, original: elem}))
-            extractedConstants.push({value: elem, original: elem})
-
-      return extractedConstants
+      this.extractConstants()
+      return arbitrary.extractedConstants(this.constants)
     }
 
   }

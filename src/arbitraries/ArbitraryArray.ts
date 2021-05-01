@@ -23,7 +23,7 @@ export class ArbitraryArray<A> extends Arbitrary<A[]> {
 
   pick(generator: () => number): FluentPick<A[]> | undefined {
     const size = util.getRandomInt(this.min, this.max, generator)
-    const fpa = this.arbitrary.sample(size)
+    const fpa = this.arbitrary.sample(size, [], generator)
 
     const value = fpa.map(v => v.value)
     const original = fpa.map(v => v.original)

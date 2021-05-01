@@ -2,6 +2,7 @@ import * as fc from './index'
 import * as util from './util'
 import {ArbitrarySize, FluentPick} from './types'
 import {Arbitrary, NoArbitrary} from './internal'
+import {StrategyExtractedConstants} from '../strategies/FluentStrategyTypes'
 
 const MAX_VALUE_MUTATOR = 2
 const MAX_ARITHMETIC_OP = 3
@@ -35,6 +36,17 @@ export class ArbitraryInteger extends Arbitrary<number> {
       .sort((a,b) => Math.abs(a) - Math.abs(b))
 
     return ccs.map(value => ({value, original: value}))
+  }
+
+  extractedConstants(constants: StrategyExtractedConstants): FluentPick<number>[] {
+    const extractedConstants: FluentPick<number>[] = []
+
+    constants['numeric'].forEach(elem => {
+      if (this.canGenerate({value: elem, original: elem}))
+        extractedConstants.push({value: elem, original: elem})
+    })
+
+    return extractedConstants
   }
 
   shrink(initial: FluentPick<number>): Arbitrary<number> {

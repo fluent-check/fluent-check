@@ -128,3 +128,10 @@ export function distinct<A>(arr: A[]): number {
   arr.forEach(x => arrMap.set(x, arrMap.has(x) ? arrMap.get(x)! + 1 : 1))
   return Array.from(arrMap.values()).filter(x => x === 1).length
 }
+
+/**
+ * Returns true if the arbitrary represents a String. Otherwise, it returns false.
+ */
+export function isString(arb: string): boolean {
+  return arb === 'Map Arbitrary: f = a => a.join(\'\')'
+}
