@@ -15,7 +15,7 @@ export class FluentStatisticianFactory {
     withInputSpaceCoverage: false,
     withOutputOnSuccess: false,
     withConfidenceLevel: false,
-    withGraphics: false
+    withGraphs: false
   }
 
   /**
@@ -69,10 +69,10 @@ export class FluentStatisticianFactory {
   }
 
   /**
-   * Enables generation of graphics
+   * Enables generation of graphs
    */
-  withGraphics(precision?: number) {
-    this.repConfiguration = {...this.repConfiguration, withGraphics: true}
+  withGraphs(precision?: number) {
+    this.repConfiguration = {...this.repConfiguration, withGraphs: true}
     this.configuration = {...this.configuration, gatherTestCases: true, calculateInputScenarioIndexes: true}
     if (precision !== undefined)
       this.configuration = {...this.configuration,realPrecision: precision}
@@ -88,7 +88,7 @@ export class FluentStatisticianFactory {
       withInputSpaceCoverage: true,
       withOutputOnSuccess: true,
       withConfidenceLevel: true,
-      withGraphics: true
+      withGraphs: true
     }
     this.configuration = {
       realPrecision: 3,

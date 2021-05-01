@@ -52,7 +52,7 @@ describe('Indexation tests', () => {
   it('Input scenario indexes are calculated correctly', () => {
     const rep = fc.scenario()
       .config(fc.strategy().defaultStrategy().withSampleSize(1))
-      .configStatistics(fc.statistics().withTestCaseOutput().withGraphics()) //so we have access to the indexes
+      .configStatistics(fc.statistics().withTestCaseOutput().withGraphs()) //so we have access to the indexes
       .withGenerator(prng, 1234567)
       .forall('a', fc.integer(-10, 10))
       .forall('b', fc.integer(-20, 20))

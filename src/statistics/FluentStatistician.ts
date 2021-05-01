@@ -6,7 +6,7 @@ export type FluentReporterConfig = {
   withInputSpaceCoverage: boolean,
   withOutputOnSuccess: boolean,
   withConfidenceLevel: boolean,
-  withGraphics: boolean
+  withGraphs: boolean
 }
 
 export type FluentStatConfig = {
