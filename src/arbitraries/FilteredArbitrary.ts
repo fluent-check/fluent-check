@@ -27,9 +27,9 @@ export class FilteredArbitrary<A> extends WrappedArbitrary<A> {
     }))
   }
 
-  pick(generator: () => number, precision?: number): FluentPick<A> | undefined {
+  pick(generator: () => number): FluentPick<A> | undefined {
     do {
-      const pick = this.baseArbitrary.pick(generator, precision)
+      const pick = this.baseArbitrary.pick(generator)
       if (pick === undefined) break // TODO: update size estimation accordingly
       if (this.f(pick.value)) { this.sizeEstimation.alpha += 1; return pick }
       this.sizeEstimation.beta += 1

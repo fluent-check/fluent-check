@@ -6,7 +6,7 @@ export class WrappedArbitrary<A> extends Arbitrary<A> {
     super()
   }
 
-  pick(generator: () => number, precision?: number) { return this.baseArbitrary.pick(generator, precision) }
+  pick(generator: () => number) { return this.baseArbitrary.pick(generator) }
   size() { return this.baseArbitrary.size() }
   cornerCases() { return this.baseArbitrary.cornerCases() }
 

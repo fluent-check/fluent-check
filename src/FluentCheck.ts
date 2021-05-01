@@ -1,5 +1,5 @@
-import {Arbitrary, ArbitraryCoverage, FluentPick,
-  FluentRandomGenerator, ScenarioCoverage, ValueResult} from './arbitraries'
+import {Arbitrary, ArbitraryCoverage, FluentPick, FluentRandomGenerator,
+  indexCollection, ScenarioCoverage, ValueResult} from './arbitraries'
 import {FluentStatistician} from './statistics/FluentStatistician'
 import {FluentStatisticianFactory} from './statistics/FluentStatisticianFactory'
 import {FluentStrategy} from './strategies/FluentStrategy'
@@ -23,7 +23,7 @@ export class FluentResult {
     public readonly withGraphs: boolean = false,
     public readonly testCases: ValueResult<any>[] = [],
     public readonly coverages: [ScenarioCoverage, ArbitraryCoverage] = [0, {}],
-    public readonly inputScenarioIndexes: number[] = [],
+    public readonly indexesForGraphs: indexCollection = {oneD: [], twoD: []},
     public readonly confidenceLevel: number = 0) {}
 
   addExample<A>(name: string, value: FluentPick<A>) {
@@ -100,8 +100,6 @@ export class FluentCheck<Rec extends ParentRec, ParentRec extends {}> {
       this.strategy.randomGenerator.initialize()
       const r = this.run({} as Rec, child, testCases)
 
-      const inputScenarioIndexes = this.statistician.configuration.calculateInputScenarioIndexes ?
-        this.statistician.calculateInputScenarioIndexes(testCases.wrapped) : undefined
       return new FluentResult(
         r.satisfiable,
         FluentCheck.unwrapFluentPick(r.example),
@@ -115,12 +113,18 @@ export class FluentCheck<Rec extends ParentRec, ParentRec extends {}> {
         testCases.unwrapped,
         this.statistician.reporterConfiguration.withInputSpaceCoverage ?
           this.statistician.calculateCoverages(new Set(testCases.unwrapped.map(x=>JSON.stringify(x))).size) : undefined,
-        this.statistician.reporterConfiguration.withGraphs && inputScenarioIndexes !== undefined ?
-          inputScenarioIndexes : undefined,
-        this.statistician.reporterConfiguration.withConfidenceLevel && inputScenarioIndexes !== undefined ?
-          this.statistician.calculateConfidenceLevel(inputScenarioIndexes) : undefined
+        this.statistician.reporterConfiguration.withGraphs ?
+          this.statistician.calculateIndexes(testCases.wrapped.map(e => FluentCheck.unwrapFluentPickOriginal(e))) : undefined,
+        this.statistician.reporterConfiguration.withConfidenceLevel ?
+          this.statistician.calculateConfidenceLevel() : undefined
       )
     }
+  }
+
+  static unwrapFluentPickOriginal<T>(testCase: PickResult<T>): ValueResult<number | number[]> {
+    const result = {}
+    for (const k in testCase) result[k] = testCase[k].original
+    return result
   }
 
   static unwrapFluentPick<T>(testCase: PickResult<T>): ValueResult<T> {
