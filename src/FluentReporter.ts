@@ -77,8 +77,16 @@ function assembleInfo(result: FluentResult): string {
   }
 
   if (result.withGraphs) {
-    msg.push('\nGraphs created in ')
-    msg.push(generateGraphs(result.inputScenarioIndexes))
+    for(const g of result.indexesForGraphs.oneD){
+      msg.push('\n1D graph created in ')
+      msg.push(generate1DGraphs(g))
+    }
+    /*
+    for(const g of result.indexesForGraphs.twoD){
+      msg.push('\n2D graph created in ')
+      msg.push(generateGraphs(g))
+    }
+    */
   }
 
   msg.push('\n------------------------------------------------------------------------\n')
@@ -118,11 +126,11 @@ function generateIncrementalFileName(filename: string, extension: string) {
   return filepath
 }
 
-function generateGraphs(indexes: number[]) {
+function generate1DGraphs(indexes: number[]) {
   const maxIndex = Math.max.apply(null, indexes)
 
   const margin = 25
-  const width = maxIndex*3
+  const width = maxIndex*10
 
   const dom = new JSDOM('<!DOCTYPE html><body></body>')
   const body = select(dom.window.document.querySelector('body'))
@@ -155,5 +163,5 @@ function generateGraphs(indexes: number[]) {
 
   const filename = generateIncrementalFileName('graph', '.svg')
   writeFileSync(filename, body.html())
-  return indexes.length.toString()
+  return filename
 }
