@@ -77,10 +77,10 @@ export class FluentStatisticianFactory {
    * States that a graph should be generated using the specified indexing function that can only return
    * 1 value due to it generating a 1D graph
    */
-  with1DGraph(f: graph1D) {
+  with1DGraph(f: graph1D | graph1D[]) {
     this.repConfiguration = {...this.repConfiguration, withGraphs: true}
     this.configuration = {...this.configuration, gatherTestCases: true}
-    this.graphs.oneD.push(f)
+    Array.isArray(f) ? this.graphs.oneD.push(...f) : this.graphs.oneD.push(f)
     return this
   }
 
@@ -88,10 +88,10 @@ export class FluentStatisticianFactory {
    * States that a graph should be generated using the specified indexing function that can only return
    * 2 values in [x,y] form due to it generating a 2D graph
    */
-  with2DGraph(f: graph2D) {
+  with2DGraph(f: graph2D | graph2D[]) {
     this.repConfiguration = {...this.repConfiguration, withGraphs: true}
     this.configuration = {...this.configuration, gatherTestCases: true}
-    this.graphs.twoD.push(f)
+    Array.isArray(f) ? this.graphs.twoD.push(...f) : this.graphs.twoD.push(f)
     return this
   }
 

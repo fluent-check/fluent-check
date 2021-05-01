@@ -81,12 +81,11 @@ function assembleInfo(result: FluentResult): string {
       msg.push('\n1D graph created in ')
       msg.push(generate1DGraphs(g))
     }
-    /*
-    for(const g of result.indexesForGraphs.twoD){
+
+    for (const g of result.indexesForGraphs.twoD) {
       msg.push('\n2D graph created in ')
-      msg.push(generateGraphs(g))
+      msg.push(generate2DGraphs(g))
     }
-    */
   }
 
   msg.push('\n------------------------------------------------------------------------\n')
@@ -160,6 +159,53 @@ function generate1DGraphs(indexes: number[]) {
     .attr('height', 6)
     .attr('fill', 'red')
     .attr('transform', function (v) { return 'translate(' + x(v) + ',' + (margin - 3) + ')' })
+
+  const filename = generateIncrementalFileName('graph', '.svg')
+  writeFileSync(filename, body.html())
+  return filename
+}
+
+function generate2DGraphs(indexes: [number, number][]) {
+  const maxIndexX = Math.max.apply(null, indexes.map(idx => idx[0]))
+  const maxIndexY = Math.max.apply(null, indexes.map(idx => idx[1]))
+
+  const margin = 25
+  const width = maxIndexX*10
+  const height = maxIndexY*10
+
+  const dom = new JSDOM('<!DOCTYPE html><body></body>')
+  const body = select(dom.window.document.querySelector('body'))
+  const svg = body.append('svg').attr('width', width + 2 * margin)
+    .attr('height', height + 2 * margin).attr('xmlns', 'http://www.w3.org/2000/svg')
+
+  //background
+  svg.append('rect')
+    .attr('width', '100%')
+    .attr('height', '100%')
+    .attr('fill', 'white')
+
+  //axis
+  const x = scaleLinear()
+    .domain([0, maxIndexX])
+    .range([margin, width + margin])
+  svg.append('g')
+    .attr('transform', 'translate(0,' + margin + ')')
+    .call(axisBottom(x))
+
+  const y = scaleLinear()
+    .domain([0, maxIndexY])
+    .range([margin, height + margin])
+  svg.append('g')
+    .attr('transform', 'translate(' + margin + ',0)')
+    .call(axisBottom(x))
+
+  //values
+  svg.selectAll('whatever')
+    .data(indexes)
+    .enter()
+    .attr('cx', function (d) { return x(d.x) })
+    .attr('cy', function (d) { return y(d.y) })
+    .attr('r', 1)
 
   const filename = generateIncrementalFileName('graph', '.svg')
   writeFileSync(filename, body.html())
