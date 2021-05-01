@@ -84,25 +84,10 @@ export class ArbitraryArray<A> extends Arbitrary<A[]> {
   }
 
   extractedConstants(constants: StrategyExtractedConstants): FluentPick<A[]>[] {
-    const baseArbitraryConstants = this.arbitrary.extractedConstants(constants)
-    return baseArbitraryConstants.reduce((acc, val, idx) => {
-      let j = idx
-      const tmpArr: FluentPick<A[]> = {value: [], original: []}
-
-      while (tmpArr.value.length < baseArbitraryConstants.length) {
-        tmpArr.value.push(baseArbitraryConstants[j].value)
-        tmpArr.original.push(baseArbitraryConstants[j].original)
-        j = j + 1 === baseArbitraryConstants.length ? 0 : j + 1
-      }
-
-      if (tmpArr.value.length < this.min) {
-        tmpArr.value.push(... Array(this.min - tmpArr.value.length).fill(tmpArr.value[tmpArr.value.length - 1]))
-        tmpArr.original.push(... Array(this.min - tmpArr.value.length).fill(tmpArr.original[tmpArr.value.length - 1]))
-      }
-
-      acc.push(tmpArr)
-      return acc
-    }, [] as FluentPick<A[]>[])
+    return this.arbitrary.extractedConstants(constants).flatMap(ec => [
+      {value: Array(this.min).fill(ec.value), original: Array(this.min).fill(ec.original)},
+      {value: Array(this.max).fill(ec.value), original: Array(this.max).fill(ec.original)}
+    ]).filter(v => v !== undefined).filter(x => this.canGenerate(x))
   }
 
   toString(depth = 0): string {

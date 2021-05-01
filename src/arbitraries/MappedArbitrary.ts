@@ -73,8 +73,7 @@ export class MappedArbitrary<A, B> extends Arbitrary<B> {
 
     if (util.isString(this.toString().split('\n')[0])) {
       constants['string'].forEach(elem => extractedConstants.push({
-        value: elem,
-        original: Array.from(elem as string).map(x => x.charCodeAt(0))
+        value: elem, original: Array.from(elem as string).map(x => x.charCodeAt(0))
       }))
     }
 
