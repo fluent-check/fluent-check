@@ -114,11 +114,17 @@ export class FluentCheck<Rec extends ParentRec, ParentRec extends {}> {
         this.statistician.reporterConfiguration.withInputSpaceCoverage ?
           this.statistician.calculateCoverages(new Set(testCases.unwrapped.map(x=>JSON.stringify(x))).size) : undefined,
         this.statistician.reporterConfiguration.withGraphs ?
-          this.statistician.calculateIndexes(testCases.wrapped.map(e => e.original)) : undefined,
+          this.statistician.calculateIndexes(testCases.wrapped.map(e => FluentCheck.unwrapFluentPickOriginal(e))) : undefined,
         this.statistician.reporterConfiguration.withConfidenceLevel ?
           this.statistician.calculateConfidenceLevel() : undefined
       )
     }
+  }
+
+  static unwrapFluentPickOriginal<T>(testCase: PickResult<T>): ValueResult<number | number[]> {
+    const result = {}
+    for (const k in testCase) result[k] = testCase[k].original
+    return result
   }
 
   static unwrapFluentPick<T>(testCase: PickResult<T>): ValueResult<T> {

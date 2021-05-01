@@ -104,7 +104,7 @@ export class FluentStatisticianFactory {
       withInputSpaceCoverage: true,
       withOutputOnSuccess: true,
       withConfidenceLevel: true,
-      withGraphs: true
+      withGraphs: false
     }
     this.configuration = {
       realPrecision: 3,
