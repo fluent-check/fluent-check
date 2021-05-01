@@ -77,7 +77,7 @@ function assembleInfo(result: FluentResult): string {
   }
 
   if (result.withGraphs) {
-    for(const g of result.indexesForGraphs.oneD){
+    for (const g of result.indexesForGraphs.oneD) {
       msg.push('\n1D graph created in ')
       msg.push(generate1DGraphs(g))
     }
@@ -141,14 +141,14 @@ function generate1DGraphs(indexes: number[]) {
   svg.append('rect')
     .attr('width', '100%')
     .attr('height', '100%')
-    .attr('fill', 'white');
+    .attr('fill', 'white')
 
   //axis
   const x = scaleLinear()
     .domain([0, maxIndex])
     .range([margin, width + margin])
   svg.append('g')
-    .attr('transform', 'translate(0,' + (margin) + ')')
+    .attr('transform', 'translate(0,' + margin + ')')
     .call(axisBottom(x))
 
   //values
@@ -156,10 +156,10 @@ function generate1DGraphs(indexes: number[]) {
     .data(indexes)
     .enter()
     .append('rect')
-      .attr('width', 1)
-      .attr('height', 6)
-      .attr('fill', 'red')
-      .attr('transform', function(v) { return 'translate(' + x(v) + ',' + (margin - 3) + ')'})
+    .attr('width', 1)
+    .attr('height', 6)
+    .attr('fill', 'red')
+    .attr('transform', function (v) { return 'translate(' + x(v) + ',' + (margin - 3) + ')' })
 
   const filename = generateIncrementalFileName('graph', '.svg')
   writeFileSync(filename, body.html())
