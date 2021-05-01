@@ -1,6 +1,7 @@
 import * as util from './util'
 import {FluentPick} from './types'
 import {Arbitrary} from './internal'
+import {StrategyExtractedConstants} from '../strategies/FluentStrategyTypes'
 
 export class ChainedArbitrary<A, B> extends Arbitrary<B> {
   constructor(public readonly baseArbitrary: Arbitrary<A>, public readonly f: (a: A) => Arbitrary<B>) {
@@ -16,6 +17,10 @@ export class ChainedArbitrary<A, B> extends Arbitrary<B> {
 
   cornerCases(): FluentPick<B>[] {
     return this.baseArbitrary.cornerCases().flatMap(p => this.f(p.value).cornerCases())
+  }
+
+  extractedConstants(constants: StrategyExtractedConstants): FluentPick<B>[] {
+    return this.baseArbitrary.extractedConstants(constants).flatMap(p => this.f(p.value).extractedConstants(constants))
   }
 
   canGenerate<B>(_: FluentPick<B>): boolean {

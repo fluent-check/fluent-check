@@ -1,6 +1,7 @@
 import {FluentPick} from './types'
 import {BetaDistribution} from '../statistics'
 import {Arbitrary, NoArbitrary, WrappedArbitrary} from './internal'
+import {StrategyExtractedConstants} from '../strategies/FluentStrategyTypes'
 import {lowerCredibleInterval, mapArbitrarySize, upperCredibleInterval, computeNumMutations} from './util'
 
 export class FilteredArbitrary<A> extends WrappedArbitrary<A> {
@@ -40,6 +41,10 @@ export class FilteredArbitrary<A> extends WrappedArbitrary<A> {
   }
 
   cornerCases() { return this.baseArbitrary.cornerCases().filter(a => this.f(a.value)) }
+
+  extractedConstants(constants: StrategyExtractedConstants): FluentPick<A>[] {
+    return this.baseArbitrary.extractedConstants(constants).filter(a => this.f(a.value))
+  }
 
   shrink(initialValue: FluentPick<A>) {
     if (!this.f(initialValue.value)) return NoArbitrary
