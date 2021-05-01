@@ -1,11 +1,12 @@
 import {Arbitrary, ArbitraryCoverage, FluentPick,
-  FluentRandomGenerator, ScenarioCoverage, ValueResult} from './arbitraries'
+  FluentRandomGenerator, ScenarioCoverage} from './arbitraries'
 import {FluentStatistician} from './statistics/FluentStatistician'
 import {FluentStatisticianFactory} from './statistics/FluentStatisticianFactory'
 import {FluentStrategy} from './strategies/FluentStrategy'
 import {FluentStrategyFactory} from './strategies/FluentStrategyFactory'
 import now from 'performance-now'
 
+type ValueResult<V> = Record<string, V>
 type WrapFluentPick<T> = { [P in keyof T]: FluentPick<T[P]> }
 type PickResult<V> = Record<string, FluentPick<V>>
 type TestCases = {wrapped: WrapFluentPick<any>[], unwrapped: ValueResult<any>[]}

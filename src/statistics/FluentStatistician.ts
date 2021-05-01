@@ -12,7 +12,7 @@ export type FluentReporterConfig = {
 export type FluentStatConfig = {
   realPrecision: number,
   gatherTestCases: boolean,
-  gatherArbitraryTestCases: boolean,
+  gatherArbitraryTestCases: boolean
 }
 
 export class FluentStatistician {
