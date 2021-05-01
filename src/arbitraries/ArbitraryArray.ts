@@ -8,38 +8,29 @@ export class ArbitraryArray<A> extends Arbitrary<A[]> {
     super()
   }
 
-  sizeUpTo = (v: number, max: number) => {
-    return v === 1 ? max + 1 : (1 - v ** (max + 1)) / (1 - v)
-  }
-
   size() {
+    const sizeUpTo = (v: number, max: number) => {
+      return v === 1 ? max + 1 : (1 - v ** (max + 1)) / (1 - v)
+    }
+
     // https://en.wikipedia.org/wiki/Geometric_progression#Geometric_series
     return mapArbitrarySize(this.arbitrary.size(), v => {
-      const value = this.sizeUpTo(v, this.max) - this.sizeUpTo(v, this.min - 1)
+      const value = sizeUpTo(v, this.max) - sizeUpTo(v, this.min - 1)
       return {type: 'exact', value, credibleInterval: [value, value]}
     })
   }
 
-  pick(generator: () => number, precision?: number): FluentPick<A[]> | undefined {
+  pick(generator: () => number): FluentPick<A[]> | undefined {
     const size = Math.floor(generator() * (this.max - this.min + 1)) + this.min
-    const fpa = this.arbitrary.sample(size, generator, precision)
+    const fpa = this.arbitrary.sample(size, generator)
 
     const value = fpa.map(v => v.value)
     const original = fpa.map(v => v.original)
-    const indexes = fpa.map(v => v.index ?? 0)
 
     return {
       value,
-      original: original.every(o => o === undefined) ? value : original,
-      index: this.calculateIndex(indexes, size)
+      original: original.every(o => o === undefined) ? value : original
     }
-  }
-
-  calculateIndex(indexes: number[], size: number) {
-    const arbSize = this.arbitrary.size().credibleInterval[1]
-    return indexes.reduce((acc, n, idx) =>
-      acc + n * arbSize ** idx,
-    this.sizeUpTo(arbSize, size - 1) - this.sizeUpTo(arbSize, this.min - 1))
   }
 
   shrink(initial: FluentPick<A[]>): Arbitrary<A[]> {
@@ -60,11 +51,9 @@ export class ArbitraryArray<A> extends Arbitrary<A[]> {
   cornerCases(): FluentPick<A[]>[] {
     return this.arbitrary.cornerCases().flatMap(cc => [
       {value: Array(this.min).fill(cc.value),
-        original: Array(this.min).fill(cc.original),
-        index: this.calculateIndex(Array(this.min).fill(cc.index), this.min)},
+        original: Array(this.min).fill(cc.original)},
       {value: Array(this.max).fill(cc.value),
-        original: Array(this.max).fill(cc.original),
-        index: this.calculateIndex(Array(this.max).fill(cc.index), this.max)}
+        original: Array(this.max).fill(cc.original)}
     ]).filter(v => v !== undefined) as FluentPick<A[]>[]
   }
 

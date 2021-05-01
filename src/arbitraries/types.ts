@@ -1,7 +1,6 @@
 export type FluentPick<V> = {
   value: V
   original?: any
-  index?: number
 }
 
 export type ArbitrarySize = {

@@ -14,11 +14,11 @@ export class MappedArbitrary<A, B> extends Arbitrary<B> {
 
   mapFluentPick(p: FluentPick<A>): FluentPick<B> {
     const original = 'original' in p && p.original !== undefined ? p.original : p.value
-    return {value: this.f(p.value), original, index: p.index}
+    return {value: this.f(p.value), original}
   }
 
-  pick(generator: () => number, precision?: number): FluentPick<B> | undefined {
-    const pick = this.baseArbitrary.pick(generator, precision)
+  pick(generator: () => number): FluentPick<B> | undefined {
+    const pick = this.baseArbitrary.pick(generator)
     return pick !== undefined ? this.mapFluentPick(pick) : undefined
   }
 

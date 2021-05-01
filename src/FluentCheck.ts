@@ -23,7 +23,7 @@ export class FluentResult {
     public readonly withGraphs: boolean = false,
     public readonly testCases: ValueResult<any>[] = [],
     public readonly coverages: [ScenarioCoverage, ArbitraryCoverage] = [0, {}],
-    public readonly inputScenarioIndexes: number[] = [],
+    public readonly originaltestCases: ValueResult<any>[] = [],
     public readonly confidenceLevel: number = 0) {}
 
   addExample<A>(name: string, value: FluentPick<A>) {
@@ -100,8 +100,6 @@ export class FluentCheck<Rec extends ParentRec, ParentRec extends {}> {
       this.strategy.randomGenerator.initialize()
       const r = this.run({} as Rec, child, testCases)
 
-      const inputScenarioIndexes = this.statistician.configuration.calculateInputScenarioIndexes ?
-        this.statistician.calculateInputScenarioIndexes(testCases.wrapped) : undefined
       return new FluentResult(
         r.satisfiable,
         FluentCheck.unwrapFluentPick(r.example),
@@ -115,10 +113,9 @@ export class FluentCheck<Rec extends ParentRec, ParentRec extends {}> {
         testCases.unwrapped,
         this.statistician.reporterConfiguration.withInputSpaceCoverage ?
           this.statistician.calculateCoverages(new Set(testCases.unwrapped.map(x=>JSON.stringify(x))).size) : undefined,
-        this.statistician.reporterConfiguration.withGraphs && inputScenarioIndexes !== undefined ?
-          inputScenarioIndexes : undefined,
-        this.statistician.reporterConfiguration.withConfidenceLevel && inputScenarioIndexes !== undefined ?
-          this.statistician.calculateConfidenceLevel(inputScenarioIndexes) : undefined
+        testCases.wrapped.map(e => e.original),
+        this.statistician.reporterConfiguration.withConfidenceLevel ?
+          this.statistician.calculateConfidenceLevel() : undefined
       )
     }
   }

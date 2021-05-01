@@ -11,10 +11,9 @@ export class ArbitraryReal extends ArbitraryInteger {
     return {value, type: 'exact', credibleInterval: [value, value]}
   }
 
-  pick(generator: () => number, precision?: number)  {
+  pick(generator: () => number)  {
     const value = generator() * (this.max - this.min) + this.min
-    const index = precision !== undefined ? Math.floor((value - this.min) * 10 ** precision) : value - this.min
-    return {value, original: value, index}
+    return {value, original: value}
   }
 
   calculateCoverage(picks: number, precision: number): number {

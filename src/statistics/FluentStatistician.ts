@@ -1,4 +1,4 @@
-import {ArbitraryCoverage, ScenarioCoverage, ValueResult} from '../arbitraries'
+import {ArbitraryCoverage, ScenarioCoverage} from '../arbitraries'
 import {StrategyArbitraries} from '../strategies/FluentStrategyTypes'
 
 export type FluentReporterConfig = {
@@ -13,7 +13,6 @@ export type FluentStatConfig = {
   realPrecision: number,
   gatherTestCases: boolean,
   gatherArbitraryTestCases: boolean,
-  calculateInputScenarioIndexes: boolean
 }
 
 export class FluentStatistician {
@@ -61,33 +60,10 @@ export class FluentStatistician {
     return [scCoverage, coverages]
   }
 
-  calculateInputScenarioIndexes(testCases: ValueResult<any>[]) {
-    const arbSizes = {}
-    for (const k in this.arbitraries)
-      arbSizes[k] = this.arbitraries[k].arbitrary.size(this.configuration.realPrecision).credibleInterval[1]
-
-    const indexedTestCases: number[] = testCases.map(x => {
-      let testIdx = 0
-      const prev: string[] = []
-      for (const k in x) {
-        let arbIdx = x[k].index
-        prev.forEach(p => {
-          arbIdx *= arbSizes[p]
-        })
-        testIdx += arbIdx
-        prev.push(k)
-      }
-      return testIdx
-    })
-
-    return indexedTestCases
-  }
-
   /**
    * This function calculates the confidence level of the scenario
    */
-  calculateConfidenceLevel(indexes: number[]) {
-
-    return indexes.length
+  calculateConfidenceLevel() {
+    return 0
   }
 }

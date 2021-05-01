@@ -34,15 +34,7 @@ export class ArbitrarySet<A> extends Arbitrary<A[]> {
     const value = Array.from(pick).sort()
     const original = Array.from(pick_o).sort()
 
-    return {value, original, index: this.calculateIndex(original)}
-  }
-
-  calculateIndex(original) {
-    let index = 0
-    original.forEach(o => {
-      index += 2 ** o
-    })
-    return index
+    return {value, original}
   }
 
   shrink(initial: FluentPick<A[]>): Arbitrary<A[]> {
@@ -67,8 +59,8 @@ export class ArbitrarySet<A> extends Arbitrary<A[]> {
     const max: A[] = []
     for (let i = 0; i < this.max; i++) max.push(this.elements[i])
 
-    return [{value: min, original: min, index: this.calculateIndex(min)},
-      {value: max, original: max, index: this.calculateIndex(max)}]
+    return [{value: min, original: min},
+      {value: max, original: max}]
   }
 
   toString(depth = 0) {
