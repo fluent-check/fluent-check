@@ -1,6 +1,8 @@
 import {FluentResult} from './FluentCheck'
-import {existsSync, createWriteStream} from 'fs'
+import {existsSync, createWriteStream, writeFileSync} from 'fs'
 import {ValueResult} from './arbitraries'
+import {JSDOM} from 'jsdom'
+import * as d3 from 'd3'
 
 export function expect(result: FluentResult): void | never {
   if (result.satisfiable) {
@@ -84,12 +86,7 @@ function assembleInfo(result: FluentResult): string {
 }
 
 function writeTestCases(testCases: ValueResult<any>[]): string {
-  let filename = 'scenario.csv'
-  let counter = 1
-  while (existsSync(filename)) {
-    filename = 'scenario' + counter + '.csv'
-    counter++
-  }
+  const filename = generateIncrementalFileName('scenario', '.csv')
   const stream = createWriteStream(filename)
 
   const arbs: string[] = []
@@ -111,6 +108,28 @@ function writeTestCases(testCases: ValueResult<any>[]): string {
   return filename
 }
 
+function generateIncrementalFileName(filename: string, extension: string) {
+  let filepath = filename + extension
+  let counter = 1
+  while (existsSync(filepath)) {
+    filepath = filename + counter + extension
+    counter++
+  }
+  return filepath
+}
+
 function generateGraphs(indexes: number[]) {
+  const dom = new JSDOM('<!DOCTYPE html><body></body>')
+  const body = d3.select(dom.window.document.querySelector('body'))
+  const svg = body.append('svg').attr('width', 100).attr('height', 100).attr('xmlns', 'http://www.w3.org/2000/svg')
+  svg.append('rect')
+    .attr('x', 10)
+    .attr('y', 10)
+    .attr('width', 80)
+    .attr('height', 80)
+    .style('fill', 'orange')
+
+  const filename = generateIncrementalFileName('graphs', '.svg')
+  writeFileSync(filename, body.html())
   return indexes.length.toString()
 }
