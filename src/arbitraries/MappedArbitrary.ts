@@ -72,13 +72,13 @@ export class MappedArbitrary<A, B> extends Arbitrary<B> {
     const extractedConstants: FluentPick<B>[] = []
 
     if (util.isString(this.toString().split('\n')[0])) {
-      constants['string'].forEach(elem => {
-        if (this.canGenerate({value: elem, original: Array.from(elem as string).map(x => x.charCodeAt(0))}))
-          extractedConstants.push({value: elem, original: Array.from(elem as string).map(x => x.charCodeAt(0))})
-      })
+      constants['string'].forEach(elem => extractedConstants.push({
+        value: elem,
+        original: Array.from(elem as string).map(x => x.charCodeAt(0))
+      }))
     }
 
-    return extractedConstants
+    return extractedConstants.filter(x => this.canGenerate(x))
   }
 
   toString(depth = 0) {

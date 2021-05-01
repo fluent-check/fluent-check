@@ -40,13 +40,8 @@ export class ArbitraryInteger extends Arbitrary<number> {
 
   extractedConstants(constants: StrategyExtractedConstants): FluentPick<number>[] {
     const extractedConstants: FluentPick<number>[] = []
-
-    constants['numeric'].forEach(elem => {
-      if (this.canGenerate({value: elem, original: elem}))
-        extractedConstants.push({value: elem, original: elem})
-    })
-
-    return extractedConstants
+    constants['numeric'].forEach(elem => extractedConstants.push({value: elem, original: elem}))
+    return extractedConstants.filter(x => this.canGenerate(x))
   }
 
   shrink(initial: FluentPick<number>): Arbitrary<number> {
