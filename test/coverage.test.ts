@@ -9,6 +9,7 @@ describe('Coverage tests', () => {
         .withCoverageGuidance('test/coverage.test.ts')
         .withTimeout(2000)
         .withMinimumCoverage(100)
+        .withMaxNumMutationsPerArbitrary(5)
       )
       .forall('a', fc.integer())
       .forall('b', fc.integer())

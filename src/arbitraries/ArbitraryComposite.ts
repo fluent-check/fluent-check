@@ -1,6 +1,6 @@
 import {Arbitrary} from './internal'
 import {FluentPick} from './types'
-import {mapArbitrarySize, NilArbitrarySize} from './util'
+import {mapArbitrarySize, NilArbitrarySize, computeNumMutations} from './util'
 import * as fc from './index'
 
 export class ArbitraryComposite<A> extends Arbitrary<A> {
@@ -35,6 +35,25 @@ export class ArbitraryComposite<A> extends Arbitrary<A> {
 
   canGenerate(pick: FluentPick<A>) {
     return this.arbitraries.some(a => a.canGenerate(pick))
+  }
+
+  mutate(pick: FluentPick<A>, generator: () => number, maxNumMutations: number): FluentPick<A>[] {
+    const result: FluentPick<A>[] = []
+
+    const baseArbitrary = this.arbitraries.find(x => x.canGenerate(pick))
+    if (baseArbitrary === undefined) return result
+
+    const numMutations = computeNumMutations(baseArbitrary.size(), generator, maxNumMutations)
+
+    while (result.length < numMutations) {
+      const mutatedPick = baseArbitrary.mutate(pick, generator, 1)[0]
+      if (mutatedPick === undefined) return result
+      else if (baseArbitrary.canGenerate(mutatedPick)
+      && JSON.stringify(pick.value) !== JSON.stringify(mutatedPick.value)
+      && result.every(x => JSON.stringify(x.value) !== JSON.stringify(mutatedPick.value))) result.push(mutatedPick)
+    }
+
+    return result
   }
 
   toString(depth = 0) {

@@ -1,7 +1,8 @@
-import {FluentPick, ArbitrarySize} from './types'
+import * as fc from './index'
+import * as util from './util'
 import {Arbitrary} from './internal'
 import {factorial} from '../statistics'
-import * as fc from './index'
+import {FluentPick, ArbitrarySize} from './types'
 
 export class ArbitrarySet<A> extends Arbitrary<A[]> {
   readonly max: number
@@ -44,7 +45,22 @@ export class ArbitrarySet<A> extends Arbitrary<A[]> {
 
   canGenerate(pick: FluentPick<A[]>) {
     return pick.value.length >= this.min && pick.value.length <= this.max &&
+           util.distinct(pick.value) === pick.value.length &&
            pick.value.every(v => this.elements.includes(v))
+  }
+
+  mutate(pick: FluentPick<A[]>, generator: () => number, maxNumMutations: number): FluentPick<A[]>[] {
+    const result: FluentPick<A[]>[] = []
+    const numMutations = util.computeNumMutations(this.size(), generator, maxNumMutations)
+
+    while (result.length < numMutations) {
+      const mutatedPick = this.pick(generator)
+      if (mutatedPick !== undefined
+        && JSON.stringify(pick.value) !== JSON.stringify(mutatedPick.value)
+        && result.every(x => JSON.stringify(x.value) !== JSON.stringify(mutatedPick.value))) result.push(mutatedPick)
+    }
+
+    return result
   }
 
   cornerCases(): FluentPick<A[]>[] {

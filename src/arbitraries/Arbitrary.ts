@@ -26,14 +26,10 @@ export abstract class Arbitrary<A> {
   abstract canGenerate<B extends A>(pick: FluentPick<B>): boolean
 
   /**
-   * TODO - This function should be noted abstract and each arbitrary should implement its own mutate function with its
-   * own logic.
+   * Mutates a given pick and returns an array containing all the performed mutations. Each arbitrary implements its
+   * own mutate logic function.
    */
-  mutate(_pick: FluentPick<A>, generator: () => number): FluentPick<A> {
-    let mutatedPick = this.pick(generator)
-    while (mutatedPick === undefined) { mutatedPick = this.pick(generator) }
-    return mutatedPick
-  }
+  abstract mutate(pick: FluentPick<A>, generator: () => number, maxNumMutations: number): FluentPick<A>[]
 
   /**
    * Returns a sample of picks of a given size. Sample might contain repeated values
@@ -126,15 +122,20 @@ export abstract class Arbitrary<A> {
   }
 
   /**
-   * Maps a given arbitrary to a new one based on the transformation function (f). Optionally, a shrinkHelper structure
+   * Maps a given arbitrary to a new one based on the transformation function (f). Optionally, a helper structure
    * that mutually exclusively contains either an inverse map function or an entirely new canGenerate method can be
    * passed. The former allows the mapped arbitrary to be reverted back to its base arbitrary (inverse map === f').
    * Since some transformations cannot be easily inverted, the latter allows entirely overriding the canGenerate method.
+   * When the latter is provided it also may be useful to override the mutate method since it relies on inverse map
+   * function. This override is optional since it varies from arbitrary to arbitrary.
    */
   map<B>(f: (a: A) => B,
-    shrinkHelper?: XOR<{inverseMap: (b: B) => A[]},{canGenerate: (pick: FluentPick<B>) => boolean}>
+    helper?: XOR<{inverseMap: (b: FluentPick<B>) => A[]},{
+      canGenerate: (pick: FluentPick<B>) => boolean,
+      mutate?: (pick: FluentPick<B>, generator: () => number, maxNumMutations: number) => FluentPick<B>[]
+    }>
   ): Arbitrary<B> {
-    return new MappedArbitrary(this, f, shrinkHelper)
+    return new MappedArbitrary(this, f, helper)
   }
 
   filter(f: (a: A) => boolean): Arbitrary<A> { return new FilteredArbitrary(this, f) }

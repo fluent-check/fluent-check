@@ -1,7 +1,9 @@
+import * as fc from './index'
+import * as util from './util'
+
 import {FluentPick} from './types'
 import {mapArbitrarySize} from './util'
 import {Arbitrary} from './internal'
-import * as fc from './index'
 
 export class ArbitraryArray<A> extends Arbitrary<A[]> {
   constructor(public arbitrary: Arbitrary<A>, public min = 0, public max = 10) {
@@ -20,7 +22,7 @@ export class ArbitraryArray<A> extends Arbitrary<A[]> {
   }
 
   pick(generator: () => number): FluentPick<A[]> | undefined {
-    const size = Math.floor(generator() * (this.max - this.min + 1)) + this.min
+    const size = util.getRandomInt(this.min, this.max, generator)
     const fpa = this.arbitrary.sample(size)
 
     const value = fpa.map(v => v.value)
@@ -45,6 +47,32 @@ export class ArbitraryArray<A> extends Arbitrary<A[]> {
   canGenerate(pick: FluentPick<A[]>) {
     return pick.value.length >= this.min && pick.value.length <= this.max &&
            pick.value.every((v, i) => this.arbitrary.canGenerate({value: v, original: pick.original[i]}))
+  }
+
+  mutate(pick: FluentPick<A[]>, generator: () => number, maxNumMutations: number): FluentPick<A[]>[] {
+    const result: FluentPick<A[]>[] = []
+    const numMutations = util.computeNumMutations(this.size(), generator, maxNumMutations)
+
+    while (result.length < numMutations) {
+      const mutatedPick: FluentPick<A[]> = {value: [], original: []}
+      const mutatedPickSize = util.getRandomBoolean(generator) ?
+        pick.value.length : util.getRandomInt(this.min, this.max, generator)
+
+      for (let i = 0; i < mutatedPickSize; i++) {
+        let newPick: FluentPick<A> = {value: pick.value[i], original: pick.original[i]}
+        if (i < pick.value.length && util.getRandomBoolean(generator))
+          newPick = this.arbitrary.mutate({value: pick.value[i], original: pick.original[i]},generator,1)[0] ?? newPick
+        else if (i >= pick.value.length)
+          newPick = this.arbitrary.pick(generator) ?? newPick
+
+        mutatedPick.value.push(newPick.value)
+        mutatedPick.original.push(newPick.original)
+      }
+      if (this.canGenerate(mutatedPick)
+      && JSON.stringify(pick.value) !== JSON.stringify(mutatedPick.value)
+      && result.every(x => JSON.stringify(x.value) !== JSON.stringify(mutatedPick.value))) result.push(mutatedPick)
+    }
+    return result
   }
 
   cornerCases(): FluentPick<A[]>[] {
