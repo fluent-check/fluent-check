@@ -1,7 +1,8 @@
-import {Arbitrary} from './internal'
-import {FluentPick} from './types'
-import {mapArbitrarySize, NilArbitrarySize, computeNumMutations} from './util'
 import * as fc from './index'
+import {FluentPick} from './types'
+import {Arbitrary} from './internal'
+import {StrategyExtractedConstants} from '../strategies/FluentStrategyTypes'
+import {mapArbitrarySize, NilArbitrarySize, computeNumMutations} from './util'
 
 export class ArbitraryComposite<A> extends Arbitrary<A> {
   constructor(public arbitraries: Arbitrary<A>[] = []) {
@@ -26,6 +27,10 @@ export class ArbitraryComposite<A> extends Arbitrary<A> {
 
   cornerCases(): FluentPick<A>[] {
     return this.arbitraries.flatMap(a => a.cornerCases())
+  }
+
+  extractedConstants(constants: StrategyExtractedConstants): FluentPick<A>[] {
+    return this.arbitraries.flatMap(a => a.extractedConstants(constants))
   }
 
   shrink(initial: FluentPick<A>) {

@@ -1,6 +1,7 @@
-import {ArbitrarySize, FluentPick, XOR} from './types'
-import {ChainedArbitrary, FilteredArbitrary, MappedArbitrary, NoArbitrary} from './internal'
 import {stringify} from './util'
+import {ArbitrarySize, FluentPick, XOR} from './types'
+import {StrategyExtractedConstants} from '../strategies/FluentStrategyTypes'
+import {ChainedArbitrary, FilteredArbitrary, MappedArbitrary, NoArbitrary} from './internal'
 
 export abstract class Arbitrary<A> {
   /**
@@ -30,6 +31,17 @@ export abstract class Arbitrary<A> {
    * own mutate logic function.
    */
   abstract mutate(pick: FluentPick<A>, generator: () => number, maxNumMutations: number): FluentPick<A>[]
+
+  /**
+   * The special cases for this arbitrary, which can be used during sampling to give
+   * higher weight to certain elements.
+   */
+  cornerCases(): FluentPick<A>[] { return [] }
+
+  /**
+   * Returns the special cases derived from the extracted constants from code.
+   */
+  extractedConstants(_constants: StrategyExtractedConstants): FluentPick<A>[] { return [] }
 
   /**
    * Returns a sample of picks of a given size. Sample might contain repeated values
@@ -72,12 +84,6 @@ export abstract class Arbitrary<A> {
 
     return Array.from(result.values())
   }
-
-  /**
-   * The special cases for this arbitrary, which can be used during sampling to give
-   * higher weight to certain elements.
-   */
-  cornerCases(): FluentPick<A>[] { return [] }
 
   /**
    * Returns a sample of picks of a given size. Sample might contain repeated values

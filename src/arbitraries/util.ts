@@ -128,3 +128,10 @@ export function distinct<A>(arr: A[]): number {
   arr.forEach(x => arrMap.set(x, arrMap.has(x) ? arrMap.get(x)! + 1 : 1))
   return Array.from(arrMap.values()).filter(x => x === 1).length
 }
+
+/**
+ * Returns true if the MappedArbitrary represents a string. Otherwise, it returns false.
+ */
+export function isString(arb: string): boolean {
+  return arb.includes('a.join(\'\')')
+}

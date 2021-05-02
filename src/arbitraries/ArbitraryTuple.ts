@@ -2,6 +2,8 @@ import * as fc from './index'
 import * as util from './util'
 import {Arbitrary} from './internal'
 import {ArbitrarySize, FluentPick} from './types'
+import {computeCombinations} from '../strategies/mixins/utils'
+import {StrategyExtractedConstants} from '../strategies/FluentStrategyTypes'
 
 type UnwrapArbitrary<T> = { [P in keyof T]: T[P] extends Arbitrary<infer E> ? E : never }
 
@@ -49,6 +51,29 @@ export class ArbitraryTuple<U extends Arbitrary<any>[], A = UnwrapArbitrary<U>> 
       value: [...a.value, b.value],
       original: [...a.original, b.original]
     }))), [{value: [], original: []}])
+  }
+
+  extractedConstants(constants: StrategyExtractedConstants): FluentPick<A>[] {
+    const extractedConstants: FluentPick<A>[] = []
+    let K = this.arbitraries[0].extractedConstants(constants)
+    let V = this.arbitraries[1].extractedConstants(constants)
+
+    if (K.length === 0 && V.length === 0) return extractedConstants
+    else {
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+      K = K.length === 0 ? [this.arbitraries[0].pick(Math.random)!] : K
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+      V = V.length === 0 ? [this.arbitraries[1].pick(Math.random)!] : V
+    }
+
+    computeCombinations([K, V]).forEach(elem => {
+      extractedConstants.push({
+        value: [elem[0].value, elem[1].value] as any,
+        original: [elem[0].original, elem[1].original] as any[]
+      })
+    })
+
+    return extractedConstants.filter(x => this.canGenerate(x))
   }
 
   shrink(initial: FluentPick<A>): Arbitrary<A> {

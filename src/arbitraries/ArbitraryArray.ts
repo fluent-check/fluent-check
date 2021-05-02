@@ -4,6 +4,7 @@ import * as util from './util'
 import {FluentPick} from './types'
 import {mapArbitrarySize} from './util'
 import {Arbitrary} from './internal'
+import {StrategyExtractedConstants} from '../strategies/FluentStrategyTypes'
 
 export class ArbitraryArray<A> extends Arbitrary<A[]> {
   constructor(public arbitrary: Arbitrary<A>, public min = 0, public max = 10) {
@@ -23,7 +24,7 @@ export class ArbitraryArray<A> extends Arbitrary<A[]> {
 
   pick(generator: () => number): FluentPick<A[]> | undefined {
     const size = util.getRandomInt(this.min, this.max, generator)
-    const fpa = this.arbitrary.sample(size)
+    const fpa = this.arbitrary.sample(size, [], generator)
 
     const value = fpa.map(v => v.value)
     const original = fpa.map(v => v.original)
@@ -80,6 +81,13 @@ export class ArbitraryArray<A> extends Arbitrary<A[]> {
       {value: Array(this.min).fill(cc.value), original: Array(this.min).fill(cc.original)},
       {value: Array(this.max).fill(cc.value), original: Array(this.max).fill(cc.original)}
     ]).filter(v => v !== undefined) as FluentPick<A[]>[]
+  }
+
+  extractedConstants(constants: StrategyExtractedConstants): FluentPick<A[]>[] {
+    return this.arbitrary.extractedConstants(constants).flatMap(ec => [
+      {value: Array(this.min).fill(ec.value), original: Array(this.min).fill(ec.original)},
+      {value: Array(this.max).fill(ec.value), original: Array(this.max).fill(ec.original)}
+    ]).filter(v => v !== undefined).filter(x => this.canGenerate(x))
   }
 
   toString(depth = 0): string {
