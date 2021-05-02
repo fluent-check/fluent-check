@@ -58,7 +58,7 @@ export class ArbitraryInteger extends Arbitrary<number> {
   }
 
   canGenerate(pick: FluentPick<number>) {
-    return pick.value >= this.min && pick.value <= this.max
+    return pick.value >= this.min && pick.value <= this.max && Number.isInteger(pick.value)
   }
 
   mutate(pick: FluentPick<number>, generator: () => number, maxNumMutations: number): FluentPick<number>[] {

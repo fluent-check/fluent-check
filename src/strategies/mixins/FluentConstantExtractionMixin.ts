@@ -70,6 +70,12 @@ export function ConstantExtractionBased<TBase extends MixinStrategy>(Base: TBase
         constants.push(value, +(value + increment).toFixed(decimals), +(value - increment).toFixed(decimals))
       }
 
+      const constantsSize = constants.length
+      for (let i = 0; i < constantsSize - 1; i++)
+        for (let j = i; j < constantsSize; j++)
+          constants.push(constants[i] + constants[j], constants[i] - constants[j],
+            constants[i] * constants[j], constants[i] / constants[j])
+
       this.constants['numeric'] = [...new Set(this.constants['numeric'].concat(constants.slice(0,
         Math.min(constants.length,
           Math.max(0, this.configuration.maxNumConst - this.constants['numeric'].length)))))]
@@ -134,8 +140,8 @@ export function ConstantExtractionBased<TBase extends MixinStrategy>(Base: TBase
           if (arbitrary.canGenerate({value: elem, original: Array.from(elem as string).map(x => x.charCodeAt(0))}))
             extractedConstants.push({value: elem, original: Array.from(elem as string).map(x => x.charCodeAt(0))})
 
-      if ((arbitrary.toString().includes('Integer') || arbitrary.toString().includes('Constant'))
-            && !arbitrary.toString().includes('Array'))
+      if ((arbitrary.toString().includes('Integer') || arbitrary.toString().includes('Real') ||
+      arbitrary.toString().includes('Constant')) && !arbitrary.toString().includes('Array'))
         for (const elem of this.constants['numeric'])
           if (arbitrary.canGenerate({value: elem, original: elem}))
             extractedConstants.push({value: elem, original: elem})
