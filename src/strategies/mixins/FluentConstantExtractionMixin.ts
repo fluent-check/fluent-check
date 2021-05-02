@@ -87,15 +87,13 @@ export function ConstantExtractionBased<TBase extends MixinStrategy>(Base: TBase
     private parseStringTokens(tokens: Token[]) {
       if (this.constants['string'].length > this.configuration.maxNumConst) return
 
-      const filteredTokens = tokens.filter(token => { return token.type === 'String' })
+      const constants: string[] = tokens.filter(token => { return token.type === 'String' })
         .map(token => token.value.substring(1, token.value.length - 1))
 
-      const constants: string[] = []
-
-      for (const constant of filteredTokens) {
-        constants.push(constant, constant.slice(0, Math.floor(constant.length / 2)),
-          constant.slice(Math.floor(constant.length / 2), constant.length))
-      }
+      const constantsSize = constants.length
+      for (let i = 0; i < constantsSize; i++)
+        for (let j = i; j < constantsSize; j++)
+          constants.push(constants[i].concat(constants[j]), constants[j].concat(constants[i]))
 
       this.constants['string'] = [...new Set(this.constants['string'].concat(constants.slice(0,
         Math.min(constants.length,

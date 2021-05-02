@@ -36,19 +36,6 @@ describe('Strategy tests', () => {
       ).to.deep.include({satisfiable: true})
     })
 
-    it('should be able to extract and manipulate string constants from assertion', () => {
-      expect(fc.scenario()
-        .config(fc.strategy()
-          .withRandomSampling()
-          .withConstantExtraction()
-        )
-        .forall('a', fc.string(1, 10))
-        .forall('b', fc.string(1, 10))
-        .then(({a, b}) => a.concat(b) !== 'Hello')
-        .check()
-      ).to.deep.include({satisfiable: false})
-    })
-
     it('should be able to build and use strings with length matching the numerics extracted', () => {
       expect(fc.scenario()
         .config(fc.strategy()
