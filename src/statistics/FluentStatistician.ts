@@ -61,6 +61,9 @@ export class FluentStatistician {
     return [scCoverage, coverages]
   }
 
+  /**
+   * Calculates indexes using the defined functions and organizes them
+   */
   calculateIndexes(testCases: ValueResult<number | number[]>[]): indexCollection {
     const indexesCollection: indexCollection = {oneD: [], twoD: []}
 
