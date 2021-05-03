@@ -116,6 +116,21 @@ export class FluentStatisticianFactory {
     return this
   }
 
+  withDefaultGraphs() {
+
+    return this
+  }
+
+  withDefault1DGraphs() {
+
+    return this
+  }
+
+  withDefault2DGraphs() {
+
+    return this
+  }
+
   /**
    * Builds and returns the FluentStatistician with a specified configuration.
    */

@@ -37,6 +37,14 @@ export class ArbitrarySet<A> extends Arbitrary<A[]> {
     return {value, original}
   }
 
+  calculateIndex(pick: FluentPick<any>) {
+    let index = 0
+    pick.original.forEach(o => {
+      index += 2 ** o
+    })
+    return index
+  }
+
   shrink(initial: FluentPick<A[]>): Arbitrary<A[]> {
     if (this.min === initial.value.length) return fc.empty()
 

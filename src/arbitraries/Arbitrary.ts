@@ -26,6 +26,11 @@ export abstract class Arbitrary<A> {
   abstract canGenerate<B extends A>(pick: FluentPick<B>): boolean
 
   /**
+   * Calculates indexes for default graphs
+   */
+  abstract calculateIndex(pick: FluentPick<any>, precision?: number): number | undefined
+
+  /**
    * Calculates the input coverage of the arbitrary in question
    */
   calculateCoverage(picks: number, _?: number): number | [number, number] {
