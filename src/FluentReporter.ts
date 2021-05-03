@@ -2,7 +2,7 @@ import {FluentResult} from './FluentCheck'
 import {existsSync, createWriteStream, writeFileSync} from 'fs'
 import {ValueResult} from './arbitraries'
 import {JSDOM} from 'jsdom'
-import {select, scaleLinear, axisBottom} from 'd3'
+import {select, scaleLinear, axisBottom, axisLeft} from 'd3'
 
 export function expect(result: FluentResult): void | never {
   if (result.satisfiable) {
@@ -126,10 +126,12 @@ function generateIncrementalFileName(filename: string, extension: string) {
 }
 
 function generate1DGraphs(indexes: number[]) {
+  const minIndex = Math.min.apply(null, indexes)
   const maxIndex = Math.max.apply(null, indexes)
+  const diffIndex = maxIndex - minIndex
 
-  const margin = 25
-  const width = maxIndex*10
+  const margin = 50
+  const width = diffIndex * 4
 
   const dom = new JSDOM('<!DOCTYPE html><body></body>')
   const body = select(dom.window.document.querySelector('body'))
@@ -144,7 +146,7 @@ function generate1DGraphs(indexes: number[]) {
 
   //axis
   const x = scaleLinear()
-    .domain([0, maxIndex])
+    .domain([minIndex, maxIndex])
     .range([margin, width + margin])
   svg.append('g')
     .attr('transform', 'translate(0,' + margin + ')')
@@ -155,10 +157,10 @@ function generate1DGraphs(indexes: number[]) {
     .data(indexes)
     .enter()
     .append('rect')
-    .attr('width', 1)
-    .attr('height', 6)
+    .attr('width', 4)
+    .attr('height', 8)
     .attr('fill', 'red')
-    .attr('transform', function (v) { return 'translate(' + x(v) + ',' + (margin - 3) + ')' })
+    .attr('transform', function (v) { return 'translate(' + x(v) + ',' + (margin - 4) + ')' })
 
   const filename = generateIncrementalFileName('graph', '.svg')
   writeFileSync(filename, body.html())
@@ -166,17 +168,23 @@ function generate1DGraphs(indexes: number[]) {
 }
 
 function generate2DGraphs(indexes: [number, number][]) {
+  const minIndexX = Math.min.apply(null, indexes.map(idx => idx[0]))
   const maxIndexX = Math.max.apply(null, indexes.map(idx => idx[0]))
-  const maxIndexY = Math.max.apply(null, indexes.map(idx => idx[1]))
+  const diffIndexX = maxIndexX - minIndexX
 
-  const margin = 25
-  const width = maxIndexX*10
-  const height = maxIndexY*10
+  const minIndexY = Math.min.apply(null, indexes.map(idx => idx[1]))
+  const maxIndexY = Math.max.apply(null, indexes.map(idx => idx[1]))
+  const diffIndexY = maxIndexY - minIndexY
+
+  const margin1 = 50
+  const margin2 = 25
+  const width = diffIndexX * 4
+  const height = diffIndexY * 4
 
   const dom = new JSDOM('<!DOCTYPE html><body></body>')
   const body = select(dom.window.document.querySelector('body'))
-  const svg = body.append('svg').attr('width', width + 2 * margin)
-    .attr('height', height + 2 * margin).attr('xmlns', 'http://www.w3.org/2000/svg')
+  const svg = body.append('svg').attr('width', width + margin1 + margin2)
+    .attr('height', height + margin1 + margin2).attr('xmlns', 'http://www.w3.org/2000/svg')
 
   //background
   svg.append('rect')
@@ -186,26 +194,28 @@ function generate2DGraphs(indexes: [number, number][]) {
 
   //axis
   const x = scaleLinear()
-    .domain([0, maxIndexX])
-    .range([margin, width + margin])
+    .domain([minIndexX, maxIndexX])
+    .range([margin1, width + margin1])
   svg.append('g')
-    .attr('transform', 'translate(0,' + margin + ')')
+    .attr('transform', 'translate(0,' + (height + margin2) + ')')
     .call(axisBottom(x))
 
   const y = scaleLinear()
-    .domain([0, maxIndexY])
-    .range([margin, height + margin])
+    .domain([minIndexY, maxIndexY])
+    .range([height + margin2, margin2])
   svg.append('g')
-    .attr('transform', 'translate(' + margin + ',0)')
-    .call(axisBottom(x))
+    .attr('transform', 'translate(' + margin1 + ',0)')
+    .call(axisLeft(y))
 
   //values
   svg.selectAll('whatever')
     .data(indexes)
     .enter()
-    .attr('cx', function (d) { return x(d.x) })
-    .attr('cy', function (d) { return y(d.y) })
-    .attr('r', 1)
+    .append("circle")
+    .attr('cx', function (d) { return x(d[0]) })
+    .attr('cy', function (d) { return y(d[1]) })
+    .attr('r', 2)
+    .attr('fill', 'red')
 
   const filename = generateIncrementalFileName('graph', '.svg')
   writeFileSync(filename, body.html())
