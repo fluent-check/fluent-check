@@ -128,10 +128,9 @@ function generateIncrementalFileName(filename: string, extension: string) {
 function generate1DGraphs(indexes: number[]) {
   const minIndex = Math.min.apply(null, indexes)
   const maxIndex = Math.max.apply(null, indexes)
-  const diffIndex = maxIndex - minIndex
 
   const margin = 50
-  const width = diffIndex * 4
+  const width = 1000
 
   const dom = new JSDOM('<!DOCTYPE html><body></body>')
   const body = select(dom.window.document.querySelector('body'))
@@ -157,10 +156,10 @@ function generate1DGraphs(indexes: number[]) {
     .data(indexes)
     .enter()
     .append('rect')
-    .attr('width', 4)
+    .attr('width', 3)
     .attr('height', 8)
     .attr('fill', 'red')
-    .attr('transform', function (v) { return 'translate(' + x(v) + ',' + (margin - 4) + ')' })
+    .attr('transform', function (v) { return 'translate(' + (x(v) - 1) + ',' + (margin - 4) + ')' })
 
   const filename = generateIncrementalFileName('graph', '.svg')
   writeFileSync(filename, body.html())
@@ -170,16 +169,14 @@ function generate1DGraphs(indexes: number[]) {
 function generate2DGraphs(indexes: [number, number][]) {
   const minIndexX = Math.min.apply(null, indexes.map(idx => idx[0]))
   const maxIndexX = Math.max.apply(null, indexes.map(idx => idx[0]))
-  const diffIndexX = maxIndexX - minIndexX
 
   const minIndexY = Math.min.apply(null, indexes.map(idx => idx[1]))
   const maxIndexY = Math.max.apply(null, indexes.map(idx => idx[1]))
-  const diffIndexY = maxIndexY - minIndexY
 
   const margin1 = 50
   const margin2 = 25
-  const width = diffIndexX * 4
-  const height = diffIndexY * 4
+  const width = 1000
+  const height = 1000
 
   const dom = new JSDOM('<!DOCTYPE html><body></body>')
   const body = select(dom.window.document.querySelector('body'))
@@ -211,7 +208,7 @@ function generate2DGraphs(indexes: [number, number][]) {
   svg.selectAll('whatever')
     .data(indexes)
     .enter()
-    .append("circle")
+    .append('circle')
     .attr('cx', function (d) { return x(d[0]) })
     .attr('cy', function (d) { return y(d[1]) })
     .attr('r', 2)
