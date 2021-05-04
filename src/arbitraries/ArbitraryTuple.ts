@@ -23,49 +23,53 @@ export class ArbitraryTuple<U extends Arbitrary<any>[], A = UnwrapArbitrary<U>> 
     return {value, type, credibleInterval: [value, value]}
   }
 
-  pick(generator: () => number, precision?: number): FluentPick<A> | undefined {
+  pick(generator: () => number): FluentPick<A> | undefined {
     const value: any = []
     const original: any[] = []
 
-    let index = 0
-    const prev: Arbitrary<any>[] = []
     for (const a of this.arbitraries) {
-      const pick = a.pick(generator, precision)
+      const pick = a.pick(generator)
       if (pick === undefined) return undefined
       else {
         value.push(pick.value)
         original.push(pick.original)
-
-        let pickIdx = pick.index ?? 0
-        prev.forEach(p => {
-          pickIdx *= p.size().credibleInterval[1]
-        })
-        index += pickIdx
-        prev.push(a)
       }
     }
 
-    return {value, original, index}
+    return {value, original}
+  }
+
+  calculateIndex(pick: FluentPick<any>, precision: number) {
+    const prev: Arbitrary<any>[] = []
+    let index = 0
+    let i = 0
+
+    for (const a of this.arbitraries) {
+      const val = {value: pick.value[i], original: pick.original[i]}
+      let pickIdx = a.calculateIndex(val, precision)
+      if (pickIdx !== undefined) {
+        prev.forEach(p => {
+          if (pickIdx === undefined) return undefined
+          pickIdx *= p.size(precision).credibleInterval[1]
+        })
+        index += pickIdx
+
+        prev.push(a)
+        i++
+      } else
+        return undefined
+    }
+
+    return index
   }
 
   cornerCases(): FluentPick<A>[] {
     const cornerCases = this.arbitraries.map(a => a.cornerCases())
 
-    const sizes: number[] = []
-    for (const arb of this.arbitraries)
-      sizes.push(arb.size().credibleInterval[1])
-    const getPrevSizes = (index: number) => {
-      let size = 1
-      for (let i = 0; i < index; i++)
-        size *= sizes[i]
-      return size
-    }
-
-    return cornerCases.reduce((acc, cc, idx) => acc.flatMap(a => cc.map(b => ({
+    return cornerCases.reduce((acc, cc) => acc.flatMap(a => cc.map(b => ({
       value: [...a.value, b.value],
-      original: [...a.original, b.original],
-      index: a.index !== undefined && b.index !== undefined ? a.index + b.index * getPrevSizes(idx) : -1
-    }))), [{value: [], original: [], index: 0}])
+      original: [...a.original, b.original]
+    }))), [{value: [], original: []}])
   }
 
   shrink(initial: FluentPick<A>): Arbitrary<A> {

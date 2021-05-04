@@ -12,9 +12,13 @@ export class ArbitraryInteger extends Arbitrary<number> {
     return {value, type: 'exact', credibleInterval: [value, value]}
   }
 
-  pick(generator: () => number, _?: number) {
+  pick(generator: () => number) {
     const value = Math.floor(generator() * (this.max - this.min + 1)) + this.min
-    return {value, original: value, index: value - this.min}
+    return {value, original: value}
+  }
+
+  calculateIndex(pick: FluentPick<any>, _: number) {
+    return pick.original - this.min
   }
 
   cornerCases() {
@@ -23,7 +27,7 @@ export class ArbitraryInteger extends Arbitrary<number> {
       [0, this.min, middle, this.max] : [this.min, middle, this.max])]
       .sort((a,b) => Math.abs(a) - Math.abs(b))
 
-    return ccs.map(value => ({value, original: value, index: value - this.min}))
+    return ccs.map(value => ({value, original: value}))
   }
 
   shrink(initial: FluentPick<number>): Arbitrary<number> {

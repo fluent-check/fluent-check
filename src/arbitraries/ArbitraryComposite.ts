@@ -15,13 +15,21 @@ export class ArbitraryComposite<A> extends Arbitrary<A> {
     )
   }
 
-  pick(generator: () => number, precision?: number) {
+  pick(generator: () => number) {
     const weights = this.arbitraries.reduce(
       (acc, a) => { acc.push((acc[acc.length - 1] | 0) + a.size().value); return acc },
       new Array<number>()
     )
     const picked = Math.floor(generator() * weights[weights.length - 1])
-    return this.arbitraries[weights.findIndex(s => s > picked)].pick(generator, precision)
+    return this.arbitraries[weights.findIndex(s => s > picked)].pick(generator)
+  }
+
+  calculateIndex(pick: FluentPick<any>, precision: number) {
+    for (const a of this.arbitraries)
+      if (a.canGenerate(pick))
+        return a.calculateIndex(pick, precision)
+
+    return undefined
   }
 
   cornerCases(): FluentPick<A>[] {

@@ -9,57 +9,60 @@ describe('Indexation tests', () => {
     prng = (seed: number) => () => (seed = seed * 16807 % 2147483647) / 2147483647
   )
 
-  it('Array index is calculated correctly', () => {
-    const arb = fc.array(fc.integer(-10, 10), 2, 3)
-    const pick = arb.pick(prng(123456)) ?? {index: -1}
+  it('Indexing function contains the correct arbitrary sizes', () => {
+    const f1 = (_, sizes) => {
+      return sizes.a
+    }
+    const f2 = (_, sizes) => {
+      return sizes.b
+    }
 
-    expect(pick.index).to.equal(1325)
-    expect(arb.cornerCases().map(c => c.index)).to.eql([220, 5071, 0, 441, 440, 9701])
-  })
-
-  it('Integer index is calculated correctly', () => {
-    const arb = fc.integer(-10, 10)
-    const pick = fc.integer(-10, 10).pick(prng(9999)) ?? {index: -1}
-
-    expect(pick.index).to.equal(1)
-    expect(arb.cornerCases().map(c => c.index)).to.eql([10, 0, 20])
-  })
-
-  it('Real index is calculated correctly', () => {
-    const arb = fc.real(-1, 1)
-    const pick = arb.pick(prng(1234), 5) ?? {index: -1}
-
-    expect(pick.index).to.equal(1931)
-    expect(arb.cornerCases().map(c => c.index)).to.eql([1, 0, 2])
-  })
-
-  it('Set index is calculated correctly', () => {
-    const arb = fc.set([0, 1, 2, 3])
-    const pick = arb.pick(prng(289999999)) ?? {index: -1}
-
-    expect(pick.index).to.equal(14)
-    expect(arb.cornerCases().map(c => c.index)).to.eql([0, 15])
-  })
-
-  it('Tuple index is calculated correctly', () => {
-    const arb = fc.tuple(fc.integer(-10, 10), fc.integer(-10, 10))
-    const pick = arb.pick(prng(289999999)) ?? {index: -1}
-
-    expect(pick.index).to.equal(202)
-    expect(arb.cornerCases().map(c => c.index)).to.eql([220, 10, 430, 210, 0, 420, 230, 20, 440])
-  })
-
-  it('Input scenario indexes are calculated correctly', () => {
-    const rep = fc.scenario()
+    const sc1 = fc.scenario()
       .config(fc.strategy().defaultStrategy().withSampleSize(1))
-      .configStatistics(fc.statistics().withTestCaseOutput().withGraphics()) //so we have access to the indexes
-      .withGenerator(prng, 1234567)
-      .forall('a', fc.integer(-10, 10))
-      .forall('b', fc.integer(-20, 20))
-      .forall('c', fc.integer(-30, 30))
-      .then(({a, b, c}) => a + b + c === a + b + c)
-      .check()
+      .configStatistics(fc.statistics().withAll().with1DGraph(f1))
+      .withGenerator(prng, 1234)
+      .forall('a', fc.integer(0, 100))
+      .forall('b', fc.integer(50, 250))
+      .then(({a, b}) => a + b === a + b)
+    const sc2 = fc.scenario()
+      .config(fc.strategy().defaultStrategy().withSampleSize(1))
+      .configStatistics(fc.statistics().withAll().with1DGraph(f2))
+      .withGenerator(prng, 1234)
+      .forall('a', fc.integer(0, 100))
+      .forall('b', fc.integer(50, 250))
+      .then(({a, b}) => a + b === a + b)
 
-    expect(rep.inputScenarioIndexes[0]).to.equal(20845)
+    expect(sc1.check().indexesForGraphs.oneD[0][0]).to.equal(101)
+    expect(sc2.check().indexesForGraphs.oneD[0][0]).to.equal(201)
+  })
+
+  it('Array default index is calculated correctly', () => {
+    const arb = fc.array(fc.integer(-10, 10), 2, 3)
+
+    expect(arb.calculateIndex({value: [5, -1, 4], original: [5, -1, 4]}, 2)).to.equal(6819)
+  })
+
+  it('Integer default index is calculated correctly', () => {
+    const arb = fc.integer(-10, 10)
+
+    expect(arb.calculateIndex({value: -9, original: -9})).to.equal(1)
+  })
+
+  it('Real default index is calculated correctly', () => {
+    const arb = fc.real(-1, 1)
+
+    expect(arb.calculateIndex({value: 0.9310004, original: 0.9310004}, 3)).to.equal(1931)
+  })
+
+  it('Set default index is calculated correctly', () => {
+    const arb = fc.set([0, 1, 2, 3])
+
+    expect(arb.calculateIndex({value: [1, 2, 3], original: [1, 2, 3]})).to.eql(14)
+  })
+
+  it('Tuple default index is calculated correctly', () => {
+    const arb = fc.tuple(fc.integer(-10, 10), fc.integer(-10, 10))
+
+    expect(arb.calculateIndex({value: [3, -1], original:  [3, -1]}, 5)).to.equal(202)
   })
 })

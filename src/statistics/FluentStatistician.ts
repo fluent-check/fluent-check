@@ -1,4 +1,4 @@
-import {ArbitraryCoverage, ScenarioCoverage, ValueResult} from '../arbitraries'
+import {ArbitraryCoverage, graphs, indexCollection, ScenarioCoverage, ValueResult} from '../arbitraries'
 import {StrategyArbitraries} from '../strategies/FluentStrategyTypes'
 
 export type FluentReporterConfig = {
@@ -6,14 +6,14 @@ export type FluentReporterConfig = {
   withInputSpaceCoverage: boolean,
   withOutputOnSuccess: boolean,
   withConfidenceLevel: boolean,
-  withGraphics: boolean
+  withGraphs: boolean
 }
 
 export type FluentStatConfig = {
   realPrecision: number,
   gatherTestCases: boolean,
   gatherArbitraryTestCases: boolean,
-  calculateInputScenarioIndexes: boolean
+  withDefaultGraphs: boolean
 }
 
 export class FluentStatistician {
@@ -27,7 +27,8 @@ export class FluentStatistician {
    * Default constructor.
    */
   constructor(public readonly configuration: FluentStatConfig,
-    public readonly reporterConfiguration: FluentReporterConfig) {
+    public readonly reporterConfiguration: FluentReporterConfig,
+    public graphs: graphs) {
   }
 
   /**
@@ -61,32 +62,50 @@ export class FluentStatistician {
     return [scCoverage, coverages]
   }
 
-  calculateInputScenarioIndexes(testCases: ValueResult<any>[]) {
-    const arbSizes = {}
+  /**
+   * Calculates indexes using the defined functions and organizes them
+   */
+  calculateIndexes(
+    testCases: ValueResult<number | number[]>[],
+    values: ValueResult<any>[]
+  ): indexCollection {
+    const indexesCollection: indexCollection = {oneD: [], twoD: []}
+
+    const sizes: ValueResult<number> = {}
     for (const k in this.arbitraries)
-      arbSizes[k] = this.arbitraries[k].arbitrary.size(this.configuration.realPrecision).credibleInterval[1]
+      sizes[k] = this.arbitraries[k].arbitrary.size(this.configuration.realPrecision).credibleInterval[1]
 
-    const indexedTestCases: number[] = testCases.map(x => {
-      let testIdx = 0
-      const prev: string[] = []
-      for (const k in x) {
-        let arbIdx = x[k].index
-        prev.forEach(p => {
-          arbIdx *= arbSizes[p]
-        })
-        testIdx += arbIdx
-        prev.push(k)
+    if (this.configuration.withDefaultGraphs)
+      for (const k in this.arbitraries) {
+        const indexes: number[] = []
+        for (const i in testCases) {
+          const val = {value: values[i][k], original: testCases[i][k]}
+          indexes.push(this.arbitraries[k].arbitrary.calculateIndex(val, this.configuration.realPrecision))
+        }
+        indexesCollection.oneD.push(indexes)
       }
-      return testIdx
-    })
+    for (const f of this.graphs.oneD) {
+      const indexes: number[] = []
+      for (const tc of testCases)
+        indexes.push(f(tc, sizes))
+      indexesCollection.oneD.push(indexes)
+    }
 
-    return indexedTestCases
+    for (const f of this.graphs.twoD) {
+      const indexes: [number, number][] = []
+      for (const tc of testCases)
+        indexes.push(f(tc, sizes))
+      indexesCollection.twoD.push(indexes)
+    }
+
+    return indexesCollection
   }
 
   /**
    * This function calculates the confidence level of the scenario
    */
-  calculateConfidenceLevel(indexes: number[]) {
+  calculateConfidenceLevel() {
+    /*
     const n = indexes.length
     const mean = indexes.reduce((acc, idx) => acc + idx, 0)/n
     const stdDev = () => {
@@ -100,5 +119,7 @@ export class FluentStatistician {
     const z = confIntHalf * Math.sqrt(n) / stdDev()
 
     return z
+    */
+    return 0
   }
 }

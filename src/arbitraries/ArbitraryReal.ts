@@ -1,5 +1,5 @@
 import {ArbitraryInteger} from './internal'
-import {ArbitrarySize} from './types'
+import {ArbitrarySize, FluentPick} from './types'
 
 export class ArbitraryReal extends ArbitraryInteger {
   constructor(public min = Number.MIN_SAFE_INTEGER, public max = Number.MAX_SAFE_INTEGER) {
@@ -11,10 +11,13 @@ export class ArbitraryReal extends ArbitraryInteger {
     return {value, type: 'exact', credibleInterval: [value, value]}
   }
 
-  pick(generator: () => number, precision?: number)  {
+  pick(generator: () => number)  {
     const value = generator() * (this.max - this.min) + this.min
-    const index = precision !== undefined ? Math.floor((value - this.min) * 10 ** precision) : value - this.min
-    return {value, original: value, index}
+    return {value, original: value}
+  }
+
+  calculateIndex(pick: FluentPick<any>, precision: number) {
+    return Math.floor((pick.original - this.min) * 10 ** precision)
   }
 
   calculateCoverage(picks: number, precision: number): number {
