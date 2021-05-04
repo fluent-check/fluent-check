@@ -25,9 +25,19 @@ export class ArbitraryComposite<A> extends Arbitrary<A> {
   }
 
   calculateIndex(pick: FluentPick<any>, precision: number) {
-    for (const a of this.arbitraries)
-      if (a.canGenerate(pick))
-        return a.calculateIndex(pick, precision)
+    const prev: Arbitrary<any>[] = []
+
+    for (const a of this.arbitraries){
+      if (a.canGenerate(pick)) {
+        let pickIdx = a.calculateIndex(pick, precision)
+        prev.forEach(p => {
+          if (pickIdx === undefined) return undefined
+          pickIdx += p.size(precision).credibleInterval[1]
+        })
+        return pickIdx
+      } else
+        prev.push(a)
+    }
 
     return undefined
   }

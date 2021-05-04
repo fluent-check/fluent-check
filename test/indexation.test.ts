@@ -37,9 +37,9 @@ describe('Indexation tests', () => {
   })
 
   it('Array default index is calculated correctly', () => {
-    const arb = fc.array(fc.integer(-10, 10), 2, 3)
+    const arb = fc.array(fc.array(fc.integer(-10, 10), 1, 1), 2, 3)
 
-    expect(arb.calculateIndex({value: [5, -1, 4], original: [5, -1, 4]}, 2)).to.equal(6819)
+    expect(arb.calculateIndex({value: [[5], [-1], [4]], original: [[5], [-1], [4]]}, 2)).to.equal(6819)
   })
 
   it('Integer default index is calculated correctly', () => {
@@ -55,14 +55,14 @@ describe('Indexation tests', () => {
   })
 
   it('Set default index is calculated correctly', () => {
-    const arb = fc.set([0, 1, 2, 3])
+    const arb = fc.set(['a', 'b', 'c', 'd'])
 
-    expect(arb.calculateIndex({value: [1, 2, 3], original: [1, 2, 3]})).to.eql(14)
+    expect(arb.calculateIndex({value: ['b', 'c', 'd'], original: [1, 2, 3]})).to.eql(14)
   })
 
   it('Tuple default index is calculated correctly', () => {
-    const arb = fc.tuple(fc.integer(-10, 10), fc.integer(-10, 10))
+    const arb = fc.tuple(fc.tuple(fc.integer(-10, 10), fc.union(fc.string(1, 1), fc.string(2, 2))), fc.integer(-10, 10))
 
-    expect(arb.calculateIndex({value: [3, -1], original:  [3, -1]}, 5)).to.equal(202)
+    expect(arb.calculateIndex({value: [[-9, '  '], -1], original:  [[-9, [32, 32]], -1]}, 5)).to.equal(1725676)
   })
 })
