@@ -9,6 +9,13 @@ export type ArbitrarySize = {
   credibleInterval: [number, number]
 }
 
+export type PrintInfo = {
+  unwrapped: ValueResult<any>[],
+  time: number[],
+  result: boolean[]
+}
+
+export type WrapFluentPick<T> = { [P in keyof T]: FluentPick<T[P]> }
 export type ValueResult<V> = Record<string, V>
 
 type Without<T, U> = { [P in Exclude<keyof T, keyof U>]?: never }

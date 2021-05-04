@@ -1,5 +1,5 @@
 import {Arbitrary, ArbitraryCoverage, FluentPick, FluentRandomGenerator,
-  indexCollection, ScenarioCoverage, ValueResult} from './arbitraries'
+  indexCollection, PrintInfo, ScenarioCoverage, ValueResult} from './arbitraries'
 import {FluentStatistician} from './statistics/FluentStatistician'
 import {FluentStatisticianFactory} from './statistics/FluentStatisticianFactory'
 import {FluentStrategy} from './strategies/FluentStrategy'
@@ -8,7 +8,12 @@ import now from 'performance-now'
 
 type WrapFluentPick<T> = { [P in keyof T]: FluentPick<T[P]> }
 type PickResult<V> = Record<string, FluentPick<V>>
-type TestCases = {wrapped: WrapFluentPick<any>[], unwrapped: ValueResult<any>[]}
+type TestCases = {
+  wrapped: WrapFluentPick<any>[],
+  unwrapped: ValueResult<any>[],
+  time: number[],
+  result: boolean[]
+}
 
 export class FluentResult {
   constructor(
@@ -20,7 +25,7 @@ export class FluentResult {
     public readonly withInputSpaceCoverage: boolean = false,
     public readonly withOutputOnSuccess: boolean = false,
     public readonly withGraphs: boolean = false,
-    public readonly testCases: ValueResult<any>[] = [],
+    public readonly testCases: PrintInfo = {unwrapped: [], time: [], result: []},
     public readonly coverages: [ScenarioCoverage, ArbitraryCoverage] = [0, {}],
     public readonly indexesForGraphs: indexCollection = {oneD: [], twoD: []}) {}
 
@@ -92,7 +97,7 @@ export class FluentCheck<Rec extends ParentRec, ParentRec extends {}> {
   }
 
   check(child: (testCase: WrapFluentPick<any>) => FluentResult = () => new FluentResult(true),
-    testCases: TestCases = {wrapped: [], unwrapped: []}): FluentResult {
+    testCases: TestCases = {wrapped: [], unwrapped: [], time: [], result: []}): FluentResult {
     if (this.parent !== undefined) return this.parent.check(testCase => this.run(testCase, child, testCases), testCases)
     else {
       this.strategy.randomGenerator.initialize()
@@ -107,7 +112,7 @@ export class FluentCheck<Rec extends ParentRec, ParentRec extends {}> {
         this.statistician.reporterConfiguration.withInputSpaceCoverage,
         this.statistician.reporterConfiguration.withOutputOnSuccess,
         this.statistician.reporterConfiguration.withGraphs,
-        testCases.unwrapped,
+        testCases,
         this.statistician.reporterConfiguration.withInputSpaceCoverage ?
           this.statistician.calculateCoverages(new Set(testCases.unwrapped.map(x=>JSON.stringify(x))).size) : undefined,
         this.statistician.reporterConfiguration.withGraphs ?
@@ -279,15 +284,19 @@ class FluentCheckAssert<Rec extends ParentRec, ParentRec extends {}> extends Flu
   protected run(testCase: WrapFluentPick<Rec>,
     callback: (arg: WrapFluentPick<Rec>) => FluentResult,
     testCases: TestCases): FluentResult {
-
     const unwrappedTestCase = FluentCheck.unwrapFluentPick(testCase)
+
+    let result
     if (this.statistician.configuration.gatherTestCases) {
       testCases.wrapped.push({...testCase})
       testCases.unwrapped.push(unwrappedTestCase)
-    }
-    return this.assertion({...unwrappedTestCase, ...this.runPreliminaries(unwrappedTestCase)} as Rec) ?
-      callback(testCase) :
-      new FluentResult(false)
+      const start = now()
+      result = this.assertion({...unwrappedTestCase, ...this.runPreliminaries(unwrappedTestCase)} as Rec)
+      testCases.time.push(now() - start)
+      testCases.result.push(result)
+    } else
+      result = this.assertion({...unwrappedTestCase, ...this.runPreliminaries(unwrappedTestCase)} as Rec)
+    return result === true ? callback(testCase) : new FluentResult(false)
   }
 }
 

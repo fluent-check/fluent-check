@@ -1,6 +1,6 @@
 import {FluentResult} from './FluentCheck'
 import {existsSync, createWriteStream, writeFileSync} from 'fs'
-import {ValueResult} from './arbitraries'
+import {PrintInfo} from './arbitraries'
 import {JSDOM} from 'jsdom'
 import {select, scaleLinear, axisBottom, axisLeft} from 'd3'
 
@@ -48,7 +48,7 @@ function assembleInfo(result: FluentResult): string {
 
   if (result.withTestCaseOutput) {
     msg.push('\nNumber of tested cases: ')
-    msg.push(result.testCases.length.toString())
+    msg.push(result.testCases.unwrapped.length.toString())
 
     msg.push('\nTested cases written to ')
     msg.push(writeTestCases(result.testCases))
@@ -86,24 +86,25 @@ function assembleInfo(result: FluentResult): string {
   return msg.join('')
 }
 
-function writeTestCases(testCases: ValueResult<any>[]): string {
+function writeTestCases(testCases: PrintInfo): string {
   const filename = generateIncrementalFileName('scenario', '.csv')
   const stream = createWriteStream(filename)
 
-  const arbs: string[] = []
-  for (const arb in testCases[0])
-    arbs.push(arb)
-  const nArbs = arbs.length
-  for (let i = 0; i < nArbs; i++) {
-    stream.write(arbs[i])
-    i < nArbs - 1 ? stream.write(',') : stream.write('\n')
+  for (const arb in testCases.unwrapped[0]) {
+    stream.write(arb)
+    stream.write(',')
   }
+  stream.write('time,result\n')
 
-  testCases.forEach(e => {
-    for (let i = 0; i < nArbs; i++) {
-      stream.write(e[arbs[i]].toString())
-      i < nArbs - 1 ? stream.write(',') : stream.write('\n')
+  testCases.unwrapped.forEach((e, i) => {
+    for (const arb in e) {
+      stream.write(e[arb].toString())
+      stream.write(',')
     }
+    stream.write(testCases.time[i].toString())
+    stream.write(',')
+    stream.write(testCases.result[i].toString())
+    stream.write('\n')
   })
 
   return filename

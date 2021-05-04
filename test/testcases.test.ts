@@ -17,7 +17,7 @@ describe('Test case tests', () => {
       .forall('b', fc.integer(-10, 10))
       .then(({a, b}) => a+b === b+a)
 
-    expect(sc1.check().testCases).to.not.eql([])
+    expect(sc1.check().testCases.unwrapped).to.not.eql([])
   })
 
   it('Test cases contain the correct arbitraries', () => {
@@ -29,7 +29,7 @@ describe('Test case tests', () => {
       .forall('b', fc.integer(-10, 10))
       .then(({a, b}) => a+b === b+a)
 
-    expect(sc1.check().testCases[0]).to.satisfy((tc) => { return 'a' in tc && 'b' in tc })
+    expect(sc1.check().testCases.unwrapped[0]).to.satisfy((tc) => { return 'a' in tc && 'b' in tc })
   })
 
   describe('Same type as arbitrary', () => {
@@ -41,7 +41,7 @@ describe('Test case tests', () => {
         .forall('a', fc.array(fc.integer(-10, 10), 1, 1))
         .then(({a}) => a === a)
 
-      expect(sc1.check().testCases[0].a).to.satisfy((a) => {
+      expect(sc1.check().testCases.unwrapped[0].a).to.satisfy((a) => {
         return fc.array(fc.integer(-10, 10), 1, 1).canGenerate({value: a, original: a})
       })
     })
@@ -54,7 +54,7 @@ describe('Test case tests', () => {
         .forall('a', fc.boolean())
         .then(({a}) => a === a)
 
-      expect(sc1.check().testCases[0].a).to.satisfy((a) => {
+      expect(sc1.check().testCases.unwrapped[0].a).to.satisfy((a) => {
         return fc.boolean().canGenerate({value: a, original: a})
       })
     })
@@ -67,7 +67,7 @@ describe('Test case tests', () => {
         .exists('a', fc.union(fc.string(1, 1), fc.string(1, 1)))
         .then(({a}) => a === a)
 
-      expect(sc1.check().testCases[0].a).to.satisfy((a) => {
+      expect(sc1.check().testCases.unwrapped[0].a).to.satisfy((a) => {
         return fc.union(fc.string(1, 1), fc.string(1, 1)).canGenerate({value: a, original: [a.codePointAt(0)]})
       })
     })
@@ -80,7 +80,7 @@ describe('Test case tests', () => {
         .forall('a', fc.constant(5))
         .then(({a}) => a === 5)
 
-      expect(sc1.check().testCases[0].a).to.satisfy((a) => {
+      expect(sc1.check().testCases.unwrapped[0].a).to.satisfy((a) => {
         return fc.constant(5).canGenerate({value: a, original: a})
       })
     })
@@ -93,7 +93,7 @@ describe('Test case tests', () => {
         .forall('a', fc.integer(-10, 10))
         .then(({a}) => a === a)
 
-      expect(sc1.check().testCases[0].a).to.satisfy((a) => {
+      expect(sc1.check().testCases.unwrapped[0].a).to.satisfy((a) => {
         return fc.integer(-10, 10).canGenerate({value: a, original: a})
       })
     })
@@ -106,7 +106,7 @@ describe('Test case tests', () => {
         .forall('a', fc.real(-10, 10))
         .then(({a}) => a === a)
 
-      expect(sc1.check().testCases[0].a).to.satisfy((a) => {
+      expect(sc1.check().testCases.unwrapped[0].a).to.satisfy((a) => {
         return fc.real(-10, 10).canGenerate({value: a, original: a})
       })
     })
@@ -119,7 +119,7 @@ describe('Test case tests', () => {
         .forall('a', fc.set([1, 2, 3]))
         .then(({a}) => a === a)
 
-      expect(sc1.check().testCases[0].a).to.satisfy((a) => {
+      expect(sc1.check().testCases.unwrapped[0].a).to.satisfy((a) => {
         return fc.set([1, 2, 3]).canGenerate({value: a, original: a})
       })
     })
@@ -132,7 +132,7 @@ describe('Test case tests', () => {
         .forall('a', fc.tuple(fc.integer(-10, 10), fc.string(1, 1)))
         .then(({a}) => a === a)
 
-      expect(sc1.check().testCases[0].a).to.satisfy((a) => {
+      expect(sc1.check().testCases.unwrapped[0].a).to.satisfy((a) => {
         return fc.tuple(fc.integer(-10, 10), fc.string(1, 1)).canGenerate({
           value: a,
           original: a.map(x => typeof x == 'string' ? [x.codePointAt(0)] : x)
@@ -148,7 +148,7 @@ describe('Test case tests', () => {
         .forall('a', fc.integer(2, 2).chain(i => fc.array(fc.constant(i), i, i)))
         .then(({a}) => a === a)
 
-      expect(sc1.check().testCases[0].a).to.satisfy((a) => {
+      expect(sc1.check().testCases.unwrapped[0].a).to.satisfy((a) => {
         return fc.integer(2, 2).chain(i => fc.array(fc.constant(i), i, i)).canGenerate({value: a, original: a})
       })
     })
@@ -161,7 +161,7 @@ describe('Test case tests', () => {
         .forall('a', fc.integer(-10,10).filter(n => n > 0))
         .then(({a}) => a === a)
 
-      expect(sc1.check().testCases[0].a).to.satisfy((a) => {
+      expect(sc1.check().testCases.unwrapped[0].a).to.satisfy((a) => {
         return fc.integer(-10,10).filter(n => n > 0).canGenerate({value: a, original: a})
       })
     })
