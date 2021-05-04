@@ -12,7 +12,8 @@ export type FluentReporterConfig = {
 export type FluentStatConfig = {
   realPrecision: number,
   gatherTestCases: boolean,
-  gatherArbitraryTestCases: boolean
+  gatherArbitraryTestCases: boolean,
+  withDefaultGraphs: boolean
 }
 
 export class FluentStatistician {
@@ -64,13 +65,25 @@ export class FluentStatistician {
   /**
    * Calculates indexes using the defined functions and organizes them
    */
-  calculateIndexes(testCases: ValueResult<number | number[]>[]): indexCollection {
+  calculateIndexes(
+    testCases: ValueResult<number | number[]>[],
+    values: ValueResult<any>[]
+  ): indexCollection {
     const indexesCollection: indexCollection = {oneD: [], twoD: []}
 
     const sizes: ValueResult<number> = {}
     for (const k in this.arbitraries)
       sizes[k] = this.arbitraries[k].arbitrary.size(this.configuration.realPrecision).credibleInterval[1]
 
+    if (this.configuration.withDefaultGraphs)
+      for (const k in this.arbitraries) {
+        const indexes: number[] = []
+        for (const i in testCases) {
+          const val = {value: values[i][k], original: testCases[i][k]}
+          indexes.push(this.arbitraries[k].arbitrary.calculateIndex(val, this.configuration.realPrecision))
+        }
+        indexesCollection.oneD.push(indexes)
+      }
     for (const f of this.graphs.oneD) {
       const indexes: number[] = []
       for (const tc of testCases)

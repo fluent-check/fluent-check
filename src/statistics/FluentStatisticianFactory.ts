@@ -25,7 +25,8 @@ export class FluentStatisticianFactory {
   public configuration: FluentStatConfig = {
     realPrecision: 3,
     gatherTestCases: false,
-    gatherArbitraryTestCases: false
+    gatherArbitraryTestCases: false,
+    withDefaultGraphs: false
   }
 
   public graphs: graphs = {oneD: [], twoD: []}
@@ -96,7 +97,7 @@ export class FluentStatisticianFactory {
   }
 
   /**
-   * Enables all options
+   * Enables all options except graph related ones
    */
   withAll(precision?: number) {
     this.repConfiguration = {
@@ -109,25 +110,20 @@ export class FluentStatisticianFactory {
     this.configuration = {
       realPrecision: 3,
       gatherTestCases: true,
-      gatherArbitraryTestCases: true
+      gatherArbitraryTestCases: true,
+      withDefaultGraphs: false
     }
     if (precision !== undefined)
       this.configuration = {...this.configuration,realPrecision: precision}
     return this
   }
 
+  /**
+   * Enables creation of default graphs
+   */
   withDefaultGraphs() {
-
-    return this
-  }
-
-  withDefault1DGraphs() {
-
-    return this
-  }
-
-  withDefault2DGraphs() {
-
+    this.repConfiguration = {...this.repConfiguration, withGraphs: true}
+    this.configuration = {...this.configuration, withDefaultGraphs: true}
     return this
   }
 
