@@ -73,7 +73,8 @@ export class FluentStrategy implements FluentStrategyInterface {
    * Generates a once a collection of inputs for a given arbitrary
    */
   buildArbitraryCollection<A>(arbitrary: Arbitrary<A>, sampleSize = this.configuration.sampleSize): FluentPick<A>[] {
-    return this.isDedupable() ? arbitrary.sampleUnique(sampleSize, [], this.randomGenerator.generator) :
+    return this.isDedupable() ?
+      arbitrary.sampleUnique(sampleSize, [], this.randomGenerator.generator) :
       arbitrary.sample(sampleSize, this.randomGenerator.generator)
   }
 

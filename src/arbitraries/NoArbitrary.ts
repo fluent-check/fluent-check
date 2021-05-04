@@ -3,6 +3,7 @@ import {Arbitrary} from './internal'
 
 export const NoArbitrary: Arbitrary<never> = new class extends Arbitrary<never> {
   pick(): FluentPick<never> | undefined { return undefined }
+  calculateIndex(_: FluentPick<any>) { return undefined }
   size(): ArbitrarySize { return {value: 0, type: 'exact', credibleInterval: [0, 0]} }
   calculateCoverage(_: number): number { return 1 }
   sampleWithBias(): FluentPick<never>[] { return [] }

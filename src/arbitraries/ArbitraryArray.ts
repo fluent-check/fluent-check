@@ -8,20 +8,21 @@ export class ArbitraryArray<A> extends Arbitrary<A[]> {
     super()
   }
 
+  sizeUpTo = (v: number, max: number) => {
+    return v === 1 ? max + 1 : (1 - v ** (max + 1)) / (1 - v)
+  }
+
   size() {
     // https://en.wikipedia.org/wiki/Geometric_progression#Geometric_series
-    const sizeUpTo = (v: number, max: number) => {
-      return v === 1 ? max + 1 : (1 - v ** (max + 1)) / (1 - v)
-    }
     return mapArbitrarySize(this.arbitrary.size(), v => {
-      const value = sizeUpTo(v, this.max) - sizeUpTo(v, this.min - 1)
+      const value = this.sizeUpTo(v, this.max) - this.sizeUpTo(v, this.min - 1)
       return {type: 'exact', value, credibleInterval: [value, value]}
     })
   }
 
   pick(generator: () => number): FluentPick<A[]> | undefined {
     const size = Math.floor(generator() * (this.max - this.min + 1)) + this.min
-    const fpa = this.arbitrary.sample(size)
+    const fpa = this.arbitrary.sample(size, generator)
 
     const value = fpa.map(v => v.value)
     const original = fpa.map(v => v.original)
@@ -30,6 +31,22 @@ export class ArbitraryArray<A> extends Arbitrary<A[]> {
       value,
       original: original.every(o => o === undefined) ? value : original
     }
+  }
+
+  calculateIndex(pick: FluentPick<any>, precision: number) {
+    const arbSize = this.arbitrary.size(precision).credibleInterval[1]
+    const indexes: number[] = []
+    for (const i in pick.original) {
+      const val = {value: pick.value[i], original: pick.original[i]}
+      const idx = this.arbitrary.calculateIndex(val, precision)
+      if (idx === undefined)
+        return undefined
+      else
+        indexes.push(idx)
+    }
+
+    return indexes.reduce((acc, n, idx) => acc + n * arbSize ** idx,
+      this.sizeUpTo(arbSize, indexes.length - 1) - this.sizeUpTo(arbSize, this.min - 1))
   }
 
   shrink(initial: FluentPick<A[]>): Arbitrary<A[]> {
@@ -49,8 +66,10 @@ export class ArbitraryArray<A> extends Arbitrary<A[]> {
 
   cornerCases(): FluentPick<A[]>[] {
     return this.arbitrary.cornerCases().flatMap(cc => [
-      {value: Array(this.min).fill(cc.value), original: Array(this.min).fill(cc.original)},
-      {value: Array(this.max).fill(cc.value), original: Array(this.max).fill(cc.original)}
+      {value: Array(this.min).fill(cc.value),
+        original: Array(this.min).fill(cc.original)},
+      {value: Array(this.max).fill(cc.value),
+        original: Array(this.max).fill(cc.original)}
     ]).filter(v => v !== undefined) as FluentPick<A[]>[]
   }
 

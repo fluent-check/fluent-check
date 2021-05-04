@@ -23,13 +23,26 @@ export class ArbitrarySet<A> extends Arbitrary<A[]> {
   pick(generator: () => number): FluentPick<A[]> | undefined {
     const size = Math.floor(generator() * (this.max - this.min + 1)) + this.min
     const pick = new Set<A>()
+    const pick_o = new Set<number>()
 
-    while (pick.size !== size)
-      pick.add(this.elements[Math.floor(generator() * this.elements.length)])
+    while (pick.size !== size) {
+      const idx = Math.floor(generator() * this.elements.length)
+      pick.add(this.elements[idx])
+      pick_o.add(idx)
+    }
 
     const value = Array.from(pick).sort()
+    const original = Array.from(pick_o).sort()
 
-    return {value, original: value}
+    return {value, original}
+  }
+
+  calculateIndex(pick: FluentPick<any>) {
+    let index = 0
+    pick.original.forEach(o => {
+      index += 2 ** o
+    })
+    return index
   }
 
   shrink(initial: FluentPick<A[]>): Arbitrary<A[]> {
@@ -54,7 +67,8 @@ export class ArbitrarySet<A> extends Arbitrary<A[]> {
     const max: A[] = []
     for (let i = 0; i < this.max; i++) max.push(this.elements[i])
 
-    return [{value: min, original: min}, {value: max, original: max}]
+    return [{value: min, original: min},
+      {value: max, original: max}]
   }
 
   toString(depth = 0) {

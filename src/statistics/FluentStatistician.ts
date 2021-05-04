@@ -1,16 +1,18 @@
-import {ArbitraryCoverage, ScenarioCoverage} from '../arbitraries'
+import {ArbitraryCoverage, graphs, indexCollection, ScenarioCoverage, ValueResult} from '../arbitraries'
 import {StrategyArbitraries} from '../strategies/FluentStrategyTypes'
 
 export type FluentReporterConfig = {
   withTestCaseOutput: boolean,
   withInputSpaceCoverage: boolean,
-  withOutputOnSuccess: boolean
+  withOutputOnSuccess: boolean,
+  withGraphs: boolean
 }
 
 export type FluentStatConfig = {
   realPrecision: number,
   gatherTestCases: boolean,
-  gatherArbitraryTestCases: boolean
+  gatherArbitraryTestCases: boolean,
+  withDefaultGraphs: boolean
 }
 
 export class FluentStatistician {
@@ -24,7 +26,8 @@ export class FluentStatistician {
    * Default constructor.
    */
   constructor(public readonly configuration: FluentStatConfig,
-    public readonly reporterConfiguration: FluentReporterConfig) {
+    public readonly reporterConfiguration: FluentReporterConfig,
+    public graphs: graphs) {
   }
 
   /**
@@ -56,5 +59,44 @@ export class FluentStatistician {
         Math.round(ntestCases / scInterval[0] * 10000000)/100000]
 
     return [scCoverage, coverages]
+  }
+
+  /**
+   * Calculates indexes using the defined functions and organizes them
+   */
+  calculateIndexes(
+    testCases: ValueResult<number | number[]>[],
+    values: ValueResult<any>[]
+  ): indexCollection {
+    const indexesCollection: indexCollection = {oneD: [], twoD: []}
+
+    const sizes: ValueResult<number> = {}
+    for (const k in this.arbitraries)
+      sizes[k] = this.arbitraries[k].arbitrary.size(this.configuration.realPrecision).credibleInterval[1]
+
+    if (this.configuration.withDefaultGraphs)
+      for (const k in this.arbitraries) {
+        const indexes: number[] = []
+        for (const i in testCases) {
+          const val = {value: values[i][k], original: testCases[i][k]}
+          indexes.push(this.arbitraries[k].arbitrary.calculateIndex(val, this.configuration.realPrecision))
+        }
+        indexesCollection.oneD.push(indexes)
+      }
+    for (const f of this.graphs.oneD) {
+      const indexes: number[] = []
+      for (const tc of testCases)
+        indexes.push(f(tc, sizes))
+      indexesCollection.oneD.push(indexes)
+    }
+
+    for (const f of this.graphs.twoD) {
+      const indexes: [number, number][] = []
+      for (const tc of testCases)
+        indexes.push(f(tc, sizes))
+      indexesCollection.twoD.push(indexes)
+    }
+
+    return indexesCollection
   }
 }

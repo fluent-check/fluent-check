@@ -24,6 +24,24 @@ export class ArbitraryComposite<A> extends Arbitrary<A> {
     return this.arbitraries[weights.findIndex(s => s > picked)].pick(generator)
   }
 
+  calculateIndex(pick: FluentPick<any>, precision: number) {
+    const prev: Arbitrary<any>[] = []
+
+    for (const a of this.arbitraries) {
+      if (a.canGenerate(pick)) {
+        let pickIdx = a.calculateIndex(pick, precision)
+        prev.forEach(p => {
+          if (pickIdx === undefined) return undefined
+          pickIdx += p.size(precision).credibleInterval[1]
+        })
+        return pickIdx
+      } else
+        prev.push(a)
+    }
+
+    return undefined
+  }
+
   cornerCases(): FluentPick<A>[] {
     return this.arbitraries.flatMap(a => a.cornerCases())
   }
