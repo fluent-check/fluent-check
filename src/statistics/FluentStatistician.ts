@@ -5,7 +5,6 @@ export type FluentReporterConfig = {
   withTestCaseOutput: boolean,
   withInputSpaceCoverage: boolean,
   withOutputOnSuccess: boolean,
-  withConfidenceLevel: boolean,
   withGraphs: boolean
 }
 
@@ -99,12 +98,5 @@ export class FluentStatistician {
     }
 
     return indexesCollection
-  }
-
-  /**
-   * This function calculates the confidence level of the scenario
-   */
-  calculateConfidenceLevel() {
-    return 0
   }
 }

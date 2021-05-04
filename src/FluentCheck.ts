@@ -19,12 +19,10 @@ export class FluentResult {
     public readonly withTestCaseOutput: boolean = false,
     public readonly withInputSpaceCoverage: boolean = false,
     public readonly withOutputOnSuccess: boolean = false,
-    public readonly withConfidenceLevel: boolean = false,
     public readonly withGraphs: boolean = false,
     public readonly testCases: ValueResult<any>[] = [],
     public readonly coverages: [ScenarioCoverage, ArbitraryCoverage] = [0, {}],
-    public readonly indexesForGraphs: indexCollection = {oneD: [], twoD: []},
-    public readonly confidenceLevel: number = 0) {}
+    public readonly indexesForGraphs: indexCollection = {oneD: [], twoD: []}) {}
 
   addExample<A>(name: string, value: FluentPick<A>) {
     this.example[name] = value
@@ -108,16 +106,13 @@ export class FluentCheck<Rec extends ParentRec, ParentRec extends {}> {
         this.statistician.reporterConfiguration.withTestCaseOutput,
         this.statistician.reporterConfiguration.withInputSpaceCoverage,
         this.statistician.reporterConfiguration.withOutputOnSuccess,
-        this.statistician.reporterConfiguration.withConfidenceLevel,
         this.statistician.reporterConfiguration.withGraphs,
         testCases.unwrapped,
         this.statistician.reporterConfiguration.withInputSpaceCoverage ?
           this.statistician.calculateCoverages(new Set(testCases.unwrapped.map(x=>JSON.stringify(x))).size) : undefined,
         this.statistician.reporterConfiguration.withGraphs ?
           this.statistician.calculateIndexes(testCases.wrapped.map(e => FluentCheck.unwrapFluentPickOriginal(e)),
-            testCases.unwrapped) : undefined,
-        this.statistician.reporterConfiguration.withConfidenceLevel ?
-          this.statistician.calculateConfidenceLevel() : undefined
+            testCases.unwrapped) : undefined
       )
     }
   }

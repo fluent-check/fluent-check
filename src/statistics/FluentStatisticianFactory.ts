@@ -15,7 +15,6 @@ export class FluentStatisticianFactory {
     withTestCaseOutput: false,
     withInputSpaceCoverage: false,
     withOutputOnSuccess: false,
-    withConfidenceLevel: false,
     withGraphs: false
   }
 
@@ -66,15 +65,6 @@ export class FluentStatisticianFactory {
   }
 
   /**
-   * Enables the calculation of the confidence level
-   */
-  withConfidenceLevel() {
-    this.repConfiguration = {...this.repConfiguration, withConfidenceLevel: true}
-    this.configuration = {...this.configuration, gatherTestCases: true}
-    return this
-  }
-
-  /**
    * States that a graph should be generated using the specified indexing function that can only return
    * 1 value due to it generating a 1D graph
    */
@@ -104,7 +94,6 @@ export class FluentStatisticianFactory {
       withTestCaseOutput: true,
       withInputSpaceCoverage: true,
       withOutputOnSuccess: true,
-      withConfidenceLevel: true,
       withGraphs: false
     }
     this.configuration = {

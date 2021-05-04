@@ -70,12 +70,6 @@ function assembleInfo(result: FluentResult): string {
   } else
     msg.push('\n')
 
-  if (result.withConfidenceLevel) {
-    msg.push('\nConfidence level: ')
-    msg.push(JSON.stringify(result.confidenceLevel))
-    msg.push('%\n')
-  }
-
   if (result.withGraphs) {
     for (const g of result.indexesForGraphs.oneD) {
       msg.push('\n1D graph created in ')
