@@ -91,14 +91,14 @@ function writeTestCases(testCases: PrintInfo): string {
   const stream = createWriteStream(filename)
 
   for (const arb in testCases.unwrapped[0]) {
-    stream.write(arb)
+    stream.write(JSON.stringify(arb).replace(/,/g , ';'))
     stream.write(',')
   }
   stream.write('time,result\n')
 
   testCases.unwrapped.forEach((e, i) => {
     for (const arb in e) {
-      stream.write(e[arb].toString())
+      stream.write(JSON.stringify(e[arb]).replace(/,/g , ' '))
       stream.write(',')
     }
     stream.write(testCases.time[i].toString())
