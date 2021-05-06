@@ -22,3 +22,7 @@ export {
   tuple,
   oneof
 } from './arbitraries'
+export {
+  PBTS1,
+  PBTS2
+} from './strategies'
