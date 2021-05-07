@@ -32,8 +32,8 @@ describe('Indexation tests', () => {
       .forall('b', fc.integer(50, 250))
       .then(({a, b}) => a + b === a + b)
 
-    expect(sc1.check().indexesForGraphs.oneD[0][0]).to.equal(101)
-    expect(sc2.check().indexesForGraphs.oneD[0][0]).to.equal(201)
+    expect(sc1.check().indexesForGraphs.oneD[0].indexes[0]).to.equal(101)
+    expect(sc2.check().indexesForGraphs.oneD[0].indexes[0]).to.equal(201)
   })
 
   it('Array default index is calculated correctly', () => {

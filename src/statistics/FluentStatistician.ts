@@ -1,4 +1,4 @@
-import {ArbitraryCoverage, graphs, indexCollection, ScenarioCoverage, TestCases, ValueResult} from '../arbitraries'
+import {ArbitraryCoverage, Graphs, IndexCollection, ScenarioCoverage, TestCases, ValueResult} from '../arbitraries'
 import {FluentCheck} from '../FluentCheck'
 import {StrategyArbitraries} from '../strategies/FluentStrategyTypes'
 
@@ -7,7 +7,8 @@ export type FluentReporterConfig = {
   withInputSpaceCoverage: boolean,
   withOutputOnSuccess: boolean,
   withGraphs: boolean,
-  csvPath?: string
+  csvPath?: string,
+  graphsPath?: string
 }
 
 export type FluentStatConfig = {
@@ -29,7 +30,7 @@ export class FluentStatistician {
    */
   constructor(public readonly configuration: FluentStatConfig,
     public readonly reporterConfiguration: FluentReporterConfig,
-    public graphs: graphs) {
+    public graphs: Graphs) {
   }
 
   /**
@@ -66,8 +67,8 @@ export class FluentStatistician {
   /**
    * Calculates indexes using the defined functions and organizes them
    */
-  calculateIndexes(testCases: TestCases): indexCollection {
-    const indexesCollection: indexCollection = {oneD: [], twoD: []}
+  calculateIndexes(testCases: TestCases): IndexCollection {
+    const indexesCollection: IndexCollection = {oneD: [], twoD: []}
     const values = testCases.unwrapped
     const original = testCases.wrapped.map(e => FluentCheck.unwrapFluentPickOriginal(e))
     const times = testCases.time
@@ -84,20 +85,20 @@ export class FluentStatistician {
           const val = {value: values[i][k], original: original[i][k]}
           indexes.push(this.arbitraries[k].arbitrary.calculateIndex(val, this.configuration.realPrecision))
         }
-        indexesCollection.oneD.push(indexes)
+        indexesCollection.oneD.push({path: this.reporterConfiguration.graphsPath ?? '' + k + '.svg', indexes})
       }
-    for (const f of this.graphs.oneD) {
+    for (const g of this.graphs.oneD) {
       const indexes: number[] = []
       for (const i in original)
-        indexes.push(f(original[i], sizes, times[i], results[i]))
-      indexesCollection.oneD.push(indexes)
+        indexes.push(g.graph(original[i], sizes, times[i], results[i]))
+      indexesCollection.oneD.push({path: g.path, indexes})
     }
 
-    for (const f of this.graphs.twoD) {
+    for (const g of this.graphs.twoD) {
       const indexes: [number, number][] = []
       for (const i in original)
-        indexes.push(f(original[i], sizes, times[i], results[i]))
-      indexesCollection.twoD.push(indexes)
+        indexes.push(g.graph(original[i], sizes, times[i], results[i]))
+      indexesCollection.twoD.push({path: g.path, indexes})
     }
 
     return indexesCollection

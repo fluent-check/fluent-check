@@ -1,5 +1,5 @@
 import {Arbitrary, ArbitraryCoverage, FluentPick, FluentRandomGenerator,
-  indexCollection, PrintInfo, ScenarioCoverage, ValueResult, TestCases} from './arbitraries'
+  IndexCollection, PrintInfo, ScenarioCoverage, ValueResult, TestCases} from './arbitraries'
 import {FluentStatistician} from './statistics/FluentStatistician'
 import {FluentStatisticianFactory} from './statistics/FluentStatisticianFactory'
 import {FluentStrategy} from './strategies/FluentStrategy'
@@ -22,7 +22,7 @@ export class FluentResult {
     public readonly csvPath?: string,
     public readonly testCases: PrintInfo = {unwrapped: [], time: [], result: []},
     public readonly coverages: [ScenarioCoverage, ArbitraryCoverage] = [0, {}],
-    public readonly indexesForGraphs: indexCollection = {oneD: [], twoD: []}) {}
+    public readonly indexesForGraphs: IndexCollection = {oneD: [], twoD: []}) {}
 
   addExample<A>(name: string, value: FluentPick<A>) {
     this.example[name] = value

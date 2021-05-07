@@ -1,6 +1,6 @@
 import {FluentResult} from './FluentCheck'
 import {existsSync, createWriteStream, writeFileSync} from 'fs'
-import {PrintInfo} from './arbitraries'
+import {PrintInfo, IndexPath1D, IndexPath2D} from './arbitraries'
 import {JSDOM} from 'jsdom'
 import {select, scaleLinear, axisBottom, axisLeft} from 'd3'
 
@@ -119,9 +119,9 @@ function generateIncrementalFileName(filename: string, extension: string) {
   return filepath
 }
 
-function generate1DGraphs(indexes: number[]) {
-  const minIndex = Math.min.apply(null, indexes)
-  const maxIndex = Math.max.apply(null, indexes)
+function generate1DGraphs(graph: IndexPath1D) {
+  const minIndex = Math.min.apply(null, graph.indexes)
+  const maxIndex = Math.max.apply(null, graph.indexes)
 
   const margin = 50
   const width = 1000
@@ -147,7 +147,7 @@ function generate1DGraphs(indexes: number[]) {
 
   //values
   svg.selectAll('whatever')
-    .data(indexes)
+    .data(graph.indexes)
     .enter()
     .append('rect')
     .attr('width', 3)
@@ -155,17 +155,17 @@ function generate1DGraphs(indexes: number[]) {
     .attr('fill', 'red')
     .attr('transform', function (v) { return 'translate(' + (x(v) - 1) + ',' + (margin - 4) + ')' })
 
-  const filename = generateIncrementalFileName('graph', '.svg')
+  const filename = graph.path ?? generateIncrementalFileName('graph', '.svg')
   writeFileSync(filename, body.html())
   return filename
 }
 
-function generate2DGraphs(indexes: [number, number][]) {
-  const minIndexX = Math.min.apply(null, indexes.map(idx => idx[0]))
-  const maxIndexX = Math.max.apply(null, indexes.map(idx => idx[0]))
+function generate2DGraphs(graph: IndexPath2D) {
+  const minIndexX = Math.min.apply(null, graph.indexes.map(idx => idx[0]))
+  const maxIndexX = Math.max.apply(null, graph.indexes.map(idx => idx[0]))
 
-  const minIndexY = Math.min.apply(null, indexes.map(idx => idx[1]))
-  const maxIndexY = Math.max.apply(null, indexes.map(idx => idx[1]))
+  const minIndexY = Math.min.apply(null, graph.indexes.map(idx => idx[1]))
+  const maxIndexY = Math.max.apply(null, graph.indexes.map(idx => idx[1]))
 
   const margin1 = 50
   const margin2 = 25
@@ -200,7 +200,7 @@ function generate2DGraphs(indexes: [number, number][]) {
 
   //values
   svg.selectAll('whatever')
-    .data(indexes)
+    .data(graph.indexes)
     .enter()
     .append('circle')
     .attr('cx', function (d) { return x(d[0]) })
@@ -208,7 +208,7 @@ function generate2DGraphs(indexes: [number, number][]) {
     .attr('r', 2)
     .attr('fill', 'red')
 
-  const filename = generateIncrementalFileName('graph', '.svg')
+  const filename = graph.path ?? generateIncrementalFileName('graph', '.svg')
   writeFileSync(filename, body.html())
   return filename
 }
