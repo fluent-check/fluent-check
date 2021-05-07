@@ -112,7 +112,7 @@ export class FluentStatisticianFactory {
    */
   withDefaultGraphs() {
     this.repConfiguration = {...this.repConfiguration, withGraphs: true}
-    this.configuration = {...this.configuration, withDefaultGraphs: true}
+    this.configuration = {...this.configuration, gatherTestCases: true, withDefaultGraphs: true}
     return this
   }
 

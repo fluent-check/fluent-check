@@ -1,4 +1,5 @@
-import {ArbitraryCoverage, graphs, indexCollection, ScenarioCoverage, ValueResult} from '../arbitraries'
+import {ArbitraryCoverage, graphs, indexCollection, ScenarioCoverage, TestCases, ValueResult} from '../arbitraries'
+import {FluentCheck} from '../FluentCheck'
 import {StrategyArbitraries} from '../strategies/FluentStrategyTypes'
 
 export type FluentReporterConfig = {
@@ -64,11 +65,12 @@ export class FluentStatistician {
   /**
    * Calculates indexes using the defined functions and organizes them
    */
-  calculateIndexes(
-    testCases: ValueResult<number | number[]>[],
-    values: ValueResult<any>[]
-  ): indexCollection {
+  calculateIndexes(testCases: TestCases): indexCollection {
     const indexesCollection: indexCollection = {oneD: [], twoD: []}
+    const values = testCases.unwrapped
+    const original = testCases.wrapped.map(e => FluentCheck.unwrapFluentPickOriginal(e))
+    const times = testCases.time
+    const results = testCases.result
 
     const sizes: ValueResult<number> = {}
     for (const k in this.arbitraries)
@@ -85,15 +87,15 @@ export class FluentStatistician {
       }
     for (const f of this.graphs.oneD) {
       const indexes: number[] = []
-      for (const tc of testCases)
-        indexes.push(f(tc, sizes))
+      for (const i in original)
+        indexes.push(f(original[i], sizes, times[i], results[i]))
       indexesCollection.oneD.push(indexes)
     }
 
     for (const f of this.graphs.twoD) {
       const indexes: [number, number][] = []
-      for (const tc of testCases)
-        indexes.push(f(tc, sizes))
+      for (const i in original)
+        indexes.push(f(original[i], sizes, times[i], results[i]))
       indexesCollection.twoD.push(indexes)
     }
 

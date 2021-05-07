@@ -1,5 +1,5 @@
 import {Arbitrary, ArbitraryCoverage, FluentPick, FluentRandomGenerator,
-  indexCollection, PrintInfo, ScenarioCoverage, ValueResult} from './arbitraries'
+  indexCollection, PrintInfo, ScenarioCoverage, ValueResult, TestCases} from './arbitraries'
 import {FluentStatistician} from './statistics/FluentStatistician'
 import {FluentStatisticianFactory} from './statistics/FluentStatisticianFactory'
 import {FluentStrategy} from './strategies/FluentStrategy'
@@ -8,12 +8,6 @@ import now from 'performance-now'
 
 type WrapFluentPick<T> = { [P in keyof T]: FluentPick<T[P]> }
 type PickResult<V> = Record<string, FluentPick<V>>
-type TestCases = {
-  wrapped: WrapFluentPick<any>[],
-  unwrapped: ValueResult<any>[],
-  time: number[],
-  result: boolean[]
-}
 
 export class FluentResult {
   constructor(
@@ -116,8 +110,7 @@ export class FluentCheck<Rec extends ParentRec, ParentRec extends {}> {
         this.statistician.reporterConfiguration.withInputSpaceCoverage ?
           this.statistician.calculateCoverages(new Set(testCases.unwrapped.map(x=>JSON.stringify(x))).size) : undefined,
         this.statistician.reporterConfiguration.withGraphs ?
-          this.statistician.calculateIndexes(testCases.wrapped.map(e => FluentCheck.unwrapFluentPickOriginal(e)),
-            testCases.unwrapped) : undefined
+          this.statistician.calculateIndexes(testCases) : undefined
       )
     }
   }

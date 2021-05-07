@@ -9,6 +9,13 @@ export type ArbitrarySize = {
   credibleInterval: [number, number]
 }
 
+export type TestCases = {
+  wrapped: WrapFluentPick<any>[],
+  unwrapped: ValueResult<any>[],
+  time: number[],
+  result: boolean[]
+}
+
 export type PrintInfo = {
   unwrapped: ValueResult<any>[],
   time: number[],
@@ -24,8 +31,10 @@ export type XOR<T, U> = (T | U) extends object ? (Without<T, U> & U) | (Without<
 export type ArbitraryCoverage = Record<string, number | [number, number]>
 export type ScenarioCoverage = number | [number, number]
 
-export type graph1D = (testCase: ValueResult<number | number[]>, sizes: ValueResult<number>) => number
-export type graph2D = (testCase: ValueResult<number | number[]>, sizes: ValueResult<number>) => [number, number]
+export type graph1D = (testCase: ValueResult<number | number[]>,
+  sizes: ValueResult<number>, execTime: number, result: boolean) => number
+export type graph2D = (testCase: ValueResult<number | number[]>,
+  sizes: ValueResult<number>, execTime: number, result: boolean) => [number, number]
 export type graphs = {oneD: graph1D[], twoD: graph2D[]}
 export type indexCollection = {oneD: number[][], twoD: [number,number][][]}
 
