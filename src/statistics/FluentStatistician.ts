@@ -79,8 +79,8 @@ export class FluentStatistician {
     if (this.configuration.withDefaultGraphs)
       for (const k in this.arbitraries) {
         const indexes: number[] = []
-        for (const i in testCases) {
-          const val = {value: values[i][k], original: testCases[i][k]}
+        for (const i in original) {
+          const val = {value: values[i][k], original: original[i][k]}
           indexes.push(this.arbitraries[k].arbitrary.calculateIndex(val, this.configuration.realPrecision))
         }
         indexesCollection.oneD.push(indexes)
