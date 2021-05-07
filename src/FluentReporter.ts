@@ -51,7 +51,7 @@ function assembleInfo(result: FluentResult): string {
     msg.push(result.testCases.unwrapped.length.toString())
 
     msg.push('\nTested cases written to ')
-    msg.push(writeTestCases(result.testCases))
+    msg.push(writeTestCases(result.testCases, result.csvPath))
   }
 
   if (result.withInputSpaceCoverage) {
@@ -86,9 +86,8 @@ function assembleInfo(result: FluentResult): string {
   return msg.join('')
 }
 
-function writeTestCases(testCases: PrintInfo): string {
-  const filename = generateIncrementalFileName('scenario', '.csv')
-  const stream = createWriteStream(filename)
+function writeTestCases(testCases: PrintInfo, csvPath = generateIncrementalFileName('scenario', '.csv')): string {
+  const stream = createWriteStream(csvPath)
 
   for (const arb in testCases.unwrapped[0]) {
     stream.write(JSON.stringify(arb).replace(/,/g , ';'))
@@ -107,7 +106,7 @@ function writeTestCases(testCases: PrintInfo): string {
     stream.write('\n')
   })
 
-  return filename
+  return csvPath
 }
 
 function generateIncrementalFileName(filename: string, extension: string) {

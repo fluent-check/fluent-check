@@ -19,6 +19,7 @@ export class FluentResult {
     public readonly withInputSpaceCoverage: boolean = false,
     public readonly withOutputOnSuccess: boolean = false,
     public readonly withGraphs: boolean = false,
+    public readonly csvPath?: string,
     public readonly testCases: PrintInfo = {unwrapped: [], time: [], result: []},
     public readonly coverages: [ScenarioCoverage, ArbitraryCoverage] = [0, {}],
     public readonly indexesForGraphs: indexCollection = {oneD: [], twoD: []}) {}
@@ -106,6 +107,7 @@ export class FluentCheck<Rec extends ParentRec, ParentRec extends {}> {
         this.statistician.reporterConfiguration.withInputSpaceCoverage,
         this.statistician.reporterConfiguration.withOutputOnSuccess,
         this.statistician.reporterConfiguration.withGraphs,
+        this.statistician.reporterConfiguration.csvPath,
         testCases,
         this.statistician.reporterConfiguration.withInputSpaceCoverage ?
           this.statistician.calculateCoverages(new Set(testCases.unwrapped.map(x=>JSON.stringify(x))).size) : undefined,

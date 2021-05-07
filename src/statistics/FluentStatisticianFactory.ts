@@ -15,7 +15,8 @@ export class FluentStatisticianFactory {
     withTestCaseOutput: false,
     withInputSpaceCoverage: false,
     withOutputOnSuccess: false,
-    withGraphs: false
+    withGraphs: false,
+    csvPath: undefined
   }
 
   /**
@@ -33,8 +34,8 @@ export class FluentStatisticianFactory {
   /**
    * Enables the gathering of information and presentation of statistics which results in higher execution time.
    */
-  withTestCaseOutput() {
-    this.repConfiguration = {...this.repConfiguration, withTestCaseOutput: true}
+  withTestCaseOutput(csvPath?: string) {
+    this.repConfiguration = {...this.repConfiguration, withTestCaseOutput: true, csvPath}
     this.configuration = {...this.configuration, gatherTestCases: true}
     return this
   }
@@ -89,12 +90,13 @@ export class FluentStatisticianFactory {
   /**
    * Enables all options except graph related ones
    */
-  withAll(precision?: number) {
+  withAll(csvPath?: string) {
     this.repConfiguration = {
       withTestCaseOutput: true,
       withInputSpaceCoverage: true,
       withOutputOnSuccess: true,
-      withGraphs: false
+      withGraphs: false,
+      csvPath
     }
     this.configuration = {
       realPrecision: 3,
@@ -102,8 +104,6 @@ export class FluentStatisticianFactory {
       gatherArbitraryTestCases: true,
       withDefaultGraphs: false
     }
-    if (precision !== undefined)
-      this.configuration = {...this.configuration,realPrecision: precision}
     return this
   }
 

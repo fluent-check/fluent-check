@@ -6,7 +6,8 @@ export type FluentReporterConfig = {
   withTestCaseOutput: boolean,
   withInputSpaceCoverage: boolean,
   withOutputOnSuccess: boolean,
-  withGraphs: boolean
+  withGraphs: boolean,
+  csvPath?: string
 }
 
 export type FluentStatConfig = {
