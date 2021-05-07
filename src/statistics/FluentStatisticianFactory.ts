@@ -77,7 +77,7 @@ export class FluentStatisticianFactory {
       graphPath += '.svg'
     this.repConfiguration = {...this.repConfiguration, withGraphs: true}
     this.configuration = {...this.configuration, gatherTestCases: true}
-    this.graphs.oneD.push({path: graphPath, graph: f})
+    this.graphs.oneD.push({path: graphPath, func: f})
     return this
   }
 
@@ -90,7 +90,7 @@ export class FluentStatisticianFactory {
       graphPath += '.svg'
     this.repConfiguration = {...this.repConfiguration, withGraphs: true}
     this.configuration = {...this.configuration, gatherTestCases: true}
-    this.graphs.twoD.push({path: graphPath, graph: f})
+    this.graphs.twoD.push({path: graphPath, func: f})
     return this
   }
 

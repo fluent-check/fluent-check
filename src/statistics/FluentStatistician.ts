@@ -90,14 +90,14 @@ export class FluentStatistician {
     for (const g of this.graphs.oneD) {
       const indexes: number[] = []
       for (const i in original)
-        indexes.push(g.graph(original[i], sizes, times[i], results[i]))
+        indexes.push(g.func(original[i], sizes, times[i], results[i]))
       indexesCollection.oneD.push({path: g.path, indexes})
     }
 
     for (const g of this.graphs.twoD) {
       const indexes: [number, number][] = []
       for (const i in original)
-        indexes.push(g.graph(original[i], sizes, times[i], results[i]))
+        indexes.push(g.func(original[i], sizes, times[i], results[i]))
       indexesCollection.twoD.push({path: g.path, indexes})
     }
 
