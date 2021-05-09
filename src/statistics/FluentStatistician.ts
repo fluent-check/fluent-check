@@ -87,17 +87,24 @@ export class FluentStatistician {
         }
         indexesCollection.oneD.push({path: this.reporterConfiguration.graphsPath ?? '' + k + '.svg', indexes})
       }
+
     for (const g of this.graphs.oneD) {
       const indexes: number[] = []
-      for (const i in original)
-        indexes.push(g.func(original[i], sizes, times[i], results[i]))
+      for (const i in original) {
+        const index = g.func(original[i], sizes, times[i], results[i])
+        if (index !== undefined)
+          indexes.push(index)
+      }
       indexesCollection.oneD.push({path: g.path, indexes})
     }
 
     for (const g of this.graphs.twoD) {
       const indexes: [number, number][] = []
-      for (const i in original)
-        indexes.push(g.func(original[i], sizes, times[i], results[i]))
+      for (const i in original) {
+        const index = g.func(original[i], sizes, times[i], results[i])
+        if (index !== undefined)
+          indexes.push(index)
+      }
       indexesCollection.twoD.push({path: g.path, indexes})
     }
 

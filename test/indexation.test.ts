@@ -17,23 +17,31 @@ describe('Indexation tests', () => {
       return sizes.b
     }
 
-    const sc1 = fc.scenario()
+    const sc = fc.scenario()
       .config(fc.strategy().defaultStrategy().withSampleSize(1))
-      .configStatistics(fc.statistics().withAll().with1DGraph(f1))
-      .withGenerator(prng, 1234)
-      .forall('a', fc.integer(0, 100))
-      .forall('b', fc.integer(50, 250))
-      .then(({a, b}) => a + b === a + b)
-    const sc2 = fc.scenario()
-      .config(fc.strategy().defaultStrategy().withSampleSize(1))
-      .configStatistics(fc.statistics().withAll().with1DGraph(f2))
+      .configStatistics(fc.statistics().withAll().with1DGraph(f1).with1DGraph(f2))
       .withGenerator(prng, 1234)
       .forall('a', fc.integer(0, 100))
       .forall('b', fc.integer(50, 250))
       .then(({a, b}) => a + b === a + b)
 
-    expect(sc1.check().indexesForGraphs.oneD[0].indexes[0]).to.equal(101)
-    expect(sc2.check().indexesForGraphs.oneD[0].indexes[0]).to.equal(201)
+    expect(sc.check().indexesForGraphs.oneD[0].indexes[0]).to.equal(101)
+    expect(sc.check().indexesForGraphs.oneD[1].indexes[0]).to.equal(201)
+  })
+
+  it('Indexing function can remove inputs by returning undefined', () => {
+    const f = (tc) => {
+      return tc.a === 5 ? tc.a : undefined
+    }
+
+    const sc = fc.scenario()
+      .config(fc.strategy().defaultStrategy().withSampleSize(5))
+      .configStatistics(fc.statistics().withAll().with1DGraph(f))
+      .withGenerator(prng, 1234)
+      .forall('a', fc.integer(1, 5))
+      .then(({a}) => a === a)
+
+    expect(sc.check().indexesForGraphs.oneD[0].indexes).to.eql([5])
   })
 
   it('Array default index is calculated correctly', () => {
