@@ -120,8 +120,8 @@ function generateIncrementalFileName(filename: string, extension: string) {
 }
 
 function generate1DGraphs(graph: IndexPath1D) {
-  const minIndex = Math.min.apply(null, graph.indexes)
-  const maxIndex = Math.max.apply(null, graph.indexes)
+  const minIndex = Math.min.apply(null, graph.indexes.map(o => o.value))
+  const maxIndex = Math.max.apply(null, graph.indexes.map(o => o.value))
 
   const margin = 50
   const width = 1000
@@ -152,8 +152,8 @@ function generate1DGraphs(graph: IndexPath1D) {
     .append('rect')
     .attr('width', 3)
     .attr('height', 8)
-    .attr('fill', 'red')
-    .attr('transform', function (v) { return 'translate(' + (x(v) - 1) + ',' + (margin - 4) + ')' })
+    .attr('fill', function (d) { return d.color ?? 'red' })
+    .attr('transform', function (d) { return 'translate(' + (x(d.value) - 1) + ',' + (margin - 4) + ')' })
 
   const filename = graph.path ?? generateIncrementalFileName('graph', '.svg')
   writeFileSync(filename, body.html())
@@ -161,11 +161,11 @@ function generate1DGraphs(graph: IndexPath1D) {
 }
 
 function generate2DGraphs(graph: IndexPath2D) {
-  const minIndexX = Math.min.apply(null, graph.indexes.map(idx => idx[0]))
-  const maxIndexX = Math.max.apply(null, graph.indexes.map(idx => idx[0]))
+  const minIndexX = Math.min.apply(null, graph.indexes.map(idx => idx.valueX))
+  const maxIndexX = Math.max.apply(null, graph.indexes.map(idx => idx.valueX))
 
-  const minIndexY = Math.min.apply(null, graph.indexes.map(idx => idx[1]))
-  const maxIndexY = Math.max.apply(null, graph.indexes.map(idx => idx[1]))
+  const minIndexY = Math.min.apply(null, graph.indexes.map(idx => idx.valueY))
+  const maxIndexY = Math.max.apply(null, graph.indexes.map(idx => idx.valueY))
 
   const margin1 = 50
   const margin2 = 25
@@ -203,10 +203,10 @@ function generate2DGraphs(graph: IndexPath2D) {
     .data(graph.indexes)
     .enter()
     .append('circle')
-    .attr('cx', function (d) { return x(d[0]) })
-    .attr('cy', function (d) { return y(d[1]) })
+    .attr('cx', function (d) { return x(d.valueX) })
+    .attr('cy', function (d) { return y(d.valueY) })
     .attr('r', 2)
-    .attr('fill', 'red')
+    .attr('fill', function (d) { return d.color ?? 'red' })
 
   const filename = graph.path ?? generateIncrementalFileName('graph', '.svg')
   writeFileSync(filename, body.html())

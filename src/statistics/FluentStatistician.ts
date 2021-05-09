@@ -1,4 +1,5 @@
-import {ArbitraryCoverage, Graphs, IndexCollection, ScenarioCoverage, TestCases, ValueResult} from '../arbitraries'
+import {ArbitraryCoverage, Graphs, IndexCollection, ScenarioCoverage, TestCases,
+  ValueResult, Data1D, Data2D} from '../arbitraries'
 import {FluentCheck} from '../FluentCheck'
 import {StrategyArbitraries} from '../strategies/FluentStrategyTypes'
 
@@ -80,29 +81,30 @@ export class FluentStatistician {
 
     if (this.configuration.withDefaultGraphs)
       for (const k in this.arbitraries) {
-        const indexes: number[] = []
+        const indexes: Data1D[] = []
         for (const i in original) {
-          const val = {value: values[i][k], original: original[i][k]}
-          indexes.push(this.arbitraries[k].arbitrary.calculateIndex(val, this.configuration.realPrecision))
+          const input = {value: values[i][k], original: original[i][k]}
+          const value = this.arbitraries[k].arbitrary.calculateIndex(input, this.configuration.realPrecision)
+          indexes.push({value})
         }
-        indexesCollection.oneD.push({path: this.reporterConfiguration.graphsPath ?? '' + k + '.svg', indexes})
+        indexesCollection.oneD.push({path: (this.reporterConfiguration.graphsPath ?? '') + k + '.svg', indexes})
       }
 
     for (const g of this.graphs.oneD) {
-      const indexes: number[] = []
+      const indexes: Data1D[] = []
       for (const i in original) {
         const index = g.func(original[i], sizes, times[i], results[i])
-        if (index !== undefined)
+        if (index !== undefined && index.value !== undefined)
           indexes.push(index)
       }
       indexesCollection.oneD.push({path: g.path, indexes})
     }
 
     for (const g of this.graphs.twoD) {
-      const indexes: [number, number][] = []
+      const indexes: Data2D[] = []
       for (const i in original) {
         const index = g.func(original[i], sizes, times[i], results[i])
-        if (index !== undefined)
+        if (index !== undefined && index.valueX !== undefined && index.valueY !== undefined)
           indexes.push(index)
       }
       indexesCollection.twoD.push({path: g.path, indexes})

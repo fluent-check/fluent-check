@@ -31,17 +31,19 @@ export type XOR<T, U> = (T | U) extends object ? (Without<T, U> & U) | (Without<
 export type ArbitraryCoverage = Record<string, number | [number, number]>
 export type ScenarioCoverage = number | [number, number]
 
+export type Data1D = {value?: number, color?: string}
 export type Graph1D = (testCase: ValueResult<number | number[]>,
-  sizes: ValueResult<number>, execTime: number, result: boolean) => number
+  sizes: ValueResult<number>, execTime: number, result: boolean) => Data1D | undefined
+export type Data2D = {valueX?: number, valueY?: number, color?: string}
 export type Graph2D = (testCase: ValueResult<number | number[]>,
-  sizes: ValueResult<number>, execTime: number, result: boolean) => [number, number]
+  sizes: ValueResult<number>, execTime: number, result: boolean) => Data2D | undefined
 
 type GraphPath1D = {path?: string, func: Graph1D}
 type GraphPath2D = {path?: string, func: Graph2D}
 export type Graphs = {oneD: GraphPath1D[], twoD: GraphPath2D[]}
 
-export type IndexPath1D = {path?: string, indexes: number[]}
-export type IndexPath2D = {path?: string, indexes: [number, number][]}
+export type IndexPath1D = {path?: string, indexes: Data1D[]}
+export type IndexPath2D = {path?: string, indexes: Data2D[]}
 export type IndexCollection = {oneD: IndexPath1D[], twoD: IndexPath2D[]}
 
 export class FluentRandomGenerator {

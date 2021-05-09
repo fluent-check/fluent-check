@@ -11,10 +11,10 @@ describe('Indexation tests', () => {
 
   it('Indexing function contains the correct arbitrary sizes', () => {
     const f1 = (_, sizes) => {
-      return sizes.a
+      return {value: sizes.a}
     }
     const f2 = (_, sizes) => {
-      return sizes.b
+      return {value: sizes.b}
     }
 
     const sc = fc.scenario()
@@ -25,23 +25,32 @@ describe('Indexation tests', () => {
       .forall('b', fc.integer(50, 250))
       .then(({a, b}) => a + b === a + b)
 
-    expect(sc.check().indexesForGraphs.oneD[0].indexes[0]).to.equal(101)
-    expect(sc.check().indexesForGraphs.oneD[1].indexes[0]).to.equal(201)
+    expect(sc.check().indexesForGraphs.oneD[0].indexes[0].value).to.equal(101)
+    expect(sc.check().indexesForGraphs.oneD[1].indexes[0].value).to.equal(201)
   })
 
   it('Indexing function can remove inputs by returning undefined', () => {
-    const f = (tc) => {
-      return tc.a === 5 ? tc.a : undefined
-    }
+    const f1 = (tc) => { return tc.a === 5 ? {value: tc.a} : undefined }
+    const f2 = (tc) => { return tc.a === 5 ? {value: tc.a} : {value: undefined} }
+    const f3 = (tc) => { return tc.a === 5 ? {valueX: tc.a, valueY: tc.a} : undefined }
+    const f4 = (tc) => { return tc.a === 5 ? {valueX: tc.a, valueY: tc.a} : {valueX: tc.a, valueY: undefined} }
+    const f5 = (tc) => { return tc.a === 5 ? {valueX: tc.a, valueY: tc.a} : {valueX: undefined, valueY: tc.a} }
+    const f6 = (tc) => { return tc.a === 5 ? {valueX: tc.a, valueY: tc.a} : {valueX: undefined, valueY: undefined} }
 
     const sc = fc.scenario()
       .config(fc.strategy().defaultStrategy().withSampleSize(5))
-      .configStatistics(fc.statistics().withAll().with1DGraph(f))
+      .configStatistics(fc.statistics().withAll().with1DGraph(f1).with1DGraph(f2)
+        .with2DGraph(f3).with2DGraph(f4).with2DGraph(f5).with2DGraph(f6))
       .withGenerator(prng, 1234)
       .forall('a', fc.integer(1, 5))
       .then(({a}) => a === a)
 
-    expect(sc.check().indexesForGraphs.oneD[0].indexes).to.eql([5])
+    expect(sc.check().indexesForGraphs.oneD[0].indexes.map(o => o.value)).to.eql([5])
+    expect(sc.check().indexesForGraphs.oneD[1].indexes.map(o => o.value)).to.eql([5])
+    expect(sc.check().indexesForGraphs.twoD[0].indexes.map(o => [o.valueX, o.valueY])).to.eql([[5,5]])
+    expect(sc.check().indexesForGraphs.twoD[1].indexes.map(o => [o.valueX, o.valueY])).to.eql([[5,5]])
+    expect(sc.check().indexesForGraphs.twoD[2].indexes.map(o => [o.valueX, o.valueY])).to.eql([[5,5]])
+    expect(sc.check().indexesForGraphs.twoD[3].indexes.map(o => [o.valueX, o.valueY])).to.eql([[5,5]])
   })
 
   it('Array default index is calculated correctly', () => {
