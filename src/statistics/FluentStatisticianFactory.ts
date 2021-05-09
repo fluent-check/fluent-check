@@ -1,4 +1,4 @@
-import {Graph1D, Graph2D, Graphs} from '../arbitraries'
+import {Graph1D, Graph2D, Graphs, CsvFilter} from '../arbitraries'
 import {FluentStatistician, FluentStatConfig, FluentReporterConfig} from './FluentStatistician'
 
 export class FluentStatisticianFactory {
@@ -17,6 +17,7 @@ export class FluentStatisticianFactory {
     withOutputOnSuccess: false,
     withGraphs: false,
     csvPath: undefined,
+    csvFilter: undefined,
     graphsPath: undefined
   }
 
@@ -35,10 +36,10 @@ export class FluentStatisticianFactory {
   /**
    * Enables the gathering of information and presentation of statistics which results in higher execution time.
    */
-  withTestCaseOutput(csvPath?: string) {
+  withTestCaseOutput(csvPath?: string, csvFilter?: CsvFilter) {
     if (csvPath !== undefined)
       csvPath += '.csv'
-    this.repConfiguration = {...this.repConfiguration, withTestCaseOutput: true, csvPath}
+    this.repConfiguration = {...this.repConfiguration, withTestCaseOutput: true, csvPath, csvFilter}
     this.configuration = {...this.configuration, gatherTestCases: true}
     return this
   }
@@ -97,7 +98,7 @@ export class FluentStatisticianFactory {
   /**
    * Enables all options except graph related ones
    */
-  withAll(csvPath?: string) {
+  withAll(csvPath?: string, csvFilter?: CsvFilter) {
     if (csvPath !== undefined)
       csvPath += '.csv'
     this.repConfiguration = {
@@ -105,7 +106,8 @@ export class FluentStatisticianFactory {
       withInputSpaceCoverage: true,
       withOutputOnSuccess: true,
       withGraphs: false,
-      csvPath
+      csvPath,
+      csvFilter
     }
     this.configuration = {
       realPrecision: 3,

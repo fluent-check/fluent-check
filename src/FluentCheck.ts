@@ -1,5 +1,5 @@
 import {Arbitrary, ArbitraryCoverage, FluentPick, FluentRandomGenerator,
-  IndexCollection, PrintInfo, ScenarioCoverage, ValueResult, TestCases} from './arbitraries'
+  IndexCollection, PrintInfo, ScenarioCoverage, ValueResult, TestCases, CsvFilter} from './arbitraries'
 import {FluentStatistician} from './statistics/FluentStatistician'
 import {FluentStatisticianFactory} from './statistics/FluentStatisticianFactory'
 import {FluentStrategy} from './strategies/FluentStrategy'
@@ -20,6 +20,7 @@ export class FluentResult {
     public readonly withOutputOnSuccess: boolean = false,
     public readonly withGraphs: boolean = false,
     public readonly csvPath?: string,
+    public readonly csvFilter?: CsvFilter,
     public readonly testCases: PrintInfo = {unwrapped: [], time: [], result: []},
     public readonly coverages: [ScenarioCoverage, ArbitraryCoverage] = [0, {}],
     public readonly indexesForGraphs: IndexCollection = {oneD: [], twoD: []}) {}
@@ -108,6 +109,7 @@ export class FluentCheck<Rec extends ParentRec, ParentRec extends {}> {
         this.statistician.reporterConfiguration.withOutputOnSuccess,
         this.statistician.reporterConfiguration.withGraphs,
         this.statistician.reporterConfiguration.csvPath,
+        this.statistician.reporterConfiguration.csvFilter,
         testCases,
         this.statistician.reporterConfiguration.withInputSpaceCoverage ?
           this.statistician.calculateCoverages(new Set(testCases.unwrapped.map(x=>JSON.stringify(x))).size) : undefined,

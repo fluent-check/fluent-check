@@ -1,6 +1,6 @@
 import {FluentResult} from './FluentCheck'
 import {existsSync, createWriteStream, writeFileSync} from 'fs'
-import {PrintInfo, IndexPath1D, IndexPath2D} from './arbitraries'
+import {PrintInfo, IndexPath1D, IndexPath2D, CsvFilter} from './arbitraries'
 import {JSDOM} from 'jsdom'
 import {select, scaleLinear, axisBottom, axisLeft} from 'd3'
 
@@ -51,7 +51,7 @@ function assembleInfo(result: FluentResult): string {
     msg.push(result.testCases.unwrapped.length.toString())
 
     msg.push('\nTested cases written to ')
-    msg.push(writeTestCases(result.testCases, result.csvPath))
+    msg.push(writeTestCases(result.testCases, result.csvPath, result.csvFilter))
   }
 
   if (result.withInputSpaceCoverage) {
@@ -86,26 +86,45 @@ function assembleInfo(result: FluentResult): string {
   return msg.join('')
 }
 
-function writeTestCases(testCases: PrintInfo, csvPath = generateIncrementalFileName('scenario', '.csv')): string {
+function writeTestCases(
+  testCases: PrintInfo,
+  csvPath = generateIncrementalFileName('scenario', '.csv'),
+  csvFilter?: CsvFilter): string {
   const stream = createWriteStream(csvPath)
 
-  for (const arb in testCases.unwrapped[0]) {
-    stream.write(JSON.stringify(arb).replace(/,/g , ';'))
-    stream.write(',')
-  }
-  stream.write('time,result\n')
-
-  testCases.unwrapped.forEach((e, i) => {
-    for (const arb in e) {
-      stream.write(JSON.stringify(e[arb]).replace(/,/g , ' '))
+  if (csvFilter === undefined) {
+    for (const arb in testCases.unwrapped[0]) {
+      stream.write(JSON.stringify(arb).replace(/,/g , ' '))
       stream.write(',')
     }
-    stream.write(testCases.time[i].toString())
-    stream.write(',')
-    stream.write(testCases.result[i].toString())
+    stream.write('time,result\n')
+    testCases.unwrapped.forEach((e, i) => {
+      for (const arb in e) {
+        stream.write(JSON.stringify(e[arb]).replace(/,/g , ' '))
+        stream.write(',')
+      }
+      stream.write(testCases.time[i].toString())
+      stream.write(',')
+      stream.write(testCases.result[i].toString())
+      stream.write('\n')
+    })
+  } else {
+    for (const k in csvFilter(testCases.unwrapped[0], testCases.time[0], testCases.result[0])) {
+      stream.write(JSON.stringify(k).replace(/,/g , ' '))
+      stream.write(',')
+    }
     stream.write('\n')
-  })
+    testCases.unwrapped.forEach((e, i) => {
+      const values = csvFilter(e, testCases.time[i], testCases.result[i])
+      for (const val in values) {
+        stream.write(values[val].replace(/,/g , ' '))
+        stream.write(',')
+      }
+      stream.write('\n')
+    })
+  }
 
+  stream.end()
   return csvPath
 }
 
@@ -120,8 +139,10 @@ function generateIncrementalFileName(filename: string, extension: string) {
 }
 
 function generate1DGraphs(graph: IndexPath1D) {
-  const minIndex = Math.min.apply(null, graph.indexes)
-  const maxIndex = Math.max.apply(null, graph.indexes)
+  const minIndex = Math.min.apply(null, graph.indexes.map(o => o.value))
+  const maxIndex = Math.max.apply(null, graph.indexes.map(o => o.value))
+  const maxRepeated = Math.max(...graph.repeated.values())
+  console.log(maxRepeated)
 
   const margin = 50
   const width = 1000
@@ -152,8 +173,13 @@ function generate1DGraphs(graph: IndexPath1D) {
     .append('rect')
     .attr('width', 3)
     .attr('height', 8)
-    .attr('fill', 'red')
-    .attr('transform', function (v) { return 'translate(' + (x(v) - 1) + ',' + (margin - 4) + ')' })
+    .attr('fill', function (d) {
+      const color = scaleLinear()
+        .range(['white', d.color ?? 'red'])
+        .domain([1, maxRepeated])
+      return color(graph.repeated.get(JSON.stringify(d.value)))
+    })
+    .attr('transform', function (d) { return 'translate(' + (x(d.value) - 1) + ',' + (margin - 4) + ')' })
 
   const filename = graph.path ?? generateIncrementalFileName('graph', '.svg')
   writeFileSync(filename, body.html())
@@ -161,11 +187,14 @@ function generate1DGraphs(graph: IndexPath1D) {
 }
 
 function generate2DGraphs(graph: IndexPath2D) {
-  const minIndexX = Math.min.apply(null, graph.indexes.map(idx => idx[0]))
-  const maxIndexX = Math.max.apply(null, graph.indexes.map(idx => idx[0]))
+  const minIndexX = Math.min.apply(null, graph.indexes.map(idx => idx.valueX))
+  const maxIndexX = Math.max.apply(null, graph.indexes.map(idx => idx.valueX))
 
-  const minIndexY = Math.min.apply(null, graph.indexes.map(idx => idx[1]))
-  const maxIndexY = Math.max.apply(null, graph.indexes.map(idx => idx[1]))
+  const minIndexY = Math.min.apply(null, graph.indexes.map(idx => idx.valueY))
+  const maxIndexY = Math.max.apply(null, graph.indexes.map(idx => idx.valueY))
+
+  const maxRepeated = Math.max(...graph.repeated.values())
+  console.log(maxRepeated)
 
   const margin1 = 50
   const margin2 = 25
@@ -203,10 +232,15 @@ function generate2DGraphs(graph: IndexPath2D) {
     .data(graph.indexes)
     .enter()
     .append('circle')
-    .attr('cx', function (d) { return x(d[0]) })
-    .attr('cy', function (d) { return y(d[1]) })
+    .attr('cx', function (d) { return x(d.valueX) })
+    .attr('cy', function (d) { return y(d.valueY) })
     .attr('r', 2)
-    .attr('fill', 'red')
+    .attr('fill', function (d) {
+      const color = scaleLinear()
+        .range(['white', d.color ?? 'red'])
+        .domain([1, maxRepeated])
+      return color(graph.repeated.get(JSON.stringify([d.valueX, d.valueY])))
+    })
 
   const filename = graph.path ?? generateIncrementalFileName('graph', '.svg')
   writeFileSync(filename, body.html())
