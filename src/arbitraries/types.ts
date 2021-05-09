@@ -42,8 +42,8 @@ type GraphPath1D = {path?: string, func: Graph1D}
 type GraphPath2D = {path?: string, func: Graph2D}
 export type Graphs = {oneD: GraphPath1D[], twoD: GraphPath2D[]}
 
-export type IndexPath1D = {path?: string, indexes: Data1D[]}
-export type IndexPath2D = {path?: string, indexes: Data2D[]}
+export type IndexPath1D = {path?: string, indexes: Data1D[], repeated: Map<string, number>}
+export type IndexPath2D = {path?: string, indexes: Data2D[], repeated: Map<string, number>}
 export type IndexCollection = {oneD: IndexPath1D[], twoD: IndexPath2D[]}
 
 export class FluentRandomGenerator {

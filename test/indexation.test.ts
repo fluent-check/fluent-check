@@ -53,6 +53,22 @@ describe('Indexation tests', () => {
     expect(sc.check().indexesForGraphs.twoD[3].indexes.map(o => [o.valueX, o.valueY])).to.eql([[5,5]])
   })
 
+  it('Repeated values calculation is working correctly', () => {
+    const f = (tc) => {
+      return {value: tc.a > 6 ? 1 : 0}
+    }
+
+    const sc = fc.scenario()
+      .config(fc.strategy().defaultStrategy().withSampleSize(10))
+      .configStatistics(fc.statistics().withAll().with1DGraph(f))
+      .withGenerator(prng, 1234)
+      .forall('a', fc.integer(1, 10))
+      .then(({a}) => a === a)
+
+    expect(sc.check().indexesForGraphs.oneD[0].repeated.get('1')).to.equal(4)
+    expect(sc.check().indexesForGraphs.oneD[0].repeated.get('0')).to.equal(6)
+  })
+
   it('Array default index is calculated correctly', () => {
     const arb = fc.array(fc.array(fc.integer(-10, 10), 1, 1), 2, 3)
 

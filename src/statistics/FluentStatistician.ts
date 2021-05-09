@@ -82,32 +82,40 @@ export class FluentStatistician {
     if (this.configuration.withDefaultGraphs)
       for (const k in this.arbitraries) {
         const indexes: Data1D[] = []
+        const repeated: Map<string, number> = new Map()
         for (const i in original) {
           const input = {value: values[i][k], original: original[i][k]}
           const value = this.arbitraries[k].arbitrary.calculateIndex(input, this.configuration.realPrecision)
           indexes.push({value})
+          repeated.set(JSON.stringify(value), (repeated.get(JSON.stringify(value)) ?? 0) + 1)
         }
-        indexesCollection.oneD.push({path: (this.reporterConfiguration.graphsPath ?? '') + k + '.svg', indexes})
+        indexesCollection.oneD.push({path: (this.reporterConfiguration.graphsPath ?? '') + k + '.svg', indexes, repeated})
       }
 
     for (const g of this.graphs.oneD) {
       const indexes: Data1D[] = []
+      const repeated: Map<string, number> = new Map()
       for (const i in original) {
         const index = g.func(original[i], sizes, times[i], results[i])
-        if (index !== undefined && index.value !== undefined)
+        if (index !== undefined && index.value !== undefined) {
           indexes.push(index)
+          repeated.set(JSON.stringify(index.value), (repeated.get(JSON.stringify(index.value)) ?? 0) + 1)
+        }
       }
-      indexesCollection.oneD.push({path: g.path, indexes})
+      indexesCollection.oneD.push({path: g.path, indexes, repeated})
     }
 
     for (const g of this.graphs.twoD) {
       const indexes: Data2D[] = []
+      const repeated: Map<string, number> = new Map()
       for (const i in original) {
         const index = g.func(original[i], sizes, times[i], results[i])
-        if (index !== undefined && index.valueX !== undefined && index.valueY !== undefined)
+        if (index !== undefined && index.valueX !== undefined && index.valueY !== undefined) {
           indexes.push(index)
+          repeated.set(JSON.stringify([index.valueX, index.valueY]), (repeated.get(JSON.stringify([index.valueX, index.valueY])) ?? 0) + 1)
+        }
       }
-      indexesCollection.twoD.push({path: g.path, indexes})
+      indexesCollection.twoD.push({path: g.path, indexes, repeated})
     }
 
     return indexesCollection
