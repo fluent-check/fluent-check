@@ -1,5 +1,5 @@
 import {ArbitraryCoverage, Graphs, IndexCollection, ScenarioCoverage, TestCases,
-  ValueResult, Data1D, Data2D} from '../arbitraries'
+  ValueResult, Data1D, Data2D, CsvFilter} from '../arbitraries'
 import {FluentCheck} from '../FluentCheck'
 import {StrategyArbitraries} from '../strategies/FluentStrategyTypes'
 
@@ -9,6 +9,7 @@ export type FluentReporterConfig = {
   withOutputOnSuccess: boolean,
   withGraphs: boolean,
   csvPath?: string,
+  csvFilter?: CsvFilter,
   graphsPath?: string
 }
 
@@ -89,7 +90,9 @@ export class FluentStatistician {
           indexes.push({value})
           repeated.set(JSON.stringify(value), (repeated.get(JSON.stringify(value)) ?? 0) + 1)
         }
-        indexesCollection.oneD.push({path: (this.reporterConfiguration.graphsPath ?? '') + k + '.svg', indexes, repeated})
+        indexesCollection.oneD.push(
+          {path: (this.reporterConfiguration.graphsPath ?? '') + k + '.svg', indexes, repeated}
+        )
       }
 
     for (const g of this.graphs.oneD) {
@@ -112,7 +115,8 @@ export class FluentStatistician {
         const index = g.func(original[i], sizes, times[i], results[i])
         if (index !== undefined && index.valueX !== undefined && index.valueY !== undefined) {
           indexes.push(index)
-          repeated.set(JSON.stringify([index.valueX, index.valueY]), (repeated.get(JSON.stringify([index.valueX, index.valueY])) ?? 0) + 1)
+          repeated.set(JSON.stringify([index.valueX, index.valueY]),
+            (repeated.get(JSON.stringify([index.valueX, index.valueY])) ?? 0) + 1)
         }
       }
       indexesCollection.twoD.push({path: g.path, indexes, repeated})

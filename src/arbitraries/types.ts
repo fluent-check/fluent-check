@@ -46,6 +46,8 @@ export type IndexPath1D = {path?: string, indexes: Data1D[], repeated: Map<strin
 export type IndexPath2D = {path?: string, indexes: Data2D[], repeated: Map<string, number>}
 export type IndexCollection = {oneD: IndexPath1D[], twoD: IndexPath2D[]}
 
+export type CsvFilter = (testCase: ValueResult<any>, execTime: number, result: boolean) => Record<string, string>
+
 export class FluentRandomGenerator {
   generator!: () => number
 

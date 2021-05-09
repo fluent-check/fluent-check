@@ -1,6 +1,6 @@
 import {FluentResult} from './FluentCheck'
 import {existsSync, createWriteStream, writeFileSync} from 'fs'
-import {PrintInfo, IndexPath1D, IndexPath2D} from './arbitraries'
+import {PrintInfo, IndexPath1D, IndexPath2D, CsvFilter} from './arbitraries'
 import {JSDOM} from 'jsdom'
 import {select, scaleLinear, axisBottom, axisLeft} from 'd3'
 
@@ -51,7 +51,7 @@ function assembleInfo(result: FluentResult): string {
     msg.push(result.testCases.unwrapped.length.toString())
 
     msg.push('\nTested cases written to ')
-    msg.push(writeTestCases(result.testCases, result.csvPath))
+    msg.push(writeTestCases(result.testCases, result.csvPath, result.csvFilter))
   }
 
   if (result.withInputSpaceCoverage) {
@@ -86,26 +86,45 @@ function assembleInfo(result: FluentResult): string {
   return msg.join('')
 }
 
-function writeTestCases(testCases: PrintInfo, csvPath = generateIncrementalFileName('scenario', '.csv')): string {
+function writeTestCases(
+  testCases: PrintInfo,
+  csvPath = generateIncrementalFileName('scenario', '.csv'),
+  csvFilter?: CsvFilter): string {
   const stream = createWriteStream(csvPath)
 
-  for (const arb in testCases.unwrapped[0]) {
-    stream.write(JSON.stringify(arb).replace(/,/g , ';'))
-    stream.write(',')
-  }
-  stream.write('time,result\n')
-
-  testCases.unwrapped.forEach((e, i) => {
-    for (const arb in e) {
-      stream.write(JSON.stringify(e[arb]).replace(/,/g , ' '))
+  if (csvFilter === undefined) {
+    for (const arb in testCases.unwrapped[0]) {
+      stream.write(JSON.stringify(arb).replace(/,/g , ' '))
       stream.write(',')
     }
-    stream.write(testCases.time[i].toString())
-    stream.write(',')
-    stream.write(testCases.result[i].toString())
+    stream.write('time,result\n')
+    testCases.unwrapped.forEach((e, i) => {
+      for (const arb in e) {
+        stream.write(JSON.stringify(e[arb]).replace(/,/g , ' '))
+        stream.write(',')
+      }
+      stream.write(testCases.time[i].toString())
+      stream.write(',')
+      stream.write(testCases.result[i].toString())
+      stream.write('\n')
+    })
+  } else {
+    for (const k in csvFilter(testCases.unwrapped[0], testCases.time[0], testCases.result[0])) {
+      stream.write(JSON.stringify(k).replace(/,/g , ' '))
+      stream.write(',')
+    }
     stream.write('\n')
-  })
+    testCases.unwrapped.forEach((e, i) => {
+      const values = csvFilter(e, testCases.time[i], testCases.result[i])
+      for (const val in values) {
+        stream.write(values[val].replace(/,/g , ' '))
+        stream.write(',')
+      }
+      stream.write('\n')
+    })
+  }
 
+  stream.end()
   return csvPath
 }
 
