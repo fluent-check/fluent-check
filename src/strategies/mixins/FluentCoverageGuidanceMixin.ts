@@ -152,5 +152,11 @@ export function CoverageGuidance<TBase extends MixinStrategy>(Base: TBase) {
             .concat([this.currTestCase[name]]))]
     }
 
+    /**
+     * Returns the coverage builder coverage summary report.
+     */
+    getCoverage() {
+      return this.coverageBuilder.getCoverageSummary()
+    }
   }
 }

@@ -1,3 +1,4 @@
+import {performance} from 'perf_hooks'
 import {FluentStrategy} from './strategies/FluentStrategy'
 import {FluentStrategyFactory, FluentStrategyRandomFactory} from './strategies/FluentStrategyFactory'
 import {Arbitrary, FluentPick, ValueResult, PickResult, FluentRandomGenerator} from './arbitraries'
@@ -6,7 +7,8 @@ export class FluentResult {
   constructor(
     public satisfiable = false,
     public example: PickResult<any> = {},
-    public readonly seed?: number) { }
+    public readonly seed?: number,
+    public readonly benchmark_metrics?: any) { }
 
   addExample<A>(name: string, value: FluentPick<A>) {
     this.example[name] = value
@@ -65,12 +67,18 @@ export class FluentCheck<Rec extends ParentRec, ParentRec extends {}> {
     if (this.parent !== undefined) return this.parent.verify(() => this.run(child))
     else {
       this.strategy.setup()
+      const initTime = performance.now()
       const r = this.run(child)
+      const finalTime = performance.now() - initTime
       this.strategy.tearDown()
 
       return new FluentResult(r.satisfiable,
         FluentCheck.unwrapFluentPick(r.example),
-        this.strategy.getRandomGenerator().seed
+        this.strategy.getRandomGenerator().seed, {
+          'time': finalTime.toPrecision(5) + 'ms',
+          'number_test_cases': this.strategy.getTestCases().size,
+          'coverage': this.strategy.getCoverage()
+        }
       )
     }
   }

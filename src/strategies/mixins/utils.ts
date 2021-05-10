@@ -22,7 +22,16 @@ export function generateUniqueMethodIdentifier() {
  * Creates a new directory in a given path if the directory is not already created.
  */
 export function createDirectory(path: string) {
-  if (!fs.existsSync(path)) fs.mkdirSync(path)
+  if (path.includes('fluent-check')) {
+    const pathData = path.split('fluent-check')
+    let currPath = pathData[0] + 'fluent-check/'
+    for (const subPath of pathData[1].split('/').filter(x => x !== '')) {
+      currPath += subPath
+      if (!fs.existsSync(currPath)) fs.mkdirSync(currPath)
+      currPath += '/'
+    }
+  }
+  else if (!fs.existsSync(path)) fs.mkdirSync(path)
 }
 
 /**

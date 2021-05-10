@@ -217,6 +217,12 @@ export class FluentStrategy implements FluentStrategyInterface {
   shrink<K extends string>(_name: K, _partial: FluentResult | undefined): boolean { return false }
 
   /**
+   * Returns the code coverage until the moment this function is called. Returns an empty object if the base strategy
+   * is random-based; otherwise, it returns the measured coverage.
+   */
+  getCoverage(): any { return {} }
+
+  /**
    * Determines whether uniqueness should be taken into account while generating samples.
    */
   protected isDedupable() {

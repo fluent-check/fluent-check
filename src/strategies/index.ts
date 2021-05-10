@@ -17,7 +17,7 @@ export const PBT_R_S8 = (path = '') => RANDOM.withBias()
   .withPairWiseTesting()
 
 const COVERAGE_GUIDED = new FluentStrategyTypeFactory()
-  .withCoverageGuidance()
+  .withCoverageGuidance('test/benchmarks/stack/specification.test.ts')
   .withoutReplacement()
   .usingCache()
 
