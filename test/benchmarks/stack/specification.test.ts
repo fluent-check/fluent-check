@@ -3,7 +3,7 @@ import {Stack} from '../../../src/benchmarks/stack/original/main'
 import {it} from 'mocha'
 import {expect} from 'chai'
 
-const PBTS = fc.PBTS1
+const PBTS = fc.PBT_R_S1()
 
 describe('Benchmark tests', () => {
   it('should push one element to the stack and have size one', () => {

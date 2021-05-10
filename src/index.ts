@@ -23,6 +23,20 @@ export {
   oneof
 } from './arbitraries'
 export {
-  PBTS1,
-  PBTS2
+  PBT_R_S1,
+  PBT_R_S2,
+  PBT_R_S3,
+  PBT_R_S4,
+  PBT_R_S5,
+  PBT_R_S6,
+  PBT_R_S7,
+  PBT_R_S8,
+  PBT_CG_S1,
+  PBT_CG_S2,
+  PBT_CG_S3,
+  PBT_CG_S4,
+  PBT_CG_S5,
+  PBT_CG_S6,
+  PBT_CG_S7,
+  PBT_CG_S8
 } from './strategies'
