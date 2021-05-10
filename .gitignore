@@ -4,6 +4,5 @@ node_modules
 src/notebook*.ts
 coverage
 .nyc_output
-reports
 .stryker-tmp
 stryker.log

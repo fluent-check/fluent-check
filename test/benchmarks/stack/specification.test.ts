@@ -1,11 +1,11 @@
-import * as fc from '../src/index'
-import {Stack} from '../src/benchmarks/example/Stack'
+import * as fc from '../../../src/index'
+import {Stack} from '../../../src/benchmarks/stack/original/main'
 import {it} from 'mocha'
 import {expect} from 'chai'
 
 const PBTS = fc.PBTS1
 
-describe('Pipeline tests', () => {
+describe('Benchmark tests', () => {
   it('should push one element to the stack and have size one', () => {
     expect(fc.scenario()
       .config(PBTS)
