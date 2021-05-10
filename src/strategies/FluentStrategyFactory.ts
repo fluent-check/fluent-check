@@ -62,6 +62,31 @@ export class FluentStrategyFactory {
   }
 
   /**
+   * Enables sampling without replacement, which avoids testing duplicate test cases.
+   */
+  withoutReplacement() {
+    this.strategy = Dedupable(this.strategy)
+    return this
+  }
+
+  /**
+   * Caches the generated samples to avoid being constantly generating new samples.
+   */
+  usingCache() {
+    this.strategy = Cached(this.strategy)
+    return this
+  }
+
+  /**
+   * Enables shrinking. It is also possible to configure the shrinking size, which by default is 500.
+   */
+  withShrinking(shrinkSize = 500) {
+    this.configuration = {...this.configuration, shrinkSize}
+    this.strategy = Shrinkable(this.strategy)
+    return this
+  }
+
+  /**
    * Sampling considers corner cases.
    */
   withBias() {
@@ -124,31 +149,6 @@ export class FluentStrategyRandomFactory extends FluentStrategyFactory {
     return this
   }
 
-  /**
-   * Enables sampling without replacement, which avoids testing duplicate test cases.
-   */
-  withoutReplacement() {
-    this.strategy = Dedupable(this.strategy)
-    return this
-  }
-
-  /**
-   * Caches the generated samples to avoid being constantly generating new samples.
-   */
-  usingCache() {
-    this.strategy = Cached(this.strategy)
-    return this
-  }
-
-  /**
-   * Enables shrinking. It is also possible to configure the shrinking size, which by default is 500.
-   */
-  withShrinking(shrinkSize = 500) {
-    this.configuration = {...this.configuration, shrinkSize}
-    this.strategy = Shrinkable(this.strategy)
-    return this
-  }
-
 }
 
 export class FluentStrategyCoverageFactory extends FluentStrategyFactory {
@@ -159,8 +159,8 @@ export class FluentStrategyCoverageFactory extends FluentStrategyFactory {
    */
   constructor(importsPath) {
     super()
-    this.configuration = {...this.configuration, importsPath, pairwise: true}
-    this.strategy = ConstantExtractionBased(CoverageGuidance(this.strategy))
+    this.configuration = {...this.configuration, importsPath, sampleSize: 100}
+    this.strategy = CoverageGuidance(this.strategy)
   }
 
   /**

@@ -7,6 +7,9 @@ describe('Coverage tests', () => {
     expect(fc.scenario()
       .config(fc.strategy()
         .withCoverageGuidance('test/coverage.test.ts')
+        .withoutReplacement()
+        .withBias()
+        .withConstantExtraction()
         .withTimeout(2000)
         .withMinimumCoverage(100)
         .withMaxNumMutationsPerArbitrary(5)
@@ -15,7 +18,7 @@ describe('Coverage tests', () => {
       .forall('b', fc.integer())
       .then(({a, b}) => {
         if (a === 10) return true
-        else if (a + b === 57) return a - b === a + b //else if (a + b < 2) return a - b === a + b
+        else if (a + b === 57) return false
         return a + b === b + a
       })
       .check()).to.deep.include({satisfiable: false})

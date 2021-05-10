@@ -83,7 +83,7 @@ export function CoverageGuidance<TBase extends MixinStrategy>(Base: TBase) {
      */
     configArbitraries() {
       for (const name in this.arbitraries) {
-        this.arbitraries[name].seedCollection = this.arbitraries[name].arbitrary.cornerCases().concat(
+        this.arbitraries[name].seedCollection = this.buildArbitraryCollection(this.arbitraries[name].arbitrary,
           this.getArbitraryExtractedConstants(this.arbitraries[name].arbitrary))
         this.arbitraries[name].collection = this.arbitraries[name].seedCollection
       }
