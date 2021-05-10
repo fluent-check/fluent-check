@@ -18,8 +18,8 @@ export const PBT_R_S8 = (path = '') => RANDOM.withBias()
 
 const COVERAGE_GUIDED = new FluentStrategyTypeFactory()
   .withCoverageGuidance()
-  // .withoutReplacement()
-  // .usingCache()
+  .withoutReplacement()
+  .usingCache()
 
 export const PBT_CG_S1 = () => COVERAGE_GUIDED
 export const PBT_CG_S2 = () => COVERAGE_GUIDED.withBias()
