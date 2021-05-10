@@ -35,6 +35,16 @@ export function writeDataToFile(path: string, data: string) {
 }
 
 /**
+ * Reads data from a given file located in a given path. It returns undefined
+ * if the file does not exist.
+ */
+export function readDataFromFile(path: string) {
+  const directory = dirname(path)
+  if (fs.existsSync(directory)) return fs.readFileSync(path)
+  return undefined
+}
+
+/**
  * Deletes a given file or directory from the file system.
  */
 export function deleteFromFileSystem(path: string) {
