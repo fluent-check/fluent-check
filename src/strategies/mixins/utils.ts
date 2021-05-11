@@ -77,8 +77,11 @@ export function extractImports(path: string) {
     const importData = data.filter(x => !x.startsWith('//') && x.includes('import'))
 
     for (const x of importData) {
+      if (x.includes('* as fc')) continue
+
       const relativePath = x.substring(x.indexOf('\'') + 1, x.length - 1) as string
-      const resolvedPath = relativePath
+      const resolvedPath = relativePath.includes('src') ?
+        '../.instrumented' + relativePath.split('src')[1] : relativePath
 
       if (relativePath.includes('/') && !relativePath.includes('@'))
         sourceFiles.push(resolve(relativePath.split('../').join('')))

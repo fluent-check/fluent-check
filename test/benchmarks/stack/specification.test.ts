@@ -2,7 +2,6 @@ import * as fc from '../../../src/index'
 import {Stack} from '../../../src/benchmarks/stack/original/main'
 import {it} from 'mocha'
 import {expect} from 'chai'
-import {createDirectory, readDataFromFile, writeDataToFile} from '../../../src/strategies/mixins/utils'
 
 ////////////
 // HEADER //
@@ -13,23 +12,6 @@ const PROJECT = 'stack'
 const MUTATION_ID = '0'
 const CONFIGURATION = 'PBT_R_S1'
 const PATH = '.benchmarks/' + PROJECT + '/' + MUTATION_ID + '/' + CONFIGURATION + '.json'
-
-/**
- * Exports data from a specific test run.
- */
-function exportTestData(testId: string, expected: any, actual: any) {
-  // Data to be exported
-  let data = {}
-  // Create needed directories if not already created
-  createDirectory('.benchmarks/')
-  createDirectory('.benchmarks/' + PROJECT)
-  // Loads current data from file if available
-  const fileData = readDataFromFile(PATH)
-  if (fileData !== undefined) data = JSON.parse(fileData.toString())
-  // Exports data
-  data[testId] = {expected, actual}
-  writeDataToFile(PATH, JSON.stringify(data))
-}
 
 ///////////////////
 // SPECIFICATION //
@@ -45,7 +27,7 @@ describe('Benchmark tests', () => {
       .when(({e, stack}) => stack.push(e))
       .then(({stack}) => stack.size() === 1)
       .check()
-    exportTestData('1', expected, scenario)
+    fc.exportTestData(PATH, PROJECT, '1', expected, scenario)
     expect(scenario).to.deep.include(expected)
   })
 
@@ -58,7 +40,7 @@ describe('Benchmark tests', () => {
       .when(({es, stack}) => stack.push(...es))
       .then(({es, stack}) => stack.size() === es.length)
       .check()
-    exportTestData('2', expected, scenario)
+    fc.exportTestData(PATH, PROJECT, '2', expected, scenario)
     expect(scenario).to.deep.include(expected)
   })
 
@@ -73,7 +55,7 @@ describe('Benchmark tests', () => {
       .and(({stack}) => stack.size() > 0)
       .check()
 
-    exportTestData('3', expected, scenario)
+    fc.exportTestData(PATH, PROJECT, '3', expected, scenario)
     expect(scenario).to.deep.include(expected)
   })
 
@@ -91,7 +73,7 @@ describe('Benchmark tests', () => {
       .and(({es, s2}) => s2.size() === es.length)
       .check()
 
-    exportTestData('4', expected, scenario)
+    fc.exportTestData(PATH, PROJECT, '4', expected, scenario)
     expect(scenario).to.deep.include(expected)
   })
 
@@ -108,7 +90,7 @@ describe('Benchmark tests', () => {
       .then(({es, stack}) => stack.size() === es.length - 1)
       .check()
 
-    exportTestData('5', expected, scenario)
+    fc.exportTestData(PATH, PROJECT, '5', expected, scenario)
     expect(scenario).to.deep.include(expected)
   })
 })

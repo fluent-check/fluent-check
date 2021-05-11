@@ -1,5 +1,3 @@
-const globalObject:any = global
-
 import * as deasync from 'deasync'
 import * as istanbulLibCoverage from 'istanbul-lib-coverage'
 import {FileCoverage, CoverageSummary} from './FluentStrategyTypes'
@@ -57,7 +55,7 @@ export class FluentCoverage {
       this.testMethods[methodName](inputData)
     })
 
-    Object.entries(globalObject.__coverage__).forEach(elem => {
+    Object.entries(globalThis.__coverage__).forEach(elem => {
       if (this.coverageFiles[elem[0]] === undefined)
         this.coverageFiles[elem[0]] = istanbulLibCoverage.createFileCoverage(elem[1])
       else
@@ -141,7 +139,7 @@ export class FluentCoverage {
    * Clears the global variable responsible for holding coverage data.
    */
   resetCoverage() {
-    globalObject.__coverage__ = undefined
+    delete globalThis.__coverage__
   }
 
 }
