@@ -2,13 +2,14 @@ import {performance} from 'perf_hooks'
 import {FluentStrategy} from './strategies/FluentStrategy'
 import {FluentStrategyFactory, FluentStrategyRandomFactory} from './strategies/FluentStrategyFactory'
 import {Arbitrary, FluentPick, ValueResult, PickResult, FluentRandomGenerator} from './arbitraries'
+import {BenchmarkMetrics} from './benchmarks/stack/types'
 
 export class FluentResult {
   constructor(
     public satisfiable = false,
     public example: PickResult<any> = {},
     public readonly seed?: number,
-    public readonly benchmark_metrics?: any) { }
+    public readonly benchmark_metrics?: BenchmarkMetrics) { }
 
   addExample<A>(name: string, value: FluentPick<A>) {
     this.example[name] = value

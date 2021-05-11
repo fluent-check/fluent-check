@@ -2,7 +2,7 @@ import * as utils from './mixins/utils'
 import {performance} from 'perf_hooks'
 
 import {FluentResult} from '../FluentCheck'
-import {FluentStrategyConfig, StrategyArbitraries} from './FluentStrategyTypes'
+import {CoverageSummary, FluentStrategyConfig, StrategyArbitraries} from './FluentStrategyTypes'
 import {Arbitrary, FluentPick, ValueResult, FluentRandomGenerator, WrapFluentPick} from '../arbitraries'
 
 export interface FluentStrategyInterface {
@@ -220,7 +220,7 @@ export class FluentStrategy implements FluentStrategyInterface {
    * Returns the code coverage until the moment this function is called. Returns an empty object if the base strategy
    * is random-based; otherwise, it returns the measured coverage.
    */
-  getCoverage(): any { return {} }
+  getCoverage(): CoverageSummary { return {} }
 
   /**
    * Determines whether uniqueness should be taken into account while generating samples.
