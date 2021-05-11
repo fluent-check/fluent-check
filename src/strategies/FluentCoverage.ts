@@ -30,17 +30,17 @@ export class FluentCoverage {
   private coverageFiles: Record<string, FileCoverage> = {}
 
   /**
-   * Determines whether .coverage/methods.ts has been imported or not.
+   * Determines whether .coverage/<methods-filename>.ts has been imported or not.
    */
   private importStatus: Boolean = false
 
   /**
    * FluentCoverage constructor that dynamically imports the test methods to be used for coverage purposes.
    */
-  constructor() {
+  constructor(filename: string) {
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-ignore
-    import('../.coverage/methods').then(testMethods => {
+    import('../.coverage/' + filename).then(testMethods => {
       this.testMethods = testMethods
       this.importStatus = true
     })

@@ -58,10 +58,11 @@ export function CoverageGuidance<TBase extends MixinStrategy>(Base: TBase) {
           + method.toString().replace(new RegExp(/[a-zA-Z]+_\d+\./gm), '') + '\n'
       }
 
-      utils.writeDataToFile('src/.coverage/methods.ts', this.instrumenter.instrumentSync(
-        sourceData, 'src/.coverage/methods.ts'))
+      const filename = utils.generateUniqueMethodIdentifier() + '.ts'
+      utils.writeDataToFile('src/.coverage/' + filename, this.instrumenter.instrumentSync(
+        sourceData, 'src/.coverage/' + filename))
 
-      this.coverageBuilder = new FluentCoverage()
+      this.coverageBuilder = new FluentCoverage(filename)
     }
 
     /**
@@ -69,7 +70,7 @@ export function CoverageGuidance<TBase extends MixinStrategy>(Base: TBase) {
      */
     protected coverageTearDown() {
       const paths = ['./src/.coverage', './src/.instrumented']
-      this.coverageBuilder.resetCoverage()
+      // this.coverageBuilder.resetCoverage()
 
       for (const path of paths)
         utils.deleteFromFileSystem(path)
