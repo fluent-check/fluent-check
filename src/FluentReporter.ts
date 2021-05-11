@@ -109,18 +109,21 @@ function writeTestCases(
       stream.write('\n')
     })
   } else {
-    for (const k in csvFilter(testCases.unwrapped[0], testCases.time[0], testCases.result[0])) {
+    const idx = testCases.unwrapped.findIndex(o => {return o !== undefined})
+    for (const k in csvFilter(testCases.unwrapped[idx], testCases.time[idx], testCases.result[idx])) {
       stream.write(JSON.stringify(k).replace(/,/g , ' '))
       stream.write(',')
     }
     stream.write('\n')
     testCases.unwrapped.forEach((e, i) => {
       const values = csvFilter(e, testCases.time[i], testCases.result[i])
-      for (const val in values) {
-        stream.write(values[val].replace(/,/g , ' '))
-        stream.write(',')
+      if (values !== undefined) {
+        for (const val in values) {
+          stream.write(values[val].replace(/,/g , ' '))
+          stream.write(',')
+        }
+        stream.write('\n')
       }
-      stream.write('\n')
     })
   }
 
