@@ -48,8 +48,7 @@ export function writeDataToFile(path: string, data: string) {
  * if the file does not exist.
  */
 export function readDataFromFile(path: string) {
-  const directory = dirname(path)
-  if (fs.existsSync(directory)) return fs.readFileSync(path)
+  if (fs.existsSync(path)) return fs.readFileSync(path)
   return undefined
 }
 
@@ -65,7 +64,7 @@ export function deleteFromFileSystem(path: string) {
  * concise version of the imports found with the relative paths converted into absolute ones and an array
  * containing all the imported source files.
  */
-export function extractImports(path: string) {
+export function extractImports(path: string, coverageID = '') {
   const files = fs.lstatSync(path).isDirectory() ?
     glob.sync(path + '/**/*', {nodir: true}) : [path]
 
@@ -80,8 +79,8 @@ export function extractImports(path: string) {
       if (x.includes('* as fc')) continue
 
       const relativePath = x.substring(x.indexOf('\'') + 1, x.length - 1) as string
-      const resolvedPath = relativePath.includes('src') ?
-        '../.instrumented' + relativePath.split('src')[1] : relativePath
+      const resolvedPath = relativePath.includes('src') && coverageID !== '' ?
+        '../.instrumented/' + coverageID + relativePath.split('src')[1] : relativePath
 
       if (relativePath.includes('/') && !relativePath.includes('@'))
         sourceFiles.push(resolve(relativePath.split('../').join('')))

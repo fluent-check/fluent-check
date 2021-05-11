@@ -38,16 +38,17 @@ export function CoverageGuidance<TBase extends MixinStrategy>(Base: TBase) {
      * Function responsible for creating all the files needed so that coverage can be tracked.
      */
     protected coverageSetup() {
-      const importInfo = utils.extractImports(this.configuration.importsPath)
+      const coverageID = utils.generateUniqueMethodIdentifier()
+      const importInfo = utils.extractImports(this.configuration.importsPath, coverageID)
       let sourceData: string = importInfo.header
       const instrumentedFiles: string[] = importInfo.sourceFiles
         .map(file => {
           const fileArr = file.split('src/')
-          return fileArr[0] + 'src/.instrumented/' + fileArr[1]
+          return fileArr[0] + 'src/.instrumented/' + coverageID + '/' + fileArr[1]
         })
 
       for (const file of instrumentedFiles) {
-        const sourceFile = file.split('.instrumented/').join('') + '.ts'
+        const sourceFile = file.split('.instrumented/' + coverageID + '/').join('') + '.ts'
         utils.writeDataToFile(file + '.ts', this.instrumenter.instrumentSync(
           fs.readFileSync(sourceFile).toString(), sourceFile))
       }
@@ -58,11 +59,10 @@ export function CoverageGuidance<TBase extends MixinStrategy>(Base: TBase) {
           + method.toString().replace(new RegExp(/[a-zA-Z]+_\d+\./gm), '') + '\n'
       }
 
-      const filename = utils.generateUniqueMethodIdentifier() + '.ts'
-      utils.writeDataToFile('src/.coverage/' + filename, this.instrumenter.instrumentSync(
-        sourceData, 'src/.coverage/' + filename))
+      utils.writeDataToFile('src/.coverage/' + coverageID + '.ts', this.instrumenter.instrumentSync(
+        sourceData, 'src/.coverage/' + coverageID + '.ts'))
 
-      this.coverageBuilder = new FluentCoverage(filename)
+      this.coverageBuilder = new FluentCoverage(coverageID + '.ts')
     }
 
     /**
@@ -70,7 +70,7 @@ export function CoverageGuidance<TBase extends MixinStrategy>(Base: TBase) {
      */
     protected coverageTearDown() {
       const paths = ['./src/.coverage', './src/.instrumented']
-      // this.coverageBuilder.resetCoverage()
+      this.coverageBuilder.resetCoverage()
 
       for (const path of paths)
         utils.deleteFromFileSystem(path)
