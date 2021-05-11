@@ -109,7 +109,7 @@ function writeTestCases(
       stream.write('\n')
     })
   } else {
-    const idx = testCases.unwrapped.findIndex(o => {return o !== undefined})
+    const idx = testCases.unwrapped.findIndex(o => { return o !== undefined })
     for (const k in csvFilter(testCases.unwrapped[idx], testCases.time[idx], testCases.result[idx])) {
       stream.write(JSON.stringify(k).replace(/,/g , ' '))
       stream.write(',')
