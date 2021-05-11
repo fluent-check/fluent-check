@@ -102,18 +102,21 @@ export class FluentStatisticianFactory {
     if (csvPath !== undefined)
       csvPath += '.csv'
     this.repConfiguration = {
-      withTestCaseOutput: true,
-      withInputSpaceCoverage: true,
-      withOutputOnSuccess: true,
-      withGraphs: false,
-      csvPath,
-      csvFilter
+      ...this.repConfiguration,
+      ...{
+        withTestCaseOutput: true,
+        withInputSpaceCoverage: true,
+        withOutputOnSuccess: true,
+        csvPath,
+        csvFilter
+      }
     }
     this.configuration = {
-      realPrecision: 3,
-      gatherTestCases: true,
-      gatherArbitraryTestCases: true,
-      withDefaultGraphs: false
+      ...this.configuration,
+      ...{
+        gatherTestCases: true,
+        gatherArbitraryTestCases: true
+      }
     }
     return this
   }
