@@ -80,6 +80,8 @@ function assembleInfo(result: FluentResult): string {
       msg.push('\n2D graph created in ')
       msg.push(generate2DGraphs(g))
     }
+
+    msg.push('\n')
   }
 
   msg.push('\n------------------------------------------------------------------------\n')
@@ -145,7 +147,6 @@ function generate1DGraphs(graph: IndexPath1D) {
   const minIndex = Math.min.apply(null, graph.indexes.map(o => o.value))
   const maxIndex = Math.max.apply(null, graph.indexes.map(o => o.value))
   const maxRepeated = Math.max(...graph.repeated.values())
-  console.log(graph.repeated)
 
   const margin = 50
   const width = 1000
@@ -182,7 +183,7 @@ function generate1DGraphs(graph: IndexPath1D) {
         .domain([0, maxRepeated])
       return color(graph.repeated.get(JSON.stringify(d.value)))
     })
-    .attr('transform', function (d) { return 'translate(' + (x(d.value) - 1) + ',' + (margin - 4) + ')' })
+    .attr('transform', function (d) { return 'translate(' + x(d.value) + ',' + (margin - 4) + ')' })
 
   const filename = graph.path ?? generateIncrementalFileName('graph', '.svg')
   writeFileSync(filename, body.html())
