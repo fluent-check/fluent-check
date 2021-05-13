@@ -2,6 +2,7 @@ import {FluentCheck} from './FluentCheck'
 import {FluentStrategyTypeFactory} from './strategies/FluentStrategyFactory'
 import {createDirectory, readDataFromFile, writeDataToFile} from './strategies/mixins/utils'
 export {expect} from './FluentReporter'
+export {getConfiguration} from './strategies'
 export const scenario = () => new FluentCheck()
 export const strategy = () => new FluentStrategyTypeFactory()
 export {
@@ -23,34 +24,17 @@ export {
   tuple,
   oneof
 } from './arbitraries'
-export {
-  PBT_R_S1,
-  PBT_R_S2,
-  PBT_R_S3,
-  PBT_R_S4,
-  PBT_R_S5,
-  PBT_R_S6,
-  PBT_R_S7,
-  PBT_R_S8,
-  PBT_CG_S1,
-  PBT_CG_S2,
-  PBT_CG_S3,
-  PBT_CG_S4,
-  PBT_CG_S5,
-  PBT_CG_S6,
-  PBT_CG_S7,
-  PBT_CG_S8
-} from './strategies'
 
 /**
  * Exports data from a specific test run.
  */
-export function exportTestData(PATH: string, PROJECT: string, testId: string, expected: any, actual: any) {
+export function exportTestData(PATH: string, testId: string, expected: any, actual: any) {
   // Data to be exported
   let data = {}
   // Create needed directories if not already created
   createDirectory('.benchmarks/')
-  createDirectory('.benchmarks/' + PROJECT)
+  createDirectory('.benchmarks/' + process.env.FLUENT_CHECK_PROJECT)
+  createDirectory('.benchmarks/' + process.env.FLUENT_CHECK_PROJECT + '/M' + process.env.FLUENT_CHECK_MUTATION_ID)
   // Loads current data from file if available
   const fileData = readDataFromFile(PATH)
   if (fileData !== undefined) data = JSON.parse(fileData.toString())
