@@ -76,7 +76,7 @@ export class FluentCheck<Rec extends ParentRec, ParentRec extends {}> {
       return new FluentResult(r.satisfiable,
         FluentCheck.unwrapFluentPick(r.example),
         this.strategy.getRandomGenerator().seed, {
-          'time': finalTime.toPrecision(5) + 'ms',
+          'time': Number(finalTime.toPrecision(5)),
           'number_test_cases': this.strategy.getTestCases().size,
           'coverage': this.strategy.getCoverage()
         }

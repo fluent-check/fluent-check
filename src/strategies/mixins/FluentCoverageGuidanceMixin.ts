@@ -5,7 +5,7 @@ import * as libInstrument from 'istanbul-lib-instrument'
 
 import {performance} from 'perf_hooks'
 import {FluentCoverage} from '../FluentCoverage'
-import {CoverageSummary, MixinStrategy} from '../FluentStrategyTypes'
+import {MixinStrategy} from '../FluentStrategyTypes'
 import {FluentPick, WrapFluentPick} from '../../arbitraries'
 import {FluentStrategyInterface} from '../FluentStrategy'
 
@@ -156,8 +156,8 @@ export function CoverageGuidance<TBase extends MixinStrategy>(Base: TBase) {
     /**
      * Returns the coverage builder coverage summary report.
      */
-    getCoverage(): CoverageSummary {
-      return this.coverageBuilder.getCoverageSummary()
+    getCoverage(): number {
+      return this.coverageBuilder.getTotalCoverage()
     }
   }
 }

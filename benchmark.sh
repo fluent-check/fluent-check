@@ -43,7 +43,11 @@ Reporter() {
   done
   prg+="] (" 
   prg+=$pct
-  prg+="%)\r"
+  prg+="%) ("
+  prg+=$ITERATION
+  prg+="/"
+  prg+=$(($VERSIONS*$RUNS*${#CONFIGURATIONS[*]}))
+  prg+=" Steps)\r"
   echo -ne $prg
 }
 
@@ -80,7 +84,7 @@ export FLUENT_CHECK_SPECIFICATION_PATH="${PWD}/test/benchmarks/$1/specification.
 mv "$PROJECT_DIR/original/main.ts" "$PROJECT_DIR/original/main-backup.ts"
 
 ITERATION=0
-echo -ne "\n${LIGHTGREEN}$(date +"%T") INFO Benchmark$(tput sgr0) Benchmarking [--------------------] (0%)\r"
+echo -ne "\n${LIGHTGREEN}$(date +"%T") INFO Benchmark$(tput sgr0) Benchmarking [--------------------] (0%) (0/$(($VERSIONS*$RUNS*${#CONFIGURATIONS[*]})) Steps)\r"
 
 for (( vc=0; vc<$VERSIONS; vc++ ))
 do
@@ -102,3 +106,5 @@ done
 echo -ne "${LIGHTGREEN}$(date +"%T") INFO Benchmark$(tput sgr0) Benchmarking [====================] (100%)\n\n"
 
 mv "$PROJECT_DIR/original/main-backup.ts" "$PROJECT_DIR/original/main.ts"
+
+python benchmark-parser.py # --show 
