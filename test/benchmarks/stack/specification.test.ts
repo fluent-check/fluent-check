@@ -46,7 +46,7 @@ describe('Benchmark tests', () => {
   })
 
   it('#3 should find an example where pushing a collection of elements keeps the stack empty', () => {
-    const expected = {satisfiable: false, example: {es: []}}
+    const expected = {satisfiable: false}
     const scenario = fc.scenario()
       .config(PBTS)
       .given('stack', () => new Stack<number>())

@@ -2,5 +2,4 @@ timeout: '4000'
 spec:
   - 'test/**/!(coverage|specification)*.test.ts'
   # - 'test/coverage.test.ts'
-  # - 'test/benchmarks/stack/specification.test.ts'
   
