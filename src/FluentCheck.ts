@@ -2,7 +2,7 @@ import {performance} from 'perf_hooks'
 import {FluentStrategy} from './strategies/FluentStrategy'
 import {FluentStrategyFactory, FluentStrategyRandomFactory} from './strategies/FluentStrategyFactory'
 import {Arbitrary, FluentPick, ValueResult, PickResult, FluentRandomGenerator} from './arbitraries'
-import {BenchmarkMetrics} from './benchmarks/stack/types'
+import {BenchmarkMetrics} from './benchmarks/types'
 
 export class FluentResult {
   constructor(
