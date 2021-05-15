@@ -9,7 +9,7 @@ export class FluentResult {
     public satisfiable = false,
     public example: PickResult<any> = {},
     public readonly seed?: number,
-    public readonly benchmark_metrics?: BenchmarkMetrics) { }
+    public readonly benchmarkMetrics?: BenchmarkMetrics) { }
 
   addExample<A>(name: string, value: FluentPick<A>) {
     this.example[name] = value

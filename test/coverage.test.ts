@@ -23,5 +23,4 @@ describe('Coverage tests', () => {
       })
       .check()).to.deep.include({satisfiable: false})
   })
-
 })

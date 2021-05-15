@@ -57,10 +57,10 @@ for v in VERSIONS:
                 if configData['time'].get(key) == None: 
                     configData['time'][key], configData['coverage'][key], configData['status'][key], configData['testCases'][key] = [], [], [], []
                 
-                configData['time'][key].append(data[key]['actual']['benchmark_metrics']['time'])
-                configData['coverage'][key].append(data[key]['actual']['benchmark_metrics']['coverage'])
+                configData['time'][key].append(data[key]['actual']['benchmarkMetrics']['time'])
+                configData['coverage'][key].append(data[key]['actual']['benchmarkMetrics']['coverage'])
                 configData['status'][key].append(data[key]['expected']['satisfiable'] == data[key]['actual']['satisfiable'])
-                configData['testCases'][key].append(data[key]['actual']['benchmark_metrics']['number_test_cases'])
+                configData['testCases'][key].append(data[key]['actual']['benchmarkMetrics']['number_test_cases'])
         
         dfData = []
         for key in configData['time'].keys():

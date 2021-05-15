@@ -1,11 +1,12 @@
 import {
   Biased,
   Cached,
-  Dedupable,
   Random,
+  Dedupable,
   Shrinkable,
-  ConstantExtractionBased,
-  CoverageGuidance
+  CoverageTracker,
+  CoverageGuidance,
+  ConstantExtractionBased
 } from './mixins/internal'
 import {FluentStrategy} from './FluentStrategy'
 import {ConstantExtractionConfig, FluentStrategyConfig} from './FluentStrategyTypes'
@@ -127,6 +128,15 @@ export class FluentStrategyFactory {
     return this
   }
 
+  /**
+   * Enables coverage tracking regardless of the selected base strategy.
+   */
+  withCoverageTracking(importsPath = 'test') {
+    this.configuration = {...this.configuration, importsPath}
+    this.strategy = CoverageTracker(this.strategy)
+    return this
+  }
+
 }
 
 export class FluentStrategyRandomFactory extends FluentStrategyFactory {
@@ -160,7 +170,7 @@ export class FluentStrategyCoverageFactory extends FluentStrategyFactory {
   constructor(importsPath) {
     super()
     this.configuration = {...this.configuration, importsPath, sampleSize: 100}
-    this.strategy = CoverageGuidance(this.strategy)
+    this.strategy = CoverageTracker(CoverageGuidance(this.strategy))
   }
 
   /**

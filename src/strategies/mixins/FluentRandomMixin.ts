@@ -46,7 +46,12 @@ export function Random<TBase extends MixinStrategy>(Base: TBase) {
      * Simply adds test cases to the testCases set.
      */
     handleResult(inputData: any[]) {
-      inputData.forEach(data => this.addTestCase(data))
+      inputData.forEach(data => {
+        this.addTestCase(data)
+        this.getCoverageBuilder()?.compute(data)
+      })
+
+      this.getCoverageBuilder()?.updateTotalCoverage()
     }
 
   }

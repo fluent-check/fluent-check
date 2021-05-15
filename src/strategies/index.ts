@@ -2,6 +2,7 @@ import {FluentStrategyTypeFactory} from './FluentStrategyFactory'
 
 const RANDOM = () => new FluentStrategyTypeFactory()
   .withRandomSampling()
+  .withCoverageTracking(process.env.FLUENT_CHECK_SPECIFICATION_PATH ?? 'test')
   .withoutReplacement()
   .usingCache()
 
