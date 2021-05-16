@@ -32,7 +32,8 @@ export function Random<TBase extends MixinStrategy>(Base: TBase) {
      */
     hasInput(): boolean {
       this.currTime = performance.now()
-      if (this.configuration.timeout < this.currTime - (this.initTime ?? this.currTime)) return false
+      if (this.configuration.timeout < this.currTime - (this.initTime ?? this.currTime) ||
+        this.configuration.maxNumTestCases <= this.getTestCases().size) return false
       else return this.testCaseCollectionPick < this.testCaseCollection.length
     }
 

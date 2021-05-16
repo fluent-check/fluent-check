@@ -41,7 +41,8 @@ export function CoverageGuidance<TBase extends MixinStrategy>(Base: TBase) {
 
       // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
       if (this.getCoverageBuilder()!.getTotalCoverage() >= this.configuration.coveragePercentage ||
-        this.configuration.timeout < this.currTime - (this.initTime ?? this.currTime)) return false
+        this.configuration.timeout < this.currTime - (this.initTime ?? this.currTime) ||
+        this.configuration.maxNumTestCases <= this.getTestCases().size) return false
       else if (this.testCaseCollectionPick >= this.testCaseCollection.length) {
         for (const name in this.arbitraries) {
           this.arbitraries[name].collection = []

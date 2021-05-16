@@ -22,17 +22,16 @@ export type FluentStrategyArbitrary<A> = {
 }
 
 export type FluentStrategyConfig = {
-  sampleSize: number
-  shrinkSize: number
   globSource: string
-  maxNumConst: number
   pairwise: boolean
-  numericConstMaxRange: number
-  maxStringTransformations: number
-  importsPath: string
-  timeout: number
-  coveragePercentage: number
+  shrinkSize: number
+  sampleSize: number
+  maxNumConst: number
   maxNumMutations: number
+  importsPath: string
+  coveragePercentage: number
+  timeout: number
+  maxNumTestCases: number
 }
 
 export type ConstantExtractionConfig = {

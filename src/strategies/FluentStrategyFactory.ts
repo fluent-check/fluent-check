@@ -43,17 +43,16 @@ export class FluentStrategyFactory {
    * Strategy configuration
    */
   protected configuration: FluentStrategyConfig = {
-    sampleSize: 1000,
-    shrinkSize: 500,
     globSource: '',
-    maxNumConst: 100,
     pairwise: false,
-    numericConstMaxRange: 100,
-    maxStringTransformations: 50,
+    shrinkSize: 500,
+    sampleSize: 1000,
+    maxNumConst: 100,
+    maxNumMutations: 5,
     importsPath: 'test',
-    timeout: Number.MAX_SAFE_INTEGER,
     coveragePercentage: 100,
-    maxNumMutations: 1
+    timeout: Number.MAX_SAFE_INTEGER,
+    maxNumTestCases: Number.MAX_SAFE_INTEGER
   }
 
   /**
@@ -126,6 +125,14 @@ export class FluentStrategyFactory {
    */
   withTimeout(timeout = Number.MAX_SAFE_INTEGER) {
     this.configuration = {...this.configuration, timeout}
+    return this
+  }
+
+  /**
+   * Enables stop testing after a given number of test cases is reached.
+   */
+  withMaxNumberOfTestCases(maxNumTestCases = Number.MAX_SAFE_INTEGER) {
+    this.configuration = {...this.configuration, maxNumTestCases}
     return this
   }
 
