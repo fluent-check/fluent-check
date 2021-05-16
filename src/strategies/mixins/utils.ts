@@ -76,7 +76,7 @@ export function extractImports(path: string, coverageID = '') {
     const importData = data.filter(x => !x.startsWith('//') && x.includes('import'))
 
     for (const x of importData) {
-      if (x.includes('* as fc')) continue
+      if (x.includes('* as fc') || x.includes('* as bc')) continue
 
       const relativePath = x.substring(x.indexOf('\'') + 1, x.length - 1) as string
       const resolvedPath = relativePath.includes('src') && coverageID !== '' ?

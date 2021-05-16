@@ -1,4 +1,5 @@
 import * as fc from '../../../src/index'
+import * as bc from '../index'
 import {Stack} from '../../../src/benchmarks/stack/original/main'
 import {it} from 'mocha'
 import {expect} from 'chai'
@@ -11,7 +12,7 @@ const RUN = 'R' + process.env.FLUENT_CHECK_RUN
 const PROJECT = process.env.FLUENT_CHECK_PROJECT
 const MUTATION_ID = 'M' + process.env.FLUENT_CHECK_MUTATION_ID
 const CONFIGURATION = process.env.FLUENT_CHECK_CONFIGURATION
-const PBTS = fc.getConfiguration(CONFIGURATION)
+const PBTS = bc.getConfiguration(CONFIGURATION)
 const PATH = '.benchmarks/' + PROJECT + '/' + MUTATION_ID + '/' + RUN + '/' + CONFIGURATION + '.json'
 
 ///////////////////
@@ -28,7 +29,7 @@ describe('Benchmark tests', () => {
       .when(({e, stack}) => stack.push(e))
       .then(({stack}) => stack.size() === 1)
       .check()
-    fc.exportTestData(PATH, '1', expected, scenario)
+    bc.exportTestData(PATH, '1', expected, scenario)
     expect(scenario).to.deep.include(expected)
   })
 
@@ -41,7 +42,7 @@ describe('Benchmark tests', () => {
       .when(({es, stack}) => stack.push(...es))
       .then(({es, stack}) => stack.size() === es.length)
       .check()
-    fc.exportTestData(PATH, '2', expected, scenario)
+    bc.exportTestData(PATH, '2', expected, scenario)
     expect(scenario).to.deep.include(expected)
   })
 
@@ -56,7 +57,7 @@ describe('Benchmark tests', () => {
       .and(({stack}) => stack.size() > 0)
       .check()
 
-    fc.exportTestData(PATH, '3', expected, scenario)
+    bc.exportTestData(PATH, '3', expected, scenario)
     expect(scenario).to.deep.include(expected)
   })
 
@@ -74,7 +75,7 @@ describe('Benchmark tests', () => {
       .and(({es, s2}) => s2.size() === es.length)
       .check()
 
-    fc.exportTestData(PATH, '4', expected, scenario)
+    bc.exportTestData(PATH, '4', expected, scenario)
     expect(scenario).to.deep.include(expected)
   })
 
@@ -91,7 +92,7 @@ describe('Benchmark tests', () => {
       .then(({es, stack}) => stack.size() === es.length - 1)
       .check()
 
-    fc.exportTestData(PATH, '5', expected, scenario)
+    bc.exportTestData(PATH, '5', expected, scenario)
     expect(scenario).to.deep.include(expected)
   })
 })

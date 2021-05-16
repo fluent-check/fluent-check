@@ -1,10 +1,12 @@
-import {FluentStrategyTypeFactory} from './FluentStrategyFactory'
+import {FluentStrategyTypeFactory} from '../../src/strategies/FluentStrategyFactory'
+import {createDirectory, readDataFromFile, writeDataToFile} from '../../src/strategies/mixins/utils'
 
 const RANDOM = () => new FluentStrategyTypeFactory()
   .withRandomSampling()
   .withCoverageTracking(process.env.FLUENT_CHECK_SPECIFICATION_PATH ?? 'test')
   .withoutReplacement()
   .usingCache()
+  .withDynamicSampleSizing()
 
 export const PBT_R_S1 = RANDOM()
 export const PBT_R_S2 = RANDOM().withBias()
@@ -24,7 +26,7 @@ export const PBT_R_S8 = RANDOM().withBias()
 const COVERAGE_GUIDED = () => new FluentStrategyTypeFactory()
   .withCoverageGuidance(process.env.FLUENT_CHECK_SPECIFICATION_PATH ?? 'test')
   .withoutReplacement()
-  .usingCache()
+  .withDynamicSampleSizing()
   .withTimeout(2000)
 
 export const PBT_CG_S1 = COVERAGE_GUIDED()
@@ -56,4 +58,22 @@ export function getConfiguration(config: string | undefined = undefined) {
   else if (config.includes('S6')) return config.includes('R') ? PBT_R_S6 : PBT_CG_S6
   else if (config.includes('S7')) return config.includes('R') ? PBT_R_S7 : PBT_CG_S7
   else return config.includes('R') ? PBT_R_S8 : PBT_CG_S8
+}
+
+/**
+ * Exports data from a specific test run.
+ */
+export function exportTestData(PATH: string, testId: string, expected: any, actual: any) {
+  // Data to be exported
+  let data = {}
+  // Create needed directories if not already created
+  createDirectory('.benchmarks/')
+  createDirectory('.benchmarks/' + process.env.FLUENT_CHECK_PROJECT)
+  createDirectory('.benchmarks/' + process.env.FLUENT_CHECK_PROJECT + '/M' + process.env.FLUENT_CHECK_MUTATION_ID)
+  // Loads current data from file if available
+  const fileData = readDataFromFile(PATH)
+  if (fileData !== undefined) data = JSON.parse(fileData.toString())
+  // Exports data
+  data[testId] = {expected, actual}
+  writeDataToFile(PATH, JSON.stringify(data))
 }
