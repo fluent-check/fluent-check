@@ -6,7 +6,8 @@ import {
   Shrinkable,
   CoverageTracker,
   CoverageGuidance,
-  ConstantExtractionBased
+  DynamicSampleSizing,
+  ConstantExtractionBased,
 } from './mixins/internal'
 import {FluentStrategy} from './FluentStrategy'
 import {ConstantExtractionConfig, FluentStrategyConfig} from './FluentStrategyTypes'
@@ -134,6 +135,15 @@ export class FluentStrategyFactory {
   withCoverageTracking(importsPath = 'test') {
     this.configuration = {...this.configuration, importsPath}
     this.strategy = CoverageTracker(this.strategy)
+    return this
+  }
+
+  /**
+   * Enables dynamic sample sizing, which adjusts the sample size based on the number of arbitraries used in a
+   * given test.
+   */
+  withDynamicSampleSizing() {
+    this.strategy = DynamicSampleSizing(this.strategy)
     return this
   }
 

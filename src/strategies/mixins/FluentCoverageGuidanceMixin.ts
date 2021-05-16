@@ -18,6 +18,8 @@ export function CoverageGuidance<TBase extends MixinStrategy>(Base: TBase) {
      * test case collection to be used during the testing process.
      */
     configArbitraries() {
+      this.tweakSampleSize()
+
       for (const name in this.arbitraries) {
         this.arbitraries[name].seedCollection = this.buildArbitraryCollection(this.arbitraries[name].arbitrary,
           this.getArbitraryExtractedConstants(this.arbitraries[name].arbitrary))

@@ -272,6 +272,12 @@ export class FluentStrategy implements FluentStrategyInterface {
    */
   protected coverageTearDown() {}
 
+  /**
+   * Hook that acts as point of extension of the configArbitraries function and that enables the strategy to fine-tune
+   * the sampleSize variable according to the number of arbitraries used in the testing process.
+   */
+  protected tweakSampleSize() {}
+
   ///////////////////////
   // INTERFACE METHODS //
   ///////////////////////

@@ -13,6 +13,8 @@ export function Random<TBase extends MixinStrategy>(Base: TBase) {
      * test case collection to be used during the testing process.
      */
     configArbitraries<A>() {
+      this.tweakSampleSize()
+
       for (const name in this.arbitraries) {
         this.arbitraries[name].collection = this.arbitraries[name].cache !== undefined ?
           this.arbitraries[name].cache as FluentPick<A>[]:
