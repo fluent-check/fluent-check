@@ -4,6 +4,7 @@ import {FluentStatistician} from './statistics/FluentStatistician'
 import {FluentStatisticianFactory} from './statistics/FluentStatisticianFactory'
 import {FluentStrategy} from './strategies/FluentStrategy'
 import {FluentStrategyFactory} from './strategies/FluentStrategyFactory'
+import cloneDeep from 'lodash.clonedeep'
 import now from 'performance-now'
 
 type WrapFluentPick<T> = { [P in keyof T]: FluentPick<T[P]> }
@@ -119,7 +120,7 @@ export class FluentCheck<Rec extends ParentRec, ParentRec extends {}> {
     }
   }
 
-  static unwrapFluentPickOriginal<T>(testCase: PickResult<T>): ValueResult<number | number[]> {
+  static unwrapFluentPickOriginal<T>(testCase: PickResult<T>): ValueResult<T> {
     const result = {}
     for (const k in testCase) result[k] = testCase[k].original
     return result
@@ -282,11 +283,10 @@ class FluentCheckAssert<Rec extends ParentRec, ParentRec extends {}> extends Flu
     callback: (arg: WrapFluentPick<Rec>) => FluentResult,
     testCases: TestCases): FluentResult {
     const unwrappedTestCase = FluentCheck.unwrapFluentPick(testCase)
-
     let result
     if (this.statistician.configuration.gatherTestCases) {
       testCases.originals.push(FluentCheck.unwrapFluentPickOriginal(testCase))
-      testCases.values.push(unwrappedTestCase)
+      testCases.values.push(cloneDeep(unwrappedTestCase))
       const start = now()
       result = this.assertion({...unwrappedTestCase, ...this.runPreliminaries(unwrappedTestCase)} as Rec)
       testCases.time.push(now() - start)
