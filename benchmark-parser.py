@@ -79,18 +79,13 @@ for v in VERSIONS:
         df.to_csv(PATH + v + FILE_DELIMETER + c.split('.')[0] + CSV_EXTENSION)
 
         filteredDf = df[df[BUG_FOUND] > 0]
-        vdfData.append([
-                c.split('.')[0],
-                min(filteredDf[TIME]) if len(filteredDf) > 0 else None,
-                max(filteredDf[TIME]) if len(filteredDf) > 0 else None,
-                min(filteredDf[SAMPLE_SIZE]) if len(filteredDf) > 0 else None,
-                max(filteredDf[SAMPLE_SIZE]) if len(filteredDf) > 0 else None,
-                min(filteredDf[TEST_CASES]) if len(filteredDf) > 0 else None,
-                max(filteredDf[TEST_CASES]) if len(filteredDf) > 0 else None,
-                min(filteredDf[COVERAGE]) if len(filteredDf) > 0 else None,
-                max(filteredDf[COVERAGE]) if len(filteredDf) > 0 else None,
+        vdfData.append([c.split('.')[0],
+                min(filteredDf[TIME]), max(filteredDf[TIME]),
+                min(filteredDf[SAMPLE_SIZE]), max(filteredDf[SAMPLE_SIZE]),
+                min(filteredDf[TEST_CASES]), max(filteredDf[TEST_CASES]),
+                min(filteredDf[COVERAGE]), max(filteredDf[COVERAGE]),
                 len(filteredDf) > 0
-            ])
+            ]) if len(filteredDf) > 0 else [c.split('.')[0], None, None, None, None, None, None, None, None, len(filteredDf) > 0]
     df = pd.DataFrame(vdfData, columns = [
             'Strategy', 
             'Min ' + TIME, 'Max ' + TIME, 

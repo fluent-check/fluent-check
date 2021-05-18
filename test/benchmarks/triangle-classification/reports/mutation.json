@@ -1,0 +1,1639 @@
+{
+    "mutants": [
+        {
+            "id": "2",
+            "location": {
+                "end": {
+                    "column": 72,
+                    "line": 2
+                },
+                "start": {
+                    "column": 7,
+                    "line": 2
+                }
+            },
+            "mutatorName": "ConditionalExpression",
+            "replacement": "false",
+            "status": "Killed",
+            "description": "Killed by: Benchmark tests #1 should detect invalid triangles with either negative or null side's length"
+        },
+        {
+            "id": "4",
+            "location": {
+                "end": {
+                    "column": 71,
+                    "line": 2
+                },
+                "start": {
+                    "column": 9,
+                    "line": 2
+                }
+            },
+            "mutatorName": "ConditionalExpression",
+            "replacement": "true",
+            "status": "Killed",
+            "description": "Killed by: Benchmark tests #1 should detect invalid triangles with either negative or null side's length"
+        },
+        {
+            "id": "5",
+            "location": {
+                "end": {
+                    "column": 71,
+                    "line": 2
+                },
+                "start": {
+                    "column": 9,
+                    "line": 2
+                }
+            },
+            "mutatorName": "ConditionalExpression",
+            "replacement": "false",
+            "status": "Killed",
+            "description": "Killed by: Benchmark tests #3 should classify as scalene a triangle with all three sides of different lengths"
+        },
+        {
+            "id": "6",
+            "location": {
+                "end": {
+                    "column": 71,
+                    "line": 2
+                },
+                "start": {
+                    "column": 9,
+                    "line": 2
+                }
+            },
+            "mutatorName": "LogicalOperator",
+            "replacement": "a + b > c && b + c > a && c + a > b && a > 0 && b > 0 || c > 0",
+            "status": "Killed",
+            "description": "Killed by: Benchmark tests #2 should detect invalid triangles which sum of the length of any two sides of a triangle is lesser or equal than the length of the third side"
+        },
+        {
+            "id": "7",
+            "location": {
+                "end": {
+                    "column": 62,
+                    "line": 2
+                },
+                "start": {
+                    "column": 9,
+                    "line": 2
+                }
+            },
+            "mutatorName": "ConditionalExpression",
+            "replacement": "true",
+            "status": "Killed",
+            "description": "Killed by: Benchmark tests #2 should detect invalid triangles which sum of the length of any two sides of a triangle is lesser or equal than the length of the third side"
+        },
+        {
+            "id": "8",
+            "location": {
+                "end": {
+                    "column": 62,
+                    "line": 2
+                },
+                "start": {
+                    "column": 9,
+                    "line": 2
+                }
+            },
+            "mutatorName": "ConditionalExpression",
+            "replacement": "false",
+            "status": "Killed",
+            "description": "Killed by: Benchmark tests #3 should classify as scalene a triangle with all three sides of different lengths"
+        },
+        {
+            "id": "9",
+            "location": {
+                "end": {
+                    "column": 62,
+                    "line": 2
+                },
+                "start": {
+                    "column": 9,
+                    "line": 2
+                }
+            },
+            "mutatorName": "LogicalOperator",
+            "replacement": "a + b > c && b + c > a && c + a > b && a > 0 || b > 0",
+            "status": "Killed",
+            "description": "Killed by: Benchmark tests #2 should detect invalid triangles which sum of the length of any two sides of a triangle is lesser or equal than the length of the third side"
+        },
+        {
+            "id": "10",
+            "location": {
+                "end": {
+                    "column": 53,
+                    "line": 2
+                },
+                "start": {
+                    "column": 9,
+                    "line": 2
+                }
+            },
+            "mutatorName": "ConditionalExpression",
+            "replacement": "true",
+            "status": "Killed",
+            "description": "Killed by: Benchmark tests #2 should detect invalid triangles which sum of the length of any two sides of a triangle is lesser or equal than the length of the third side"
+        },
+        {
+            "id": "11",
+            "location": {
+                "end": {
+                    "column": 53,
+                    "line": 2
+                },
+                "start": {
+                    "column": 9,
+                    "line": 2
+                }
+            },
+            "mutatorName": "ConditionalExpression",
+            "replacement": "false",
+            "status": "Killed",
+            "description": "Killed by: Benchmark tests #3 should classify as scalene a triangle with all three sides of different lengths"
+        },
+        {
+            "id": "12",
+            "location": {
+                "end": {
+                    "column": 53,
+                    "line": 2
+                },
+                "start": {
+                    "column": 9,
+                    "line": 2
+                }
+            },
+            "mutatorName": "LogicalOperator",
+            "replacement": "a + b > c && b + c > a && c + a > b || a > 0",
+            "status": "Killed",
+            "description": "Killed by: Benchmark tests #2 should detect invalid triangles which sum of the length of any two sides of a triangle is lesser or equal than the length of the third side"
+        },
+        {
+            "id": "13",
+            "location": {
+                "end": {
+                    "column": 44,
+                    "line": 2
+                },
+                "start": {
+                    "column": 9,
+                    "line": 2
+                }
+            },
+            "mutatorName": "ConditionalExpression",
+            "replacement": "true",
+            "status": "Killed",
+            "description": "Killed by: Benchmark tests #2 should detect invalid triangles which sum of the length of any two sides of a triangle is lesser or equal than the length of the third side"
+        },
+        {
+            "id": "3",
+            "location": {
+                "end": {
+                    "column": 72,
+                    "line": 2
+                },
+                "start": {
+                    "column": 7,
+                    "line": 2
+                }
+            },
+            "mutatorName": "BooleanLiteral",
+            "replacement": "a + b > c && b + c > a && c + a > b && a > 0 && b > 0 && c > 0",
+            "status": "Killed",
+            "description": "Killed by: Benchmark tests #1 should detect invalid triangles with either negative or null side's length"
+        },
+        {
+            "id": "14",
+            "location": {
+                "end": {
+                    "column": 44,
+                    "line": 2
+                },
+                "start": {
+                    "column": 9,
+                    "line": 2
+                }
+            },
+            "mutatorName": "ConditionalExpression",
+            "replacement": "false",
+            "status": "Killed",
+            "description": "Killed by: Benchmark tests #3 should classify as scalene a triangle with all three sides of different lengths"
+        },
+        {
+            "id": "16",
+            "location": {
+                "end": {
+                    "column": 31,
+                    "line": 2
+                },
+                "start": {
+                    "column": 9,
+                    "line": 2
+                }
+            },
+            "mutatorName": "ConditionalExpression",
+            "replacement": "true",
+            "status": "Killed",
+            "description": "Killed by: Benchmark tests #2 should detect invalid triangles which sum of the length of any two sides of a triangle is lesser or equal than the length of the third side"
+        },
+        {
+            "id": "15",
+            "location": {
+                "end": {
+                    "column": 44,
+                    "line": 2
+                },
+                "start": {
+                    "column": 9,
+                    "line": 2
+                }
+            },
+            "mutatorName": "LogicalOperator",
+            "replacement": "a + b > c && b + c > a || c + a > b",
+            "status": "Killed",
+            "description": "Killed by: Benchmark tests #2 should detect invalid triangles which sum of the length of any two sides of a triangle is lesser or equal than the length of the third side"
+        },
+        {
+            "id": "17",
+            "location": {
+                "end": {
+                    "column": 31,
+                    "line": 2
+                },
+                "start": {
+                    "column": 9,
+                    "line": 2
+                }
+            },
+            "mutatorName": "ConditionalExpression",
+            "replacement": "false",
+            "status": "Killed",
+            "description": "Killed by: Benchmark tests #3 should classify as scalene a triangle with all three sides of different lengths"
+        },
+        {
+            "id": "18",
+            "location": {
+                "end": {
+                    "column": 31,
+                    "line": 2
+                },
+                "start": {
+                    "column": 9,
+                    "line": 2
+                }
+            },
+            "mutatorName": "LogicalOperator",
+            "replacement": "a + b > c || b + c > a",
+            "status": "Killed",
+            "description": "Killed by: Benchmark tests #2 should detect invalid triangles which sum of the length of any two sides of a triangle is lesser or equal than the length of the third side"
+        },
+        {
+            "id": "19",
+            "location": {
+                "end": {
+                    "column": 18,
+                    "line": 2
+                },
+                "start": {
+                    "column": 9,
+                    "line": 2
+                }
+            },
+            "mutatorName": "ConditionalExpression",
+            "replacement": "true",
+            "status": "Killed",
+            "description": "Killed by: Benchmark tests #2 should detect invalid triangles which sum of the length of any two sides of a triangle is lesser or equal than the length of the third side"
+        },
+        {
+            "id": "21",
+            "location": {
+                "end": {
+                    "column": 18,
+                    "line": 2
+                },
+                "start": {
+                    "column": 9,
+                    "line": 2
+                }
+            },
+            "mutatorName": "EqualityOperator",
+            "replacement": "a + b >= c",
+            "status": "Survived"
+        },
+        {
+            "id": "20",
+            "location": {
+                "end": {
+                    "column": 18,
+                    "line": 2
+                },
+                "start": {
+                    "column": 9,
+                    "line": 2
+                }
+            },
+            "mutatorName": "ConditionalExpression",
+            "replacement": "false",
+            "status": "Killed",
+            "description": "Killed by: Benchmark tests #4 should classify as isosceles a triangle with two sides of the same length and the third side of a different length"
+        },
+        {
+            "id": "1",
+            "location": {
+                "end": {
+                    "column": 72,
+                    "line": 2
+                },
+                "start": {
+                    "column": 7,
+                    "line": 2
+                }
+            },
+            "mutatorName": "ConditionalExpression",
+            "replacement": "true",
+            "status": "Timeout"
+        },
+        {
+            "id": "22",
+            "location": {
+                "end": {
+                    "column": 18,
+                    "line": 2
+                },
+                "start": {
+                    "column": 9,
+                    "line": 2
+                }
+            },
+            "mutatorName": "EqualityOperator",
+            "replacement": "a + b <= c",
+            "status": "Killed",
+            "description": "Killed by: Benchmark tests #2 should detect invalid triangles which sum of the length of any two sides of a triangle is lesser or equal than the length of the third side"
+        },
+        {
+            "id": "23",
+            "location": {
+                "end": {
+                    "column": 14,
+                    "line": 2
+                },
+                "start": {
+                    "column": 9,
+                    "line": 2
+                }
+            },
+            "mutatorName": "ArithmeticOperator",
+            "replacement": "a - b",
+            "status": "Killed",
+            "description": "Killed by: Benchmark tests #3 should classify as scalene a triangle with all three sides of different lengths"
+        },
+        {
+            "id": "25",
+            "location": {
+                "end": {
+                    "column": 31,
+                    "line": 2
+                },
+                "start": {
+                    "column": 22,
+                    "line": 2
+                }
+            },
+            "mutatorName": "ConditionalExpression",
+            "replacement": "false",
+            "status": "Killed",
+            "description": "Killed by: Benchmark tests #3 should classify as scalene a triangle with all three sides of different lengths"
+        },
+        {
+            "id": "26",
+            "location": {
+                "end": {
+                    "column": 31,
+                    "line": 2
+                },
+                "start": {
+                    "column": 22,
+                    "line": 2
+                }
+            },
+            "mutatorName": "EqualityOperator",
+            "replacement": "b + c >= a",
+            "status": "Survived"
+        },
+        {
+            "id": "27",
+            "location": {
+                "end": {
+                    "column": 31,
+                    "line": 2
+                },
+                "start": {
+                    "column": 22,
+                    "line": 2
+                }
+            },
+            "mutatorName": "EqualityOperator",
+            "replacement": "b + c <= a",
+            "status": "Killed",
+            "description": "Killed by: Benchmark tests #2 should detect invalid triangles which sum of the length of any two sides of a triangle is lesser or equal than the length of the third side"
+        },
+        {
+            "id": "29",
+            "location": {
+                "end": {
+                    "column": 44,
+                    "line": 2
+                },
+                "start": {
+                    "column": 35,
+                    "line": 2
+                }
+            },
+            "mutatorName": "ConditionalExpression",
+            "replacement": "true",
+            "status": "Killed",
+            "description": "Killed by: Benchmark tests #2 should detect invalid triangles which sum of the length of any two sides of a triangle is lesser or equal than the length of the third side"
+        },
+        {
+            "id": "28",
+            "location": {
+                "end": {
+                    "column": 27,
+                    "line": 2
+                },
+                "start": {
+                    "column": 22,
+                    "line": 2
+                }
+            },
+            "mutatorName": "ArithmeticOperator",
+            "replacement": "b - c",
+            "status": "Killed",
+            "description": "Killed by: Benchmark tests #3 should classify as scalene a triangle with all three sides of different lengths"
+        },
+        {
+            "id": "30",
+            "location": {
+                "end": {
+                    "column": 44,
+                    "line": 2
+                },
+                "start": {
+                    "column": 35,
+                    "line": 2
+                }
+            },
+            "mutatorName": "ConditionalExpression",
+            "replacement": "false",
+            "status": "Killed",
+            "description": "Killed by: Benchmark tests #4 should classify as isosceles a triangle with two sides of the same length and the third side of a different length"
+        },
+        {
+            "id": "31",
+            "location": {
+                "end": {
+                    "column": 44,
+                    "line": 2
+                },
+                "start": {
+                    "column": 35,
+                    "line": 2
+                }
+            },
+            "mutatorName": "EqualityOperator",
+            "replacement": "c + a >= b",
+            "status": "Survived"
+        },
+        {
+            "id": "32",
+            "location": {
+                "end": {
+                    "column": 44,
+                    "line": 2
+                },
+                "start": {
+                    "column": 35,
+                    "line": 2
+                }
+            },
+            "mutatorName": "EqualityOperator",
+            "replacement": "c + a <= b",
+            "status": "Killed",
+            "description": "Killed by: Benchmark tests #2 should detect invalid triangles which sum of the length of any two sides of a triangle is lesser or equal than the length of the third side"
+        },
+        {
+            "id": "33",
+            "location": {
+                "end": {
+                    "column": 40,
+                    "line": 2
+                },
+                "start": {
+                    "column": 35,
+                    "line": 2
+                }
+            },
+            "mutatorName": "ArithmeticOperator",
+            "replacement": "c - a",
+            "status": "Killed",
+            "description": "Killed by: Benchmark tests #3 should classify as scalene a triangle with all three sides of different lengths"
+        },
+        {
+            "id": "34",
+            "location": {
+                "end": {
+                    "column": 53,
+                    "line": 2
+                },
+                "start": {
+                    "column": 48,
+                    "line": 2
+                }
+            },
+            "mutatorName": "ConditionalExpression",
+            "replacement": "true",
+            "status": "Survived"
+        },
+        {
+            "id": "35",
+            "location": {
+                "end": {
+                    "column": 53,
+                    "line": 2
+                },
+                "start": {
+                    "column": 48,
+                    "line": 2
+                }
+            },
+            "mutatorName": "ConditionalExpression",
+            "replacement": "false",
+            "status": "Killed",
+            "description": "Killed by: Benchmark tests #3 should classify as scalene a triangle with all three sides of different lengths"
+        },
+        {
+            "id": "36",
+            "location": {
+                "end": {
+                    "column": 53,
+                    "line": 2
+                },
+                "start": {
+                    "column": 48,
+                    "line": 2
+                }
+            },
+            "mutatorName": "EqualityOperator",
+            "replacement": "a >= 0",
+            "status": "Survived"
+        },
+        {
+            "id": "37",
+            "location": {
+                "end": {
+                    "column": 53,
+                    "line": 2
+                },
+                "start": {
+                    "column": 48,
+                    "line": 2
+                }
+            },
+            "mutatorName": "EqualityOperator",
+            "replacement": "a <= 0",
+            "status": "Killed",
+            "description": "Killed by: Benchmark tests #3 should classify as scalene a triangle with all three sides of different lengths"
+        },
+        {
+            "id": "38",
+            "location": {
+                "end": {
+                    "column": 62,
+                    "line": 2
+                },
+                "start": {
+                    "column": 57,
+                    "line": 2
+                }
+            },
+            "mutatorName": "ConditionalExpression",
+            "replacement": "true",
+            "status": "Survived"
+        },
+        {
+            "id": "39",
+            "location": {
+                "end": {
+                    "column": 62,
+                    "line": 2
+                },
+                "start": {
+                    "column": 57,
+                    "line": 2
+                }
+            },
+            "mutatorName": "ConditionalExpression",
+            "replacement": "false",
+            "status": "Killed",
+            "description": "Killed by: Benchmark tests #3 should classify as scalene a triangle with all three sides of different lengths"
+        },
+        {
+            "id": "24",
+            "location": {
+                "end": {
+                    "column": 31,
+                    "line": 2
+                },
+                "start": {
+                    "column": 22,
+                    "line": 2
+                }
+            },
+            "mutatorName": "ConditionalExpression",
+            "replacement": "true",
+            "status": "Killed",
+            "description": "Killed by: Benchmark tests #2 should detect invalid triangles which sum of the length of any two sides of a triangle is lesser or equal than the length of the third side"
+        },
+        {
+            "id": "40",
+            "location": {
+                "end": {
+                    "column": 62,
+                    "line": 2
+                },
+                "start": {
+                    "column": 57,
+                    "line": 2
+                }
+            },
+            "mutatorName": "EqualityOperator",
+            "replacement": "b >= 0",
+            "status": "Survived"
+        },
+        {
+            "id": "41",
+            "location": {
+                "end": {
+                    "column": 62,
+                    "line": 2
+                },
+                "start": {
+                    "column": 57,
+                    "line": 2
+                }
+            },
+            "mutatorName": "EqualityOperator",
+            "replacement": "b <= 0",
+            "status": "Killed",
+            "description": "Killed by: Benchmark tests #3 should classify as scalene a triangle with all three sides of different lengths"
+        },
+        {
+            "id": "43",
+            "location": {
+                "end": {
+                    "column": 71,
+                    "line": 2
+                },
+                "start": {
+                    "column": 66,
+                    "line": 2
+                }
+            },
+            "mutatorName": "ConditionalExpression",
+            "replacement": "false",
+            "status": "Killed",
+            "description": "Killed by: Benchmark tests #3 should classify as scalene a triangle with all three sides of different lengths"
+        },
+        {
+            "id": "42",
+            "location": {
+                "end": {
+                    "column": 71,
+                    "line": 2
+                },
+                "start": {
+                    "column": 66,
+                    "line": 2
+                }
+            },
+            "mutatorName": "ConditionalExpression",
+            "replacement": "true",
+            "status": "Survived"
+        },
+        {
+            "id": "44",
+            "location": {
+                "end": {
+                    "column": 71,
+                    "line": 2
+                },
+                "start": {
+                    "column": 66,
+                    "line": 2
+                }
+            },
+            "mutatorName": "EqualityOperator",
+            "replacement": "c >= 0",
+            "status": "Survived"
+        },
+        {
+            "id": "46",
+            "location": {
+                "end": {
+                    "column": 97,
+                    "line": 2
+                },
+                "start": {
+                    "column": 81,
+                    "line": 2
+                }
+            },
+            "mutatorName": "StringLiteral",
+            "replacement": "\"\"",
+            "status": "Killed",
+            "description": "Killed by: Benchmark tests #1 should detect invalid triangles with either negative or null side's length"
+        },
+        {
+            "id": "45",
+            "location": {
+                "end": {
+                    "column": 71,
+                    "line": 2
+                },
+                "start": {
+                    "column": 66,
+                    "line": 2
+                }
+            },
+            "mutatorName": "EqualityOperator",
+            "replacement": "c <= 0",
+            "status": "Killed",
+            "description": "Killed by: Benchmark tests #3 should classify as scalene a triangle with all three sides of different lengths"
+        },
+        {
+            "id": "47",
+            "location": {
+                "end": {
+                    "column": 41,
+                    "line": 3
+                },
+                "start": {
+                    "column": 12,
+                    "line": 3
+                }
+            },
+            "mutatorName": "ConditionalExpression",
+            "replacement": "true",
+            "status": "Killed",
+            "description": "Killed by: Benchmark tests #4 should classify as isosceles a triangle with two sides of the same length and the third side of a different length"
+        },
+        {
+            "id": "48",
+            "location": {
+                "end": {
+                    "column": 41,
+                    "line": 3
+                },
+                "start": {
+                    "column": 12,
+                    "line": 3
+                }
+            },
+            "mutatorName": "ConditionalExpression",
+            "replacement": "false",
+            "status": "Killed",
+            "description": "Killed by: Benchmark tests #3 should classify as scalene a triangle with all three sides of different lengths"
+        },
+        {
+            "id": "49",
+            "location": {
+                "end": {
+                    "column": 41,
+                    "line": 3
+                },
+                "start": {
+                    "column": 12,
+                    "line": 3
+                }
+            },
+            "mutatorName": "LogicalOperator",
+            "replacement": "a !== b && b !== c || c !== a",
+            "status": "Killed",
+            "description": "Killed by: Benchmark tests #4 should classify as isosceles a triangle with two sides of the same length and the third side of a different length"
+        },
+        {
+            "id": "50",
+            "location": {
+                "end": {
+                    "column": 30,
+                    "line": 3
+                },
+                "start": {
+                    "column": 12,
+                    "line": 3
+                }
+            },
+            "mutatorName": "ConditionalExpression",
+            "replacement": "true",
+            "status": "Killed",
+            "description": "Killed by: Benchmark tests #4 should classify as isosceles a triangle with two sides of the same length and the third side of a different length"
+        },
+        {
+            "id": "51",
+            "location": {
+                "end": {
+                    "column": 30,
+                    "line": 3
+                },
+                "start": {
+                    "column": 12,
+                    "line": 3
+                }
+            },
+            "mutatorName": "ConditionalExpression",
+            "replacement": "false",
+            "status": "Killed",
+            "description": "Killed by: Benchmark tests #3 should classify as scalene a triangle with all three sides of different lengths"
+        },
+        {
+            "id": "52",
+            "location": {
+                "end": {
+                    "column": 30,
+                    "line": 3
+                },
+                "start": {
+                    "column": 12,
+                    "line": 3
+                }
+            },
+            "mutatorName": "LogicalOperator",
+            "replacement": "a !== b || b !== c",
+            "status": "Killed",
+            "description": "Killed by: Benchmark tests #4 should classify as isosceles a triangle with two sides of the same length and the third side of a different length"
+        },
+        {
+            "id": "53",
+            "location": {
+                "end": {
+                    "column": 19,
+                    "line": 3
+                },
+                "start": {
+                    "column": 12,
+                    "line": 3
+                }
+            },
+            "mutatorName": "ConditionalExpression",
+            "replacement": "true",
+            "status": "Killed",
+            "description": "Killed by: Benchmark tests #4 should classify as isosceles a triangle with two sides of the same length and the third side of a different length"
+        },
+        {
+            "id": "54",
+            "location": {
+                "end": {
+                    "column": 19,
+                    "line": 3
+                },
+                "start": {
+                    "column": 12,
+                    "line": 3
+                }
+            },
+            "mutatorName": "ConditionalExpression",
+            "replacement": "false",
+            "status": "Killed",
+            "description": "Killed by: Benchmark tests #3 should classify as scalene a triangle with all three sides of different lengths"
+        },
+        {
+            "id": "55",
+            "location": {
+                "end": {
+                    "column": 19,
+                    "line": 3
+                },
+                "start": {
+                    "column": 12,
+                    "line": 3
+                }
+            },
+            "mutatorName": "EqualityOperator",
+            "replacement": "a === b",
+            "status": "Killed",
+            "description": "Killed by: Benchmark tests #4 should classify as isosceles a triangle with two sides of the same length and the third side of a different length"
+        },
+        {
+            "id": "56",
+            "location": {
+                "end": {
+                    "column": 30,
+                    "line": 3
+                },
+                "start": {
+                    "column": 23,
+                    "line": 3
+                }
+            },
+            "mutatorName": "ConditionalExpression",
+            "replacement": "true",
+            "status": "Killed",
+            "description": "Killed by: Benchmark tests #4 should classify as isosceles a triangle with two sides of the same length and the third side of a different length"
+        },
+        {
+            "id": "57",
+            "location": {
+                "end": {
+                    "column": 30,
+                    "line": 3
+                },
+                "start": {
+                    "column": 23,
+                    "line": 3
+                }
+            },
+            "mutatorName": "ConditionalExpression",
+            "replacement": "false",
+            "status": "Survived"
+        },
+        {
+            "id": "58",
+            "location": {
+                "end": {
+                    "column": 30,
+                    "line": 3
+                },
+                "start": {
+                    "column": 23,
+                    "line": 3
+                }
+            },
+            "mutatorName": "EqualityOperator",
+            "replacement": "b === c",
+            "status": "Killed",
+            "description": "Killed by: Benchmark tests #3 should classify as scalene a triangle with all three sides of different lengths"
+        },
+        {
+            "id": "59",
+            "location": {
+                "end": {
+                    "column": 41,
+                    "line": 3
+                },
+                "start": {
+                    "column": 34,
+                    "line": 3
+                }
+            },
+            "mutatorName": "ConditionalExpression",
+            "replacement": "true",
+            "status": "Killed",
+            "description": "Killed by: Benchmark tests #4 should classify as isosceles a triangle with two sides of the same length and the third side of a different length"
+        },
+        {
+            "id": "60",
+            "location": {
+                "end": {
+                    "column": 41,
+                    "line": 3
+                },
+                "start": {
+                    "column": 34,
+                    "line": 3
+                }
+            },
+            "mutatorName": "ConditionalExpression",
+            "replacement": "false",
+            "status": "Killed",
+            "description": "Killed by: Benchmark tests #3 should classify as scalene a triangle with all three sides of different lengths"
+        },
+        {
+            "id": "61",
+            "location": {
+                "end": {
+                    "column": 41,
+                    "line": 3
+                },
+                "start": {
+                    "column": 34,
+                    "line": 3
+                }
+            },
+            "mutatorName": "EqualityOperator",
+            "replacement": "c === a",
+            "status": "Killed",
+            "description": "Killed by: Benchmark tests #3 should classify as scalene a triangle with all three sides of different lengths"
+        },
+        {
+            "id": "63",
+            "location": {
+                "end": {
+                    "column": 80,
+                    "line": 4
+                },
+                "start": {
+                    "column": 12,
+                    "line": 4
+                }
+            },
+            "mutatorName": "ConditionalExpression",
+            "replacement": "true",
+            "status": "Killed",
+            "description": "Killed by: Benchmark tests #5 should classify as equilateral a triangle with all the three sides of the same length"
+        },
+        {
+            "id": "62",
+            "location": {
+                "end": {
+                    "column": 59,
+                    "line": 3
+                },
+                "start": {
+                    "column": 50,
+                    "line": 3
+                }
+            },
+            "mutatorName": "StringLiteral",
+            "replacement": "\"\"",
+            "status": "Killed",
+            "description": "Killed by: Benchmark tests #3 should classify as scalene a triangle with all three sides of different lengths"
+        },
+        {
+            "id": "64",
+            "location": {
+                "end": {
+                    "column": 80,
+                    "line": 4
+                },
+                "start": {
+                    "column": 12,
+                    "line": 4
+                }
+            },
+            "mutatorName": "ConditionalExpression",
+            "replacement": "false",
+            "status": "Killed",
+            "description": "Killed by: Benchmark tests #4 should classify as isosceles a triangle with two sides of the same length and the third side of a different length"
+        },
+        {
+            "id": "66",
+            "location": {
+                "end": {
+                    "column": 56,
+                    "line": 4
+                },
+                "start": {
+                    "column": 12,
+                    "line": 4
+                }
+            },
+            "mutatorName": "ConditionalExpression",
+            "replacement": "true",
+            "status": "Killed",
+            "description": "Killed by: Benchmark tests #5 should classify as equilateral a triangle with all the three sides of the same length"
+        },
+        {
+            "id": "65",
+            "location": {
+                "end": {
+                    "column": 80,
+                    "line": 4
+                },
+                "start": {
+                    "column": 12,
+                    "line": 4
+                }
+            },
+            "mutatorName": "LogicalOperator",
+            "replacement": "(a === b && b !== c || b === c && c !== a) && c === a && a !== b",
+            "status": "Killed",
+            "description": "Killed by: Benchmark tests #4 should classify as isosceles a triangle with two sides of the same length and the third side of a different length"
+        },
+        {
+            "id": "67",
+            "location": {
+                "end": {
+                    "column": 56,
+                    "line": 4
+                },
+                "start": {
+                    "column": 12,
+                    "line": 4
+                }
+            },
+            "mutatorName": "ConditionalExpression",
+            "replacement": "false",
+            "status": "Killed",
+            "description": "Killed by: Benchmark tests #4 should classify as isosceles a triangle with two sides of the same length and the third side of a different length"
+        },
+        {
+            "id": "68",
+            "location": {
+                "end": {
+                    "column": 56,
+                    "line": 4
+                },
+                "start": {
+                    "column": 12,
+                    "line": 4
+                }
+            },
+            "mutatorName": "LogicalOperator",
+            "replacement": "a === b && b !== c && b === c && c !== a",
+            "status": "Killed",
+            "description": "Killed by: Benchmark tests #4 should classify as isosceles a triangle with two sides of the same length and the third side of a different length"
+        },
+        {
+            "id": "71",
+            "location": {
+                "end": {
+                    "column": 31,
+                    "line": 4
+                },
+                "start": {
+                    "column": 13,
+                    "line": 4
+                }
+            },
+            "mutatorName": "LogicalOperator",
+            "replacement": "a === b || b !== c",
+            "status": "Killed",
+            "description": "Killed by: Benchmark tests #5 should classify as equilateral a triangle with all the three sides of the same length"
+        },
+        {
+            "id": "69",
+            "location": {
+                "end": {
+                    "column": 31,
+                    "line": 4
+                },
+                "start": {
+                    "column": 13,
+                    "line": 4
+                }
+            },
+            "mutatorName": "ConditionalExpression",
+            "replacement": "true",
+            "status": "Killed",
+            "description": "Killed by: Benchmark tests #5 should classify as equilateral a triangle with all the three sides of the same length"
+        },
+        {
+            "id": "70",
+            "location": {
+                "end": {
+                    "column": 31,
+                    "line": 4
+                },
+                "start": {
+                    "column": 13,
+                    "line": 4
+                }
+            },
+            "mutatorName": "ConditionalExpression",
+            "replacement": "false",
+            "status": "Killed",
+            "description": "Killed by: Benchmark tests #4 should classify as isosceles a triangle with two sides of the same length and the third side of a different length"
+        },
+        {
+            "id": "72",
+            "location": {
+                "end": {
+                    "column": 20,
+                    "line": 4
+                },
+                "start": {
+                    "column": 13,
+                    "line": 4
+                }
+            },
+            "mutatorName": "ConditionalExpression",
+            "replacement": "true",
+            "status": "Survived"
+        },
+        {
+            "id": "75",
+            "location": {
+                "end": {
+                    "column": 31,
+                    "line": 4
+                },
+                "start": {
+                    "column": 24,
+                    "line": 4
+                }
+            },
+            "mutatorName": "ConditionalExpression",
+            "replacement": "true",
+            "status": "Killed",
+            "description": "Killed by: Benchmark tests #5 should classify as equilateral a triangle with all the three sides of the same length"
+        },
+        {
+            "id": "73",
+            "location": {
+                "end": {
+                    "column": 20,
+                    "line": 4
+                },
+                "start": {
+                    "column": 13,
+                    "line": 4
+                }
+            },
+            "mutatorName": "ConditionalExpression",
+            "replacement": "false",
+            "status": "Killed",
+            "description": "Killed by: Benchmark tests #4 should classify as isosceles a triangle with two sides of the same length and the third side of a different length"
+        },
+        {
+            "id": "74",
+            "location": {
+                "end": {
+                    "column": 20,
+                    "line": 4
+                },
+                "start": {
+                    "column": 13,
+                    "line": 4
+                }
+            },
+            "mutatorName": "EqualityOperator",
+            "replacement": "a !== b",
+            "status": "Killed",
+            "description": "Killed by: Benchmark tests #4 should classify as isosceles a triangle with two sides of the same length and the third side of a different length"
+        },
+        {
+            "id": "77",
+            "location": {
+                "end": {
+                    "column": 31,
+                    "line": 4
+                },
+                "start": {
+                    "column": 24,
+                    "line": 4
+                }
+            },
+            "mutatorName": "EqualityOperator",
+            "replacement": "b === c",
+            "status": "Killed",
+            "description": "Killed by: Benchmark tests #4 should classify as isosceles a triangle with two sides of the same length and the third side of a different length"
+        },
+        {
+            "id": "76",
+            "location": {
+                "end": {
+                    "column": 31,
+                    "line": 4
+                },
+                "start": {
+                    "column": 24,
+                    "line": 4
+                }
+            },
+            "mutatorName": "ConditionalExpression",
+            "replacement": "false",
+            "status": "Killed",
+            "description": "Killed by: Benchmark tests #4 should classify as isosceles a triangle with two sides of the same length and the third side of a different length"
+        },
+        {
+            "id": "78",
+            "location": {
+                "end": {
+                    "column": 55,
+                    "line": 4
+                },
+                "start": {
+                    "column": 37,
+                    "line": 4
+                }
+            },
+            "mutatorName": "ConditionalExpression",
+            "replacement": "true",
+            "status": "Killed",
+            "description": "Killed by: Benchmark tests #5 should classify as equilateral a triangle with all the three sides of the same length"
+        },
+        {
+            "id": "79",
+            "location": {
+                "end": {
+                    "column": 55,
+                    "line": 4
+                },
+                "start": {
+                    "column": 37,
+                    "line": 4
+                }
+            },
+            "mutatorName": "ConditionalExpression",
+            "replacement": "false",
+            "status": "Killed",
+            "description": "Killed by: Benchmark tests #4 should classify as isosceles a triangle with two sides of the same length and the third side of a different length"
+        },
+        {
+            "id": "80",
+            "location": {
+                "end": {
+                    "column": 55,
+                    "line": 4
+                },
+                "start": {
+                    "column": 37,
+                    "line": 4
+                }
+            },
+            "mutatorName": "LogicalOperator",
+            "replacement": "b === c || c !== a",
+            "status": "Killed",
+            "description": "Killed by: Benchmark tests #5 should classify as equilateral a triangle with all the three sides of the same length"
+        },
+        {
+            "id": "81",
+            "location": {
+                "end": {
+                    "column": 44,
+                    "line": 4
+                },
+                "start": {
+                    "column": 37,
+                    "line": 4
+                }
+            },
+            "mutatorName": "ConditionalExpression",
+            "replacement": "true",
+            "status": "Survived"
+        },
+        {
+            "id": "82",
+            "location": {
+                "end": {
+                    "column": 44,
+                    "line": 4
+                },
+                "start": {
+                    "column": 37,
+                    "line": 4
+                }
+            },
+            "mutatorName": "ConditionalExpression",
+            "replacement": "false",
+            "status": "Killed",
+            "description": "Killed by: Benchmark tests #4 should classify as isosceles a triangle with two sides of the same length and the third side of a different length"
+        },
+        {
+            "id": "83",
+            "location": {
+                "end": {
+                    "column": 44,
+                    "line": 4
+                },
+                "start": {
+                    "column": 37,
+                    "line": 4
+                }
+            },
+            "mutatorName": "EqualityOperator",
+            "replacement": "b !== c",
+            "status": "Killed",
+            "description": "Killed by: Benchmark tests #4 should classify as isosceles a triangle with two sides of the same length and the third side of a different length"
+        },
+        {
+            "id": "84",
+            "location": {
+                "end": {
+                    "column": 55,
+                    "line": 4
+                },
+                "start": {
+                    "column": 48,
+                    "line": 4
+                }
+            },
+            "mutatorName": "ConditionalExpression",
+            "replacement": "true",
+            "status": "Killed",
+            "description": "Killed by: Benchmark tests #5 should classify as equilateral a triangle with all the three sides of the same length"
+        },
+        {
+            "id": "86",
+            "location": {
+                "end": {
+                    "column": 55,
+                    "line": 4
+                },
+                "start": {
+                    "column": 48,
+                    "line": 4
+                }
+            },
+            "mutatorName": "EqualityOperator",
+            "replacement": "c === a",
+            "status": "Killed",
+            "description": "Killed by: Benchmark tests #4 should classify as isosceles a triangle with two sides of the same length and the third side of a different length"
+        },
+        {
+            "id": "85",
+            "location": {
+                "end": {
+                    "column": 55,
+                    "line": 4
+                },
+                "start": {
+                    "column": 48,
+                    "line": 4
+                }
+            },
+            "mutatorName": "ConditionalExpression",
+            "replacement": "false",
+            "status": "Killed",
+            "description": "Killed by: Benchmark tests #4 should classify as isosceles a triangle with two sides of the same length and the third side of a different length"
+        },
+        {
+            "id": "87",
+            "location": {
+                "end": {
+                    "column": 79,
+                    "line": 4
+                },
+                "start": {
+                    "column": 61,
+                    "line": 4
+                }
+            },
+            "mutatorName": "ConditionalExpression",
+            "replacement": "true",
+            "status": "Killed",
+            "description": "Killed by: Benchmark tests #5 should classify as equilateral a triangle with all the three sides of the same length"
+        },
+        {
+            "id": "90",
+            "location": {
+                "end": {
+                    "column": 68,
+                    "line": 4
+                },
+                "start": {
+                    "column": 61,
+                    "line": 4
+                }
+            },
+            "mutatorName": "ConditionalExpression",
+            "replacement": "true",
+            "status": "Survived"
+        },
+        {
+            "id": "89",
+            "location": {
+                "end": {
+                    "column": 79,
+                    "line": 4
+                },
+                "start": {
+                    "column": 61,
+                    "line": 4
+                }
+            },
+            "mutatorName": "LogicalOperator",
+            "replacement": "c === a || a !== b",
+            "status": "Killed",
+            "description": "Killed by: Benchmark tests #5 should classify as equilateral a triangle with all the three sides of the same length"
+        },
+        {
+            "id": "88",
+            "location": {
+                "end": {
+                    "column": 79,
+                    "line": 4
+                },
+                "start": {
+                    "column": 61,
+                    "line": 4
+                }
+            },
+            "mutatorName": "ConditionalExpression",
+            "replacement": "false",
+            "status": "Killed",
+            "description": "Killed by: Benchmark tests #4 should classify as isosceles a triangle with two sides of the same length and the third side of a different length"
+        },
+        {
+            "id": "91",
+            "location": {
+                "end": {
+                    "column": 68,
+                    "line": 4
+                },
+                "start": {
+                    "column": 61,
+                    "line": 4
+                }
+            },
+            "mutatorName": "ConditionalExpression",
+            "replacement": "false",
+            "status": "Killed",
+            "description": "Killed by: Benchmark tests #4 should classify as isosceles a triangle with two sides of the same length and the third side of a different length"
+        },
+        {
+            "id": "92",
+            "location": {
+                "end": {
+                    "column": 68,
+                    "line": 4
+                },
+                "start": {
+                    "column": 61,
+                    "line": 4
+                }
+            },
+            "mutatorName": "EqualityOperator",
+            "replacement": "c !== a",
+            "status": "Killed",
+            "description": "Killed by: Benchmark tests #4 should classify as isosceles a triangle with two sides of the same length and the third side of a different length"
+        },
+        {
+            "id": "93",
+            "location": {
+                "end": {
+                    "column": 79,
+                    "line": 4
+                },
+                "start": {
+                    "column": 72,
+                    "line": 4
+                }
+            },
+            "mutatorName": "ConditionalExpression",
+            "replacement": "true",
+            "status": "Killed",
+            "description": "Killed by: Benchmark tests #5 should classify as equilateral a triangle with all the three sides of the same length"
+        },
+        {
+            "id": "94",
+            "location": {
+                "end": {
+                    "column": 79,
+                    "line": 4
+                },
+                "start": {
+                    "column": 72,
+                    "line": 4
+                }
+            },
+            "mutatorName": "ConditionalExpression",
+            "replacement": "false",
+            "status": "Killed",
+            "description": "Killed by: Benchmark tests #4 should classify as isosceles a triangle with two sides of the same length and the third side of a different length"
+        },
+        {
+            "id": "95",
+            "location": {
+                "end": {
+                    "column": 79,
+                    "line": 4
+                },
+                "start": {
+                    "column": 72,
+                    "line": 4
+                }
+            },
+            "mutatorName": "EqualityOperator",
+            "replacement": "a === b",
+            "status": "Killed",
+            "description": "Killed by: Benchmark tests #4 should classify as isosceles a triangle with two sides of the same length and the third side of a different length"
+        },
+        {
+            "id": "96",
+            "location": {
+                "end": {
+                    "column": 100,
+                    "line": 4
+                },
+                "start": {
+                    "column": 89,
+                    "line": 4
+                }
+            },
+            "mutatorName": "StringLiteral",
+            "replacement": "\"\"",
+            "status": "Killed",
+            "description": "Killed by: Benchmark tests #4 should classify as isosceles a triangle with two sides of the same length and the third side of a different length"
+        },
+        {
+            "id": "97",
+            "location": {
+                "end": {
+                    "column": 28,
+                    "line": 5
+                },
+                "start": {
+                    "column": 15,
+                    "line": 5
+                }
+            },
+            "mutatorName": "StringLiteral",
+            "replacement": "\"\"",
+            "status": "Killed",
+            "description": "Killed by: Benchmark tests #5 should classify as equilateral a triangle with all the three sides of the same length"
+        }
+    ]
+}

@@ -7,7 +7,7 @@
   "tsconfigFile": "tsconfig.json",
   "buildCommand": "tsc -b",
   "mutate": [
-    "src/benchmarks/stack/original/**/*.ts"
+    "src/benchmarks/triangle-classification/original/**/*.ts"
   ],
   "mochaOptions": {
     "require": [

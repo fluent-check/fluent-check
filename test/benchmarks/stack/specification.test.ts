@@ -12,7 +12,6 @@ const RUN = 'R' + process.env.FLUENT_CHECK_RUN
 const PROJECT = process.env.FLUENT_CHECK_PROJECT
 const MUTATION_ID = 'M' + process.env.FLUENT_CHECK_MUTATION_ID
 const CONFIGURATION = process.env.FLUENT_CHECK_CONFIGURATION
-const PBTS = bc.getConfiguration(CONFIGURATION)
 const PATH = '.benchmarks/' + PROJECT + '/' + MUTATION_ID + '/' + RUN + '/' + CONFIGURATION + '.json'
 
 ///////////////////
@@ -23,7 +22,7 @@ describe('Benchmark tests', () => {
   it('#1 should push one element to the stack and have size one', () => {
     const expected = {'satisfiable': true}
     const scenario = fc.scenario()
-      .config(PBTS)
+      .config(bc.PBTS(CONFIGURATION))
       .forall('e', fc.integer())
       .given('stack', () => new Stack<number>())
       .when(({e, stack}) => stack.push(e))
@@ -36,7 +35,7 @@ describe('Benchmark tests', () => {
   it('#2 should push several elements to the stack and have size equal to the number of pushed elements', () => {
     const expected = {'satisfiable': true}
     const scenario = fc.scenario()
-      .config(PBTS)
+      .config(bc.PBTS(CONFIGURATION))
       .forall('es', fc.array(fc.integer()))
       .given('stack', () => new Stack<number>())
       .when(({es, stack}) => stack.push(...es))
@@ -49,7 +48,7 @@ describe('Benchmark tests', () => {
   it('#3 should find an example where pushing a collection of elements keeps the stack empty', () => {
     const expected = {satisfiable: false}
     const scenario = fc.scenario()
-      .config(PBTS)
+      .config(bc.PBTS(CONFIGURATION))
       .given('stack', () => new Stack<number>())
       .forall('es', fc.array(fc.integer()))
       .when(({es, stack}) => stack.push(...es))
@@ -64,7 +63,7 @@ describe('Benchmark tests', () => {
   it('#4 should find if two different stacks behave the same', () => {
     const expected = {'satisfiable': true}
     const scenario = fc.scenario()
-      .config(PBTS)
+      .config(bc.PBTS(CONFIGURATION))
       .forall('es', fc.array(fc.integer()))
       .given('s1', () => new Stack<number>())
       .and('s2', () => new Stack<number>())
@@ -83,7 +82,7 @@ describe('Benchmark tests', () => {
     'it has size equal to the number of elements minus one', () => {
     const expected = {'satisfiable': true}
     const scenario = fc.scenario()
-      .config(PBTS)
+      .config(bc.PBTS(CONFIGURATION))
       .given('stack', () => new Stack<number>())
       .forall('es', fc.array(fc.integer(), 1))
       .when(({es, stack}) => stack.push(...es))
