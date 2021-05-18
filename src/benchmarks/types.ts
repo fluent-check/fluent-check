@@ -1,5 +1,6 @@
 export type BenchmarkMetrics = {
   time: number
-  number_test_cases: number
+  sampleSize: number
+  numberTestCases: number
   coverage: number
 }

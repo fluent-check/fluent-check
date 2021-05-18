@@ -22,7 +22,8 @@ export function CoverageGuidance<TBase extends MixinStrategy>(Base: TBase) {
 
       for (const name in this.arbitraries) {
         this.arbitraries[name].seedCollection = this.buildArbitraryCollection(this.arbitraries[name].arbitrary,
-          this.getArbitraryExtractedConstants(this.arbitraries[name].arbitrary))
+          this.getArbitraryExtractedConstants(this.arbitraries[name].arbitrary),
+          Math.floor(this.configuration.sampleSize * 0.25))
         this.arbitraries[name].collection = this.arbitraries[name].seedCollection
       }
 

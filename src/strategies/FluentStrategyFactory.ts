@@ -186,7 +186,7 @@ export class FluentStrategyCoverageFactory extends FluentStrategyFactory {
    */
   constructor(importsPath) {
     super()
-    this.configuration = {...this.configuration, importsPath, sampleSize: 100}
+    this.configuration = {...this.configuration, importsPath}
     this.strategy = CoverageTracker(CoverageGuidance(this.strategy))
   }
 

@@ -6,7 +6,8 @@ import pandas as pd
 ############
 
 TIME = 'Time (ms)'
-TEST_CASES = 'Test Cases (Total)'
+SAMPLE_SIZE = 'Sample Size'
+TEST_CASES = 'Test Cases'
 COVERAGE = 'Coverage (%)'
 BUG_FOUND = 'Bug Found (%)'
 FILE_DELIMETER = '/'
@@ -49,29 +50,31 @@ if len(CONFIGURATIONS) < 1:
 for v in VERSIONS:
     vdfData = []
     for c in CONFIGURATIONS:
-        configData = { 'time': {}, 'status': {}, 'coverage': {}, 'testCases': {} }
+        configData = { 'time': {}, 'status': {}, 'coverage': {}, 'testCases': {}, 'sampleSize': {} }
         for r in RUNS:
             with open(PATH + v + FILE_DELIMETER + r + FILE_DELIMETER + c) as f:
                 data = json.load(f)
             for key in data.keys():
                 if configData['time'].get(key) == None: 
-                    configData['time'][key], configData['coverage'][key], configData['status'][key], configData['testCases'][key] = [], [], [], []
+                    configData['time'][key], configData['coverage'][key], configData['status'][key], configData['testCases'][key], configData['sampleSize'][key] = [], [], [], [], []
                 
                 configData['time'][key].append(data[key]['actual']['benchmarkMetrics']['time'])
                 configData['coverage'][key].append(data[key]['actual']['benchmarkMetrics']['coverage'])
                 configData['status'][key].append(data[key]['expected']['satisfiable'] == data[key]['actual']['satisfiable'])
-                configData['testCases'][key].append(data[key]['actual']['benchmarkMetrics']['number_test_cases'])
+                configData['testCases'][key].append(data[key]['actual']['benchmarkMetrics']['numberTestCases'])
+                configData['sampleSize'][key].append(data[key]['actual']['benchmarkMetrics']['sampleSize'])
         
         dfData = []
         for key in configData['time'].keys():
             dfData.append([
                 float("{:.5f}".format(functools.reduce(lambda acc, val : acc + val, configData['time'][key], 0) / len(configData['time'][key]))), 
+                int(functools.reduce(lambda acc, val : acc + val, configData['sampleSize'][key], 0) / len(configData['sampleSize'][key])),
                 int(functools.reduce(lambda acc, val : acc + val, configData['testCases'][key], 0) / len(configData['testCases'][key])),
                 float("{:.2f}".format(functools.reduce(lambda acc, val : acc + val, configData['coverage'][key], 0) / len(configData['coverage'][key]))), 
                 float("{:.2f}".format((functools.reduce(lambda acc, val : acc + 1 if val else acc, configData['status'][key], 0) * 100) / len(configData['status'][key])))
             ])
         
-        df = pd.DataFrame(dfData, columns = [TIME, TEST_CASES, COVERAGE, BUG_FOUND])
+        df = pd.DataFrame(dfData, columns = [TIME, SAMPLE_SIZE, TEST_CASES, COVERAGE, BUG_FOUND])
         df.index += 1
         df.to_csv(PATH + v + FILE_DELIMETER + c.split('.')[0] + CSV_EXTENSION)
 
@@ -80,6 +83,8 @@ for v in VERSIONS:
                 c.split('.')[0],
                 min(filteredDf[TIME]) if len(filteredDf) > 0 else None,
                 max(filteredDf[TIME]) if len(filteredDf) > 0 else None,
+                min(filteredDf[SAMPLE_SIZE]) if len(filteredDf) > 0 else None,
+                max(filteredDf[SAMPLE_SIZE]) if len(filteredDf) > 0 else None,
                 min(filteredDf[TEST_CASES]) if len(filteredDf) > 0 else None,
                 max(filteredDf[TEST_CASES]) if len(filteredDf) > 0 else None,
                 min(filteredDf[COVERAGE]) if len(filteredDf) > 0 else None,
@@ -89,6 +94,7 @@ for v in VERSIONS:
     df = pd.DataFrame(vdfData, columns = [
             'Strategy', 
             'Min ' + TIME, 'Max ' + TIME, 
+            'Min ' + SAMPLE_SIZE, 'Max ' + SAMPLE_SIZE, 
             'Min ' + TEST_CASES, 'Max ' + TEST_CASES, 
             'Min ' + COVERAGE, 'Max ' + COVERAGE,
             'Bug Found'

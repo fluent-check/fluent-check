@@ -27,7 +27,6 @@ const COVERAGE_GUIDED = () => new FluentStrategyTypeFactory()
   .withCoverageGuidance(process.env.FLUENT_CHECK_SPECIFICATION_PATH ?? 'test')
   .withoutReplacement()
   .withDynamicSampleSizing()
-  .withTimeout(2000)
 
 export const PBT_CG_S1 = COVERAGE_GUIDED()
 export const PBT_CG_S2 = COVERAGE_GUIDED().withBias()
