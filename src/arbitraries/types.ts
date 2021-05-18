@@ -10,14 +10,14 @@ export type ArbitrarySize = {
 }
 
 export type TestCases = {
-  wrapped: WrapFluentPick<any>[],
-  unwrapped: ValueResult<any>[],
+  originals: ValueResult<any>[],
+  values: ValueResult<any>[],
   time: number[],
   result: boolean[]
 }
 
 export type PrintInfo = {
-  unwrapped: ValueResult<any>[],
+  values: ValueResult<any>[],
   time: number[],
   result: boolean[]
 }

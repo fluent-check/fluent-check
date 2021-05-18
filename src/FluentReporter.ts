@@ -48,7 +48,7 @@ function assembleInfo(result: FluentResult): string {
 
   if (result.withTestCaseOutput) {
     msg.push('\nNumber of tested cases: ')
-    msg.push(result.testCases.unwrapped.length.toString())
+    msg.push(result.testCases.values.length.toString())
 
     msg.push('\nTested cases written to ')
     msg.push(writeTestCases(result.testCases, result.csvPath, result.csvFilter))
@@ -95,12 +95,12 @@ function writeTestCases(
   const stream = createWriteStream(csvPath)
 
   if (csvFilter === undefined) {
-    for (const arb in testCases.unwrapped[0]) {
+    for (const arb in testCases.values[0]) {
       stream.write(JSON.stringify(arb).replace(/,/g , ' '))
       stream.write(',')
     }
     stream.write('time,result\n')
-    testCases.unwrapped.forEach((e, i) => {
+    testCases.values.forEach((e, i) => {
       for (const arb in e) {
         stream.write(JSON.stringify(e[arb]).replace(/,/g , ' '))
         stream.write(',')
@@ -111,13 +111,13 @@ function writeTestCases(
       stream.write('\n')
     })
   } else {
-    const idx = testCases.unwrapped.findIndex(o => { return o !== undefined })
-    for (const k in csvFilter(testCases.unwrapped[idx], testCases.time[idx], testCases.result[idx])) {
+    const idx = testCases.values.findIndex(o => { return o !== undefined })
+    for (const k in csvFilter(testCases.values[idx], testCases.time[idx], testCases.result[idx])) {
       stream.write(JSON.stringify(k).replace(/,/g , ' '))
       stream.write(',')
     }
     stream.write('\n')
-    testCases.unwrapped.forEach((e, i) => {
+    testCases.values.forEach((e, i) => {
       const values = csvFilter(e, testCases.time[i], testCases.result[i])
       if (values !== undefined) {
         for (const val in values) {

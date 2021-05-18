@@ -21,7 +21,7 @@ export class FluentResult {
     public readonly withGraphs: boolean = false,
     public readonly csvPath?: string,
     public readonly csvFilter?: CsvFilter,
-    public readonly testCases: PrintInfo = {unwrapped: [], time: [], result: []},
+    public readonly testCases: PrintInfo = {values: [], time: [], result: []},
     public readonly coverages: [ScenarioCoverage, ArbitraryCoverage] = [0, {}],
     public readonly indexesForGraphs: IndexCollection = {oneD: [], twoD: []}) {}
 
@@ -93,7 +93,7 @@ export class FluentCheck<Rec extends ParentRec, ParentRec extends {}> {
   }
 
   check(child: (testCase: WrapFluentPick<any>) => FluentResult = () => new FluentResult(true),
-    testCases: TestCases = {wrapped: [], unwrapped: [], time: [], result: []}): FluentResult {
+    testCases: TestCases = {originals: [], values: [], time: [], result: []}): FluentResult {
     if (this.parent !== undefined) return this.parent.check(testCase => this.run(testCase, child, testCases), testCases)
     else {
       this.strategy.randomGenerator.initialize()
@@ -112,7 +112,7 @@ export class FluentCheck<Rec extends ParentRec, ParentRec extends {}> {
         this.statistician.reporterConfiguration.csvFilter,
         testCases,
         this.statistician.reporterConfiguration.withInputSpaceCoverage ?
-          this.statistician.calculateCoverages(new Set(testCases.unwrapped.map(x=>JSON.stringify(x))).size) : undefined,
+          this.statistician.calculateCoverages(new Set(testCases.values.map(x=>JSON.stringify(x))).size) : undefined,
         this.statistician.reporterConfiguration.withGraphs ?
           this.statistician.calculateIndexes(testCases) : undefined
       )
@@ -285,8 +285,8 @@ class FluentCheckAssert<Rec extends ParentRec, ParentRec extends {}> extends Flu
 
     let result
     if (this.statistician.configuration.gatherTestCases) {
-      testCases.wrapped.push({...testCase})
-      testCases.unwrapped.push(unwrappedTestCase)
+      testCases.originals.push(FluentCheck.unwrapFluentPickOriginal(testCase))
+      testCases.values.push(unwrappedTestCase)
       const start = now()
       result = this.assertion({...unwrappedTestCase, ...this.runPreliminaries(unwrappedTestCase)} as Rec)
       testCases.time.push(now() - start)

@@ -1,6 +1,5 @@
 import {ArbitraryCoverage, Graphs, IndexCollection, ScenarioCoverage, TestCases,
   ValueResult, Data1D, Data2D, CsvFilter} from '../arbitraries'
-import {FluentCheck} from '../FluentCheck'
 import {StrategyArbitraries} from '../strategies/FluentStrategyTypes'
 
 export type FluentReporterConfig = {
@@ -71,8 +70,8 @@ export class FluentStatistician {
    */
   calculateIndexes(testCases: TestCases): IndexCollection {
     const indexesCollection: IndexCollection = {oneD: [], twoD: []}
-    const values = testCases.unwrapped
-    const original = testCases.wrapped.map(e => FluentCheck.unwrapFluentPickOriginal(e))
+    const values = testCases.values
+    const originals = testCases.originals
     const times = testCases.time
     const results = testCases.result
 
@@ -84,8 +83,8 @@ export class FluentStatistician {
       for (const k in this.arbitraries) {
         const indexes: Data1D[] = []
         const repeated: Map<string, number> = new Map()
-        for (const i in original) {
-          const input = {value: values[i][k], original: original[i][k]}
+        for (const i in originals) {
+          const input = {value: values[i][k], original: originals[i][k]}
           const value = this.arbitraries[k].arbitrary.calculateIndex(input, this.configuration.realPrecision)
           indexes.push({value})
           repeated.set(JSON.stringify(value), (repeated.get(JSON.stringify(value)) ?? 0) + 1)
@@ -98,8 +97,8 @@ export class FluentStatistician {
     for (const g of this.graphs.oneD) {
       const indexes: Data1D[] = []
       const repeated: Map<string, number> = new Map()
-      for (const i in original) {
-        const index = g.func(original[i], sizes, times[i], results[i])
+      for (const i in originals) {
+        const index = g.func(originals[i], sizes, times[i], results[i])
         if (index !== undefined && index.value !== undefined) {
           indexes.push(index)
           repeated.set(JSON.stringify(index.value), (repeated.get(JSON.stringify(index.value)) ?? 0) + 1)
@@ -111,8 +110,8 @@ export class FluentStatistician {
     for (const g of this.graphs.twoD) {
       const indexes: Data2D[] = []
       const repeated: Map<string, number> = new Map()
-      for (const i in original) {
-        const index = g.func(original[i], sizes, times[i], results[i])
+      for (const i in originals) {
+        const index = g.func(originals[i], sizes, times[i], results[i])
         if (index !== undefined && index.valueX !== undefined && index.valueY !== undefined) {
           indexes.push(index)
           repeated.set(JSON.stringify([index.valueX, index.valueY]),

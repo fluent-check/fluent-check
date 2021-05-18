@@ -61,7 +61,7 @@ describe('Generation tests', () => {
       .forall('b', fc.integer(-10, 10))
       .then(({a, b}) => a+b === b+a)
 
-    expect(sc1.check().testCases.unwrapped).to.eql(sc2.check().testCases.unwrapped)
+    expect(sc1.check().testCases.values).to.eql(sc2.check().testCases.values)
   })
 
   it('Generator generates same values in two runs of the same scenario', () => {
@@ -72,6 +72,6 @@ describe('Generation tests', () => {
       .forall('b', fc.integer(-10, 10))
       .then(({a, b}) => a+b === b+a)
 
-    expect(sc1.check().testCases.unwrapped).to.eql(sc1.check().testCases.unwrapped)
+    expect(sc1.check().testCases.values).to.eql(sc1.check().testCases.values)
   })
 })
