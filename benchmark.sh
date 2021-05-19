@@ -20,7 +20,8 @@ LIGHTPURPLE='\033[1;35m'
 LIGHTCYAN='\033[1;36m'
 WHITE='\033[1;37m'
 
-RUNS=3
+RUNS=4
+NRUNS="3" # Specifies how many times each test case executes on each run.
 PROJECT_DIR="${PWD}/src/benchmarks/"
 CONFIGURATIONS=(
   "PBT_R_S1" "PBT_R_S2" "PBT_R_S3" "PBT_R_S4" "PBT_R_S5" "PBT_R_S6" "PBT_R_S7" "PBT_R_S8"
@@ -78,6 +79,7 @@ else
 fi
 
 export FLUENT_CHECK_PROJECT=$1
+export FLUENT_CHECK_NRUNS=$NRUNS
 export FLUENT_CHECK_EXTRACTION_PATH="$PROJECT_DIR/original/main.ts"
 export FLUENT_CHECK_SPECIFICATION_PATH="${PWD}/test/benchmarks/$1/specification.test.ts"
 
