@@ -23,10 +23,6 @@ WHITE='\033[1;37m'
 RUNS=4
 NRUNS="3" # Specifies how many times each test case executes on each run.
 PROJECT_DIR="${PWD}/src/benchmarks/"
-CONFIGURATIONS=(
-  "PBT_R_S1" "PBT_R_S2" "PBT_R_S3" "PBT_R_S4" "PBT_R_S5" "PBT_R_S6" "PBT_R_S7" "PBT_R_S8"
-  "PBT_CG_S1" "PBT_CG_S2" "PBT_CG_S3" "PBT_CG_S4" "PBT_CG_S5" "PBT_CG_S6" "PBT_CG_S7" "PBT_CG_S8"
-)
 
 Reporter() {
   pct=$((($1*100/($VERSIONS*$RUNS*${#CONFIGURATIONS[*]}))))
@@ -52,10 +48,18 @@ Reporter() {
   echo -ne $prg
 }
 
-if [ $# -ne 1 ];
+if [ $# -lt 1 ];
 then
-  echo -e "\n${LIGHTGREEN}$(date +"%T") INFO Benchmark$(tput sgr0) Usage: benchmark <PROJECT>\n"
+  echo -e "\n${LIGHTGREEN}$(date +"%T") INFO Benchmark$(tput sgr0) Usage: benchmark <PROJECT> [<CONFIGURATION_1>, <CONFIGURATION_2>, ...]\n"
   exit 1
+elif [ $# -ge 2 ]
+then
+  CONFIGURATIONS=(${@:2})
+else
+  CONFIGURATIONS=(
+    "PBT_R_S1" "PBT_R_S2" "PBT_R_S3" "PBT_R_S4" "PBT_R_S5" "PBT_R_S6" "PBT_R_S7" "PBT_R_S8"
+    "PBT_CG_S1" "PBT_CG_S2" "PBT_CG_S3" "PBT_CG_S4" "PBT_CG_S5" "PBT_CG_S6" "PBT_CG_S7" "PBT_CG_S8"
+  )
 fi
 
 PROJECT_DIR+=$1
