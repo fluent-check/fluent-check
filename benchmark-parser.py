@@ -1,4 +1,6 @@
 import os, sys, json, functools
+import numpy as np
+from numpy.core.fromnumeric import mean 
 import pandas as pd
 
 ############
@@ -10,17 +12,22 @@ SAMPLE_SIZE = 'Sample Size'
 TEST_CASES = 'Test Cases'
 COVERAGE = 'Coverage (%)'
 BUG_FOUND = 'Bug Found (%)'
+STD = 'Std'
+MIN = 'Min'
+MAX = 'Max'
+MEAN = 'Mean'
 FILE_DELIMETER = '/'
+SEPARATOR = ' '
 CSV_EXTENSION = '.csv'
 
 RUNS = []
 VERSIONS = []
 CONFIGURATIONS = []
 
-if os.environ.get('FLUENT_CHECK_PROJECT') == None:
-    sys.exit()
+# if os.environ.get('FLUENT_CHECK_PROJECT') == None:
+#     sys.exit()
 
-PROJECT = os.environ.get('FLUENT_CHECK_PROJECT') # Replace this with the project name if you don't want to run the benchmark.sh script.
+PROJECT = 'stack' # os.environ.get('FLUENT_CHECK_PROJECT') # Replace this with the project name if you don't want to run the benchmark.sh script.
 PATH = './.benchmarks/' + PROJECT + FILE_DELIMETER
 
 for subdir in os.listdir(PATH):
@@ -60,38 +67,56 @@ for v in VERSIONS:
                 
                 configData['time'][key].append(data[key]['actual']['benchmarkMetrics']['time'])
                 configData['coverage'][key].append(data[key]['actual']['benchmarkMetrics']['coverage'])
-                configData['status'][key].append(data[key]['expected']['satisfiable'] == data[key]['actual']['satisfiable'])
+                configData['status'][key].append(data[key]['expected']['satisfiable'] != data[key]['actual']['satisfiable'])
                 configData['testCases'][key].append(data[key]['actual']['benchmarkMetrics']['numberTestCases'])
                 configData['sampleSize'][key].append(data[key]['actual']['benchmarkMetrics']['sampleSize'])
         
         dfData = []
         for key in configData['time'].keys():
             dfData.append([
-                float("{:.5f}".format(functools.reduce(lambda acc, val : acc + val, configData['time'][key], 0) / len(configData['time'][key]))), 
-                int(functools.reduce(lambda acc, val : acc + val, configData['sampleSize'][key], 0) / len(configData['sampleSize'][key])),
-                int(functools.reduce(lambda acc, val : acc + val, configData['testCases'][key], 0) / len(configData['testCases'][key])),
-                float("{:.2f}".format(functools.reduce(lambda acc, val : acc + val, configData['coverage'][key], 0) / len(configData['coverage'][key]))), 
-                float("{:.2f}".format((functools.reduce(lambda acc, val : acc + 1 if val else acc, configData['status'][key], 0) * 100) / len(configData['status'][key])))
+                float("{:.5f}".format(np.mean(configData['time'][key]))), float("{:.5f}".format(np.std(configData['time'][key]))),
+                int(np.mean(configData['sampleSize'][key])),
+                int(np.mean(configData['testCases'][key])), int(np.std(configData['testCases'][key])),
+                float("{:.2f}".format(np.mean(configData['coverage'][key]))), float("{:.2f}".format(np.std(configData['coverage'][key]))),
+                float("{:.2f}".format(configData['status'][key].count(True) / len(configData['status'][key]) * 100))
             ])
         
-        df = pd.DataFrame(dfData, columns = [TIME, SAMPLE_SIZE, TEST_CASES, COVERAGE, BUG_FOUND])
+        df = pd.DataFrame(dfData, columns = [
+            MEAN + SEPARATOR + TIME, STD + SEPARATOR + TIME,
+            SAMPLE_SIZE,
+            MEAN + SEPARATOR + TEST_CASES, STD + SEPARATOR + TEST_CASES,
+            MEAN + SEPARATOR + COVERAGE, STD + SEPARATOR + COVERAGE,
+            BUG_FOUND
+        ])
         df.index += 1
         df.to_csv(PATH + v + FILE_DELIMETER + c.split('.')[0] + CSV_EXTENSION)
 
         filteredDf = df[df[BUG_FOUND] > 0]
         vdfData.append([c.split('.')[0],
-                min(filteredDf[TIME]), max(filteredDf[TIME]),
-                min(filteredDf[SAMPLE_SIZE]), max(filteredDf[SAMPLE_SIZE]),
-                min(filteredDf[TEST_CASES]), max(filteredDf[TEST_CASES]),
-                min(filteredDf[COVERAGE]), max(filteredDf[COVERAGE]),
+                filteredDf[MEAN + SEPARATOR + TIME][filteredDf[MEAN + SEPARATOR + TIME].idxmin()],
+                filteredDf[STD  + SEPARATOR + TIME][filteredDf[MEAN + SEPARATOR + TIME].idxmin()],
+                filteredDf[MEAN + SEPARATOR + TIME][filteredDf[MEAN + SEPARATOR + TIME].idxmax()],
+                filteredDf[STD  + SEPARATOR + TIME][filteredDf[MEAN + SEPARATOR + TIME].idxmax()],
+                filteredDf[SAMPLE_SIZE].min(), filteredDf[SAMPLE_SIZE].max(),
+                filteredDf[MEAN + SEPARATOR + TEST_CASES][filteredDf[MEAN + SEPARATOR + TEST_CASES].idxmin()],
+                filteredDf[STD  + SEPARATOR + TEST_CASES][filteredDf[MEAN + SEPARATOR + TEST_CASES].idxmin()],
+                filteredDf[MEAN + SEPARATOR + TEST_CASES][filteredDf[MEAN + SEPARATOR + TEST_CASES].idxmax()],
+                filteredDf[STD  + SEPARATOR + TEST_CASES][filteredDf[MEAN + SEPARATOR + TEST_CASES].idxmax()],
+                filteredDf[MEAN + SEPARATOR + COVERAGE][filteredDf[MEAN + SEPARATOR + COVERAGE].idxmin()],
+                filteredDf[STD  + SEPARATOR + COVERAGE][filteredDf[MEAN + SEPARATOR + COVERAGE].idxmin()],
+                filteredDf[MEAN + SEPARATOR + COVERAGE][filteredDf[MEAN + SEPARATOR + COVERAGE].idxmax()],
+                filteredDf[STD  + SEPARATOR + COVERAGE][filteredDf[MEAN + SEPARATOR + COVERAGE].idxmax()],
                 len(filteredDf) > 0
             ]) if len(filteredDf) > 0 else [c.split('.')[0], None, None, None, None, None, None, None, None, len(filteredDf) > 0]
     df = pd.DataFrame(vdfData, columns = [
-            'Strategy', 
-            'Min ' + TIME, 'Max ' + TIME, 
-            'Min ' + SAMPLE_SIZE, 'Max ' + SAMPLE_SIZE, 
-            'Min ' + TEST_CASES, 'Max ' + TEST_CASES, 
-            'Min ' + COVERAGE, 'Max ' + COVERAGE,
+            'Strategy',
+            MIN + SEPARATOR + TIME, STD + SEPARATOR + MIN + SEPARATOR + TIME,
+            MAX + SEPARATOR + TIME, STD + SEPARATOR + MAX + SEPARATOR + TIME,
+            MIN + SEPARATOR + SAMPLE_SIZE, MAX + SEPARATOR + SAMPLE_SIZE,
+            MIN + SEPARATOR + TEST_CASES, STD + SEPARATOR + MIN + SEPARATOR + TEST_CASES,
+            MAX + SEPARATOR + TEST_CASES, STD + SEPARATOR + MAX + SEPARATOR + TEST_CASES,
+            MIN + SEPARATOR + COVERAGE, STD + SEPARATOR + MIN + SEPARATOR + COVERAGE,
+            MAX + SEPARATOR + COVERAGE, STD + SEPARATOR + MAX + SEPARATOR + COVERAGE,
             'Bug Found'
             ])
     df.to_csv(PATH + v + FILE_DELIMETER + v + CSV_EXTENSION, index=False)

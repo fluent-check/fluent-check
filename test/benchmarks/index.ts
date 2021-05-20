@@ -3,7 +3,6 @@ import {createDirectory, readDataFromFile, writeDataToFile} from '../../src/stra
 
 const RANDOM = () => new FluentStrategyTypeFactory()
   .withRandomSampling()
-  .withCoverageTracking(process.env.FLUENT_CHECK_SPECIFICATION_PATH ?? 'test')
   .withoutReplacement()
   .usingCache()
   .withDynamicSampleSizing()
