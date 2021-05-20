@@ -54,7 +54,7 @@ describe('Section examples', () => {
       .check()
     )
   })
-  /*
+
   const isSorted = (arr: number[]) => {
 		if (arr.length <= 1) return true
 		return arr[0] <= arr[1] && isSorted(arr.slice(1, arr.length))
@@ -80,14 +80,19 @@ describe('Section examples', () => {
     )
   })
 
+  const eqSet = (as, bs) => {
+    if (as.size !== bs.size) return false;
+    for (var a of as) if (!bs.has(a)) return false;
+    return true;
+  }
+
   it('Sorted array constains same elements as original', () => {
     fc.expect(fc.scenario()
       //.configStatistics(fc.statistics().withAll())
       .withGenerator(seededGen)
       .forall('a', fc.array(fc.integer(-10,10), 0, 5))
-      .then(({a}) => a.sort().join(',') === quickSort(a, 0, a.length - 1).join(','))
+      .then(({a}) => eqSet(new Set(a), new Set(quickSort(a, 0, a.length - 1))))
       .check()
     )
   })
-  */
 })

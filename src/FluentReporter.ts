@@ -41,7 +41,7 @@ function assembleInfo(result: FluentResult): string {
       msg.push('\t')
       msg.push(name)
       msg.push(': ')
-      msg.push(JSON.stringify(result.coverages[1][name]))
+      msg.push(JSON.stringify(result.example[name]))
       msg.push('\n')
     }
   }
