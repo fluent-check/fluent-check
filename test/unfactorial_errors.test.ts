@@ -2,20 +2,20 @@ import * as fc from '../src/index'
 import {it} from 'mocha'
 
 function unfactorial(num) {
-	var d = 1;
-	while (num > 1) {
-		d += 1;
-		num = Math.round(num / d);
-	}
-	if (num === 1) 
-		return d+"!";
-	else 
-		return "NONE"
+  let d = 1
+  while (num > 1) {
+    d++
+    num = Math.round(num / d)
+  }
+  if (num === 1)
+    return d + '!'
+  else
+    return 'NONE'
 }
 
 console.log(unfactorial(8))  //for no lint errors
 
-describe('Section examples', () => {
+describe('Unfactorial properties', () => {
   let seededGen: (seed: number) => () => number
 
   beforeEach(() =>

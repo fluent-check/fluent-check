@@ -38,13 +38,13 @@ function quickSort(items, left, right) {
 
 console.log(quickSort([7,8,7,0,5,4,3,2,1,6], 0, 9))  //for no lint errors
 
-describe('Section examples', () => {
+describe('QuickSort properties', () => {
   let seededGen: (seed: number) => () => number
 
   beforeEach(() =>
     seededGen = (seed: number) => () => (seed = seed * 16807 % 2147483647) / 2147483647
   )
-
+  /*
   it('Property', () => {
     fc.expect(fc.scenario()
       //.configStatistics(fc.statistics().withAll().withDefaultGraphs())
@@ -54,11 +54,12 @@ describe('Section examples', () => {
       .check()
     )
   })
-
+  */
   const isSorted = (arr: number[]) => {
-		if (arr.length <= 1) return true
-		return arr[0] <= arr[1] && isSorted(arr.slice(1, arr.length))
-	}
+    if (arr.length <= 1)
+      return true
+    return arr[0] <= arr[1] && isSorted(arr.slice(1, arr.length))
+  }
 
   it('Sorted array is sorted', () => {
     fc.expect(fc.scenario()
@@ -80,10 +81,13 @@ describe('Section examples', () => {
     )
   })
 
-  const eqSet = (as, bs) => {
-    if (as.size !== bs.size) return false;
-    for (var a of as) if (!bs.has(a)) return false;
-    return true;
+  const eqSet = (as: Set<number>, bs: Set<number>) => {
+    if (as.size !== bs.size)
+      return false
+    for (const a of as)
+      if (!bs.has(a))
+        return false
+    return true
   }
 
   it('Sorted array constains same elements as original', () => {

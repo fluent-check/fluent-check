@@ -38,7 +38,7 @@ function quickSort(items, left, right) {
 
 console.log(quickSort([4,1,1,5,2,6], 0, 5))  //for no lint errors
 
-describe('Section examples', () => {
+describe('QuickSort properties', () => {
   let seededGen: (seed: number) => () => number
 
   beforeEach(() =>
