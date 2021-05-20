@@ -9,8 +9,7 @@
     "test": "mocha -r ts-node/register",
     "prepare": "tsc",
     "stryker": "npx stryker run",
-    "coverage": "nyc mocha -reporter=min -r ts-node/register -r source-map-support",
-    "benchmark": "mocha --no-config -t 4000 -r ts-node/register test/benchmarks/stack/specification.test.ts"
+    "coverage": "nyc mocha -reporter=min -r ts-node/register -r source-map-support"
   },
   "keywords": [
     "testing",

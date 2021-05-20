@@ -23,10 +23,10 @@ RUNS = []
 VERSIONS = []
 CONFIGURATIONS = []
 
-# if os.environ.get('FLUENT_CHECK_PROJECT') == None:
-#     sys.exit()
+if os.environ.get('FLUENT_CHECK_PROJECT') == None:
+    sys.exit()
 
-PROJECT = 'stack' # os.environ.get('FLUENT_CHECK_PROJECT') # Replace this with the project name if you don't want to run the benchmark.sh script.
+PROJECT = os.environ.get('FLUENT_CHECK_PROJECT') # Replace this with the project name if you don't want to run the benchmark.sh script.
 PATH = './.benchmarks/' + PROJECT + FILE_DELIMETER
 
 for subdir in os.listdir(PATH):

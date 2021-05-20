@@ -21,6 +21,7 @@ LIGHTCYAN='\033[1;36m'
 WHITE='\033[1;37m'
 
 RUNS=4
+TIMEOUT=1000000
 NRUNS="3" # Specifies how many times each test case executes on each run.
 PROJECT_DIR="${PWD}/src/benchmarks/"
 
@@ -102,7 +103,7 @@ do
     for (( cc=0; cc<${#CONFIGURATIONS[*]}; cc++ ))
     do
       export FLUENT_CHECK_CONFIGURATION=${CONFIGURATIONS[$cc]}
-      npm run benchmark --silent > /dev/null
+      npx mocha --no-config -t $TIMEOUT -r ts-node/register test/benchmarks/$1/specification.test.ts --silent > /dev/null
       ((ITERATION++))
       Reporter $ITERATION
     done
@@ -115,6 +116,6 @@ mv "$PROJECT_DIR/original/main-backup.ts" "$PROJECT_DIR/original/main.ts"
 
 echo -ne "${LIGHTGREEN}$(date +"%T") INFO Benchmark$(tput sgr0) Parsing benchmark metrics.\n\n"
 
-python benchmark-parser.py # --show 
+python ./scripts/benchmark-parser.py # --show 
 
 echo -ne "${LIGHTGREEN}$(date +"%T") INFO Benchmark$(tput sgr0) Finished.\n\n"

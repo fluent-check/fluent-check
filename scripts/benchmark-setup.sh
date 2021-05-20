@@ -40,6 +40,6 @@ mkdir -p \
 
 touch "./src/benchmarks/$PROJECT/original/main.ts"
 touch "./test/benchmarks/$PROJECT/specification.test.ts"
-touch "./test/benchmarks/$PROJECT/reports/mutation.json"
+touch "./test/benchmarks/$PROJECT/reports/mutants.json"
 
 echo -e "${LIGHTGREEN}$(date +"%T") INFO Benchmark Setup $(tput sgr0) Finished.\n"

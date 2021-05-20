@@ -1,5 +1,7 @@
 {
-    "mutants": [
+    "seed": 2642344822,
+    "selected": [70, 6, 17, 59, 92],
+    "generated": [
         {
             "id": "2",
             "location": {
