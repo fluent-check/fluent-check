@@ -1,5 +1,3 @@
-const globalObject:any = global
-
 import * as deasync from 'deasync'
 import * as istanbulLibCoverage from 'istanbul-lib-coverage'
 import {FileCoverage, CoverageSummary} from './FluentStrategyTypes'
@@ -32,17 +30,17 @@ export class FluentCoverage {
   private coverageFiles: Record<string, FileCoverage> = {}
 
   /**
-   * Determines whether .coverage/methods.ts has been imported or not.
+   * Determines whether .coverage/<methods-filename>.ts has been imported or not.
    */
   private importStatus: Boolean = false
 
   /**
    * FluentCoverage constructor that dynamically imports the test methods to be used for coverage purposes.
    */
-  constructor() {
+  constructor(filename: string) {
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-ignore
-    import('../.coverage/methods').then(testMethods => {
+    import('../.coverage/' + filename).then(testMethods => {
       this.testMethods = testMethods
       this.importStatus = true
     })
@@ -57,7 +55,7 @@ export class FluentCoverage {
       this.testMethods[methodName](inputData)
     })
 
-    Object.entries(globalObject.__coverage__).forEach(elem => {
+    Object.entries(globalThis.__coverage__).forEach(elem => {
       if (this.coverageFiles[elem[0]] === undefined)
         this.coverageFiles[elem[0]] = istanbulLibCoverage.createFileCoverage(elem[1])
       else
@@ -141,7 +139,7 @@ export class FluentCoverage {
    * Clears the global variable responsible for holding coverage data.
    */
   resetCoverage() {
-    globalObject.__coverage__ = undefined
+    delete globalThis.__coverage__
   }
 
 }

@@ -1,11 +1,13 @@
 import {
   Biased,
   Cached,
-  Dedupable,
   Random,
+  Dedupable,
   Shrinkable,
+  CoverageTracker,
+  CoverageGuidance,
+  DynamicSampleSizing,
   ConstantExtractionBased,
-  CoverageGuidance
 } from './mixins/internal'
 import {FluentStrategy} from './FluentStrategy'
 import {ConstantExtractionConfig, FluentStrategyConfig} from './FluentStrategyTypes'
@@ -41,17 +43,16 @@ export class FluentStrategyFactory {
    * Strategy configuration
    */
   protected configuration: FluentStrategyConfig = {
-    sampleSize: 1000,
-    shrinkSize: 500,
     globSource: '',
-    maxNumConst: 100,
     pairwise: false,
-    numericConstMaxRange: 100,
-    maxStringTransformations: 50,
+    shrinkSize: 500,
+    sampleSize: 1000,
+    maxNumConst: 100,
+    maxNumMutations: 5,
     importsPath: 'test',
-    timeout: Number.MAX_SAFE_INTEGER,
     coveragePercentage: 100,
-    maxNumMutations: 1
+    timeout: Number.MAX_SAFE_INTEGER,
+    maxNumTestCases: Number.MAX_SAFE_INTEGER
   }
 
   /**
@@ -127,6 +128,32 @@ export class FluentStrategyFactory {
     return this
   }
 
+  /**
+   * Enables stop testing after a given number of test cases is reached.
+   */
+  withMaxNumberOfTestCases(maxNumTestCases = Number.MAX_SAFE_INTEGER) {
+    this.configuration = {...this.configuration, maxNumTestCases}
+    return this
+  }
+
+  /**
+   * Enables coverage tracking regardless of the selected base strategy.
+   */
+  withCoverageTracking(importsPath = 'test') {
+    this.configuration = {...this.configuration, importsPath}
+    this.strategy = CoverageTracker(this.strategy)
+    return this
+  }
+
+  /**
+   * Enables dynamic sample sizing, which adjusts the sample size based on the number of arbitraries used in a
+   * given test.
+   */
+  withDynamicSampleSizing() {
+    this.strategy = DynamicSampleSizing(this.strategy)
+    return this
+  }
+
 }
 
 export class FluentStrategyRandomFactory extends FluentStrategyFactory {
@@ -159,8 +186,8 @@ export class FluentStrategyCoverageFactory extends FluentStrategyFactory {
    */
   constructor(importsPath) {
     super()
-    this.configuration = {...this.configuration, importsPath, sampleSize: 100}
-    this.strategy = CoverageGuidance(this.strategy)
+    this.configuration = {...this.configuration, importsPath}
+    this.strategy = CoverageTracker(CoverageGuidance(this.strategy))
   }
 
   /**

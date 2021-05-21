@@ -13,6 +13,8 @@ export function Random<TBase extends MixinStrategy>(Base: TBase) {
      * test case collection to be used during the testing process.
      */
     configArbitraries<A>() {
+      this.tweakSampleSize()
+
       for (const name in this.arbitraries) {
         this.arbitraries[name].collection = this.arbitraries[name].cache !== undefined ?
           this.arbitraries[name].cache as FluentPick<A>[]:
@@ -30,7 +32,8 @@ export function Random<TBase extends MixinStrategy>(Base: TBase) {
      */
     hasInput(): boolean {
       this.currTime = performance.now()
-      if (this.configuration.timeout < this.currTime - (this.initTime ?? this.currTime)) return false
+      if (this.configuration.timeout < this.currTime - (this.initTime ?? this.currTime) ||
+        this.configuration.maxNumTestCases <= this.getTestCases().size) return false
       else return this.testCaseCollectionPick < this.testCaseCollection.length
     }
 
@@ -46,7 +49,12 @@ export function Random<TBase extends MixinStrategy>(Base: TBase) {
      * Simply adds test cases to the testCases set.
      */
     handleResult(inputData: any[]) {
-      inputData.forEach(data => this.addTestCase(data))
+      inputData.forEach(data => {
+        this.addTestCase(data)
+        this.getCoverageBuilder()?.compute(data)
+      })
+
+      this.getCoverageBuilder()?.updateTotalCoverage()
     }
 
   }

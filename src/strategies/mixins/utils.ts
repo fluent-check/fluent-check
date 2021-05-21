@@ -22,7 +22,16 @@ export function generateUniqueMethodIdentifier() {
  * Creates a new directory in a given path if the directory is not already created.
  */
 export function createDirectory(path: string) {
-  if (!fs.existsSync(path)) fs.mkdirSync(path)
+  if (path.includes('fluent-check')) {
+    const pathData = path.split('fluent-check')
+    let currPath = pathData[0] + 'fluent-check/'
+    for (const subPath of pathData[1].split('/').filter(x => x !== '')) {
+      currPath += subPath
+      if (!fs.existsSync(currPath)) fs.mkdirSync(currPath)
+      currPath += '/'
+    }
+  }
+  else if (!fs.existsSync(path)) fs.mkdirSync(path)
 }
 
 /**
@@ -32,6 +41,15 @@ export function writeDataToFile(path: string, data: string) {
   const directory = dirname(path)
   if (!fs.existsSync(directory)) createDirectory(directory)
   fs.writeFileSync(path, data)
+}
+
+/**
+ * Reads data from a given file located in a given path. It returns undefined
+ * if the file does not exist.
+ */
+export function readDataFromFile(path: string) {
+  if (fs.existsSync(path)) return fs.readFileSync(path)
+  return undefined
 }
 
 /**
@@ -46,7 +64,7 @@ export function deleteFromFileSystem(path: string) {
  * concise version of the imports found with the relative paths converted into absolute ones and an array
  * containing all the imported source files.
  */
-export function extractImports(path: string) {
+export function extractImports(path: string, coverageID = '') {
   const files = fs.lstatSync(path).isDirectory() ?
     glob.sync(path + '/**/*', {nodir: true}) : [path]
 
@@ -58,8 +76,11 @@ export function extractImports(path: string) {
     const importData = data.filter(x => !x.startsWith('//') && x.includes('import'))
 
     for (const x of importData) {
+      if (x.includes('* as fc') || x.includes('* as bc')) continue
+
       const relativePath = x.substring(x.indexOf('\'') + 1, x.length - 1) as string
-      const resolvedPath = relativePath
+      const resolvedPath = relativePath.includes('src') && coverageID !== '' ?
+        '../.instrumented/' + coverageID + relativePath.split('src')[1] : relativePath
 
       if (relativePath.includes('/') && !relativePath.includes('@'))
         sourceFiles.push(resolve(relativePath.split('../').join('')))

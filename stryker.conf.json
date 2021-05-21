@@ -1,0 +1,22 @@
+{
+  "$schema": "./node_modules/@stryker-mutator/core/schema/stryker-schema.json",
+  "packageManager": "npm",
+  "testRunner": "mocha",
+  "coverageAnalysis": "off",
+  "checkers": ["typescript"],
+  "tsconfigFile": "tsconfig.json",
+  "buildCommand": "tsc -b",
+  "mutate": [
+    "src/benchmarks/triangle-classification/original/**/*.ts"
+  ],
+  "mochaOptions": {
+    "require": [
+      "ts-node/register"
+    ]
+  },
+  "reporters": [
+    "clear-text",
+    "progress",
+    "json"
+  ]
+}

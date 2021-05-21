@@ -2,6 +2,7 @@ import * as utils from './mixins/utils'
 import {performance} from 'perf_hooks'
 
 import {FluentResult} from '../FluentCheck'
+import {FluentCoverage} from './FluentCoverage'
 import {FluentStrategyConfig, StrategyArbitraries} from './FluentStrategyTypes'
 import {Arbitrary, FluentPick, ValueResult, FluentRandomGenerator, WrapFluentPick} from '../arbitraries'
 
@@ -133,9 +134,6 @@ export class FluentStrategy implements FluentStrategyInterface {
 
   /**
    * Generates the test case collection.
-   *
-   * TODO - This method, when called repeatedly can be time-consuming. We need to look out for faster ways to generate
-   * the test case collection if possible.
    */
   generateTestCaseCollection() {
     this.testCaseCollectionPick = 0
@@ -217,6 +215,17 @@ export class FluentStrategy implements FluentStrategyInterface {
   shrink<K extends string>(_name: K, _partial: FluentResult | undefined): boolean { return false }
 
   /**
+   * Returns the code coverage until the moment this function is called. Returns an empty object if the base strategy
+   * is random-based; otherwise, it returns the measured coverage.
+   */
+  getCoverage(): number { return 0 }
+
+  /**
+   * Returns the instance responsible for tracking coverage.
+   */
+  protected getCoverageBuilder(): FluentCoverage | undefined { return undefined }
+
+  /**
    * Determines whether uniqueness should be taken into account while generating samples.
    */
   protected isDedupable() {
@@ -258,16 +267,16 @@ export class FluentStrategy implements FluentStrategyInterface {
   protected coverageSetup() {}
 
   /**
-   * Hook that acts as point of extension of the addAssertion function and that enables the strategy to compute coverage
-   * for a given test case.
-   */
-  protected computeCoverage(_inputData: {}) {}
-
-  /**
    * Hook that acts as point of extension of the tearDown function and that enables the strategy to tear down all the
    * coverage based operations.
    */
   protected coverageTearDown() {}
+
+  /**
+   * Hook that acts as point of extension of the configArbitraries function and that enables the strategy to fine-tune
+   * the sampleSize variable according to the number of arbitraries used in the testing process.
+   */
+  protected tweakSampleSize() {}
 
   ///////////////////////
   // INTERFACE METHODS //
