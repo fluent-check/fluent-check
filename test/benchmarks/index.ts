@@ -48,11 +48,7 @@ export const PBT_CG_S8 = () => COVERAGE_GUIDED().withBias()
  * Returns the configuration matching the configuration identifier.
  */
 export function PBTS(config: string | undefined = undefined) {
-  if (config === undefined) return new FluentStrategyTypeFactory()
-    .withRandomSampling()
-    .withoutReplacement()
-    .usingCache()
-    .withDynamicSampleSizing()
+  if (config === undefined) return PBT_R_S1()
   else if (config.includes('S1')) return config.includes('R') ? PBT_R_S1() : PBT_CG_S1()
   else if (config.includes('S2')) return config.includes('R') ? PBT_R_S2() : PBT_CG_S2()
   else if (config.includes('S3')) return config.includes('R') ? PBT_R_S3() : PBT_CG_S3()
