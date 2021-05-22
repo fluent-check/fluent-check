@@ -10,12 +10,14 @@ export function DynamicSampleSizing<TBase extends MixinStrategy>(Base: TBase) {
      * process.
      */
     protected tweakSampleSize() {
-      let maxNumCombinations = 1
-      for (const name in this.arbitraries)
-        maxNumCombinations *= this.arbitraries[name].arbitrary.size().value
+      if (this.configuration.maxNumTestCases === Number.MAX_SAFE_INTEGER) {
+        let maxNumCombinations = 1
+        for (const name in this.arbitraries)
+          maxNumCombinations *= this.arbitraries[name].arbitrary.size().value
 
-      this.configuration.maxNumTestCases = Math.min(maxNumCombinations,
-        Math.floor(Math.pow(this.configuration.sampleSize, Math.min(Object.keys(this.arbitraries).length, 2))))
+        this.configuration.maxNumTestCases = Math.min(maxNumCombinations,
+          Math.floor(Math.pow(this.configuration.sampleSize, Math.min(Object.keys(this.arbitraries).length, 2))))
+      }
 
       if (!this.configuration.pairwise && Object.keys(this.arbitraries).length > 2) {
         this.configuration.sampleSize = Math.round(Math.pow(Math.pow(this.configuration.sampleSize, 2),

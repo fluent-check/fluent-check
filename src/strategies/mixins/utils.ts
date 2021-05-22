@@ -147,8 +147,7 @@ function mergeSort(arr: any[][], map: Map<number, Map<any, number>>, l: number, 
  * Recursively computes and returns all the possible combinations for a given array of arrays.
  */
 function nwise(data: any[][]) {
-  if (data.length < 2) return data.length === 0 ?
-    data : data[0].reduce((acc, value) => acc.concat([[value]]), [])
+  if (data.length < 2) return data.length === 0 ? data : data[0].map(x => [x])
   else if (data.length === 2) {
     return data[0].reduce((acc, value) => {
       for (const elem of data[1])
