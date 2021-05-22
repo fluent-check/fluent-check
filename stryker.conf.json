@@ -7,7 +7,7 @@
   "tsconfigFile": "tsconfig.json",
   "buildCommand": "tsc -b",
   "mutate": [
-    "src/benchmarks/zodiac/original/**/*.ts"
+    "src/benchmarks/multiplication-sign/original/**/*.ts"
   ],
   "mochaOptions": {
     "require": [
