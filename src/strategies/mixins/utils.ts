@@ -228,7 +228,7 @@ export function computeCombinations(data: any[][], N?: number): any[][] {
 
   switch (N) {
     case 2:
-      return data.length === 2 ? nwise(data) : pairwise(data)
+      return data.length <= 2 ? nwise(data) : pairwise(data)
     default:
       return nwise(data)
   }
