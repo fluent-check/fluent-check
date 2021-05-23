@@ -1,0 +1,108 @@
+{
+    "seed": 3718370126,
+    "selected": [3, 4, 1, 2, 5],
+    "mutants": [
+        {
+            "id": "1",
+            "location": {
+                "end": {
+                    "column": 4,
+                    "line": 43
+                },
+                "start": {
+                    "column": 15,
+                    "line": 39
+                }
+            },
+            "mutatorName": "BlockStatement",
+            "replacement": "{}",
+            "status": "Killed",
+            "description": "Killed by: Benchmark tests #1 should push one element to the stack and have size one"
+        },
+        {
+            "id": "2",
+            "location": {
+                "end": {
+                    "column": 33,
+                    "line": 20
+                },
+                "start": {
+                    "column": 12,
+                    "line": 20
+                }
+            },
+            "mutatorName": "BooleanLiteral",
+            "replacement": "this.linkedList.head",
+            "status": "Killed",
+            "description": "Killed by: Benchmark tests #7 should peek data from stack"
+        },
+        {
+            "id": "3",
+            "location": {
+                "end": {
+                    "column": 23,
+                    "line": 27
+                },
+                "start": {
+                    "column": 9,
+                    "line": 27
+                }
+            },
+            "mutatorName": "ConditionalExpression",
+            "replacement": "true",
+            "status": "Killed",
+            "description": "Killed by: Benchmark tests #7 should peek data from stack"
+        },
+        {
+            "id": "4",
+            "location": {
+                "end": {
+                    "column": 6,
+                    "line": 30
+                },
+                "start": {
+                    "column": 25,
+                    "line": 27
+                }
+            },
+            "mutatorName": "BlockStatement",
+            "replacement": "{}",
+            "status": "Killed",
+            "description": "Killed by: Benchmark tests #7 should peek data from stack"
+        },
+        {
+            "id": "5",
+            "location": {
+                "end": {
+                    "column": 23,
+                    "line": 27
+                },
+                "start": {
+                    "column": 9,
+                    "line": 27
+                }
+            },
+            "mutatorName": "ConditionalExpression",
+            "replacement": "false",
+            "status": "Killed",
+            "description": "Killed by: Benchmark tests #7 should peek data from stack"
+        },
+        {
+            "id": "6",
+            "location": {
+                "end": {
+                    "column": 52,
+                    "line": 61
+                },
+                "start": {
+                    "column": 12,
+                    "line": 61
+                }
+            },
+            "mutatorName": "ArrowFunction",
+            "replacement": "() => undefined",
+            "status": "Killed",
+            "description": "Killed by: Benchmark tests #11 should be possible to convert stack to array"
+        }
+    ]
+}

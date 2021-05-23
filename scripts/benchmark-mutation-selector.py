@@ -20,8 +20,10 @@ random.seed(SEED)
 ids = []
 
 while MAX_NUM_MUTATIONS > 0:
-    ids.append(math.floor(random.random() * LIMIT) + 1)
-    MAX_NUM_MUTATIONS -= 1
+    id = math.floor(random.random() * LIMIT) + 1
+    if id not in ids:
+        ids.append(id)
+        MAX_NUM_MUTATIONS -= 1
 
 print('\n' + Colors.LIGHTGREEN + 'INFO Benchmark Mutation Selector ' + Colors.NOCOLOR + 'Seed: ' + Colors.LIGHTGRAY + str(SEED))
 print(Colors.LIGHTGREEN + 'INFO Benchmark Mutation Selector ' + Colors.NOCOLOR + 'Mutations identifiers: ' + Colors.LIGHTGRAY, end='')
