@@ -81,9 +81,9 @@ export class FluentStatistician {
 
     if (this.configuration.withDefaultGraphs)
       for (const k in this.arbitraries) {
+        const repeated: Map<string, number> = new Map()
         if (this.arbitraries[k].arbitrary.graphIs1D() === true) {
           const indexes: Data1D[] = []
-          const repeated: Map<string, number> = new Map()
           for (const i in originals) {
             const input = {value: values[i][k], original: originals[i][k]}
             const value = this.arbitraries[k].arbitrary.calculateIndex(input, this.configuration.realPrecision)
@@ -96,7 +96,12 @@ export class FluentStatistician {
         } else {
           const indexes: DataBar[] = []
           const map: Map<number, number> = new Map()
-          values.forEach(v => map.set(v[k].length, (map.get(v[k].length) ?? 0) + 1))
+          values.forEach(v => {
+            if (!repeated.has(JSON.stringify(v[k]))) {
+              map.set(v[k].length, (map.get(v[k].length) ?? 0) + 1)
+              repeated.set(JSON.stringify(v[k]), 1)
+            }
+          })
           for (const [key, value] of map)
             indexes.push({valueX: key, valueY: value})
           indexesCollection.bar.push(

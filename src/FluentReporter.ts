@@ -307,18 +307,18 @@ function generateBarGraphs(graph: IndexPathBar) {
     })
 
   //labels
-  svg.append("text")
-    .attr("font-size", "15px")
-    .text("length")
+  svg.append('text')
+    .attr('font-size', '15px')
+    .text('length')
     .attr('transform', 'translate(' + width + ',' + (height + margin1 + 5) + ')')
-  
-  svg.append("text")
-    .attr("font-size", "15px")
-    .text("occurences")
+
+  svg.append('text')
+    .attr('font-size', '15px')
+    .text('occurences')
     .attr('transform', function () {
       return 'translate(' + 20 + ',' + (margin2 + 75) + ')rotate(-90)'
     })
-
+  console.log(graph.indexes)
   const filename = graph.path ?? generateIncrementalFileName('graph', '.svg')
   writeFileSync(filename, body.html())
   return filename
