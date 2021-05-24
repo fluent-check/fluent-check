@@ -306,6 +306,19 @@ function generateBarGraphs(graph: IndexPathBar) {
       return 'translate(' + (x(d.valueX) - rectangleWidth/2) + ',' + y(d.valueY) + ')'
     })
 
+  //labels
+  svg.append("text")
+    .attr("font-size", "15px")
+    .text("length")
+    .attr('transform', 'translate(' + width + ',' + (height + margin1 + 5) + ')')
+  
+  svg.append("text")
+    .attr("font-size", "15px")
+    .text("occurences")
+    .attr('transform', function () {
+      return 'translate(' + 20 + ',' + (margin2 + 75) + ')rotate(-90)'
+    })
+
   const filename = graph.path ?? generateIncrementalFileName('graph', '.svg')
   writeFileSync(filename, body.html())
   return filename
