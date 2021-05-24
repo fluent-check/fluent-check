@@ -318,7 +318,7 @@ function generateBarGraphs(graph: IndexPathBar) {
     .attr('transform', function () {
       return 'translate(' + 20 + ',' + (margin2 + 75) + ')rotate(-90)'
     })
-  console.log(graph.indexes)
+
   const filename = graph.path ?? generateIncrementalFileName('graph', '.svg')
   writeFileSync(filename, body.html())
   return filename
