@@ -49,6 +49,8 @@ export class ArbitraryArray<A> extends Arbitrary<A[]> {
       this.sizeUpTo(arbSize, indexes.length - 1) - this.sizeUpTo(arbSize, this.min - 1))
   }
 
+  graphIs1D(): boolean { return false }
+
   shrink(initial: FluentPick<A[]>): Arbitrary<A[]> {
     if (this.min === initial.value.length) return fc.empty()
 
