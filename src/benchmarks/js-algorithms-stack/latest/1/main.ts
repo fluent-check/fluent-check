@@ -25,7 +25,7 @@ export class Stack {
     if (this.isEmpty()) {}
 
     // Just read the value from the start of linked list without deleting it.
-    return this.linkedList.head.value;
+    return this.linkedList.head?.value;
   }
 
   /**
