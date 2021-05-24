@@ -136,9 +136,10 @@ export abstract class Arbitrary<A> {
    * Since some transformations cannot be easily inverted, the latter allows entirely overriding the canGenerate method.
    */
   map<B>(f: (a: A) => B,
-    shrinkHelper?: XOR<{inverseMap: (b: B) => A[]},{canGenerate: (pick: FluentPick<B>) => boolean}>
+    shrinkHelper?: XOR<{inverseMap: (b: B) => A[]},{canGenerate: (pick: FluentPick<B>) => boolean}>,
+    string?: boolean
   ): Arbitrary<B> {
-    return new MappedArbitrary(this, f, shrinkHelper)
+    return new MappedArbitrary(this, f, shrinkHelper, string)
   }
 
   filter(f: (a: A) => boolean): Arbitrary<A> { return new FilteredArbitrary(this, f) }

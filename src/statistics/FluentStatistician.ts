@@ -96,7 +96,7 @@ export class FluentStatistician {
         } else {
           const indexes: DataBar[] = []
           const map: Map<number, number> = new Map()
-          values.forEach(v => {
+          originals.forEach(v => {
             if (!repeated.has(JSON.stringify(v[k]))) {
               map.set(v[k].length, (map.get(v[k].length) ?? 0) + 1)
               repeated.set(JSON.stringify(v[k]), 1)

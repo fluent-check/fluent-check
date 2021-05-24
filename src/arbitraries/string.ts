@@ -32,4 +32,4 @@ export const base64String = (unscaledMin = 4, unscaledMax = 16): Arbitrary<strin
     .map((s) => [s, s.slice(1), `${s}==`, `${s}=`][s.length % 4])
 
 export const string = (min = 2, max = 10, charArb = char()): Arbitrary<string> =>
-  min === 0 && max === 0 ? constant('') : array(charArb, min, max).map(a => a.join(''))
+  min === 0 && max === 0 ? constant('') : array(charArb, min, max).map(a => a.join(''), undefined, true)
