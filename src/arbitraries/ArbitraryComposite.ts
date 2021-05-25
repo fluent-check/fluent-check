@@ -42,6 +42,13 @@ export class ArbitraryComposite<A> extends Arbitrary<A> {
     return undefined
   }
 
+  graphIs1D(): boolean {
+    for (const a of this.arbitraries)
+      if (a.graphIs1D())
+        return true
+    return false
+  }
+
   cornerCases(): FluentPick<A>[] {
     return this.arbitraries.flatMap(a => a.cornerCases())
   }
