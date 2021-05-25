@@ -24,6 +24,7 @@ VERSIONS = []
 CONFIGURATIONS = []
 
 if os.environ.get('FLUENT_CHECK_PROJECT') == None:
+    print('\nINFO Benchmark Parser :: Environment variable <FLUENT_CHECK_PROJECT> is not set!\n')
     sys.exit()
 
 PROJECT = os.environ.get('FLUENT_CHECK_PROJECT') # Replace this with the project name if you don't want to run the benchmark.sh script.
@@ -109,13 +110,13 @@ for v in VERSIONS:
             ]) if len(filteredDf) > 0 else [c.split('.')[0], None, None, None, None, None, None, None, None, len(filteredDf) > 0]
     df = pd.DataFrame(vdfData, columns = [
             'Strategy',
-            MIN + SEPARATOR + TIME, STD + SEPARATOR + MIN + SEPARATOR + TIME,
-            MAX + SEPARATOR + TIME, STD + SEPARATOR + MAX + SEPARATOR + TIME,
+            MIN + SEPARATOR + MEAN + SEPARATOR + TIME, STD + SEPARATOR + MIN + SEPARATOR + MEAN + SEPARATOR + TIME,
+            MAX + SEPARATOR + MEAN + SEPARATOR + TIME, STD + SEPARATOR + MAX + SEPARATOR + MEAN + SEPARATOR + TIME,
             MIN + SEPARATOR + SAMPLE_SIZE, MAX + SEPARATOR + SAMPLE_SIZE,
-            MIN + SEPARATOR + TEST_CASES, STD + SEPARATOR + MIN + SEPARATOR + TEST_CASES,
-            MAX + SEPARATOR + TEST_CASES, STD + SEPARATOR + MAX + SEPARATOR + TEST_CASES,
-            MIN + SEPARATOR + COVERAGE, STD + SEPARATOR + MIN + SEPARATOR + COVERAGE,
-            MAX + SEPARATOR + COVERAGE, STD + SEPARATOR + MAX + SEPARATOR + COVERAGE,
+            MIN + SEPARATOR + MEAN + SEPARATOR + TEST_CASES, STD + SEPARATOR + MIN + SEPARATOR + MEAN + SEPARATOR + TEST_CASES,
+            MAX + SEPARATOR + MEAN + SEPARATOR + TEST_CASES, STD + SEPARATOR + MAX + SEPARATOR + MEAN + SEPARATOR + TEST_CASES,
+            MIN + SEPARATOR + MEAN + SEPARATOR + COVERAGE, STD + SEPARATOR + MIN + SEPARATOR + MEAN + SEPARATOR + COVERAGE,
+            MAX + SEPARATOR + MEAN + SEPARATOR + COVERAGE, STD + SEPARATOR + MAX + SEPARATOR + MEAN + SEPARATOR + COVERAGE,
             'Bug Found'
             ])
     df.to_csv(PATH + v + FILE_DELIMETER + v + CSV_EXTENSION, index=False)
