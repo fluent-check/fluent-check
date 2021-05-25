@@ -1,4 +1,4 @@
-import sys, os
+import sys, os, re
 import pandas as pd
 import numpy as np
 from scipy.stats import f_oneway
@@ -14,6 +14,8 @@ BIAS = [2, 5, 6, 8]
 PAIR_WISE = [4, 6, 7, 8]
 CONSTANT_EXTRACTION = [3, 5, 7, 8]
 COLUMNS = ['Group1', 'Group2', 'Mean Diff', 'P-Adj', 'Lower', 'Upper', 'Reject']
+MIXINS = {'Bias': BIAS, 'PairWiseTesting': PAIR_WISE, 'ConstantExtraction': CONSTANT_EXTRACTION}
+SEPARATOR = ' '
 
 ###############
 ## FUNCTIONS ##
@@ -51,109 +53,77 @@ def withoutMixin(mixin, type = ''):
                 data.remove(template + str(val))
     return data
 
-def time(df, type = 'Min'):
-    config = ['Random', 'Coverage-Guided']
-    mixins = {'Bias': BIAS, 'PairWiseTesting': PAIR_WISE, 'ConstantExtraction': CONSTANT_EXTRACTION}
-    filteredDf = df.filter(items=['Strategy', type + ' Mean Time (ms)'])
+def baseMetric(df, metric, config, path, type = 'Min'):
+    filteredDf = df.filter(items=['Strategy', type + SEPARATOR + metric])
 
     data = []
     for c in config:
-        for k in mixins.keys():
-            with_ = filteredDf[filteredDf['Strategy'].isin(withMixin(mixins[k], c))][type + ' Mean Time (ms)'].values.tolist()
-            without_ = filteredDf[filteredDf['Strategy'].isin(withoutMixin(mixins[k], c))][type + ' Mean Time (ms)'].values.tolist()
+        for k in MIXINS.keys():
+            with_ = filteredDf[filteredDf['Strategy'].isin(withMixin(MIXINS[k], c))][type + SEPARATOR + metric].values.tolist()
+            without_ = filteredDf[filteredDf['Strategy'].isin(withoutMixin(MIXINS[k], c))][type + SEPARATOR + metric].values.tolist()
 
             if not (all(elem == with_[0] for elem in with_) and all(elem == without_[0] for elem in without_)):
-                # f_oneway(with_, without_)
-                df = pd.DataFrame({'time': with_ + without_,
-                       'group': np.repeat([c + ' with' + k, c + ' without' + k], repeats=len(with_))}) 
+                df = pd.DataFrame({'metric': with_ + without_,
+                                   'group': np.repeat([c + ' with' + k, c + ' without' + k], repeats=len(with_))}) 
 
-                tukey = pairwise_tukeyhsd(endog=df['time'],
+                tukey = pairwise_tukeyhsd(endog=df['metric'],
                                           groups=df['group'],
                                           alpha=0.05)
 
                 data.append(tukey._results_table.data[1:][0])
     
     if len(data) > 0:
-        pd.DataFrame(data=data, columns=COLUMNS).to_csv(PATH + v + '/' + str(type).upper() + '_TIME.csv', index=False)
+        pd.DataFrame(data=data, columns=COLUMNS).to_csv(path, index=False)
 
-def coverage(df, type = 'Min'):
-    c = 'Coverage-Guided'
-    mixins = {'Bias': BIAS, 'PairWiseTesting': PAIR_WISE, 'ConstantExtraction': CONSTANT_EXTRACTION}
-    filteredDf = df.filter(items=['Strategy', type + ' Mean Coverage (%)'])
-
-    data = []
-    for k in mixins.keys():
-        with_ = filteredDf[filteredDf['Strategy'].isin(withMixin(mixins[k], c))][type + ' Mean Coverage (%)'].values.tolist()
-        without_ = filteredDf[filteredDf['Strategy'].isin(withoutMixin(mixins[k], c))][type + ' Mean Coverage (%)'].values.tolist()
-
-        if not (all(elem == with_[0] for elem in with_) and all(elem == without_[0] for elem in without_)):
-            # F = f_oneway(with_, without_)
-            df = pd.DataFrame({'coverage': with_ + without_,
-                           'group': np.repeat([c + ' with' + k, c + ' without' + k], repeats=len(with_))}) 
-
-            tukey = pairwise_tukeyhsd(endog=df['coverage'],
-                                      groups=df['group'],
-                                      alpha=0.05)
-
-            data.append(tukey._results_table.data[1:][0])
-        
-    if len(data) > 0:
-        pd.DataFrame(data=data, columns=COLUMNS).to_csv(PATH + v + '/' + str(type).upper() + '_COVERAGE.csv', index=False)
-
-def testCases(df, type = 'Min'):
-    config = ['Random', 'Coverage-Guided']
-    mixins = {'Bias': BIAS, 'PairWiseTesting': PAIR_WISE, 'ConstantExtraction': CONSTANT_EXTRACTION}
-    filteredDf = df.filter(items=['Strategy', type + ' Mean Test Cases'])
+def globalMetric(df, metric, config, path, type = 'Min'):
+    filteredDf = df.filter(items=['Strategy', type + SEPARATOR + metric])
 
     data = []
     for c in config:
-        for k in mixins.keys():
-            with_ = filteredDf[filteredDf['Strategy'].isin(withMixin(mixins[k], c))][type + ' Mean Test Cases'].values.tolist()
-            without_ = filteredDf[filteredDf['Strategy'].isin(withoutMixin(mixins[k], c))][type + ' Mean Test Cases'].values.tolist()
+        for k in MIXINS.keys():
+            with_ = filteredDf[filteredDf['Strategy'].isin(withMixin(MIXINS[k], c))][type + SEPARATOR + metric].values.tolist()
+            without_ = filteredDf[filteredDf['Strategy'].isin(withoutMixin(MIXINS[k], c))][type + SEPARATOR + metric].values.tolist()
 
             if not (all(elem == with_[0] for elem in with_) and all(elem == without_[0] for elem in without_)):
-                # f_oneway(with_, without_)
-                df = pd.DataFrame({'testcases': with_ + without_,
+                df = pd.DataFrame({'metric': with_ + without_,
                                    'group': np.repeat([c + ' with' + k, c + ' without' + k], repeats=len(with_))}) 
 
-                tukey = pairwise_tukeyhsd(endog=df['testcases'],
+                tukey = pairwise_tukeyhsd(endog=df['metric'],
                                           groups=df['group'],
                                           alpha=0.05)
 
                 data.append(tukey._results_table.data[1:][0])
 
             
-    for k in mixins.keys():
-        with_R  = filteredDf[filteredDf['Strategy'].isin(withMixin(mixins[k], 'Random'))][type + ' Mean Test Cases'].values.tolist()
-        with_CG = filteredDf[filteredDf['Strategy'].isin(withMixin(mixins[k], 'Coverage-Guided'))][type + ' Mean Test Cases'].values.tolist()
+    for k in MIXINS.keys():
+        with_R  = filteredDf[filteredDf['Strategy'].isin(withMixin(MIXINS[k], 'Random'))][type + SEPARATOR + metric].values.tolist()
+        with_CG = filteredDf[filteredDf['Strategy'].isin(withMixin(MIXINS[k], 'Coverage-Guided'))][type + SEPARATOR + metric].values.tolist()
 
         if not (all(elem == with_R[0] for elem in with_R) and all(elem == with_CG[0] for elem in with_CG)):
-            # f_oneway(with_, without_)
-            df = pd.DataFrame({'testcases': with_R + with_CG,
+            df = pd.DataFrame({'metric': with_R + with_CG,
                                'group': np.repeat(['Random with' + k, 'Coverage-Guided with' + k], repeats=len(with_R))}) 
 
-            tukey = pairwise_tukeyhsd(endog=df['testcases'],
+            tukey = pairwise_tukeyhsd(endog=df['metric'],
                                       groups=df['group'],
                                       alpha=0.05)
 
             data.append(tukey._results_table.data[1:][0])
 
-    R  = filteredDf[filteredDf['Strategy'].isin(RANDOM)][type + ' Mean Test Cases'].values.tolist()
-    CG = filteredDf[filteredDf['Strategy'].isin(COVERAGE_GUIDED)][type + ' Mean Test Cases'].values.tolist()
+    R  = filteredDf[filteredDf['Strategy'].isin(RANDOM)][type + SEPARATOR + metric].values.tolist()
+    CG = filteredDf[filteredDf['Strategy'].isin(COVERAGE_GUIDED)][type + SEPARATOR + metric].values.tolist()
 
     if not (all(elem == R[0] for elem in R) and all(elem == CG[0] for elem in CG)):
-        # f_oneway(with_, without_)
-        df = pd.DataFrame({'testcases': R + CG,
+        df = pd.DataFrame({'metric': R + CG,
                            'group': np.repeat(['Random', 'Coverage-Guided'], repeats=len(R))}) 
 
-        tukey = pairwise_tukeyhsd(endog=df['testcases'],
+        tukey = pairwise_tukeyhsd(endog=df['metric'],
                                   groups=df['group'],
                                   alpha=0.05)
 
         data.append(tukey._results_table.data[1:][0])
     
     if len(data) > 0:
-        pd.DataFrame(data=data, columns=COLUMNS).to_csv(PATH + v + '/' + str(type).upper() + '_TEST_CASES.csv', index=False)
+        pd.DataFrame(data=data, columns=COLUMNS).to_csv(path, index=False)
 
 ##########
 ## MAIN ##
@@ -162,19 +132,40 @@ def testCases(df, type = 'Min'):
 if len(sys.argv) < 2:
     sys.exit()
 
-VERSIONS = []
 PATH = './.benchmarks/' + sys.argv[1] + '/'
 
-for subdir in os.listdir(PATH):
-    d = os.path.join(PATH, subdir)
-    if os.path.isdir(d):
-        VERSIONS.append(subdir)
+DATA = []
 
-if len(VERSIONS) < 1:
-    sys.exit()
+if len(sys.argv) == 3 and sys.argv[2] == '-S':
+    PATH += 'M0/'
+    
+    for subdir in os.listdir(PATH):
+        d = os.path.join(PATH, subdir)
+        if os.path.isfile(d) and re.search('.*P\d+\.csv', d) != None:
+            DATA.append(subdir)
+    
+    if len(DATA) < 1:
+        sys.exit()
 
-for v in VERSIONS:
-    df = pd.read_csv(PATH + v + '/' + v + '.csv')
-    time(df)
-    testCases(df)
-    coverage(df)
+    SEPARATOR = ''
+    
+    for d in DATA:
+        df = pd.read_csv(PATH + d)
+        baseMetric(df, 'Mean Time (ms)', ['Random', 'Coverage-Guided'], PATH + d.split('.')[0] + '_TIME.csv', '')
+        baseMetric(df, 'Mean Coverage (%)', ['Coverage-Guided'], PATH + d.split('.')[0] + '_COVERAGE.csv', '')
+        globalMetric(df, 'Mean Test Cases', ['Random', 'Coverage-Guided'], PATH + d.split('.')[0] + '_TEST_CASES.csv', '')
+        globalMetric(df, 'Satisfiability (%)', ['Random', 'Coverage-Guided'], PATH + d.split('.')[0] + '_SATISFIABILITY.csv', '')
+else:
+    for subdir in os.listdir(PATH):
+        d = os.path.join(PATH, subdir)
+        if os.path.isdir(d):
+            DATA.append(subdir)
+
+    if len(DATA) < 1:
+        sys.exit()
+
+    for d in DATA:
+        df = pd.read_csv(PATH + d + '/' + d + '.csv')
+        baseMetric(df, 'Mean Time (ms)', ['Random', 'Coverage-Guided'], PATH + d + '/MIN_TIME.csv')
+        baseMetric(df, 'Mean Coverage (%)', ['Coverage-Guided'], PATH + d + '/MIN_COVERAGE.csv')
+        globalMetric(df, 'Mean Test Cases', ['Random', 'Coverage-Guided'], PATH + d + '/MIN_TEST_CASES.csv')
