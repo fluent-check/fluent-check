@@ -32,9 +32,11 @@ export type ArbitraryCoverage = Record<string, number | [number, number]>
 export type ScenarioCoverage = number | [number, number]
 
 export type Data1D = {value?: number, color?: string}
+export type Data2D = {valueX?: number, valueY?: number, color?: string}
+export type DataBar = {valueX: number, valueY: number}
+
 export type Graph1D = (testCase: ValueResult<number | number[]>,
   sizes: ValueResult<number>, execTime: number, result: boolean) => Data1D | undefined
-export type Data2D = {valueX?: number, valueY?: number, color?: string}
 export type Graph2D = (testCase: ValueResult<number | number[]>,
   sizes: ValueResult<number>, execTime: number, result: boolean) => Data2D | undefined
 
@@ -44,7 +46,8 @@ export type Graphs = {oneD: GraphPath1D[], twoD: GraphPath2D[]}
 
 export type IndexPath1D = {path?: string, indexes: Data1D[], repeated: Map<string, number>}
 export type IndexPath2D = {path?: string, indexes: Data2D[], repeated: Map<string, number>}
-export type IndexCollection = {oneD: IndexPath1D[], twoD: IndexPath2D[]}
+export type IndexPathBar = {path?: string, indexes: DataBar[]}
+export type IndexCollection = {oneD: IndexPath1D[], twoD: IndexPath2D[], bar: IndexPathBar[]}
 
 export type CsvFilter =
   (testCase: ValueResult<any>, execTime: number, result: boolean) => Record<string, string> | undefined

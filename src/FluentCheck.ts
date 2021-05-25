@@ -24,7 +24,7 @@ export class FluentResult {
     public readonly csvFilter?: CsvFilter,
     public readonly testCases: PrintInfo = {values: [], time: [], result: []},
     public readonly coverages: [ScenarioCoverage, ArbitraryCoverage] = [0, {}],
-    public readonly indexesForGraphs: IndexCollection = {oneD: [], twoD: []}) {}
+    public readonly indexesForGraphs: IndexCollection = {oneD: [], twoD: [], bar: []}) {}
 
   addExample<A>(name: string, value: FluentPick<A>) {
     this.example[name] = value

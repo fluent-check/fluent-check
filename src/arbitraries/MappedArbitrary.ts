@@ -5,7 +5,8 @@ export class MappedArbitrary<A, B> extends Arbitrary<B> {
   constructor(
     public readonly baseArbitrary: Arbitrary<A>,
     public readonly f: (a: A) => B,
-    public readonly shrinkHelper?: XOR<{inverseMap: (b: B) => A[]},{canGenerate: (pick: FluentPick<B>) => boolean}>
+    public readonly shrinkHelper?: XOR<{inverseMap: (b: B) => A[]},{canGenerate: (pick: FluentPick<B>) => boolean}>,
+    public readonly string: boolean = false
   ) {
     super()
     this.canGenerate = this.shrinkHelper !== undefined && this.shrinkHelper.canGenerate !== undefined ?
@@ -25,6 +26,8 @@ export class MappedArbitrary<A, B> extends Arbitrary<B> {
   calculateIndex(pick: FluentPick<any>, precision: number) {
     return this.baseArbitrary.calculateIndex(pick, precision)
   }
+
+  graphIs1D(): boolean { return !this.string }
 
   // TODO: This is not strictly true when the mapping function is not bijective. I suppose this is
   // a count-distinct problem, so we should probably either count the cardinality with a Set (for

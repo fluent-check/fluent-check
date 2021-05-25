@@ -1,6 +1,6 @@
 import {FluentResult} from './FluentCheck'
 import {existsSync, createWriteStream, writeFileSync} from 'fs'
-import {PrintInfo, IndexPath1D, IndexPath2D, CsvFilter} from './arbitraries'
+import {PrintInfo, IndexPath1D, IndexPath2D, CsvFilter, IndexPathBar} from './arbitraries'
 import {JSDOM} from 'jsdom'
 import {select, scaleLinear, axisBottom, axisLeft} from 'd3'
 
@@ -71,6 +71,11 @@ function assembleInfo(result: FluentResult): string {
     msg.push('\n')
 
   if (result.withGraphs) {
+    for (const g of result.indexesForGraphs.bar) {
+      msg.push('\nBar graph created in ')
+      msg.push(generateBarGraphs(g))
+    }
+
     for (const g of result.indexesForGraphs.oneD) {
       msg.push('\n1D graph created in ')
       msg.push(generate1DGraphs(g))
@@ -243,6 +248,75 @@ function generate2DGraphs(graph: IndexPath2D) {
         .range(['white', d.color ?? 'red'])
         .domain([0, maxRepeated])
       return color(graph.repeated.get(JSON.stringify([d.valueX, d.valueY])))
+    })
+
+  const filename = graph.path ?? generateIncrementalFileName('graph', '.svg')
+  writeFileSync(filename, body.html())
+  return filename
+}
+
+function generateBarGraphs(graph: IndexPathBar) {
+  const minIndexX = Math.min.apply(null, graph.indexes.map(idx => idx.valueX))
+  const maxIndexX = Math.max.apply(null, graph.indexes.map(idx => idx.valueX))
+
+  const maxIndexY = Math.max.apply(null, graph.indexes.map(idx => idx.valueY))
+
+  const margin1 = 50
+  const margin2 = 25
+  const width = 1000
+  const height = 1000
+
+  const rectangleWidth = 500/(graph.indexes.length + 2)
+
+  const dom = new JSDOM('<!DOCTYPE html><body></body>')
+  const body = select(dom.window.document.querySelector('body'))
+  const svg = body.append('svg').attr('width', width + margin1 + margin2)
+    .attr('height', height + margin1 + margin2).attr('xmlns', 'http://www.w3.org/2000/svg')
+
+  //background
+  svg.append('rect')
+    .attr('width', '100%')
+    .attr('height', '100%')
+    .attr('fill', 'white')
+
+  //axis
+  const x = scaleLinear()
+    .domain([minIndexX - 1, maxIndexX + 1])
+    .range([margin1, width + margin1])
+  svg.append('g')
+    .attr('transform', 'translate(0,' + (height + margin2) + ')')
+    .call(axisBottom(x))
+
+  const y = scaleLinear()
+    .domain([0, maxIndexY])
+    .range([height + margin2, margin2])
+  svg.append('g')
+    .attr('transform', 'translate(' + margin1 + ',0)')
+    .call(axisLeft(y))
+
+  //values
+  svg.selectAll('whatever')
+    .data(graph.indexes)
+    .enter()
+    .append('rect')
+    .attr('width', rectangleWidth)
+    .attr('height', function (d) { return height + margin2 - y(d.valueY) })
+    .attr('fill', 'red')
+    .attr('transform', function (d) {
+      return 'translate(' + (x(d.valueX) - rectangleWidth/2) + ',' + y(d.valueY) + ')'
+    })
+
+  //labels
+  svg.append('text')
+    .attr('font-size', '15px')
+    .text('length')
+    .attr('transform', 'translate(' + width + ',' + (height + margin1 + 5) + ')')
+
+  svg.append('text')
+    .attr('font-size', '15px')
+    .text('occurences')
+    .attr('transform', function () {
+      return 'translate(' + 20 + ',' + (margin2 + 75) + ')rotate(-90)'
     })
 
   const filename = graph.path ?? generateIncrementalFileName('graph', '.svg')
