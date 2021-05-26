@@ -63,9 +63,9 @@ describe('QuickSort properties', () => {
 
   it('Sorted array is sorted', () => {
     fc.expect(fc.scenario()
-      //.configStatistics(fc.statistics().withAll())
+      //.configStatistics(fc.statistics().withAll().withDefaultGraphs())
       .withGenerator(seededGen)
-      .forall('a', fc.array(fc.integer(-10,10), 0, 5))
+      .forall('a', fc.array(fc.integer(-10,10), 0, 10))
       .then(({a}) => isSorted(quickSort(a, 0, a.length - 1)))
       .check()
     )
@@ -73,9 +73,9 @@ describe('QuickSort properties', () => {
 
   it('Sorted array has same size as original', () => {
     fc.expect(fc.scenario()
-      //.configStatistics(fc.statistics().withAll())
+      //.configStatistics(fc.statistics().withAll().withDefaultGraphs())
       .withGenerator(seededGen)
-      .forall('a', fc.array(fc.integer(-10,10), 0, 5))
+      .forall('a', fc.array(fc.integer(-10,10), 0, 10))
       .then(({a}) => quickSort(a, 0, a.length - 1).length === a.length)
       .check()
     )
@@ -92,9 +92,9 @@ describe('QuickSort properties', () => {
 
   it('Sorted array constains same elements as original', () => {
     fc.expect(fc.scenario()
-      //.configStatistics(fc.statistics().withAll())
+      //.configStatistics(fc.statistics().withAll().withDefaultGraphs())
       .withGenerator(seededGen)
-      .forall('a', fc.array(fc.integer(-10,10), 0, 5))
+      .forall('a', fc.array(fc.integer(-10,10), 0, 10))
       .then(({a}) => eqSet(new Set(a), new Set(quickSort(a, 0, a.length - 1))))
       .check()
     )
