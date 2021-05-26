@@ -94,21 +94,6 @@ def globalMetric(df, metric, config, path, type = 'Min'):
 
                 data.append(tukey._results_table.data[1:][0])
 
-            
-    for k in MIXINS.keys():
-        with_R  = filteredDf[filteredDf['Strategy'].isin(withMixin(MIXINS[k], 'Random'))][type + SEPARATOR + metric].values.tolist()
-        with_CG = filteredDf[filteredDf['Strategy'].isin(withMixin(MIXINS[k], 'Coverage-Guided'))][type + SEPARATOR + metric].values.tolist()
-
-        if not (all(elem == with_R[0] for elem in with_R) and all(elem == with_CG[0] for elem in with_CG)):
-            df = pd.DataFrame({'metric': with_R + with_CG,
-                               'group': np.repeat(['Random with' + k, 'Coverage-Guided with' + k], repeats=len(with_R))}) 
-
-            tukey = pairwise_tukeyhsd(endog=df['metric'],
-                                      groups=df['group'],
-                                      alpha=0.05)
-
-            data.append(tukey._results_table.data[1:][0])
-
     R  = filteredDf[filteredDf['Strategy'].isin(RANDOM)][type + SEPARATOR + metric].values.tolist()
     CG = filteredDf[filteredDf['Strategy'].isin(COVERAGE_GUIDED)][type + SEPARATOR + metric].values.tolist()
 
@@ -151,8 +136,8 @@ if len(sys.argv) == 3 and sys.argv[2] == '-S':
     
     for d in DATA:
         df = pd.read_csv(PATH + d)
-        baseMetric(df, 'Mean Time (ms)', ['Random', 'Coverage-Guided'], PATH + d.split('.')[0] + '_TIME.csv', '')
         baseMetric(df, 'Mean Coverage (%)', ['Coverage-Guided'], PATH + d.split('.')[0] + '_COVERAGE.csv', '')
+        globalMetric(df, 'Mean Time (ms)', ['Random', 'Coverage-Guided'], PATH + d.split('.')[0] + '_TIME.csv', '')
         globalMetric(df, 'Mean Test Cases', ['Random', 'Coverage-Guided'], PATH + d.split('.')[0] + '_TEST_CASES.csv', '')
         globalMetric(df, 'Satisfiability (%)', ['Random', 'Coverage-Guided'], PATH + d.split('.')[0] + '_SATISFIABILITY.csv', '')
 else:
@@ -166,6 +151,6 @@ else:
 
     for d in DATA:
         df = pd.read_csv(PATH + d + '/' + d + '.csv')
-        baseMetric(df, 'Mean Time (ms)', ['Random', 'Coverage-Guided'], PATH + d + '/MIN_TIME.csv')
         baseMetric(df, 'Mean Coverage (%)', ['Coverage-Guided'], PATH + d + '/MIN_COVERAGE.csv')
+        globalMetric(df, 'Mean Time (ms)', ['Random', 'Coverage-Guided'], PATH + d + '/MIN_TIME.csv')
         globalMetric(df, 'Mean Test Cases', ['Random', 'Coverage-Guided'], PATH + d + '/MIN_TEST_CASES.csv')

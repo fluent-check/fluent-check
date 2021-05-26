@@ -15,6 +15,7 @@ CONFIGURATIONS = []
 TIME = []
 TEST_CASES = []
 COVERAGE = []
+SATISFIABILITY = []
 
 if os.environ.get('FLUENT_CHECK_PROJECT') == None:
     print('\nINFO Benchmark Parser :: Environment variable <FLUENT_CHECK_PROJECT> is not set!\n')
@@ -71,7 +72,10 @@ for v in VERSIONS:
                 TEST_CASES.append(PATH + v + FILE_DELIMETER + subdir)
             elif re.search('(P\d+|MIN)_COVERAGE', subdir):
                 COVERAGE.append(PATH + v + FILE_DELIMETER + subdir)
+            elif re.search('(P\d+|MIN)_SATISFIABILITY', subdir):
+                SATISFIABILITY.append(PATH + v + FILE_DELIMETER + subdir)
 
 parseMetric(TIME, 'TIME')
 parseMetric(TEST_CASES, 'TEST_CASES')
 parseMetric(COVERAGE, 'COVERAGE')
+parseMetric(SATISFIABILITY, 'SATISFIABILITY')
