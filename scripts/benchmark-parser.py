@@ -11,6 +11,7 @@ SAMPLE_SIZE = 'Sample Size'
 TEST_CASES = 'Test Cases'
 COVERAGE = 'Coverage (%)'
 BUG_FOUND = 'Bug Found (%)'
+SATISFIABILITY = 'Satisfiability (%)'
 STD = 'Std'
 MIN = 'Min'
 MAX = 'Max'
@@ -54,8 +55,14 @@ for subdir in os.listdir(PATH + VERSIONS[0] + FILE_DELIMETER + RUNS[0]):
 if len(CONFIGURATIONS) < 1:
     sys.exit()
 
+S_STATUS = False
+
+if len(sys.argv) == 2 and (sys.argv[1] == '-s' or sys.argv[1] == '--satisfiability'):
+    S_STATUS = True
+
 for v in VERSIONS:
     vdfData = []
+    parsedData = {} 
     for c in CONFIGURATIONS:
         configData = { 'time': {}, 'status': {}, 'coverage': {}, 'testCases': {}, 'sampleSize': {} }
         for r in RUNS:
@@ -67,7 +74,7 @@ for v in VERSIONS:
                 
                 configData['time'][key].append(data[key]['actual']['benchmarkMetrics']['time'])
                 configData['coverage'][key].append(data[key]['actual']['benchmarkMetrics']['coverage'])
-                configData['status'][key].append(data[key]['expected']['satisfiable'] != data[key]['actual']['satisfiable'])
+                configData['status'][key].append(data[key]['expected']['satisfiable'] == data[key]['actual']['satisfiable'] if S_STATUS else data[key]['expected']['satisfiable'] != data[key]['actual']['satisfiable'])
                 configData['testCases'][key].append(data[key]['actual']['benchmarkMetrics']['numberTestCases'])
                 configData['sampleSize'][key].append(data[key]['actual']['benchmarkMetrics']['sampleSize'])
         
@@ -86,29 +93,49 @@ for v in VERSIONS:
             SAMPLE_SIZE,
             MEAN + SEPARATOR + TEST_CASES, STD + SEPARATOR + TEST_CASES,
             MEAN + SEPARATOR + COVERAGE, STD + SEPARATOR + COVERAGE,
-            BUG_FOUND
+            SATISFIABILITY if S_STATUS else BUG_FOUND
         ])
         df.index += 1
         df.to_csv(PATH + v + FILE_DELIMETER + c.split('.')[0] + CSV_EXTENSION)
+        
+        if S_STATUS:
+            parsedData[c.split('.')[0]] = df
+        else:
+            filteredDf = df[df[BUG_FOUND] > 0]
+            vdfData.append([c.split('.')[0],
+                    filteredDf[MEAN + SEPARATOR + TIME][filteredDf[MEAN + SEPARATOR + TIME].idxmin()],
+                    filteredDf[STD  + SEPARATOR + TIME][filteredDf[MEAN + SEPARATOR + TIME].idxmin()],
+                    filteredDf[MEAN + SEPARATOR + TIME][filteredDf[MEAN + SEPARATOR + TIME].idxmax()],
+                    filteredDf[STD  + SEPARATOR + TIME][filteredDf[MEAN + SEPARATOR + TIME].idxmax()],
+                    filteredDf[SAMPLE_SIZE].min(), filteredDf[SAMPLE_SIZE].max(),
+                    filteredDf[MEAN + SEPARATOR + TEST_CASES][filteredDf[MEAN + SEPARATOR + TEST_CASES].idxmin()],
+                    filteredDf[STD  + SEPARATOR + TEST_CASES][filteredDf[MEAN + SEPARATOR + TEST_CASES].idxmin()],
+                    filteredDf[MEAN + SEPARATOR + TEST_CASES][filteredDf[MEAN + SEPARATOR + TEST_CASES].idxmax()],
+                    filteredDf[STD  + SEPARATOR + TEST_CASES][filteredDf[MEAN + SEPARATOR + TEST_CASES].idxmax()],
+                    filteredDf[MEAN + SEPARATOR + COVERAGE][filteredDf[MEAN + SEPARATOR + COVERAGE].idxmin()],
+                    filteredDf[STD  + SEPARATOR + COVERAGE][filteredDf[MEAN + SEPARATOR + COVERAGE].idxmin()],
+                    filteredDf[MEAN + SEPARATOR + COVERAGE][filteredDf[MEAN + SEPARATOR + COVERAGE].idxmax()],
+                    filteredDf[STD  + SEPARATOR + COVERAGE][filteredDf[MEAN + SEPARATOR + COVERAGE].idxmax()],
+                    len(filteredDf) > 0
+                ]) if len(filteredDf) > 0 else [c.split('.')[0], None, None, None, None, None, None, None, None, len(filteredDf) > 0]
 
-        filteredDf = df[df[BUG_FOUND] > 0]
-        vdfData.append([c.split('.')[0],
-                filteredDf[MEAN + SEPARATOR + TIME][filteredDf[MEAN + SEPARATOR + TIME].idxmin()],
-                filteredDf[STD  + SEPARATOR + TIME][filteredDf[MEAN + SEPARATOR + TIME].idxmin()],
-                filteredDf[MEAN + SEPARATOR + TIME][filteredDf[MEAN + SEPARATOR + TIME].idxmax()],
-                filteredDf[STD  + SEPARATOR + TIME][filteredDf[MEAN + SEPARATOR + TIME].idxmax()],
-                filteredDf[SAMPLE_SIZE].min(), filteredDf[SAMPLE_SIZE].max(),
-                filteredDf[MEAN + SEPARATOR + TEST_CASES][filteredDf[MEAN + SEPARATOR + TEST_CASES].idxmin()],
-                filteredDf[STD  + SEPARATOR + TEST_CASES][filteredDf[MEAN + SEPARATOR + TEST_CASES].idxmin()],
-                filteredDf[MEAN + SEPARATOR + TEST_CASES][filteredDf[MEAN + SEPARATOR + TEST_CASES].idxmax()],
-                filteredDf[STD  + SEPARATOR + TEST_CASES][filteredDf[MEAN + SEPARATOR + TEST_CASES].idxmax()],
-                filteredDf[MEAN + SEPARATOR + COVERAGE][filteredDf[MEAN + SEPARATOR + COVERAGE].idxmin()],
-                filteredDf[STD  + SEPARATOR + COVERAGE][filteredDf[MEAN + SEPARATOR + COVERAGE].idxmin()],
-                filteredDf[MEAN + SEPARATOR + COVERAGE][filteredDf[MEAN + SEPARATOR + COVERAGE].idxmax()],
-                filteredDf[STD  + SEPARATOR + COVERAGE][filteredDf[MEAN + SEPARATOR + COVERAGE].idxmax()],
-                len(filteredDf) > 0
-            ]) if len(filteredDf) > 0 else [c.split('.')[0], None, None, None, None, None, None, None, None, len(filteredDf) > 0]
-    df = pd.DataFrame(vdfData, columns = [
+    if S_STATUS:
+        for p in range(1, len(parsedData[list(parsedData.keys())[0]]) + 1):
+            vdfDataParsed = []
+            for key in parsedData.keys():
+                vdfDataParsed.append([key] +  parsedData[key].iloc[[p - 1]].values.tolist()[0])
+
+            df = pd.DataFrame(vdfDataParsed, columns = [
+                'Strategy',
+                MEAN + SEPARATOR + TIME, STD + SEPARATOR + TIME,
+                SAMPLE_SIZE,
+                MEAN + SEPARATOR + TEST_CASES, STD + SEPARATOR + TEST_CASES,
+                MEAN + SEPARATOR + COVERAGE, STD + SEPARATOR + COVERAGE,
+                SATISFIABILITY
+            ])
+            df.to_csv(PATH + v + FILE_DELIMETER + 'P' + str(p) + CSV_EXTENSION, index=False)
+    else:
+        df = pd.DataFrame(vdfData, columns = [
             'Strategy',
             MIN + SEPARATOR + MEAN + SEPARATOR + TIME, STD + SEPARATOR + MIN + SEPARATOR + MEAN + SEPARATOR + TIME,
             MAX + SEPARATOR + MEAN + SEPARATOR + TIME, STD + SEPARATOR + MAX + SEPARATOR + MEAN + SEPARATOR + TIME,
@@ -119,11 +146,4 @@ for v in VERSIONS:
             MAX + SEPARATOR + MEAN + SEPARATOR + COVERAGE, STD + SEPARATOR + MAX + SEPARATOR + MEAN + SEPARATOR + COVERAGE,
             'Bug Found'
             ])
-    df.to_csv(PATH + v + FILE_DELIMETER + v + CSV_EXTENSION, index=False)
-
-if len(sys.argv) > 1 and sys.argv[1] == '--show':
-    for v in VERSIONS:
-        for c in CONFIGURATIONS:
-            print('-------------------- ' + v + ' - ' + c + ' --------------------\n')
-            print(pd.read_csv(PATH + v + FILE_DELIMETER + c.split('.')[0] + CSV_EXTENSION, index_col=0))
-            print()
+        df.to_csv(PATH + v + FILE_DELIMETER + v + CSV_EXTENSION, index=False)

@@ -114,8 +114,4 @@ echo -ne "${LIGHTGREEN}$(date +"%T") INFO Benchmark$(tput sgr0) Benchmarking [==
 
 mv "$PROJECT_DIR/original/main-backup.ts" "$PROJECT_DIR/original/main.ts"
 
-echo -ne "${LIGHTGREEN}$(date +"%T") INFO Benchmark$(tput sgr0) Parsing benchmark metrics.\n\n"
-
-python ./scripts/benchmark-parser.py # --show 
-
 echo -ne "${LIGHTGREEN}$(date +"%T") INFO Benchmark$(tput sgr0) Finished.\n\n"
