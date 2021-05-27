@@ -21,6 +21,11 @@ export function ConstantExtractionBased<TBase extends MixinStrategy>(Base: TBase
     private constants: StrategyExtractedConstants = {'numeric': [] as number[], 'string': [] as string[]}
 
     /**
+     * Determines the maximum size that strings can be generated according to the numerics extracted.
+     */
+    private MAX_STRING_SIZE = 1000
+
+    /**
      * Tokenizes either the file or function passed as parameter.
      */
     private tokenize(data: Buffer | ((...args: any[]) => boolean)) {
@@ -123,7 +128,8 @@ export function ConstantExtractionBased<TBase extends MixinStrategy>(Base: TBase
 
       for (const numeric of this.constants['numeric']) {
         if (this.constants['string'].length >= this.configuration.maxNumConst) break
-        this.constants['string'].push(fc.string(numeric, numeric).pick(this.randomGenerator.generator)?.value)
+        else if (numeric < this.MAX_STRING_SIZE)
+          this.constants['string'].push(fc.string(numeric, numeric).pick(this.randomGenerator.generator)?.value)
       }
     }
 
