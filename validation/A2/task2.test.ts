@@ -1,4 +1,4 @@
-import * as fc from '../src/index'
+import * as fc from '../../src/index'
 import {it} from 'mocha'
 
 function swap(items, leftIndex, rightIndex) {

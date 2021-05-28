@@ -1,4 +1,4 @@
-import * as fc from '../src/index'
+import * as fc from '../../src/index'
 import {it} from 'mocha'
 
 function swap(items, leftIndex, rightIndex) {
@@ -39,12 +39,6 @@ function quickSort(items, left, right) {
 console.log(quickSort([7,8,7,0,5,4,3,2,1,6], 0, 9))  //for no lint errors
 
 describe('QuickSort properties', () => {
-  let seededGen: (seed: number) => () => number
-
-  beforeEach(() =>
-    seededGen = (seed: number) => () => (seed = seed * 16807 % 2147483647) / 2147483647
-  )
-
   const isSorted = (arr: number[]) => {
     if (arr.length <= 1)
       return true
@@ -53,8 +47,6 @@ describe('QuickSort properties', () => {
 
   it('Sorted array is sorted', () => {
     fc.expect(fc.scenario()
-      //.configStatistics(fc.statistics().withAll().withDefaultGraphs())
-      .withGenerator(seededGen)
       .forall('a', fc.array(fc.integer(-10,10), 0, 10))
       .then(({a}) => isSorted(quickSort(a, 0, a.length - 1)))
       .check()
@@ -63,8 +55,6 @@ describe('QuickSort properties', () => {
 
   it('Sorted array has same size as original', () => {
     fc.expect(fc.scenario()
-      //.configStatistics(fc.statistics().withAll().withDefaultGraphs())
-      .withGenerator(seededGen)
       .forall('a', fc.array(fc.integer(-10,10), 0, 10))
       .then(({a}) => quickSort(a, 0, a.length - 1).length === a.length)
       .check()
@@ -82,8 +72,6 @@ describe('QuickSort properties', () => {
 
   it('Sorted array constains same elements as original', () => {
     fc.expect(fc.scenario()
-      //.configStatistics(fc.statistics().withAll().withDefaultGraphs())
-      .withGenerator(seededGen)
       .forall('a', fc.array(fc.integer(-10,10), 0, 10))
       .then(({a}) => eqSet(new Set(a), new Set(quickSort(a, 0, a.length - 1))))
       .check()
