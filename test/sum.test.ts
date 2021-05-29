@@ -29,11 +29,9 @@ describe('sum', () => {
   // Associative property
   it('Associative property of addition', () => {
     fc.expect(fc.scenario()
-      .config(fc.strategy().defaultStrategy().withSampleSize(50))
-      .forall('a', fc.integer(-100, 100))
-      .forall('b', fc.integer(-100, 100))
-      .forall('c', fc.integer(-100, 100))
-      .then(({a, b, c}) => sum(sum(a,b), c) === sum(a, sum(b,c)))
+      .config(fc.strategy().defaultStrategy().withSampleSize(10000))
+      .forall('abc', fc.tuple(fc.integer(-100, 100), fc.integer(-100, 100), fc.integer(-100, 100)))
+      .then(({abc}) => sum(sum(abc[0],abc[1]), abc[2]) === sum(abc[0], sum(abc[1],abc[2])))
       .check()
     )
   })
@@ -41,7 +39,8 @@ describe('sum', () => {
   // Identity property
   it('Identity property of addition', () => {
     fc.expect(fc.scenario()
-      .forall('a', fc.integer(-100, 100))
+      .config(fc.strategy().defaultStrategy().withSampleSize(10000))
+      .forall('a', fc.integer(-5000, 5000))
       .then(({a}) => sum(a,0) === a)
       .check()
     )
