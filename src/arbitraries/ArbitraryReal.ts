@@ -20,6 +20,10 @@ export class ArbitraryReal extends ArbitraryInteger {
     return Math.floor((pick.original - this.min) * 10 ** precision)
   }
 
+  getIndex(pick: FluentPick<any>, precision: number): number | undefined {
+    return Math.floor(pick.original * 10 ** precision)
+  }
+
   calculateCoverage(picks: number, precision: number): number {
     return picks/this.size(precision).value
   }

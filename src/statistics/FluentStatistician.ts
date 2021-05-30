@@ -86,7 +86,7 @@ export class FluentStatistician {
           const indexes: Data1D[] = []
           for (const i in originals) {
             const input = {value: values[i][k], original: originals[i][k]}
-            const value = this.arbitraries[k].arbitrary.calculateIndex(input, this.configuration.realPrecision)
+            const value = this.arbitraries[k].arbitrary.getIndex(input, this.configuration.realPrecision)
             indexes.push({value})
             repeated.set(JSON.stringify(value), (repeated.get(JSON.stringify(value)) ?? 0) + 1)
           }
