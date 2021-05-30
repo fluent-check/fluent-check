@@ -126,7 +126,7 @@ function writeTestCases(
       const values = csvFilter(e, testCases.time[i], testCases.result[i])
       if (values !== undefined) {
         for (const val in values) {
-          stream.write(values[val].replace(/,/g , ' '))
+          stream.write(JSON.stringify(values[val]).replace(/,/g , ' '))
           stream.write(',')
         }
         stream.write('\n')
