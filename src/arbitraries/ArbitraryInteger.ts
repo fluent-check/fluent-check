@@ -21,6 +21,10 @@ export class ArbitraryInteger extends Arbitrary<number> {
     return pick.original - this.min
   }
 
+  getIndex(pick: FluentPick<any>, _?: number): number | undefined {
+    return pick.original
+  }
+
   cornerCases() {
     const middle = Math.round((this.min + this.max) / 2)
     const ccs = [... new Set(this.min < 0 && this.max > 0 ?

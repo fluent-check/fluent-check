@@ -31,6 +31,13 @@ export abstract class Arbitrary<A> {
   abstract calculateIndex(pick: FluentPick<any>, precision?: number): number | undefined
 
   /**
+   * Provides the index of the input for graph creation purposes
+   */
+  getIndex(pick: FluentPick<any>, precision?: number): number | undefined {
+    return this.calculateIndex(pick, precision)
+  }
+
+  /**
    * Gets type of graph which is either 1D or a bar graph (array and set)
    */
   graphIs1D(): boolean { return true }
