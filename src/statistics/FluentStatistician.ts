@@ -1,6 +1,7 @@
 import {ArbitraryCoverage, Graphs, IndexCollection, ScenarioCoverage, TestCases,
   ValueResult, Data1D, Data2D, CsvFilter, DataBar} from '../arbitraries'
 import {StrategyArbitraries} from '../strategies/FluentStrategyTypes'
+import chi from 'chi-squared'
 
 export type FluentReporterConfig = {
   withTestCaseOutput: boolean,
@@ -138,5 +139,46 @@ export class FluentStatistician {
     }
 
     return indexesCollection
+  }
+
+  calculateConfidenceLevel(testCases: TestCases): number{
+    const successes: string[] = []
+    const fails: string[] = []
+    testCases.result.forEach((result, i) => {
+      result ? successes.push(JSON.stringify(testCases.values[i])) :
+        fails.push(JSON.stringify(testCases.values[i]))
+    })
+  
+    let repeatedSuccesses: Map<string, number> = new Map()
+    successes.forEach(value => {
+      repeatedSuccesses.set(value, (repeatedSuccesses.get(value) ?? 0) + 1)
+    })
+    let repeatedFails: Map<string, number> = new Map()
+    fails.forEach(value => {
+      repeatedFails.set(value, (repeatedFails.get(value) ?? 0) + 1)
+    })
+  
+    let sum = 0
+    new Set(successes).forEach(value => {
+      const repeats = repeatedSuccesses.get(value) ?? 0
+      const totalRepeats = repeats + (repeatedFails.get(value) ?? 0)
+      const temp = (successes.length * totalRepeats) / testCases.values.length
+      sum += ((repeats - temp) ** 2) / temp
+      console.log(repeats)
+      console.log(temp)
+    })
+    console.log('---')
+    new Set(fails).forEach(value => {
+      const repeats = repeatedFails.get(value) ?? 0
+      const totalRepeats = repeats + (repeatedSuccesses.get(value) ?? 0)
+      const temp = (fails.length * totalRepeats) / testCases.values.length
+      sum += ((repeats - temp) ** 2) / temp
+    })
+  
+    const dFreedom = testCases.values.length - 1
+    
+    console.log(sum)
+
+    return Math.floor((1 - chi.cdf(sum, dFreedom)) * 100000) / 1000
   }
 }

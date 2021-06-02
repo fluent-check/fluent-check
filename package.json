@@ -19,6 +19,7 @@
   "license": "MIT",
   "dependencies": {
     "@types/node": "^7.0.5",
+    "chi-squared": "^1.1.0",
     "d3": "^6.7.0",
     "jsdom": "^16.5.3",
     "lodash.clonedeep": "^4.5.0",

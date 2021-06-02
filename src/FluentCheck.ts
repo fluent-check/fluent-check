@@ -100,6 +100,8 @@ export class FluentCheck<Rec extends ParentRec, ParentRec extends {}> {
       this.strategy.randomGenerator.initialize()
       const r = this.run({} as Rec, child, testCases)
 
+      console.log(this.statistician.calculateConfidenceLevel(testCases))
+
       return new FluentResult(
         r.satisfiable,
         FluentCheck.unwrapFluentPick(r.example),
