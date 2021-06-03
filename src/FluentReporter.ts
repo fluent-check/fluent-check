@@ -36,7 +36,7 @@ function assembleInfo(result: FluentResult): string {
   msg.push(seed.toString())
 
   if (!result.satisfiable) {
-    msg.push('\n\nCounter-example:\n')
+    msg.push('\n\nCounterexample:\n')
     for (const name in result.example) {
       msg.push('\t')
       msg.push(name)
