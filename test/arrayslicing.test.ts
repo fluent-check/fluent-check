@@ -4,10 +4,16 @@ import {it} from 'mocha'
 function sliceArray(array: number[], n1: number, n2: number) {
   const slices: number[][] = []
   for (let i = 0; i < array.length; i++) {
-    if (array[i] === n1 || array[i] === n2) {
+    if (i === 0 || array[i] === n1 || array[i] === n2) {
       const slice: number[] = []
+      if (i === 0 && array[i] !== n1 && array[i] !== n2)
+        slice.push(array[i])
+      if (i === array.length - 1)
+        slices.push(slice)
       for (let j = i + 1; j < array.length; j++) {
-        if (array[j] === n1 || array[j] === n2) {
+        if (array[j] === n1 || array[j] === n2 || j === array.length - 1) {
+          if (j === array.length - 1 && array[j] !== n1 && array[j] !== n2)
+            slice.push(array[j])
           slices.push(slice)
           break
         } else
@@ -18,7 +24,7 @@ function sliceArray(array: number[], n1: number, n2: number) {
   return slices
 }
 
-console.log(sliceArray([1,2,3,4,5,4,3,2,1],1,4))
+console.log(sliceArray([7,1,2,3,4,5,4,3,2,1,6],1,4))
 
 describe('Array slicing properties', () => {
   let seededGen: (seed: number) => () => number
@@ -27,21 +33,29 @@ describe('Array slicing properties', () => {
     seededGen = (seed: number) => () => (seed = seed * 16807 % 2147483647) / 2147483647
   )
 
-  const slicesDontHaveValues = (slices: number[][], n1: number, n2: number): boolean => {
-    for (const slice of slices)
-      if (slice.includes(n1) || slice.includes(n2))
+  const slicesHaveOtherValues = (arr: number[], slices: number[][], n1: number, n2: number): boolean => {
+    let values: number[] = []
+    for (let i = 0; i < slices.length; i++) {
+      values = values.concat(slices[i])
+    }
+    for (let i, j = 0; i < arr.length && j < values.length; i++) {
+      if (arr[i] === n1 || arr[i] === n2)
+        continue
+      if (arr[i] !== arr[j])
         return false
+      j++
+    }
     return true
   }
 
-  it('Slices don\'t contain any of the values', () => {
+  it('Slices contain other values in order', () => {
     fc.expect(fc.scenario()
       //.configStatistics(fc.statistics().withAll().withDefaultGraphs())
       .withGenerator(seededGen)
       .forall('arr', fc.array(fc.integer(-5,5), 0, 10))
       .forall('n1', fc.integer(-5,5))
       .forall('n2', fc.integer(-5,5))
-      .then(({arr, n1, n2}) => slicesDontHaveValues(sliceArray(arr, n1, n2), n1, n2))
+      .then(({arr, n1, n2}) => slicesHaveOtherValues(arr, sliceArray(arr, n1, n2), n1, n2))
       .check()
     )
   })
@@ -61,46 +75,16 @@ describe('Array slicing properties', () => {
     return result
   }
 
-  const trimArray = (array: number[], n1: number, n2: number): number[] => {
-    const indexes: number[] = []
-    for (let i = 0; i < array.length; i++) {
-      if (array[i] === n1 || array[i] === n2)
-        indexes.push(i)
-    }
-    if (indexes.length > 1)
-      return array.slice(indexes[0], indexes[indexes.length - 1] + 1)
-    return []
-  }
-
-  it('Combined size of slices equals size of trimmed array without the values', () => {
+  it('Combined size of slices equals size of array without the values', () => {
     fc.expect(fc.scenario()
       //.configStatistics(fc.statistics().withAll().withDefaultGraphs())
       .withGenerator(seededGen)
       .forall('arr', fc.array(fc.integer(-5,5), 0, 10))
       .forall('n1', fc.integer(-5,5))
       .forall('n2', fc.integer(-5,5))
-      .then(({arr, n1, n2}) => {
-        const trimmedArr = trimArray(arr, n1, n2)
-        return getCombinedSize(sliceArray(arr, n1, n2)) ===
-        trimmedArr.length - getNumberOfValues(trimmedArr, n1, n2)
-      })
-      .check()
-    )
-  })
-
-  it('Number of slices is the number of occurences of the values minus 1', () => {
-    fc.expect(fc.scenario()
-      //.configStatistics(fc.statistics().withAll().withDefaultGraphs())
-      .withGenerator(seededGen)
-      .forall('arr', fc.array(fc.integer(-5,5), 0, 10))
-      .forall('n1', fc.integer(-5,5))
-      .forall('n2', fc.integer(-5,5))
-      .then(({arr, n1, n2}) => {
-        let expectedNSlices = getNumberOfValues(arr, n1, n2) - 1
-        if (expectedNSlices === -1)
-          expectedNSlices = 0
-        return sliceArray(arr, n1, n2).length === expectedNSlices
-      })
+      .then(({arr, n1, n2}) =>
+        getCombinedSize(sliceArray(arr, n1, n2)) === arr.length - getNumberOfValues(arr, n1, n2)
+      )
       .check()
     )
   })
