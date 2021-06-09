@@ -36,11 +36,17 @@ function quickSort(items, left, right) {
   return items
 }
 
-console.log(quickSort([4,1,1,5,2,6], 0, 5))  //for no lint errors
-
 describe('QuickSort properties', () => {
+  let seededGen: (seed: number) => () => number
+
+  beforeEach(() =>
+    seededGen = (seed: number) => () => (seed = seed * 16807 % 2147483647) / 2147483647
+  )
+
   it('Property', () => {
     fc.expect(fc.scenario()
+      //.configStatistics(fc.statistics().withAll().withDefaultGraphs())
+      .withGenerator(seededGen)
       .forall('a', fc.integer(-10,10))
       .then(({a}) => a === a)
       .check()

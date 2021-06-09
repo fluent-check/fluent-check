@@ -1,4 +1,5 @@
-import {expect} from 'chai'
+import * as fc from '../../src/index'
+import {it} from 'mocha'
 
 function swap(items, leftIndex, rightIndex) {
   const temp = items[leftIndex]
@@ -35,6 +36,12 @@ function quickSort(items, left, right) {
   return items
 }
 
-console.log(quickSort([4,1,1,5,2,6], 0, 5))  //for no lint errors
-
-expect(true).to.be.true
+describe('QuickSort properties', () => {
+  it('Property', () => {
+    fc.expect(fc.scenario()
+      .forall('a', fc.integer(-10,10))
+      .then(({a}) => a === a)
+      .check()
+    )
+  })
+})

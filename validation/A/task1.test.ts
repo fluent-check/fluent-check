@@ -4,18 +4,11 @@ import {it} from 'mocha'
 function upperCase(text: string) {
   let result = ''
 
-  for (let i = 0; i < text.length; i++) {
-    const code = text.charCodeAt(i)
-    if (code >= 97 && code <= 122)
-      result += String.fromCharCode(code - 32)
-    else
-      result += text[i]
-  }
+  for (let i = 0; i < text.length; i++)
+    result += String.fromCharCode(text.charCodeAt(i) - 32)
 
   return result
 }
-
-console.log(upperCase('xabdendjnwjfwkjrowhgrnoujwn')) //for no lint errors
 
 describe('Upper case properties', () => {
   let seededGen: (seed: number) => () => number
@@ -28,7 +21,7 @@ describe('Upper case properties', () => {
     fc.expect(fc.scenario()
       //.configStatistics(fc.statistics().withAll().withDefaultGraphs())
       .withGenerator(seededGen)
-      .forall('text', fc.string(0, 10))
+      .forall('text', fc.string(0, 10, fc.char('a', 'z')))
       .then(({text}) => !/[a-z]/.test(upperCase(text)))
       .check()
     )

@@ -10,8 +10,6 @@ function upperCase(text: string) {
   return result
 }
 
-console.log(upperCase('xabdendjnwjfwkjrowhgrnoujwn'))
-
 describe('Upper case properties', () => {
   it('Resulting string doesn\'t contain lower case letters', () => {
     fc.expect(fc.scenario()
