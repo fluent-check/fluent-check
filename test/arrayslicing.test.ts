@@ -14,7 +14,7 @@ function sliceArray(array: number[], n1: number, n2: number) {
         if (array[j] === n1 || array[j] === n2 || j === array.length - 1) {
           if (j === array.length - 1 && array[j] !== n1 && array[j] !== n2)
             slice.push(array[j])
-          if(slice.length > 0)
+          if (slice.length > 0)
             slices.push(slice)
           break
         } else
@@ -73,7 +73,7 @@ describe('Array slicing properties', () => {
         if (arr[i] !== slices[slice][j])
           return false
         j++
-      } else if(next > -1) {
+      } else if (next > -1) {
         slice++
         j = 0
         next = -1
