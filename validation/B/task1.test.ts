@@ -14,7 +14,7 @@ describe('Upper case properties', () => {
   it('Resulting string doesn\'t contain lower case letters', () => {
     fc.expect(fc.scenario()
       .forall('text', fc.string(0, 10, fc.char('a', 'z')))
-      .then(({text}) => !/[a-z]/.test(upperCase(text)))
+      .then(({text}) => !/[a-z]/.test(upperCase(text)))     //regex
       .check()
     )
   })

@@ -36,7 +36,11 @@ function quickSort(items, left, right) {
   return items
 }
 
-console.log(quickSort([7,8,7,0,5,4,3,2,1,6], 0, 9))  //for no lint errors
+function quick_sort(items) {
+  return quickSort(items, 0, items.length - 1)
+}
+
+console.log(quick_sort([7,8,7,0,5,4,3,2,1,6]))  //for no lint errors
 
 describe('QuickSort properties', () => {
   let seededGen: (seed: number) => () => number
@@ -56,7 +60,7 @@ describe('QuickSort properties', () => {
       //.configStatistics(fc.statistics().withAll().withDefaultGraphs())
       .withGenerator(seededGen)
       .forall('a', fc.array(fc.integer(-10,10), 0, 10))
-      .then(({a}) => isSorted(quickSort(a, 0, a.length - 1)))
+      .then(({a}) => isSorted(quick_sort(a)))
       .check()
     )
   })
@@ -66,7 +70,7 @@ describe('QuickSort properties', () => {
       //.configStatistics(fc.statistics().withAll().withDefaultGraphs())
       .withGenerator(seededGen)
       .forall('a', fc.array(fc.integer(-10,10), 0, 10))
-      .then(({a}) => quickSort(a, 0, a.length - 1).length === a.length)
+      .then(({a}) => quick_sort(a).length === a.length)
       .check()
     )
   })
@@ -85,7 +89,7 @@ describe('QuickSort properties', () => {
       //.configStatistics(fc.statistics().withAll().withDefaultGraphs())
       .withGenerator(seededGen)
       .forall('a', fc.array(fc.integer(-10,10), 0, 10))
-      .then(({a}) => eqSet(new Set(a), new Set(quickSort(a, 0, a.length - 1))))
+      .then(({a}) => eqSet(new Set(a), new Set(quick_sort(a))))
       .check()
     )
   })

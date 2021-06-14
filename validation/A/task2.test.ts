@@ -29,11 +29,15 @@ function quickSort(items, left, right) {
   if (items.length > 1) {
     const index = partition(items, left, right)
     if (left < index - 1)
-      quickSort(items, left, index)
+      quickSort(items, left, index - 1)
     if (index < right - 1)
       quickSort(items, index, right - 1)
   }
   return items
+}
+
+function quick_sort(items) {
+  return quickSort(items, 0, items.length - 1)
 }
 
 describe('QuickSort properties', () => {
@@ -43,9 +47,9 @@ describe('QuickSort properties', () => {
     seededGen = (seed: number) => () => (seed = seed * 16807 % 2147483647) / 2147483647
   )
 
-  it('Property', () => {
+  it('Placeholder property', () => {
     fc.expect(fc.scenario()
-      //.configStatistics(fc.statistics().withAll().withDefaultGraphs())
+      //.configStatistics(fc.statistics().withAll('quicksort_p1').withDefaultGraphs())    //displays information after a run and also generates csv and graphs
       .withGenerator(seededGen)
       .forall('a', fc.integer(-10,10))
       .then(({a}) => a === a)

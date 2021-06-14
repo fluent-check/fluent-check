@@ -21,17 +21,17 @@ describe('Upper case properties', () => {
 
   it('Resulting string doesn\'t contain lower case letters', () => {
     fc.expect(fc.scenario()
-      //.configStatistics(fc.statistics().withAll().withDefaultGraphs())
+      //.configStatistics(fc.statistics().withAll('uppercase_p1').withDefaultGraphs())
       .withGenerator(seededGen)
       .forall('text', fc.string(0, 10, fc.char('a', 'z')))
-      .then(({text}) => !/[a-z]/.test(upperCase(text)))
+      .then(({text}) => !/[a-z]/.test(upperCase(text)))     //regex
       .check()
     )
   })
 
   it('Resulting string has the same length as original', () => {
     fc.expect(fc.scenario()
-      //.configStatistics(fc.statistics().withAll().withDefaultGraphs())
+      //.configStatistics(fc.statistics().withAll('uppercase_p2').withDefaultGraphs())
       .withGenerator(seededGen)
       .forall('text', fc.string(0, 10))
       .then(({text}) => text.length === upperCase(text).length)
