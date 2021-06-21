@@ -7,6 +7,7 @@ import pandas as pd
 
 FILE_DELIMETER = '/'
 CSV_EXTENSION = '.csv'
+TEX_EXTENSION = '.tex'
 COLUMNS = ['Mutation', 'Group1', 'Group2', 'Mean Diff', 'P-Adj', 'Lower', 'Upper', 'Reject']
 
 RUNS = []
@@ -61,18 +62,19 @@ def parseMetric(metricData, metricName):
     
     if len(data) > 0:
         pd.DataFrame(data=data, columns=COLUMNS).to_csv(PATH + metricName + CSV_EXTENSION, index=False)
+        pd.DataFrame(data=data, columns=COLUMNS).to_latex(PATH + metricName + TEX_EXTENSION, index=False)
 
 for v in VERSIONS:
     for subdir in os.listdir(PATH + v + FILE_DELIMETER):
         d = os.path.join(PATH + v + FILE_DELIMETER, subdir)
         if os.path.isfile(d):
-            if re.search('(P\d+|MIN)_TIME', subdir):
+            if re.search('(P\d+|MIN)_TIME(?!.tex)', subdir):
                 TIME.append(PATH + v + FILE_DELIMETER + subdir)
-            elif re.search('(P\d+|MIN)_TEST_CASES', subdir):
+            elif re.search('(P\d+|MIN)_TEST_CASES(?!.tex)', subdir):
                 TEST_CASES.append(PATH + v + FILE_DELIMETER + subdir)
-            elif re.search('(P\d+|MIN)_COVERAGE', subdir):
+            elif re.search('(P\d+|MIN)_COVERAGE(?!.tex)', subdir):
                 COVERAGE.append(PATH + v + FILE_DELIMETER + subdir)
-            elif re.search('(P\d+|MIN)_SATISFIABILITY', subdir):
+            elif re.search('(P\d+|MIN)_SATISFIABILITY(?!.tex)', subdir):
                 SATISFIABILITY.append(PATH + v + FILE_DELIMETER + subdir)
 
 parseMetric(TIME, 'TIME')

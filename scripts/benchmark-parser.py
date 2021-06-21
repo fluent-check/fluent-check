@@ -19,6 +19,7 @@ MEAN = 'Mean'
 FILE_DELIMETER = '/'
 SEPARATOR = ' '
 CSV_EXTENSION = '.csv'
+TEX_EXTENSION = '.tex'
 
 RUNS = []
 VERSIONS = []
@@ -97,6 +98,7 @@ for v in VERSIONS:
         ])
         df.index += 1
         df.to_csv(PATH + v + FILE_DELIMETER + c.split('.')[0] + CSV_EXTENSION)
+        df.to_latex(PATH + v + FILE_DELIMETER + c.split('.')[0] + TEX_EXTENSION)
         
         if S_STATUS:
             parsedData[c.split('.')[0]] = df
@@ -134,6 +136,7 @@ for v in VERSIONS:
                 SATISFIABILITY
             ])
             df.to_csv(PATH + v + FILE_DELIMETER + 'P' + str(p) + CSV_EXTENSION, index=False)
+            df.to_latex(PATH + v + FILE_DELIMETER + 'P' + str(p) + TEX_EXTENSION, index=False)
     else:
         df = pd.DataFrame(vdfData, columns = [
             'Strategy',
@@ -147,3 +150,4 @@ for v in VERSIONS:
             'Bug Found'
             ])
         df.to_csv(PATH + v + FILE_DELIMETER + v + CSV_EXTENSION, index=False)
+        df.to_latex(PATH + v + FILE_DELIMETER + v + TEX_EXTENSION, index=False)

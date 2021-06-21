@@ -16,6 +16,8 @@ CONSTANT_EXTRACTION = [3, 5, 7, 8]
 COLUMNS = ['Group1', 'Group2', 'Mean Diff', 'P-Adj', 'Lower', 'Upper', 'Reject']
 MIXINS = {'Bias': BIAS, 'PairWiseTesting': PAIR_WISE, 'ConstantExtraction': CONSTANT_EXTRACTION}
 SEPARATOR = ' '
+CSV_EXTENSION = '.csv'
+TEX_EXTENSION = '.tex'
 
 ###############
 ## FUNCTIONS ##
@@ -73,7 +75,8 @@ def baseMetric(df, metric, config, path, type = 'Min'):
                 data.append(tukey._results_table.data[1:][0])
     
     if len(data) > 0:
-        pd.DataFrame(data=data, columns=COLUMNS).to_csv(path, index=False)
+        pd.DataFrame(data=data, columns=COLUMNS).to_csv(path + CSV_EXTENSION, index=False)
+        pd.DataFrame(data=data, columns=COLUMNS).to_latex(path + TEX_EXTENSION, index=False)
 
 def globalMetric(df, metric, config, path, type = 'Min'):
     filteredDf = df.filter(items=['Strategy', type + SEPARATOR + metric])
@@ -108,7 +111,8 @@ def globalMetric(df, metric, config, path, type = 'Min'):
         data.append(tukey._results_table.data[1:][0])
     
     if len(data) > 0:
-        pd.DataFrame(data=data, columns=COLUMNS).to_csv(path, index=False)
+        pd.DataFrame(data=data, columns=COLUMNS).to_csv(path + CSV_EXTENSION, index=False)
+        pd.DataFrame(data=data, columns=COLUMNS).to_latex(path + TEX_EXTENSION, index=False)
 
 ##########
 ## MAIN ##
@@ -136,10 +140,10 @@ if len(sys.argv) == 3 and sys.argv[2] == '-S':
     
     for d in DATA:
         df = pd.read_csv(PATH + d)
-        baseMetric(df, 'Mean Coverage (%)', ['Coverage-Guided'], PATH + d.split('.')[0] + '_COVERAGE.csv', '')
-        globalMetric(df, 'Mean Time (ms)', ['Random', 'Coverage-Guided'], PATH + d.split('.')[0] + '_TIME.csv', '')
-        globalMetric(df, 'Mean Test Cases', ['Random', 'Coverage-Guided'], PATH + d.split('.')[0] + '_TEST_CASES.csv', '')
-        globalMetric(df, 'Satisfiability (%)', ['Random', 'Coverage-Guided'], PATH + d.split('.')[0] + '_SATISFIABILITY.csv', '')
+        baseMetric(df, 'Mean Coverage (%)', ['Coverage-Guided'], PATH + d.split('.')[0] + '_COVERAGE', '')
+        globalMetric(df, 'Mean Time (ms)', ['Random', 'Coverage-Guided'], PATH + d.split('.')[0] + '_TIME', '')
+        globalMetric(df, 'Mean Test Cases', ['Random', 'Coverage-Guided'], PATH + d.split('.')[0] + '_TEST_CASES', '')
+        globalMetric(df, 'Satisfiability (%)', ['Random', 'Coverage-Guided'], PATH + d.split('.')[0] + '_SATISFIABILITY', '')
 else:
     for subdir in os.listdir(PATH):
         d = os.path.join(PATH, subdir)
@@ -151,6 +155,6 @@ else:
 
     for d in DATA:
         df = pd.read_csv(PATH + d + '/' + d + '.csv')
-        baseMetric(df, 'Mean Coverage (%)', ['Coverage-Guided'], PATH + d + '/MIN_COVERAGE.csv')
-        globalMetric(df, 'Mean Time (ms)', ['Random', 'Coverage-Guided'], PATH + d + '/MIN_TIME.csv')
-        globalMetric(df, 'Mean Test Cases', ['Random', 'Coverage-Guided'], PATH + d + '/MIN_TEST_CASES.csv')
+        baseMetric(df, 'Mean Coverage (%)', ['Coverage-Guided'], PATH + d + '/MIN_COVERAGE')
+        globalMetric(df, 'Mean Time (ms)', ['Random', 'Coverage-Guided'], PATH + d + '/MIN_TIME')
+        globalMetric(df, 'Mean Test Cases', ['Random', 'Coverage-Guided'], PATH + d + '/MIN_TEST_CASES')
