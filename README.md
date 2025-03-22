@@ -83,6 +83,7 @@ FluentCheck provides a comprehensive set of built-in arbitraries (data generator
 - Primitives: `integer`, `real`, `nat`, `boolean`
 - Strings: `string`, `char`, `ascii`, `unicode`, `base64`, `hex`
 - Date & Time: `date`, `time`, `datetime`, `duration`
+- Pattern-based: `regex`, `patterns.email`, `patterns.uuid`, `patterns.url`, `patterns.ipv4`
 - Containers: `array`, `set`, `tuple`
 - Combinators: `oneof`, `union`, `constant`
 
@@ -199,6 +200,48 @@ fc.scenario()
   })
   .check()
 ```
+
+### Regular Expression & Pattern Testing
+
+FluentCheck supports generating strings that match regular expressions and common patterns:
+
+```typescript
+// Test with a custom regex pattern
+fc.scenario()
+  .forall('phone', fc.regex(/\d{3}-\d{3}-\d{4}/))
+  .then(({phone}) => {
+    // Property: All generated values match our phone number format
+    return /^\d{3}-\d{3}-\d{4}$/.test(phone)
+  })
+  .check()
+
+// Use predefined pattern generators for common formats
+fc.scenario()
+  .forall('email', fc.patterns.email())
+  .forall('uuid', fc.patterns.uuid())
+  .forall('url', fc.patterns.url())
+  .then(({email, uuid, url}) => {
+    // Validate our generated values with a validator function
+    return validateEmail(email) && 
+           validateUuid(uuid) && 
+           isValidUrl(url)
+  })
+  .check()
+
+// Test form validation logic
+fc.scenario()
+  .forall('validInput', fc.patterns.email())
+  .forall('invalidInput', fc.string())
+  .then(({validInput, invalidInput}) => {
+    // Property: Our validator should accept valid emails
+    // and reject random strings
+    return emailValidator.isValid(validInput) && 
+           !emailValidator.isValid(invalidInput)
+  })
+  .check()
+```
+
+For a detailed explanation of the design and algorithmic approaches used in our regex implementation, see the [Regular Expression Arbitrary Design](docs/regex-design.md) document.
 
 ## Comparison with Similar Projects
 
