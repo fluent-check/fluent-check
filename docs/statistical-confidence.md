@@ -89,6 +89,141 @@ it('size should be estimated for filtered arbitraries', () => {
 
 For filtered arbitraries, the exact size is unknown, so FluentCheck uses statistical sampling to estimate a credible interval for the size.
 
+## Design Decisions for Arbitrary Size Estimation
+
+The accurate estimation of arbitrary sizes is essential for early stopping, exploration metrics, and confidence levels in assertions. We've implemented sophisticated size estimation across various arbitrary types:
+
+### MappedArbitrary
+
+For mapped arbitraries, size estimation depends on whether the mapping function is bijective (one-to-one) or not:
+
+```typescript
+size(): ArbitrarySize {
+  const baseSize = this.baseArbitrary.size()
+  
+  // For small base arbitraries, we compute the exact mapped size
+  if (baseSize.value <= 1000 && baseSize.type === 'exact') {
+    const mappedValues = new Set<string>()
+    // Generate all values and count distinct mapped values
+    for (const pick of picks) {
+      mappedValues.add(stringify(this.f(pick.value)))
+    }
+    
+    // If we found fewer distinct values than the base size, it's a non-bijective mapping
+    if (mappedValues.size < baseSize.value) {
+      return {
+        type: 'estimated',
+        value: mappedValues.size,
+        credibleInterval: [mappedValues.size, mappedValues.size]
+      }
+    }
+    // Otherwise, it's a bijective mapping
+    return {
+      type: 'exact',
+      value: mappedValues.size,
+      credibleInterval: [mappedValues.size, mappedValues.size]
+    }
+  }
+}
+```
+
+For large domains where complete enumeration is impractical, we use sampling to estimate the cardinality:
+
+```typescript
+// Sample from base arbitrary
+const baseSample = this.baseArbitrary.sample(sampleSize)
+const mappedValues = new Set<string>()
+
+for (const pick of baseSample) {
+  mappedValues.add(stringify(this.f(pick.value)))
+}
+
+// Estimate the proportion of distinct values
+const distinctRatio = mappedValues.size / baseSample.length
+const estimatedSize = Math.round(baseSize.value * distinctRatio)
+```
+
+### FilteredArbitrary
+
+For filtered arbitraries, we combine Bayesian statistics with adaptive sampling:
+
+1. **Initial Sampling**: We use an adaptive sampling approach to get a preliminary estimate:
+
+```typescript
+// Sample a small number of values to initialize our estimate
+const sampleSize = Math.min(30, this.baseArbitrary.size().value);
+const samples = this.baseArbitrary.sample(sampleSize, generator);
+
+for (const pick of samples) {
+  if (this.f(pick.value)) {
+    this.acceptCount++;
+  } else {
+    this.rejectCount++;
+  }
+}
+```
+
+2. **Beta-Binomial for Discrete Domains**: For integer domains with exact sizes, we use a beta-binomial distribution for more accurate interval estimation:
+
+```typescript
+// Use beta-binomial for more accurate interval estimation
+const bbDist = new BetaBinomialDistribution(
+  baseSize.value,
+  this.acceptCount + 1,  // +1 for prior
+  this.rejectCount + 1   // +1 for prior
+);
+
+return {
+  type: 'estimated',
+  value: Math.round(bbDist.mean()),
+  credibleInterval: [
+    bbDist.inv(lowerCredibleInterval),
+    bbDist.inv(upperCredibleInterval)
+  ]
+};
+```
+
+3. **Continuous Estimation**: For continuous or very large domains, we use the beta distribution:
+
+```typescript
+return mapArbitrarySize(baseSize, v => ({
+  type: 'estimated',
+  value: Math.round(v * this.sizeEstimation.mean()),
+  credibleInterval: [
+    Math.ceil(v * this.sizeEstimation.inv(lowerCredibleInterval)),
+    Math.floor(v * this.sizeEstimation.inv(upperCredibleInterval))
+  ]
+}))
+```
+
+### UniqueArbitrary
+
+For unique arbitraries (sampling without replacement), the theoretical size matches the base arbitrary, but the sampling behavior differs:
+
+```typescript
+// The size is the same as the base arbitrary, as uniqueness
+// just changes the sampling approach but not the domain size
+return this.baseArbitrary.size()
+```
+
+The implementation tracks generated values to ensure uniqueness:
+
+```typescript
+sample(sampleSize = 10, generator: () => number = Math.random): FluentPick<A>[] {
+  // Since we're sampling without replacement, we need to take into account 
+  // previously generated values
+  const result: FluentPick<A>[] = []
+  
+  while (result.length < sampleSize) {
+    const pick = this.pick(generator)
+    if (pick === undefined) break // Can't generate any more unique values
+    result.push(pick)
+  }
+  
+  return result
+}
+```
+
 ## Practical Applications
 
 Statistical confidence calculations are particularly valuable for:
@@ -158,6 +293,131 @@ FluentCheck's statistical toolkit includes:
 1. **Confidence intervals**: Estimating the range of possible satisfaction probabilities
 2. **Bayesian inference**: Updating beliefs about property satisfaction based on evidence
 3. **Statistical power analysis**: Determining the number of tests needed to detect failures with a given probability
+
+## Future Improvements in Statistical Methods
+
+Several enhancements could further improve FluentCheck's statistical capabilities:
+
+### 1. Cardinality Estimation for Massive Sets
+
+For extremely large domains, we could implement more efficient cardinality estimation algorithms:
+
+```typescript
+/**
+ * HyperLogLog implementation for cardinality estimation with O(1) memory complexity
+ * and relative error of approximately 1.04/√m where m is the number of registers
+ */
+class HyperLogLogEstimator {
+  private registers: Uint8Array;
+  private readonly m: number;
+  private readonly alpha: number;
+  
+  constructor(p: number) {
+    this.m = 1 << p;
+    this.registers = new Uint8Array(this.m);
+    // Alpha constant based on m
+    this.alpha = this.m <= 16 ? 0.673 :
+                this.m <= 32 ? 0.697 :
+                this.m <= 64 ? 0.709 : 0.7213 / (1 + 1.079 / this.m);
+  }
+  
+  add(value: string): void {
+    // Hash the value and count leading zeros
+    const hash = this.hashFunction(value);
+    const idx = hash & (this.m - 1);
+    const w = hash >>> Math.log2(this.m);
+    const leadingZeros = this.countLeadingZeros(w) + 1;
+    
+    this.registers[idx] = Math.max(this.registers[idx], leadingZeros);
+  }
+  
+  cardinality(): number {
+    // Compute the harmonic mean and apply corrections
+    // for small and large cardinalities
+    // ...
+  }
+}
+```
+
+### 2. Adaptive Confidence Levels
+
+Allow for dynamic adjustment of confidence levels based on the criticality of assertions:
+
+```typescript
+fc.scenario()
+  .config(fc.strategy()
+    .withAdaptiveConfidence({
+      initial: 0.95,
+      forCritical: 0.999,
+      forNonCritical: 0.9,
+      adaptationRate: 0.01
+    }))
+  .forall('x', fc.integer())
+  .then(({x}) => {
+    // Critical assertion
+    fc.assert.withConfidence(x * x >= 0, 'critical');
+    
+    // Non-critical assertion
+    fc.assert.withConfidence(x % 2 === 0 || x % 2 === 1, 'nonCritical');
+  })
+  .check()
+```
+
+### 3. Distribution-Aware Sampling
+
+Improve sampling efficiency by leveraging knowledge of the underlying distribution:
+
+```typescript
+// For normal distributions, focus sampling on regions around the mean
+fc.normalDistribution(0, 1, {
+  samplingStrategy: 'adaptive',
+  focusRegions: [
+    { center: 0, weight: 0.5 },    // Sample heavily around the mean
+    { center: 2, weight: 0.25 },   // Sample somewhat around +2 sigma
+    { center: -2, weight: 0.25 }   // Sample somewhat around -2 sigma
+  ]
+})
+```
+
+### 4. Markov Chain Monte Carlo Methods
+
+For complex, high-dimensional spaces, implement MCMC methods for more efficient sampling:
+
+```typescript
+fc.mcmcSampler({
+  initialState: [0, 0, 0],
+  proposalDistribution: (current) => {
+    // Generate proposal state near current state
+    return current.map(x => x + fc.normal(0, 0.1).sample());
+  },
+  acceptanceProbability: (current, proposed, target) => {
+    // Metropolis-Hastings acceptance rule
+    return Math.min(1, target(proposed) / target(current));
+  },
+  burnInPeriod: 1000,
+  thinningFactor: 10
+})
+```
+
+### 5. Sequential Probability Ratio Testing
+
+Implement SPRT for early stopping with rigorous statistical guarantees:
+
+```typescript
+fc.scenario()
+  .config(fc.strategy()
+    .withSequentialTesting({
+      alpha: 0.05,  // Type I error rate
+      beta: 0.05,   // Type II error rate
+      theta0: 0.99, // Null hypothesis: property holds with prob >= 0.99
+      theta1: 0.95  // Alternative: property holds with prob <= 0.95
+    }))
+  .forall('x', fc.integer())
+  .then(({x}) => x * x >= 0)
+  .check()
+```
+
+These enhancements would further strengthen FluentCheck's statistical foundation, enabling even more powerful and efficient property-based testing across a wider range of domains and constraints.
 
 ## Comparison with Other Frameworks
 

@@ -7,6 +7,7 @@ export * from './ArbitrarySet.js'
 export * from './FilteredArbitrary.js'
 export * from './MappedArbitrary.js'
 export * from './ChainedArbitrary.js'
+export * from './UniqueArbitrary.js'
 
 export * from './ArbitraryConstant.js'
 export * from './ArbitraryComposite.js'
