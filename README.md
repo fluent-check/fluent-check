@@ -1,6 +1,6 @@
 # FluentCheck
 
-A type-safe fluent-based property testing framework specifically designed for TypeScript. FluentCheck combines the power of property-based testing with TypeScript's strong type system to help you write more robust and reliable tests.
+A type-safe, fluent-based property testing framework for TypeScript.
 
 [![MIT License](https://img.shields.io/badge/License-MIT-blue.svg)](https://github.com/fluent-check/fluent-check/blob/main/LICENSE)
 
@@ -16,124 +16,93 @@ FluentCheck is a property-based testing framework inspired by [FastCheck](https:
 
 Property-based testing goes beyond traditional example-based testing by automatically generating test cases based on properties that should hold true for your code. This approach helps uncover edge cases and bugs that might not be discovered through manual testing.
 
+## Features
+
+FluentCheck offers a powerful yet intuitive approach to property testing:
+
+- **Fluent API**: Write tests in a natural, readable style
+- **Strong Type Safety**: Leverages TypeScript's type system for excellent IDE support
+- **Smart Shrinking**: Automatically find the smallest failing examples
+- **Statistical Confidence**: Measure the statistical significance of your tests
+- **Customizable Strategies**: Tailor testing approach to your specific needs
+- **Composable Arbitraries**: Build complex test data from simple components
+- **Given-When-Then Pattern**: Structure tests in a clear, consistent way
+- **Chained Type Inference**: Maintain type information through transformations
+- **Corner Case Prioritization**: Ensure edge cases are thoroughly tested
+
 ## Installation
 
 ```bash
-npm install --save-dev fluent-check
+npm install fluent-check
 ```
 
-## Quick Start
-
-Here's a simple example showing how to use FluentCheck to test a basic property:
+## Basic Usage
 
 ```typescript
-import * as fc from 'fluent-check';
-import { expect } from 'chai';
+import { fc } from 'fluent-check';
 
-describe('String properties', () => {
-  it('should verify that string concatenation length equals sum of individual lengths', () => {
-    expect(fc.scenario()
-      .forall('a', fc.string())
-      .forall('b', fc.string())
-      .then(({a, b}) => a.length + b.length === (a + b).length)
-      .check()
-    ).to.have.property('satisfiable', true);
-  });
-});
-```
-
-## Key Features
-
-### 1. Fluent, Type-Safe API
-
-FluentCheck's fluent API provides a natural way to express properties:
-
-```typescript
-fc.scenario()
-  .forall('x', fc.integer(0, 100))
-  .forall('y', fc.integer(0, 100))
-  .then(({x, y}) => x + y === y + x)  // Testing commutativity of addition
-  .check()
-```
-
-The TypeScript compiler will verify that your properties are correctly typed, catching errors at compile time.
-
-### 2. Universal and Existential Quantifiers
-
-FluentCheck supports both universal and existential quantification:
-
-```typescript
-// Universal: For all integers x, x + 0 = x
-fc.scenario()
+const result = await fc.scenario()
   .forall('x', fc.integer())
-  .then(({x}) => x + 0 === x)
-  .check()
+  .forall('y', fc.integer())
+  .then(({x, y}) => x + y === y + x)
+  .check();
 
-// Existential: There exists a string with length 5
-fc.scenario()
-  .exists('s', fc.string())
-  .then(({s}) => s.length === 5)
-  .check()
+if (result.success) {
+  console.log('Property holds!');
+} else {
+  console.log('Counterexample found:', result.counterexample);
+}
 ```
 
-### 3. Rich Set of Arbitraries
+## Example: Testing a Sort Function
+
+```typescript
+import { fc } from 'fluent-check';
+
+// Property: A sorted array should contain all the same elements as the original
+const result = await fc.scenario()
+  .forall('array', fc.array(fc.integer()))
+  .map(({array}) => {
+    const sorted = [...array].sort((a, b) => a - b);
+    return { original: array, sorted };
+  })
+  .then(({original, sorted}) => {
+    // Check length is the same
+    if (original.length !== sorted.length) return false;
+    
+    // Check all elements are preserved
+    const originalMap = new Map();
+    const sortedMap = new Map();
+    
+    original.forEach(x => originalMap.set(x, (originalMap.get(x) || 0) + 1));
+    sorted.forEach(x => sortedMap.set(x, (sortedMap.get(x) || 0) + 1));
+    
+    for (const [key, count] of originalMap) {
+      if (sortedMap.get(key) !== count) return false;
+    }
+    
+    // Check sorting property
+    for (let i = 1; i < sorted.length; i++) {
+      if (sorted[i] < sorted[i-1]) return false;
+    }
+    
+    return true;
+  })
+  .check();
+```
+
+## Rich Set of Arbitraries
 
 FluentCheck provides a comprehensive set of built-in arbitraries (data generators):
 
-- Primitives: `integer`, `real`, `nat`, `boolean`
-- Strings: `string`, `char`, `ascii`, `unicode`, `base64`, `hex`
-- Containers: `array`, `set`, `tuple`
-- Combinators: `oneof`, `union`, `constant`
+- **Primitives**: `integer`, `real`, `nat`, `boolean`
+- **Strings**: `string`, `char`, `ascii`, `unicode`, `base64`, `hex`
+- **Containers**: `array`, `set`, `tuple`
+- **Combinators**: `oneof`, `union`, `constant`
 
-All arbitraries are composable and can be transformed using `map`, `filter`, and other operations.
-
-### 4. Smart Shrinking
-
-When a test fails, FluentCheck will automatically try to find a simpler counterexample through shrinking:
-
-```typescript
-// This property will fail
-fc.scenario()
-  .forall('n', fc.integer())
-  .then(({n}) => n < 1000)
-  .check()
-// Instead of a random large number, FluentCheck will shrink to 1000
-```
-
-### 5. Customizable Testing Strategies
-
-FluentCheck allows you to configure test strategies to control:
-
-```typescript
-fc.scenario()
-  .config(fc.strategy()
-    .withMaxIterations(1000)
-    .withSeed(42)
-    .withConfidence(0.99))
-  .forall('x', fc.integer())
-  .then(({x}) => x * x >= 0)
-  .check()
-```
+All arbitraries are composable and can be transformed using `map`, `filter`, and other operations. For complete details, see the [Composable Arbitraries](docs/composable-arbitraries.md) documentation.
 
 ## Advanced Usage
-
-### Given-When-Then Pattern
-
-FluentCheck supports the Given-When-Then pattern for more complex test scenarios:
-
-```typescript
-fc.scenario()
-  .forall('x', fc.integer(1, 100))
-  .forall('y', fc.integer(1, 100))
-  .given('sum', ({x, y}) => x + y)
-  .given('product', ({x, y}) => x * y)
-  .when(({x, y, sum, product}) => {
-    // Perform actions or setup that don't return values
-    console.log(`Testing with x=${x}, y=${y}`);
-  })
-  .then(({sum, product}) => product > sum) // This will fail for some inputs
-  .check()
-```
 
 ### Custom Arbitraries
 
@@ -155,6 +124,38 @@ fc.scenario()
   .check();
 ```
 
+### Given-When-Then Pattern
+
+FluentCheck supports the Given-When-Then pattern for more complex test scenarios:
+
+```typescript
+fc.scenario()
+  .forall('x', fc.integer(1, 100))
+  .forall('y', fc.integer(1, 100))
+  .given('sum', ({x, y}) => x + y)
+  .given('product', ({x, y}) => x * y)
+  .when(({x, y, sum, product}) => {
+    // Perform actions or setup that don't return values
+    console.log(`Testing with x=${x}, y=${y}`);
+  })
+  .then(({sum, product}) => product > sum) // This will fail for some inputs
+  .check()
+```
+
+## Detailed Documentation
+
+For more details on each feature, check out our detailed documentation:
+
+- [Fluent API](docs/fluent-api.md)
+- [Quantifiers](docs/quantifiers.md)
+- [Given-When-Then Pattern](docs/given-when-then-pattern.md)
+- [Statistical Confidence](docs/statistical-confidence.md)
+- [Smart Shrinking](docs/smart-shrinking.md)
+- [Customizable Strategies](docs/customizable-strategies.md)
+- [Composable Arbitraries](docs/composable-arbitraries.md)
+- [Chained Type Inference](docs/chained-type-inference.md)
+- [Corner Case Prioritization](docs/corner-case-prioritization.md)
+
 ## Comparison with Similar Projects
 
 | Feature | FluentCheck | FastCheck | jsverify | ts-quickcheck |
@@ -171,10 +172,6 @@ fc.scenario()
 
 Contributions are welcome! Please feel free to submit a Pull Request or open an issue for discussion.
 
-## License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
 ## Acknowledgements
 
 FluentCheck was inspired by:
@@ -182,3 +179,7 @@ FluentCheck was inspired by:
 - [FastCheck](https://github.com/dubzzz/fast-check)
 - [QuickCheck](https://hackage.haskell.org/package/QuickCheck)
 - [ScalaCheck](https://www.scalacheck.org/)
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
