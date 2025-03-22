@@ -4,11 +4,18 @@
   "description": "A type-safe fluent-based property based checker natively written for Typescript",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "type": "module",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
   "scripts": {
     "lint": "eslint --ext '.js,.ts' src test",
-    "test": "mocha -r ts-node/register",
+    "test": "mocha",
     "prepare": "tsc",
-    "coverage": "nyc mocha -reporter=min -r ts-node/register -r source-map-support"
+    "coverage": "nyc mocha -reporter=min -r source-map-support"
   },
   "keywords": [
     "testing",
@@ -18,24 +25,24 @@
   "author": "André Restivo, Hugo Sereno Ferreira, Rui Gonçalves",
   "license": "MIT",
   "dependencies": {
-    "typescript": "^4.2.4"
+    "typescript": "^5.8.2"
   },
   "repository": {
     "type": "git",
     "url": "https://github.com/fluent-check/fluent-check"
   },
   "devDependencies": {
-    "@types/chai": "^4.2.18",
-    "@types/mocha": "^8.2.2",
-    "@typescript-eslint/parser": "^4.33.0",
-    "@typescript-eslint/eslint-plugin": "^4.22.1",
-    "chai": "^4.3.4",
-    "eslint": "^7.26.0",
-    "jstat": "^1.9.4",
-    "mocha": "^8.4.0",
-    "nyc": "^15.1.0",
-    "source-map-support": "^0.5.19",
-    "ts-node": "^9.1.1"
+    "@types/chai": "^5.2.0",
+    "@types/mocha": "^10.0.10",
+    "@typescript-eslint/eslint-plugin": "^8.27.0",
+    "@typescript-eslint/parser": "^8.27.0",
+    "chai": "^5.2.0",
+    "eslint": "^9.23.0",
+    "jstat": "^1.9.6",
+    "mocha": "^11.1.0",
+    "nyc": "^17.1.0",
+    "source-map-support": "^0.5.21",
+    "ts-node": "^10.9.2"
   },
   "nyc": {
     "extension": [

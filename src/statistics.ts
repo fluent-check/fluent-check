@@ -1,4 +1,4 @@
-import * as stats from 'jstat'
+import jstat from 'jstat'
 
 /**
  * A probability distribution (https://en.wikipedia.org/wiki/Probability_distribution).
@@ -69,11 +69,11 @@ export class BetaDistribution extends Distribution {
     super()
   }
 
-  mean(): number { return stats.beta.mean(this.alpha, this.beta) }
-  mode(): number { return stats.beta.mode(this.alpha, this.beta) }
-  pdf(x: number): number { return stats.beta.pdf(x, this.alpha, this.beta) }
-  cdf(x: number): number { return stats.beta.cdf(x, this.alpha, this.beta) }
-  inv(x: number): number { return stats.beta.inv(x, this.alpha, this.beta) }
+  mean(): number { return jstat.beta.mean(this.alpha, this.beta) }
+  mode(): number { return jstat.beta.mode(this.alpha, this.beta) }
+  pdf(x: number): number { return jstat.beta.pdf(x, this.alpha, this.beta) }
+  cdf(x: number): number { return jstat.beta.cdf(x, this.alpha, this.beta) }
+  inv(x: number): number { return jstat.beta.inv(x, this.alpha, this.beta) }
 }
 
 /**
@@ -100,9 +100,22 @@ export class BetaBinomialDistribution extends IntegerDistribution {
   // cdf(k: number): number
 
   private logPdf(x: number) {
-    return stats.combinationln(this.trials, x) +
-      stats.betaln(x + this.alpha, this.trials - x + this.beta) -
-      stats.betaln(this.alpha, this.beta)
+    return this.combinationln(this.trials, x) +
+      this.betaln(x + this.alpha, this.trials - x + this.beta) -
+      this.betaln(this.alpha, this.beta)
+  }
+  
+  // Helper functions since jstat's API changed
+  private combinationln(n: number, k: number): number {
+    return this.factorialln(n) - this.factorialln(k) - this.factorialln(n - k);
+  }
+  
+  private betaln(a: number, b: number): number {
+    return jstat.gammaln(a) + jstat.gammaln(b) - jstat.gammaln(a + b);
+  }
+  
+  private factorialln(n: number): number {
+    return jstat.gammaln(n + 1);
   }
 }
 

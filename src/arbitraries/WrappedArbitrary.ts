@@ -1,7 +1,7 @@
-import {FluentPick} from './types'
-import {Arbitrary} from './internal'
+import {FluentPick} from './types.js'
+import {Arbitrary} from './internal.js'
 
-export class WrappedArbitrary<A> extends Arbitrary<A> {
+export abstract class WrappedArbitrary<A> extends Arbitrary<A> {
   constructor(public readonly baseArbitrary: NonNullable<Arbitrary<A>>) {
     super()
   }

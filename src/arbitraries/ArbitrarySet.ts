@@ -1,7 +1,7 @@
-import {FluentPick, ArbitrarySize} from './types'
-import {Arbitrary} from './internal'
-import {factorial} from '../statistics'
-import * as fc from './index'
+import {FluentPick, ArbitrarySize} from './types.js'
+import {Arbitrary} from './internal.js'
+import {factorial} from '../statistics.js'
+import * as fc from './index.js'
 
 export class ArbitrarySet<A> extends Arbitrary<A[]> {
   readonly max: number

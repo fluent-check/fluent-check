@@ -1,7 +1,7 @@
-import {BetaDistribution} from '../statistics'
-import {FluentPick} from './types'
-import {Arbitrary, NoArbitrary, WrappedArbitrary} from './internal'
-import {lowerCredibleInterval, mapArbitrarySize, upperCredibleInterval} from './util'
+import {BetaDistribution} from '../statistics.js'
+import {FluentPick} from './types.js'
+import {Arbitrary, NoArbitrary, WrappedArbitrary} from './internal.js'
+import {lowerCredibleInterval, mapArbitrarySize, upperCredibleInterval} from './util.js'
 
 export class FilteredArbitrary<A> extends WrappedArbitrary<A> {
   sizeEstimation: BetaDistribution

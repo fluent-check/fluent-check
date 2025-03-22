@@ -1,6 +1,6 @@
-import {FluentCheck} from './FluentCheck'
-import {FluentStrategyFactory} from './strategies/FluentStrategyFactory'
-export {expect} from './FluentReporter'
+import {FluentCheck} from './FluentCheck.js'
+import {FluentStrategyFactory} from './strategies/FluentStrategyFactory.js'
+export {expect} from './FluentReporter.js'
 export const scenario = () => new FluentCheck()
 export const strategy = () => new FluentStrategyFactory()
 export {
@@ -21,4 +21,4 @@ export {
   set,
   tuple,
   oneof
-} from './arbitraries'
+} from './arbitraries/index.js'

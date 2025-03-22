@@ -1,6 +1,6 @@
-import {Arbitrary, FluentPick, FluentRandomGenerator} from './arbitraries'
-import {FluentStrategy} from './strategies/FluentStrategy'
-import {FluentStrategyFactory} from './strategies/FluentStrategyFactory'
+import {Arbitrary, FluentPick, FluentRandomGenerator} from './arbitraries/index.js'
+import {FluentStrategy} from './strategies/FluentStrategy.js'
+import {FluentStrategyFactory} from './strategies/FluentStrategyFactory.js'
 
 type WrapFluentPick<T> = { [P in keyof T]: FluentPick<T[P]> }
 type PickResult<V> = Record<string, FluentPick<V>>

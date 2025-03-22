@@ -1,12 +1,12 @@
-import {FluentStrategy, FluentConfig} from './FluentStrategy'
-import {Biased, Cached, Dedupable, Random, Shrinkable} from './FluentStrategyMixins'
+import {FluentStrategy, FluentConfig} from './FluentStrategy.js'
+import {Biased, Cached, Dedupable, Random, Shrinkable} from './FluentStrategyMixins.js'
 
 export class FluentStrategyFactory {
 
   /**
    * Strategy mixin composition
    */
-  private strategy = FluentStrategy
+  private strategy: new (config: FluentConfig) => FluentStrategy = FluentStrategy
 
   /**
    * Strategy configuration

@@ -1,6 +1,6 @@
-import {ArbitrarySize, FluentPick} from './types'
-import {Arbitrary} from './internal'
-import * as fc from './index'
+import {ArbitrarySize, FluentPick} from './types.js'
+import {Arbitrary} from './internal.js'
+import * as fc from './index.js'
 
 type UnwrapArbitrary<T> = { [P in keyof T]: T[P] extends Arbitrary<infer E> ? E : never }
 
@@ -58,9 +58,11 @@ export class ArbitraryTuple<U extends Arbitrary<any>[], A = UnwrapArbitrary<U>> 
   }
 
   canGenerate(pick: FluentPick<A>): boolean {
-    for (const i in pick.value)
-      if (!this.arbitraries[i as number].canGenerate({value: pick.value[i], original: pick.original[i]}))
+    for (const i in pick.value) {
+      const index = Number(i);
+      if (!this.arbitraries[index].canGenerate({value: pick.value[index], original: pick.original[index]}))
         return false
+    }
 
     return true
   }

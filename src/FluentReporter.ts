@@ -1,4 +1,4 @@
-import {FluentResult} from './FluentCheck'
+import {FluentResult} from './FluentCheck.js'
 
 export function expect(result: FluentResult): void | never {
   if (!result.satisfiable) {

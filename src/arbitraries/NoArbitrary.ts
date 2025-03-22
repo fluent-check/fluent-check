@@ -1,5 +1,5 @@
-import {ArbitrarySize, FluentPick} from './types'
-import {Arbitrary} from './internal'
+import {ArbitrarySize, FluentPick} from './types.js'
+import {Arbitrary} from './internal.js'
 
 export const NoArbitrary: Arbitrary<never> = new class extends Arbitrary<never> {
   pick(): FluentPick<never> | undefined { return undefined }

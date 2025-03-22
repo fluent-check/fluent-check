@@ -1,4 +1,4 @@
-import {ArbitrarySize} from './types'
+import {ArbitrarySize} from './types.js'
 
 export const NilArbitrarySize: ArbitrarySize = {value: 0, type: 'exact', credibleInterval: [0, 0]}
 export const significance = 0.90
@@ -24,9 +24,9 @@ export function stringify(object: any) {
  * https://www.ascii-code.com/
  */
 export const printableCharactersMapper = (v: number): number => {
-  if (v < 95) return v + 0x20   // 0x20-0x7e
-  if (v <= 0x7e) return v - 95
-  return v
+  if (v < 0x1f) return v + 0x20             // ASCII control characters
+  else if (v >= 0xd800 && v < 0xe000) return 0x20  // Reserved UTF-16 surrogates
+  else return v
 }
 
 /**
@@ -34,11 +34,12 @@ export const printableCharactersMapper = (v: number): number => {
  *
  * https://base64.guru/learn/base64-characters
  */
-export function base64Mapper(v: number) {
-  if (v < 26) return v + 65        // A-Z
-  if (v < 52) return v + 97 - 26   // a-z
-  if (v < 62) return v + 48 - 52   // 0-9
-  return v === 62 ? 43 : 47        // +/
+export const base64Mapper = (v: number): number => {
+  return v < 26 ? v + 65 :
+    v < 52 ? v + 71 :
+      v < 62 ? v - 4 :
+        v === 62 ? 43 :
+          47
 }
 
 /**
@@ -47,7 +48,8 @@ export function base64Mapper(v: number) {
  *
  * https://tools.ietf.org/html/rfc3629
  */
-export function utf8Mapper(v: number) {
-  if (v < 0xd800) return printableCharactersMapper(v)
-  return v + (0xdfff + 1 - 0xd800)
+export const utf8Mapper = (v: number): number => {
+  // Adjusting reserved UTF-16 surrogates
+  if (v >= 0xd800 && v < 0xe000) return 0x20
+  else return v
 }

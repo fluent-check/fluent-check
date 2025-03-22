@@ -1,6 +1,6 @@
-import {ArbitrarySize, FluentPick} from './types'
-import {Arbitrary, NoArbitrary} from './internal'
-import * as fc from './index'
+import {ArbitrarySize, FluentPick} from './types.js'
+import {Arbitrary, NoArbitrary} from './internal.js'
+import * as fc from './index.js'
 
 export class ArbitraryInteger extends Arbitrary<number> {
   constructor(public min = Number.MIN_SAFE_INTEGER, public max = Number.MAX_SAFE_INTEGER) {

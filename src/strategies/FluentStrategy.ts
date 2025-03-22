@@ -1,6 +1,6 @@
-import {Arbitrary, FluentPick, FluentRandomGenerator} from '../arbitraries'
-import {FluentResult} from '../FluentCheck'
-import {StrategyArbitraries} from './FluentStrategyTypes'
+import {Arbitrary, FluentPick, FluentRandomGenerator} from '../arbitraries/index.js'
+import {FluentResult} from '../FluentCheck.js'
+import {StrategyArbitraries} from './FluentStrategyTypes.js'
 
 export type FluentConfig = { sampleSize?: number, shrinkSize?: number }
 
@@ -25,7 +25,11 @@ export class FluentStrategy implements FluentStrategyInterface {
   /**
    * Default constructor. Receives the FluentCheck configuration, which is used for test case generation purposes.
    */
-  constructor(public readonly configuration: FluentConfig) {}
+  constructor(public readonly configuration: FluentConfig) {
+    // Ensure sampleSize and shrinkSize are always defined
+    this.configuration.sampleSize = this.configuration.sampleSize ?? 1000;
+    this.configuration.shrinkSize = this.configuration.shrinkSize ?? 500;
+  }
 
   /**
    * Adds an arbitrary to the arbitraries record

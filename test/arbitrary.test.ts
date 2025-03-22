@@ -1,6 +1,7 @@
-import * as fc from '../src/index'
-import {it} from 'mocha'
-import {expect} from 'chai'
+import * as fc from '../src/index.js'
+import {it, describe} from 'mocha'
+import * as chai from 'chai'
+const {expect} = chai
 
 describe('Arbitrary tests', () => {
   it('should return has many numbers has asked', () => {

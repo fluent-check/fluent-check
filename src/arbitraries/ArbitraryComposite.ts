@@ -1,7 +1,7 @@
-import {Arbitrary} from './internal'
-import {FluentPick} from './types'
-import {mapArbitrarySize, NilArbitrarySize} from './util'
-import * as fc from './index'
+import {Arbitrary} from './internal.js'
+import {FluentPick} from './types.js'
+import {mapArbitrarySize, NilArbitrarySize} from './util.js'
+import * as fc from './index.js'
 
 export class ArbitraryComposite<A> extends Arbitrary<A> {
   constructor(public arbitraries: Arbitrary<A>[] = []) {

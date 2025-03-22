@@ -1,5 +1,5 @@
-import {ArbitrarySize, FluentPick} from './types'
-import {Arbitrary} from './internal'
+import {ArbitrarySize, FluentPick} from './types.js'
+import {Arbitrary} from './internal.js'
 
 export class ArbitraryConstant<A> extends Arbitrary<A> {
   constructor(public readonly constant: A) {

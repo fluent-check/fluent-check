@@ -1,6 +1,6 @@
-import {ArbitrarySize, FluentPick, XOR} from './types'
-import {ChainedArbitrary, FilteredArbitrary, MappedArbitrary, NoArbitrary} from './internal'
-import {stringify} from './util'
+import {ArbitrarySize, FluentPick, XOR} from './types.js'
+import {ChainedArbitrary, FilteredArbitrary, MappedArbitrary, NoArbitrary} from './internal.js'
+import {stringify} from './util.js'
 
 export abstract class Arbitrary<A> {
   /**

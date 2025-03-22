@@ -1,7 +1,7 @@
-import {FluentPick} from './types'
-import {mapArbitrarySize} from './util'
-import {Arbitrary} from './internal'
-import * as fc from './index'
+import {FluentPick} from './types.js'
+import {mapArbitrarySize} from './util.js'
+import {Arbitrary} from './internal.js'
+import * as fc from './index.js'
 
 export class ArbitraryArray<A> extends Arbitrary<A[]> {
   constructor(public arbitrary: Arbitrary<A>, public min = 0, public max = 10) {
