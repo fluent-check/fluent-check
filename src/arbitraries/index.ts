@@ -11,6 +11,8 @@ import {
   NoArbitrary
 } from './internal.js'
 
+import { ArbitraryRecord } from './ArbitraryRecord.js'
+
 export * from './types.js'
 export {Arbitrary} from './internal.js'
 export {char, hex, base64, ascii, unicode, string} from './string.js'
@@ -51,3 +53,18 @@ type UnwrapFluentPick<T> = { [P in keyof T]: T[P] extends Arbitrary<infer E> ? E
 
 export const tuple = <U extends Arbitrary<any>[]>(...arbitraries: U): Arbitrary<UnwrapFluentPick<U>> =>
   arbitraries.some(a => a === NoArbitrary) ? NoArbitrary : new ArbitraryTuple(arbitraries) as unknown as Arbitrary<UnwrapFluentPick<U>>
+
+/**
+ * Creates an arbitrary that generates Records (plain JavaScript objects) with string keys and values of type V
+ * @param keyArb Arbitrary for generating string keys
+ * @param valueArb Arbitrary for generating values 
+ * @param minSize Minimum number of entries in the generated record
+ * @param maxSize Maximum number of entries in the generated record
+ */
+export const record = <V>(
+  keyArb: Arbitrary<string>, 
+  valueArb: Arbitrary<V>,
+  minSize = 0,
+  maxSize = 10
+): Arbitrary<Record<string, V>> =>
+  minSize > maxSize ? NoArbitrary : new ArbitraryRecord<V>(keyArb, valueArb, minSize, maxSize) as unknown as Arbitrary<Record<string, V>>

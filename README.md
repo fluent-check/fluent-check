@@ -84,7 +84,7 @@ FluentCheck provides a comprehensive set of built-in arbitraries (data generator
 - Strings: `string`, `char`, `ascii`, `unicode`, `base64`, `hex`
 - Date & Time: `date`, `time`, `datetime`, `duration`
 - Pattern-based: `regex`, `patterns.email`, `patterns.uuid`, `patterns.url`, `patterns.ipv4`
-- Containers: `array`, `set`, `tuple`
+- Containers: `array`, `set`, `tuple`, `record`
 - Combinators: `oneof`, `union`, `constant`
 
 All arbitraries are composable and can be transformed using `map`, `filter`, and other operations.
@@ -242,6 +242,66 @@ fc.scenario()
 ```
 
 For a detailed explanation of the design and algorithmic approaches used in our regex implementation, see the [Regular Expression Arbitrary Design](docs/regex-design.md) document.
+
+### Record and Object Testing
+
+FluentCheck provides the `record` arbitrary for generating JavaScript objects with string keys and arbitrary values:
+
+```typescript
+// Test object properties
+fc.scenario()
+  .forall('userRecord', fc.record(fc.string(1, 10), fc.string(5, 20)))
+  .then(({userRecord}) => {
+    // Property: All keys in generated records are strings
+    const allKeysAreStrings = Object.keys(userRecord).every(key => typeof key === 'string')
+    
+    // Property: All values in generated records match our value type
+    const allValuesAreStrings = Object.values(userRecord).every(value => typeof value === 'string')
+    
+    return allKeysAreStrings && allValuesAreStrings
+  })
+  .check()
+
+// Test validation logic
+fc.scenario()
+  .forall('user', fc.record(
+    fc.string(), // Key arbitrary
+    fc.oneof([fc.string(), fc.integer(), fc.boolean()]), // Value can be different types
+    1, // Minimum 1 property
+    5  // Maximum 5 properties
+  ))
+  .then(({user}) => {
+    // Implement a validator that validates the record
+    const isValidUser = validateUser(user)
+    
+    // Property: All generated users should pass validation
+    return isValidUser
+  })
+  .check()
+
+// Create complex nested objects
+fc.scenario()
+  .forall('nestedObject', fc.record(
+    fc.string(1, 5), // Keys
+    fc.record(fc.string(1, 3), fc.integer(0, 100)), // Values are records themselves
+    1, 3 // Size constraints
+  ))
+  .then(({nestedObject}) => {
+    // Property: Working with nested records
+    const allNestedValuesAreObjects = Object.values(nestedObject).every(
+      value => typeof value === 'object' && value !== null
+    )
+    
+    return allNestedValuesAreObjects
+  })
+  .check()
+```
+
+The `record` arbitrary allows you to:
+- Generate objects with a specific key and value type
+- Control the minimum and maximum number of entries
+- Create nested data structures for complex testing scenarios
+- Test validation and transformation logic for JavaScript objects
 
 ## Comparison with Similar Projects
 
