@@ -20,5 +20,10 @@ export {
   constant,
   set,
   tuple,
-  oneof
+  oneof,
+  date,
+  time,
+  datetime,
+  duration,
+  timeToMilliseconds
 } from './arbitraries/index.js'
