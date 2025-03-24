@@ -1,6 +1,25 @@
+# Ignore TypeScript build files
 dist
+
+# Ignore Node.js modules
 node_modules
+
+# Ignore VSCode settings
 .vscode
+
+# Ignore this project's Jupyter notebook (used for testing)
 src/notebook*.ts
+
+# Ignore coverage reports
 coverage
 .nyc_output
+
+# Ignore LaTeX temporary files
+*.aux
+*.log
+*.out
+*.toc
+*.listing
+
+# Ignore Mac system files
+.DS_Store
