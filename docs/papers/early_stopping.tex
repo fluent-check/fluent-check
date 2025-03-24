@@ -1,6 +1,6 @@
 % Early Stopping Based on Domain Exploration Metrics
 % LaTeX Document for Property-Based Testing Framework
-\documentclass[11pt,a4paper]{article}
+\documentclass[conference]{IEEEtran}
 
 % Core packages
 \usepackage[utf8]{inputenc}
@@ -181,6 +181,8 @@
 \begin{abstract}
 \noindent This paper presents a rigorous framework for early stopping in property-based testing based on domain exploration metrics. By combining Bayesian sequential analysis with information-theoretic measures of exploration quality, we develop a methodology that optimizes test execution by terminating the sampling process once sufficient evidence has been accumulated. Our approach provides quantifiable statistical guarantees while balancing confidence with thorough domain exploration, resulting in significant efficiency improvements without compromising the quality of verification.
 \end{abstract}
+
+\input{introduction.tex}
 
 \section{Theoretical Foundations}
 
@@ -1435,14 +1437,6 @@ While additional considerations around computational complexity (Voronoi tessell
 \justifytext
 This framework lays the groundwork for property-based testing systems that can adaptively terminate when sufficient evidence has been accumulated, providing a principled balance between thoroughness and efficiency.
 
-\begin{thebibliography}{99}
-\bibitem{wald1947} Wald, A. (1947). \textit{Sequential Analysis}. New York: John Wiley \& Sons.
-\bibitem{berger2013} Berger, J. (2013). \textit{Statistical Decision Theory and Bayesian Analysis}. Springer.
-\bibitem{ammann2016} Ammann, P., \& Offutt, J. (2016). \textit{Introduction to Software Testing}. 2nd ed. Cambridge University Press.
-\bibitem{chaloner1995} Chaloner, K., \& Verdinelli, I. (1995). Bayesian experimental design: A review. \textit{Statistical Science}, 10(3), 273-304.
-\end{thebibliography}
-
-% Add appendix marker before the implementation guide
 \appendix
 
 \section{Implementation Guide}
@@ -2153,24 +2147,15 @@ This implementation provides a flexible and configurable mechanism for early sto
 
 \subsection{Implementation Guidelines}
 
-\justifytext
 The implementation of the early stopping framework relies on several key principles:
 
-\begin{tcolorbox}[
-  colback=blue!5!white,
-  colframe=blue!75!black,
-  title=Implementation Principles,
-  fonttitle=\bfseries
-]
 \begin{enumerate}
 \item \textbf{Composability}: The early stopping strategy is implemented as a mixin that can be composed with other testing strategies
 \item \textbf{Configurability}: All parameters (confidence thresholds, coverage thresholds, etc.) can be configured by users
 \item \textbf{Transparency}: The framework provides detailed metrics and explanations for stopping decisions
 \item \textbf{Extensibility}: The design allows for adding new stopping criteria or domain exploration metrics
 \end{enumerate}
-\end{tcolorbox}
 
-\justifytext
 When implementing the early stopping functionality, developers should focus on:
 
 \begin{itemize}
@@ -2462,4 +2447,6 @@ The experiment was implemented using TypeScript with the testing structure defin
 \justifytext
 The results confirmed our mathematical model, with fine-grained partitioning showing up to 35\% improvement in detection rates for boundary violations, while demonstrating mixed results for other violation patterns depending on the coverage criteria and sample size.
 
+\bibliographystyle{IEEEtran}
+\bibliography{references}
 \end{document}

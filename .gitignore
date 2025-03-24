@@ -20,6 +20,9 @@ coverage
 *.out
 *.toc
 *.listing
+*.bbl
+*.blg
+*.bst
 
 # Ignore Mac system files
 .DS_Store
