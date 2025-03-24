@@ -15,7 +15,12 @@
     "lint": "eslint --ext '.js,.ts' src test",
     "test": "mocha",
     "prepare": "tsc",
-    "coverage": "nyc mocha -reporter=min -r source-map-support"
+    "coverage": "nyc mocha -reporter=min -r source-map-support",
+    "experiment:1": "mocha --require ts-node/register test/experiments/experiment1.test.ts --grep \"Experiment 1\" --timeout 30000",
+    "experiment:2": "mocha --require ts-node/register test/experiments/experiment2.test.ts --grep \"Experiment 2\" --timeout 30000",
+    "experiment:3": "mocha --require ts-node/register test/experiments/experiment3.test.ts --grep \"Experiment 3\" --timeout 60000",
+    "experiment:edge-case": "mocha --require ts-node/register test/experiments/edge-case-influence.test.ts --grep \"Edge Case Influence\" --timeout 30000",
+    "experiments": "npm run experiment:1 && npm run experiment:2 && npm run experiment:3 && npm run experiment:edge-case"
   },
   "keywords": [
     "testing",
