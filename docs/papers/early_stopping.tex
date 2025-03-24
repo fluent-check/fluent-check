@@ -453,6 +453,74 @@ When using adaptive sampling, practitioners should compute or estimate $\pi(D^*)
 Combining uniform sampling phases with adaptive phases can balance exploration with exploitation of promising regions.
 \end{theorembox}
 
+\subsection{Edge-Case-Biased Sampling Analysis}
+
+\justifytext
+Property-based testing frameworks commonly employ edge-case-biased sampling, where certain boundary values or edge cases receive higher sampling probability. This biased distribution fundamentally changes the miss probability analysis in ways that can be precisely quantified.
+
+\justifytext
+Let us define $E \subset D$ as the set of designated edge cases within the domain. Under edge-case-biased sampling, the probability distribution takes the form:
+
+\begin{equation}
+P(x) = \begin{cases}
+p_e & \text{if } x \in E \text{ (edge cases)} \\
+p_n & \text{if } x \notin E \text{ (non-edge cases)}
+\end{cases}
+\end{equation}
+
+\justifytext
+Where $p_e > p_n$ (edge cases have higher sampling probability) and the probabilities must satisfy the constraint $p_e \cdot |E| + p_n \cdot (|D| - |E|) = 1$.
+
+\justifytext
+To analyze the miss probability with edge-case bias, we partition the violation region $D^*$ into:
+\begin{align}
+D^* \cap E &: \text{Violating edge cases} \\
+D^* \setminus E &: \text{Violating non-edge cases}
+\end{align}
+
+\justifytext
+The probability of sampling a violation becomes:
+\begin{equation}
+P(x \in D^*) = p_e \cdot |D^* \cap E| + p_n \cdot |D^* \setminus E|
+\end{equation}
+
+\justifytext
+Therefore, the miss probability under edge-case-biased sampling is:
+\begin{equation}
+P(\text{miss } D^* \mid \text{biased}) = (1 - p_e \cdot |D^* \cap E| - p_n \cdot |D^* \setminus E|)^t
+\end{equation}
+
+\justifytext
+We can define an effectiveness ratio $\rho$ comparing biased sampling to uniform sampling:
+\begin{equation}
+\rho = \frac{P(\text{miss } D^* \mid \text{uniform})}{P(\text{miss } D^* \mid \text{biased})} = \left(\frac{1 - \frac{\mu(D^*)}{|D|}}{1 - p_e \cdot |D^* \cap E| - p_n \cdot |D^* \setminus E|}\right)^t
+\end{equation}
+
+\justifytext
+When $\rho > 1$, biased sampling outperforms uniform sampling; when $\rho < 1$, uniform sampling is more effective.
+
+\begin{theorembox}{Edge Case Overlap Effect}
+The effectiveness of edge-case-biased sampling depends crucially on the overlap between violations and edge cases. When $|D^* \cap E|$ is large relative to $|D^*|$, biased sampling can be dramatically more effective than uniform sampling. Conversely, when violations are disjoint from edge cases ($D^* \cap E = \emptyset$), biased sampling performs worse than uniform sampling.
+\end{theorembox}
+
+\begin{theorembox}{Sampling Effectiveness Criteria}
+For edge-case-biased sampling to outperform uniform sampling ($\rho > 1$), the following condition must be satisfied:
+\begin{equation}
+\frac{p_e \cdot |D^* \cap E| + p_n \cdot |D^* \setminus E|}{|D^*|/|D|} > 1
+\end{equation}
+This inequality demonstrates when the effective sampling rate of violations under biased sampling exceeds that of uniform sampling.
+\end{theorembox}
+
+\justifytext
+This refined analysis has significant implications for early stopping in property-based testing:
+
+\begin{itemize}
+\item The classic miss probability formula $P(\text{miss } D^*) \leq (1 - \mu(D^*)/|D|)^t$ does not apply when using edge-case-biased sampling
+\item Edge-case bias can dramatically improve efficiency when violations occur at edge cases
+\item Empirical validation confirms that bias can produce efficiency gains of multiple orders of magnitude in such cases
+\item For early stopping with statistical guarantees, the sampling distribution must be explicitly accounted for
+\end{itemize}
+
 \justifytext
 This refined analysis ensures that statistical guarantees remain valid regardless of the sampling strategy employed.
 
@@ -474,6 +542,8 @@ Our empirical studies validate the efficiency gains from early stopping. For a b
 \item \textbf{Coverage Quality}: Consistently higher domain coverage metrics ($>$85\% exploration ratio) compared to random sampling (typically $<$60\% for the same number of samples).
 
 \item \textbf{Failure Detection}: Improved detection of subtle property violations, with a 42\% increase in detection probability for violations affecting $<$1\% of the domain.
+
+\item \textbf{Edge-Case Efficacy}: Edge-case-biased sampling showed up to infinite effectiveness ratio when violations occurred at edge cases, supporting our mathematical analysis (see Appendix B for details).
 \end{itemize}
 \end{tcolorbox}
 
@@ -706,24 +776,90 @@ If sampling truly reflects uniform coverage (or an explicitly known distribution
   title=Experimental Design,
   fonttitle=\bfseries
 ]
+
+\textbf{Experiment 1a: Uniform Sampling}
 \begin{enumerate}
 \item Construct a domain $D$ with known finite measure $|D|$
-\item Embed a violating region $D^* \subset D$ with precisely controlled measure (e.g., 1\% of $|D|$)
-\item Compare three sampling strategies:
+\item Embed a violating region $D^* \subset D$ with precisely controlled measure (e.g., 0.1\%, 1\%, 5\% of $|D|$)
+\item Generate test inputs with uniform sampling
+\item Run multiple trials (100) and track how often we fail to sample from $D^*$
+\item Compare observed miss rates to the theoretical bound $\left(1 - \frac{\mu(D^*)}{|D|}\right)^t$
+\end{enumerate}
+
+\textbf{Experiment 1b: Edge-Case-Biased Sampling}
+\begin{enumerate}
+\item Using the same domain structure as Experiment 1a
+\item Designate certain values as "edge cases" and allocate higher sampling probability to them
+\item Test various violation patterns:
    \begin{itemize}
-   \item Uniform: Generate test inputs i.i.d. uniform
-   \item Adaptive: Use the kernel-based adaptive approach
-   \item Hybrid: Alternate between uniform and adaptive sampling
+   \item Violations at edge cases only
+   \item Violations disjoint from edge cases
+   \item Violations including some edge cases
+   \item Uniformly distributed violations
    \end{itemize}
-\item Run multiple trials (e.g., 100) and track how often each approach fails to sample from $D^*$
-\item Compare observed miss rates to the theoretical bound
-\item For adaptive sampling, compute the effective $\pi(D^*)$ and compare with the corrected bound
+\item Compare uniform vs. edge-case-biased sampling effectiveness
+\item Derive and validate a generalized miss probability formula
 \end{enumerate}
 \end{tcolorbox}
 
 \begin{definitionbox}{Success Criterion}
-For uniform sampling, we expect observed miss rates to match $\left(1 - \frac{\mu(D^*)}{|D|}\right)^t$. For adaptive sampling, rates should match the distribution-adjusted bound $(1 - \pi(D^*))^t$.
+For uniform sampling, observed miss rates should match $\left(1 - \frac{\mu(D^*)}{|D|}\right)^t$. For biased sampling, rates should match the distribution-adjusted bound $(1 - p_e\cdot|D^*\cap E| - p_n\cdot|D^*\setminus E|)^t$ where $p_e$ is edge case sampling probability and $p_n$ is non-edge case probability.
 \end{definitionbox}
+
+\subsubsection{Results from Experiment 1a: Uniform Sampling}
+
+\justifytext
+We implemented Experiment 1a by creating a domain of 10,000 integers with precisely controlled violation regions of different sizes (0.1\%, 1\%, and 5\% of the domain). Using uniform random sampling, we ran 100 trials for each configuration and measured how often the violation region was missed entirely.
+
+The empirical results confirmed the theoretical formula with high accuracy. For example, with a 1\% violation region (100 elements) and 50 samples, the theoretical miss probability is $(1 - 0.01)^{50} \approx 0.605$, and our empirical measurements showed a miss rate of approximately 0.61, well within statistical tolerance.
+
+Key findings from Experiment 1a:
+\begin{itemize}
+\item The theoretical formula $P(\text{miss }D^*) = \left(1 - \frac{\mu(D^*)}{|D|}\right)^t$ accurately predicts actual miss rates
+\item Very rare violations (0.1\%) are frequently missed even with 100 samples
+\item Larger violations (5\%) are almost never missed with 100+ samples
+\item Statistical variation follows expected binomial patterns
+\end{itemize}
+
+\subsubsection{Results from Experiment 1b: Edge-Case-Biased Sampling}
+
+\justifytext
+Experiment 1b extended our analysis to biased sampling strategies, particularly the edge-case-biased approach commonly used in property testing frameworks. We designated three values (0, 1, and 9999) as edge cases and allocated 50\% of sampling probability to these values.
+
+We developed and validated a generalized miss probability formula for biased sampling:
+\begin{align}
+P(\text{miss }D^* \mid \text{biased}) = \left(1 - p_e\cdot|D^*\cap E| - p_n\cdot|D^*\setminus E|\right)^t
+\end{align}
+
+Where $p_e$ is the probability of sampling a specific edge case, $p_n$ is the probability of sampling a specific non-edge value, $D^*\cap E$ is the set of violating edge cases, and $D^*\setminus E$ is the set of non-edge violations.
+
+Our results showed dramatic differences in effectiveness depending on violation patterns:
+
+\begin{itemize}
+\item \textbf{Edge Case Violations}: When violations occurred only at edge cases, biased sampling was dramatically more effective, achieving 100\% detection while uniform sampling missed violations in 96-99\% of trials.
+
+\item \textbf{Non-Edge Violations}: When violations were disjoint from edge cases, uniform sampling outperformed biased sampling by a factor of 1.1 to 2.7.
+
+\item \textbf{Mixed Violations}: With violations that included some edge cases and some non-edge values, biased sampling still performed exceptionally well, demonstrating how even partial overlap with edge cases can dramatically improve detection rates.
+\end{itemize}
+
+\subsubsection{Implications for Early Stopping}
+
+\justifytext
+These experiments have significant implications for early stopping strategies:
+
+\begin{enumerate}
+\item The formula $P(\text{miss }D^*) = \left(1 - \frac{\mu(D^*)}{|D|}\right)^t$ can be used to calculate how many uniform samples are needed to achieve a desired confidence level.
+
+\item For biased sampling, the standard formula must be replaced with our generalized formula that accounts for the sampling distribution.
+
+\item The effectiveness of different sampling strategies varies dramatically based on where violations occur, suggesting that adaptive approaches or mixed strategies may be optimal.
+
+\item Early stopping criteria must account for the specific sampling distribution used, as uniform-based formulas will give incorrect results for biased sampling.
+\end{enumerate}
+
+\justifytext
+Complete implementation details and detailed results tables for these experiments are provided in Appendix B.
 
 \subsection{Experiment 2: Fine-Grained Equivalence Classes vs. Single-Hit Coverage}
 
@@ -880,7 +1016,9 @@ This framework lays the groundwork for property-based testing systems that can a
 \bibitem{chaloner1995} Chaloner, K., \& Verdinelli, I. (1995). Bayesian experimental design: A review. \textit{Statistical Science}, 10(3), 273-304.
 \end{thebibliography}
 
+% Add appendix marker before the implementation guide
 \appendix
+
 \section{Implementation Guide}
 \label{sec:implementation-guide}
 
@@ -1618,5 +1756,273 @@ When implementing the early stopping functionality, developers should focus on:
 
 \justifytext
 This implementation approach ensures that the theoretical foundations described in the main paper can be effectively realized in practice, while maintaining the flexibility and usability expected in a modern property-based testing framework.
+
+\section{Experimental Results}
+\label{sec:experimental-results}
+
+\justifytext
+This appendix provides implementation details and comprehensive results for the experiments described in Section \ref{sec:proposed-validation-experiments}. We conducted two primary validation experiments: Experiment 1a testing uniform sampling and Experiment 1b examining edge-case-biased sampling.
+
+\subsection{Experiment 1a: Uniform Sampling}
+\label{subsec:experiment1a}
+
+\subsubsection{Implementation Details}
+
+\justifytext
+We implemented Experiment 1a using TypeScript with the following parameters:
+
+\begin{itemize}
+\item Domain size: 10,000 integers (0 to 9,999)
+\item Violation sizes: 10 (0.1\%), 100 (1\%), and 500 (5\%)
+\item Sample counts: 10, 20, 50, 100, 200, 500
+\item Number of trials: 100
+\end{itemize}
+
+\justifytext
+To ensure true uniform random sampling, we implemented the function:
+
+\begin{wrappedcode}
+function uniformRandom(min: number, max: number): number {
+  return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+\end{wrappedcode}
+
+\justifytext
+The core testing loop followed this structure:
+
+\begin{wrappedcode}
+function runTrials(property: (x: number) => boolean, sampleCount: number, numTrials: number) {
+  let missCount = 0;
+
+  for (let i = 0; i < numTrials; i++) {
+    let foundViolation = false;
+    
+    for (let j = 0; j < sampleCount; j++) {
+      const value = uniformRandom(0, domainSize - 1);
+      
+      if (property(value)) {
+        foundViolation = true;
+        break; // Stop checking as soon as we find a violation
+      }
+    }
+    
+    if (!foundViolation) {
+      missCount++;
+    }
+  }
+
+  return missCount / numTrials;
+}
+\end{wrappedcode}
+
+\subsubsection{Results}
+
+\justifytext
+Below is a summary of the empirical vs. theoretical miss probabilities for different violation sizes and sample counts:
+
+\begin{tcolorbox}[
+  enhanced,
+  colback=white,
+  colframe=\tabletitlecolor,
+  arc=0mm,
+  boxrule=0.5pt,
+  left=0pt,
+  right=0pt,
+  top=2pt,
+  bottom=2pt,
+  boxsep=0pt,
+  width=\textwidth
+]
+\vspace{1mm}
+\begin{tabularx}{\textwidth}{>{\raggedright\arraybackslash}X|>{\raggedright\arraybackslash}X|>{\raggedright\arraybackslash}X|>{\raggedright\arraybackslash}X|>{\raggedright\arraybackslash}X}
+\tableheader{Violation Size} & \tableheader{Samples} & \tableheader{Theoretical} & \tableheader{Empirical} & \tableheader{Difference} \\
+\hline
+\addlinespace[3pt]
+0.1\% (10 elements) & 10 & 0.990 & 0.99 & 0.00 \\
+\addlinespace[3pt]
+\hline
+\addlinespace[3pt]
+0.1\% (10 elements) & 50 & 0.951 & 0.95 & 0.00 \\
+\addlinespace[3pt]
+\hline
+\addlinespace[3pt]
+0.1\% (10 elements) & 200 & 0.819 & 0.83 & 0.01 \\
+\addlinespace[3pt]
+\hline
+\addlinespace[3pt]
+1\% (100 elements) & 10 & 0.904 & 0.91 & 0.01 \\
+\addlinespace[3pt]
+\hline
+\addlinespace[3pt]
+1\% (100 elements) & 50 & 0.605 & 0.61 & 0.01 \\
+\addlinespace[3pt]
+\hline
+\addlinespace[3pt]
+1\% (100 elements) & 200 & 0.134 & 0.13 & 0.00 \\
+\addlinespace[3pt]
+\hline
+\addlinespace[3pt]
+5\% (500 elements) & 10 & 0.599 & 0.58 & -0.02 \\
+\addlinespace[3pt]
+\hline
+\addlinespace[3pt]
+5\% (500 elements) & 50 & 0.077 & 0.08 & 0.00 \\
+\addlinespace[3pt]
+\hline
+\addlinespace[3pt]
+5\% (500 elements) & 200 & 0.000 & 0.01 & 0.01 \\
+\addlinespace[3pt]
+\end{tabularx}
+\vspace{1mm}
+\end{tcolorbox}
+
+\subsection{Experiment 1b: Edge-Case-Biased Sampling}
+\label{subsec:experiment1b}
+
+\subsubsection{Implementation Details}
+
+\justifytext
+For Experiment 1b, we implemented both uniform and edge-case-biased sampling with the following parameters:
+
+\begin{itemize}
+\item Domain size: 10,000 integers (0 to 9,999)
+\item Edge cases: 0, 1, and 9999
+\item Edge case bias: 50\% (half of all sampling probability allocated to the 3 edge cases)
+\item Sample counts: 10, 50, 200
+\item Number of trials: 100
+\end{itemize}
+
+\justifytext
+For biased sampling, we implemented:
+
+\begin{wrappedcode}
+function biasedRandom(min: number, max: number, edgeCases: number[], bias: number): number {
+  // Filter edge cases to ensure they're in range
+  const validEdgeCases = edgeCases.filter(e => e >= min && e <= max);
+  
+  // If no valid edge cases, fall back to uniform
+  if (validEdgeCases.length === 0) {
+    return uniformRandom(min, max);
+  }
+  
+  // Decide whether to return an edge case or non-edge case
+  if (Math.random() < bias) {
+    // Return a random edge case
+    const index = Math.floor(Math.random() * validEdgeCases.length);
+    return validEdgeCases[index];
+  } else {
+    // Generate a non-edge value
+    let value;
+    do {
+      value = uniformRandom(min, max);
+    } while (validEdgeCases.includes(value));
+    return value;
+  }
+}
+\end{wrappedcode}
+
+\justifytext
+We tested four violation patterns:
+
+\begin{wrappedcode}
+const violationPatterns = [
+  { 
+    name: 'Violations at Edge Cases Only',
+    isViolation: (x: number) => edgeCases.includes(x),
+    violationSize: edgeCases.length
+  },
+  { 
+    name: 'Violations Disjoint from Edge Cases',
+    isViolation: (x: number) => x >= 100 && x <= 199 && !edgeCases.includes(x),
+    violationSize: 100
+  },
+  { 
+    name: 'Violations Include Some Edge Cases',
+    isViolation: (x: number) => (x < 100) || edgeCases.includes(x),
+    violationSize: 100 + edgeCases.filter(e => e >= 100).length
+  },
+  { 
+    name: 'Uniformly Distributed Violations',
+    isViolation: (x: number) => x % 100 === 0,
+    violationSize: Math.floor(domainSize / 100)
+  }
+]
+\end{wrappedcode}
+
+\subsubsection{Results}
+
+\justifytext
+The table below presents the comprehensive results comparing uniform and biased sampling across all violation patterns and sample counts:
+
+\begin{tcolorbox}[
+  enhanced,
+  colback=white,
+  colframe=\tabletitlecolor,
+  arc=0mm,
+  boxrule=0.5pt,
+  left=0pt,
+  right=0pt,
+  top=2pt,
+  bottom=2pt,
+  boxsep=0pt,
+  width=\textwidth
+]
+\vspace{1mm}
+\begin{tabularx}{\textwidth}{>{\raggedright\arraybackslash}X|>{\raggedright\arraybackslash}X|>{\raggedright\arraybackslash}X|>{\raggedright\arraybackslash}X}
+\tableheader{Violation Pattern} & \tableheader{Samples} & \tableheader{Uniform Miss Rate} & \tableheader{Biased Miss Rate} \\
+\hline
+\addlinespace[3pt]
+Violations at Edge Cases Only & 10 & 99.0\% & 0.0\% \\
+\addlinespace[3pt]
+\hline
+\addlinespace[3pt]
+Violations at Edge Cases Only & 50 & 98.0\% & 0.0\% \\
+\addlinespace[3pt]
+\hline
+\addlinespace[3pt]
+Violations at Edge Cases Only & 200 & 96.0\% & 0.0\% \\
+\addlinespace[3pt]
+\hline
+\addlinespace[3pt]
+Violations Disjoint from Edge Cases & 10 & 90.0\% & 98.0\% \\
+\addlinespace[3pt]
+\hline
+\addlinespace[3pt]
+Violations Disjoint from Edge Cases & 50 & 57.0\% & 82.0\% \\
+\addlinespace[3pt]
+\hline
+\addlinespace[3pt]
+Violations Disjoint from Edge Cases & 200 & 15.0\% & 40.0\% \\
+\addlinespace[3pt]
+\hline
+\addlinespace[3pt]
+Violations Include Some Edge Cases & 10 & 97.0\% & 0.0\% \\
+\addlinespace[3pt]
+\hline
+\addlinespace[3pt]
+Violations Include Some Edge Cases & 50 & 56.0\% & 0.0\% \\
+\addlinespace[3pt]
+\hline
+\addlinespace[3pt]
+Violations Include Some Edge Cases & 200 & 13.0\% & 0.0\% \\
+\addlinespace[3pt]
+\hline
+\addlinespace[3pt]
+Uniformly Distributed Violations & 10 & 94.0\% & 21.0\% \\
+\addlinespace[3pt]
+\hline
+\addlinespace[3pt]
+Uniformly Distributed Violations & 50 & 61.0\% & 0.0\% \\
+\addlinespace[3pt]
+\hline
+\addlinespace[3pt]
+Uniformly Distributed Violations & 200 & 15.0\% & 0.0\% \\
+\addlinespace[3pt]
+\end{tabularx}
+\vspace{1mm}
+\end{tcolorbox}
+
+\justifytext
+For full implementation details, see the source code in \texttt{test/experiments/experiment1.test.ts} and \texttt{test/experiments/edge-case-influence.test.ts}.
 
 \end{document}
