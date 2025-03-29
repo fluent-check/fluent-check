@@ -36,8 +36,8 @@ describe('DateTime tests', () => {
     expect(fc.scenario()
       .forall('dt', fc.datetime(MIN_DATE, MAX_DATE))
       .then(({dt}) => {
-        return dt >= new Date(MIN_DATE.setHours(0, 0, 0, 0)) && 
-               dt <= new Date(MAX_DATE.setHours(23, 59, 59, 999))
+        return dt >= new Date(new Date(MIN_DATE.getTime()).setHours(0, 0, 0, 0)) && 
+               dt <= new Date(new Date(MAX_DATE.getTime()).setHours(23, 59, 59, 999))
       })
       .check()
     ).to.have.property('satisfiable', true)
