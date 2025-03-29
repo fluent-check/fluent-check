@@ -32,10 +32,10 @@
     "url": "https://github.com/fluent-check/fluent-check"
   },
   "devDependencies": {
-    "@types/chai": "^5.2.0",
+    "@types/chai": "^5.2.1",
     "@types/mocha": "^10.0.10",
-    "@typescript-eslint/eslint-plugin": "^8.27.0",
-    "@typescript-eslint/parser": "^8.27.0",
+    "@typescript-eslint/eslint-plugin": "^8.28.0",
+    "@typescript-eslint/parser": "^8.28.0",
     "chai": "^5.2.0",
     "eslint": "^9.23.0",
     "jstat": "^1.9.6",

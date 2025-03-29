@@ -97,6 +97,7 @@ FluentCheck provides a comprehensive set of built-in arbitraries (data generator
 
 - **Primitives**: `integer`, `real`, `nat`, `boolean`
 - **Strings**: `string`, `char`, `ascii`, `unicode`, `base64`, `hex`
+- **Date & Time**: `date`, `time`, `datetime`, `duration`
 - **Containers**: `array`, `set`, `tuple`
 - **Combinators**: `oneof`, `union`, `constant`
 
@@ -155,6 +156,50 @@ For more details on each feature, check out our detailed documentation:
 - [Composable Arbitraries](docs/composable-arbitraries.md)
 - [Chained Type Inference](docs/chained-type-inference.md)
 - [Corner Case Prioritization](docs/corner-case-prioritization.md)
+
+### Date & Time Testing
+
+FluentCheck provides arbitraries for dates, times, and durations:
+
+```typescript
+// Test date properties
+fc.scenario()
+  .forall('startDate', fc.date(new Date('2020-01-01'), new Date('2020-06-30')))
+  .forall('days', fc.integer(1, 30))
+  .then(({startDate, days}) => {
+    const endDate = new Date(startDate)
+    endDate.setDate(startDate.getDate() + days)
+    
+    // Property: Adding days to a date should increase its timestamp
+    return endDate.getTime() > startDate.getTime()
+  })
+  .check()
+
+// Test time arithmetic
+fc.scenario()
+  .forall('time', fc.time())
+  .then(({time}) => {
+    // Property: Hours should be in valid range
+    return time.hour >= 0 && time.hour < 24
+  })
+  .check()
+
+// Test durations
+fc.scenario()
+  .forall('duration', fc.duration())
+  .then(({duration}) => {
+    const milliseconds = fc.timeToMilliseconds(duration)
+    
+    // Property: Converting to milliseconds and back should preserve values
+    return milliseconds === (
+      duration.hours * 3600000 + 
+      duration.minutes * 60000 + 
+      duration.seconds * 1000 + 
+      duration.milliseconds
+    )
+  })
+  .check()
+```
 
 ## Comparison with Similar Projects
 
