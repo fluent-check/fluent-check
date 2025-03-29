@@ -19,18 +19,18 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          types:
-            - feat
-            - fix
-            - docs
-            - chore
-            - style
-            - refactor
-            - perf
-            - test
-            - build
-            - ci
-            - revert
+          types: |
+            feat
+            fix
+            docs
+            chore
+            style
+            refactor
+            perf
+            test
+            build
+            ci
+            revert
           requireScope: false
       
       - name: Label based on changed files
