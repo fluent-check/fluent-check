@@ -1,27 +1,27 @@
-area/arbitraries:
-  - src/arbitraries/**/*
+# Add 'area/arbitraries' label to any changes within the arbitraries directory
+"area/arbitraries":
+- any: ["src/arbitraries/**/*"]
 
-area/strategies:
-  - src/strategies/**/*
+# Add 'area/strategies' label to any changes within the strategies directory
+"area/strategies":
+- any: ["src/strategies/**/*"]
 
-area/core:
-  - src/FluentCheck.ts
-  - src/index.ts
+# Add 'area/core' label to any change to core files
+"area/core":
+- any: ["src/FluentCheck.ts", "src/index.ts"]
 
-area/ci:
-  - .github/**/*
-  - .eslintrc
-  - .mocharc.yml
-  - tsconfig.json
+# Add 'area/ci' label to any change to CI configuration
+"area/ci":
+- any: [".github/**/*", ".eslintrc", ".mocharc.yml", "tsconfig.json"]
 
-area/docs:
-  - README.md
-  - CONTRIBUTING.md
-  - docs/**/*
+# Add 'area/docs' label to any change to documentation
+"area/docs":
+- any: ["README.md", "CONTRIBUTING.md", "docs/**/*"]
 
-area/tests:
-  - test/**/*
+# Add 'area/tests' label to any change to tests
+"area/tests":
+- any: ["test/**/*"]
 
-dependencies:
-  - package.json
-  - package-lock.json 
+# Add 'dependencies' label to any change to package files
+"dependencies":
+- any: ["package.json", "package-lock.json"] 
