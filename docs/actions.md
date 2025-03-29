@@ -122,6 +122,24 @@ jobs:
     # ... validation steps
 ```
 
+#### Important Syntax Notes:
+
+For the semantic PR title validator, use the pipe symbol (`|`) to define multi-line string values:
+
+```yaml
+- name: Validate PR title
+  uses: amannn/action-semantic-pull-request@v5
+  env:
+    GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  with:
+    types: |
+      feat
+      fix
+      docs
+      # other types...
+    requireScope: false
+```
+
 ## Configuration Files
 
 ### 1. Dependabot (`.github/dependabot.yml`)
@@ -153,13 +171,35 @@ updates:
 Automatically labels PRs based on which files are changed, helping with categorization and review.
 
 ```yaml
-area/arbitraries:
-  - src/arbitraries/**/*
+# IMPORTANT: This format is required for actions/labeler@v5
+"area/arbitraries":
+- any: ["src/arbitraries/**/*"]
 
-area/strategies:
-  - src/strategies/**/*
+"area/strategies":
+- any: ["src/strategies/**/*"]
 
 # ... other categories
+```
+
+#### Required Format
+
+The labeler has a specific required format:
+
+1. Labels must be in quotes: `"label-name"`
+2. Each label must have an array of conditions
+3. Use `any:` to specify files that should trigger the label
+4. File patterns must be in an array with square brackets
+
+Incorrect format that will cause errors:
+```yaml
+area/label:
+  - path/to/file   # This will fail
+```
+
+Correct format:
+```yaml
+"area/label":
+- any: ["path/to/file"]
 ```
 
 ## Setup and Configuration
@@ -227,6 +267,14 @@ Common issues and solutions:
 If PRs aren't being labeled correctly:
 - Ensure labels are created in the repository
 - Check file patterns in `.github/labeler.yml`
+- Verify the syntax matches the format required by actions/labeler@v5
+
+### YAML Syntax Errors
+
+YAML is sensitive to indentation and formatting:
+- Use a YAML validator to check your workflow files
+- Pay attention to special characters like `|` for multi-line strings
+- Be aware that different actions may require different YAML formats
 
 ## Best Practices
 
