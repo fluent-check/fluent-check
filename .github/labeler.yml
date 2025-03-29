@@ -1,0 +1,27 @@
+area/arbitraries:
+  - src/arbitraries/**/*
+
+area/strategies:
+  - src/strategies/**/*
+
+area/core:
+  - src/FluentCheck.ts
+  - src/index.ts
+
+area/ci:
+  - .github/**/*
+  - .eslintrc
+  - .mocharc.yml
+  - tsconfig.json
+
+area/docs:
+  - README.md
+  - CONTRIBUTING.md
+  - docs/**/*
+
+area/tests:
+  - test/**/*
+
+dependencies:
+  - package.json
+  - package-lock.json 
