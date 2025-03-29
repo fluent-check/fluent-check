@@ -15,6 +15,7 @@ export * from './types.js'
 export {Arbitrary} from './internal.js'
 export {char, hex, base64, ascii, unicode, string} from './string.js'
 export {date, time, datetime, duration, timeToMilliseconds} from './datetime.js'
+export {regex, patterns, shrinkRegexString} from './regex.js'
 
 export const integer = (min = Number.MIN_SAFE_INTEGER, max = Number.MAX_SAFE_INTEGER): Arbitrary<number> =>
   min > max ? NoArbitrary : min === max ? new ArbitraryConstant(min) as unknown as Arbitrary<number> : new ArbitraryInteger(min, max) as unknown as Arbitrary<number>

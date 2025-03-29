@@ -25,5 +25,8 @@ export {
   time,
   datetime,
   duration,
-  timeToMilliseconds
+  timeToMilliseconds,
+  regex,
+  patterns,
+  shrinkRegexString
 } from './arbitraries/index.js'
