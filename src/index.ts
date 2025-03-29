@@ -29,5 +29,4 @@ export {
   regex,
   patterns,
   shrinkRegexString
-  timeToMilliseconds
 } from './arbitraries/index.js'
