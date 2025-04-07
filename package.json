@@ -25,7 +25,7 @@
   "author": "André Restivo, Hugo Sereno Ferreira, Rui Gonçalves",
   "license": "MIT",
   "dependencies": {
-    "typescript": "^5.8.2"
+    "typescript": "^5.8.3"
   },
   "repository": {
     "type": "git",
