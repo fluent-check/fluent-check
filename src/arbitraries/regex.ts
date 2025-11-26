@@ -5,6 +5,7 @@ import { ArbitraryArray } from './ArbitraryArray.js'
 import { ArbitraryTuple } from './ArbitraryTuple.js'
 import { ArbitraryComposite } from './ArbitraryComposite.js'
 import { char } from './string.js'
+import type { CharClassKey, IPv4Address, HttpUrl } from './types.js'
 
 // Direct implementations to avoid circular dependencies
 const integer = (min = Number.MIN_SAFE_INTEGER, max = Number.MAX_SAFE_INTEGER): Arbitrary<number> =>
@@ -47,7 +48,7 @@ type RegexCharClass = {
 /**
  * Maps common regex character classes to their corresponding arbitraries
  */
-const charClassMap: Record<string, Arbitrary<string>> = {
+const charClassMap: Record<CharClassKey, Arbitrary<string>> = {
   // Digit classes
   '\\d': integer(0, 9).map(String),
   '[0-9]': integer(0, 9).map(String),
@@ -408,17 +409,17 @@ export const patterns = {
   /**
    * Generates strings matching IP v4 addresses
    */
-  ipv4: (): Arbitrary<string> => {
+  ipv4: (): Arbitrary<IPv4Address> => {
     const octet = integer(0, 255)
     return tuple(octet, octet, octet, octet)
-      .map(([a, b, c, d]) => `${a}.${b}.${c}.${d}`)
+      .map(([a, b, c, d]) => `${a}.${b}.${c}.${d}` as IPv4Address)
   },
   
   /**
    * Generates strings matching URLs
    */
-  url: (): Arbitrary<string> => {
-    const protocol = oneof(['http', 'https'])
+  url: (): Arbitrary<HttpUrl> => {
+    const protocol = oneof(['http', 'https'] as const)
     
     const domainChars = union(
       char('a', 'z'),
@@ -462,7 +463,7 @@ export const patterns = {
     
     return tuple(protocol, domain, path, query, hash)
       .map(([protocol, domain, path, query, hash]) => {
-        return `${protocol}://${domain}${path}${query}${hash}`
+        return `${protocol}://${domain}${path}${query}${hash}` as HttpUrl
       })
   }
 }

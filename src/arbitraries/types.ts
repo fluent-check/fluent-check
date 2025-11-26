@@ -24,3 +24,26 @@ export class FluentRandomGenerator {
 
   initialize() { this.generator = this.builder(this.seed) }
 }
+
+// Template literal types for pattern validation
+
+/** Escape sequences: \d, \w, \s, \D, \W, \S */
+export type EscapeSequence = `\\${'d' | 'w' | 's' | 'D' | 'W' | 'S'}`
+
+/** Character class brackets like [a-z], [0-9] */
+export type CharClassBracket = `[${string}]`
+
+/** Valid character class map keys */
+export type CharClassKey = EscapeSequence | CharClassBracket | '.'
+
+/** Hex digit characters for UUID and hex generation */
+export type HexChar = '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' | 'a' | 'b' | 'c' | 'd' | 'e' | 'f'
+
+/** IPv4 address pattern */
+export type IPv4Address = `${number}.${number}.${number}.${number}`
+
+/** HTTP protocol variants */
+export type HttpProtocol = 'http' | 'https'
+
+/** HTTP URL pattern */
+export type HttpUrl = `${HttpProtocol}://${string}`
