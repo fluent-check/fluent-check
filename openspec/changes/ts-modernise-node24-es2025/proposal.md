@@ -1,5 +1,7 @@
 # Change: Modernize to Node.js 24 LTS and ES2025
 
+> **GitHub Issue:** [#379](https://github.com/fluent-check/fluent-check/issues/379)
+
 ## Why
 Node.js 24 entered LTS on October 28, 2025 and will be maintained until April 2028. The project currently targets ES2022 and tests on Node.js 18/20, missing out on significant JavaScript improvements. Upgrading to Node.js 24 LTS with ES2025 brings cleaner syntax, better performance, and modern features that improve code quality and developer experience.
 

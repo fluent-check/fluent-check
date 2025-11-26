@@ -1,5 +1,7 @@
 # Change: Enable Full TypeScript Strict Mode
 
+> **GitHub Issue:** [#385](https://github.com/fluent-check/fluent-check/issues/385)
+
 ## Why
 The current `tsconfig.json` only enables partial strict checks (`strictNullChecks`, `strictFunctionTypes`, `strictPropertyInitialization`, `noImplicitThis`), missing several important type safety options. Enabling full strict mode catches more bugs at compile time and ensures code quality aligns with TypeScript best practices.
 

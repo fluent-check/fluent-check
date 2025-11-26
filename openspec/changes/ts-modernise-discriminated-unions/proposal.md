@@ -1,5 +1,7 @@
 # Change: Use Discriminated Unions for Better Type Narrowing
 
+> **GitHub Issue:** [#377](https://github.com/fluent-check/fluent-check/issues/377)
+
 ## Why
 The `ArbitrarySize` type uses a discriminant field (`type: 'exact' | 'estimated'`) but doesn't leverage TypeScript's discriminated union pattern fully. Currently, every `ArbitrarySize` carries a `credibleInterval` field even when `type === 'exact'`, where it's always redundantly set to `[value, value]`. This wastes memory, clutters the API, and prevents TypeScript from automatically narrowing types.
 

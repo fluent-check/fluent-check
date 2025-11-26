@@ -1,5 +1,7 @@
 # Change: Use `const` Type Parameters for Literal Inference
 
+> **GitHub Issue:** [#376](https://github.com/fluent-check/fluent-check/issues/376)
+
 ## Why
 Functions accepting arrays or tuples often lose literal type information without `as const` assertions from callers. TypeScript 5.0 introduced `const` type parameters that automatically infer literal types, improving type precision without requiring caller-side changes.
 

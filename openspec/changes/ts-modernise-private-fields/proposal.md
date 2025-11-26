@@ -1,5 +1,7 @@
 # Change: Migrate to Native ES2022 Private Fields
 
+> **GitHub Issue:** [#382](https://github.com/fluent-check/fluent-check/issues/382)
+
 ## Why
 The codebase uses TypeScript's `private` keyword for class field privacy, which is only enforced at compile-time. ES2022 native private fields (`#field`) provide true runtime privacy, preventing access even through type assertions or at runtime. This aligns with modern JavaScript best practices and provides stronger encapsulation.
 

@@ -1,5 +1,7 @@
 # Change: Adopt the `satisfies` Operator for Type Validation
 
+> **GitHub Issue:** [#384](https://github.com/fluent-check/fluent-check/issues/384)
+
 ## Why
 
 The codebase uses explicit type annotations on object literals (e.g., `const x: Type = {...}`), which causes **type widening** and loses valuable literal information. The `satisfies` operator (TypeScript 4.9+) validates that an expression matches a type while **preserving the narrower inferred type**.

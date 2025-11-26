@@ -1,5 +1,7 @@
 # Change: Profile Performance Hotspots
 
+> **GitHub Issue:** [#375](https://github.com/fluent-check/fluent-check/issues/375)
+
 ## Why
 
 Property-based testing frameworks like fluent-check execute arbitraries, shrinking algorithms, and statistical computations thousands of times per test run. Without profiling data, optimization efforts are based on guesswork rather than evidence. This proposal establishes a systematic approach to identify CPU and memory hotspots using the existing test suite as a representative workload.

@@ -1,5 +1,7 @@
 # Change: Leverage Template Literal Types for Pattern Validation
 
+> **GitHub Issue:** [#386](https://github.com/fluent-check/fluent-check/issues/386)
+
 ## Why
 TypeScript's template literal types enable compile-time validation of string patterns. For a property-based testing library dealing with regex patterns, UUIDs, emails, and other structured strings, template literal types can provide stronger type guarantees and better developer experience through autocomplete and error messages.
 

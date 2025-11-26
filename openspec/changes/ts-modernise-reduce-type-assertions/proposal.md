@@ -1,5 +1,7 @@
 # Change: Reduce `as unknown as` Type Assertions
 
+> **GitHub Issue:** [#383](https://github.com/fluent-check/fluent-check/issues/383)
+
 ## Why
 The codebase contains 14 instances of `as unknown as Arbitrary<T>` type assertions across 3 files (`src/arbitraries/index.ts`, `src/arbitraries/regex.ts`, `src/arbitraries/ArbitraryTuple.ts`). These bypass TypeScript's type checking and can mask genuine type errors. Investigation reveals the root cause is a combination of incomplete strict mode configuration and the `NoArbitrary: Arbitrary<never>` singleton not unifying cleanly with concrete arbitrary types.
 

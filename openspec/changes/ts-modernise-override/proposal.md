@@ -1,5 +1,7 @@
 # Change: Add Explicit `override` Keyword to Overridden Methods
 
+> **GitHub Issue:** [#381](https://github.com/fluent-check/fluent-check/issues/381)
+
 ## Why
 When a subclass overrides a parent method, TypeScript doesn't require any marker by default. If the parent method is renamed or removed, the child method silently becomes a new method instead of an override. The `override` keyword (TypeScript 4.3+) makes this explicit, and with `noImplicitOverride: true`, the compiler catches accidental non-overrides.
 

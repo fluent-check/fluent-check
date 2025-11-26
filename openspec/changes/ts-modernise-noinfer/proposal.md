@@ -1,5 +1,7 @@
 # Change: Use `NoInfer<T>` for Controlled Type Inference
 
+> **GitHub Issue:** [#380](https://github.com/fluent-check/fluent-check/issues/380)
+
 ## Why
 
 TypeScript 5.4 introduced `NoInfer<T>` to prevent type inference from specific positions. This addresses a common problem in FluentCheck's API where type parameters appear in multiple positions, leading to:

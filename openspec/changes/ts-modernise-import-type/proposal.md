@@ -1,5 +1,7 @@
 # Change: Use Explicit Type-Only Imports
 
+> **GitHub Issue:** [#378](https://github.com/fluent-check/fluent-check/issues/378)
+
 ## Why
 TypeScript supports `import type` syntax to explicitly mark imports that are only used for type information. This helps bundlers with tree-shaking, makes the code's intent clearer, and can prevent accidental runtime dependencies on type-only modules.
 
