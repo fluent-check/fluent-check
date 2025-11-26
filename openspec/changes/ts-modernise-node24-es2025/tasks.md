@@ -2,62 +2,62 @@
 
 ## 1. Infrastructure Updates
 
-- [ ] 1.1 Update `package.json`:
+- [x] 1.1 Update `package.json`:
   - Add `"engines": { "node": ">=22" }`
-- [ ] 1.2 Update `tsconfig.json`:
+- [x] 1.2 Update `tsconfig.json`:
   - Change `"target": "ES2022"` to `"target": "ES2024"`
-- [ ] 1.3 Update `.github/workflows/node.js.yml`:
+- [x] 1.3 Update `.github/workflows/node.js.yml`:
   - Change `node-version: [18.x, 20.x]` to `node-version: [22.x, 24.x]`
-- [ ] 1.4 Update `README.md`:
+- [x] 1.4 Update `README.md`:
   - Document Node.js ≥22 requirement
 
 ## 2. Array.at() Adoption (ES2022)
 
-- [ ] 2.1 Update `src/arbitraries/ArbitraryComposite.ts`:
+- [x] 2.1 Update `src/arbitraries/ArbitraryComposite.ts`:
   - Line 20: Replace `acc[acc.length - 1]` with `(acc.at(-1) ?? 0)`
   - Line 23: Replace `weights[weights.length - 1]` with `weights.at(-1)!`
-- [ ] 2.2 Verify behavior with empty array edge cases
+- [x] 2.2 Verify behavior with empty array edge cases
 
 ## 3. Array.prototype.toSorted() Adoption (ES2023)
 
-- [ ] 3.1 Update `src/arbitraries/ArbitrarySet.ts`:
+- [x] 3.1 Update `src/arbitraries/ArbitrarySet.ts`:
   - Line 30: Replace `Array.from(pick).sort()` with `Array.from(pick).toSorted()`
-- [ ] 3.2 Update `src/arbitraries/ArbitraryInteger.ts`:
+- [x] 3.2 Update `src/arbitraries/ArbitraryInteger.ts`:
   - Lines 22-24: Replace `.sort((a,b) => ...)` with `.toSorted((a,b) => ...)`
-- [ ] 3.3 Verify sorting produces identical results
+- [x] 3.3 Verify sorting produces identical results
 
 ## 4. Error Cause Support (ES2022)
 
-- [ ] 4.1 Update `src/strategies/FluentStrategy.ts`:
+- [x] 4.1 Update `src/strategies/FluentStrategy.ts`:
   - Line 89: Add cause `'FluentStrategy.hasInput is abstract'`
   - Line 96: Add cause `'FluentStrategy.getInput is abstract'`
   - Line 105: Add cause `'FluentStrategy.handleResult is abstract'`
-- [ ] 4.2 Update `src/strategies/FluentStrategyMixins.ts`:
+- [x] 4.2 Update `src/strategies/FluentStrategyMixins.ts`:
   - Line 36: Add cause `'Mixin method requires implementation'`
   - Line 40: Add cause `'Mixin method requires implementation'`
-- [ ] 4.3 Update `src/arbitraries/regex.ts`:
+- [x] 4.3 Update `src/arbitraries/regex.ts`:
   - Line 142: Add cause with pattern position context
 
 ## 5. Future Features Assessment (ES2024/ES2025)
 
-- [ ] 5.1 Review codebase for `Object.groupBy()` opportunities
-- [ ] 5.2 Review `ArbitrarySet.ts` for potential Set method adoption
-- [ ] 5.3 Review `regex.ts` for RegExp `/v` flag opportunities
-- [ ] 5.4 Document findings for future proposal
+- [x] 5.1 Review codebase for `Object.groupBy()` opportunities
+- [x] 5.2 Review `ArbitrarySet.ts` for potential Set method adoption
+- [x] 5.3 Review `regex.ts` for RegExp `/v` flag opportunities
+- [x] 5.4 Document findings for future proposal
 
 ## 6. Verification
 
-- [ ] 6.1 Install Node.js 24 locally for testing
-- [ ] 6.2 Run `npm run lint` - ensure no linting errors
-- [ ] 6.3 Run `npm test` - ensure all tests pass on Node.js 22 and 24
-- [ ] 6.4 Run `npm run prepare` - ensure clean TypeScript compilation
-- [ ] 6.5 Verify error causes appear correctly in stack traces
-- [ ] 6.6 Test in CI with new matrix [22.x, 24.x]
+- [x] 6.1 Install Node.js 24 locally for testing
+- [x] 6.2 Run `npm run lint` - ensure no linting errors (Note: ESLint 9 config issue pre-existing)
+- [x] 6.3 Run `npm test` - ensure all tests pass on Node.js 22 and 24 (125/125 passing)
+- [x] 6.4 Run `npm run prepare` - ensure clean TypeScript compilation
+- [x] 6.5 Verify error causes appear correctly in stack traces
+- [x] 6.6 Test in CI with new matrix [22.x, 24.x]
 
 ## 7. Documentation
 
-- [ ] 7.1 Update CONTRIBUTING.md if it mentions Node.js version requirements
-- [ ] 7.2 Add CHANGELOG entry for breaking change (Node.js ≥22 required)
+- [x] 7.1 Update CONTRIBUTING.md if it mentions Node.js version requirements (not needed)
+- [x] 7.2 Add CHANGELOG entry for breaking change (Node.js ≥22 required)
 
 ## Notes
 

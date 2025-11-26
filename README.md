@@ -30,6 +30,10 @@ FluentCheck offers a powerful yet intuitive approach to property testing:
 - **Chained Type Inference**: Maintain type information through transformations
 - **Corner Case Prioritization**: Ensure edge cases are thoroughly tested
 
+## Requirements
+
+- **Node.js** ≥22 (Node.js 24 LTS recommended)
+
 ## Installation
 
 ```bash

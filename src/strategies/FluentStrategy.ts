@@ -86,14 +86,18 @@ export class FluentStrategy implements FluentStrategyInterface {
    * Returns true if there are still more inputs to be used; otherwise it returns false.
    */
   hasInput<K extends string>(_arbitraryName: K): boolean {
-    throw new Error('Method <hasInput> not implemented.')
+    throw new Error('Method <hasInput> not implemented.', {
+      cause: 'FluentStrategy.hasInput is abstract - subclasses must implement this method'
+    })
   }
 
   /**
    * Retrieves a new input from the arbitraries record.
    */
   getInput<K extends string, A>(_arbitraryName: K): FluentPick<A> {
-    throw new Error('Method <getInput > not implemented.')
+    throw new Error('Method <getInput > not implemented.', {
+      cause: 'FluentStrategy.getInput is abstract - subclasses must implement this method'
+    })
   }
 
   /**
@@ -102,6 +106,8 @@ export class FluentStrategy implements FluentStrategyInterface {
    * them to a file or even to track coverage.
    */
   handleResult() {
-    throw new Error('Method <handleResult> not implemented.')
+    throw new Error('Method <handleResult> not implemented.', {
+      cause: 'FluentStrategy.handleResult is abstract - subclasses must implement this method'
+    })
   }
 }

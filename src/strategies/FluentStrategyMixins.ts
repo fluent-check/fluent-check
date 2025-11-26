@@ -33,11 +33,15 @@ abstract class MixinBase {
   };
   
   buildArbitraryCollection<A>(arbitrary: Arbitrary<A>, sampleSize?: number): FluentPick<A>[] {
-    throw new Error('Method not implemented');
+    throw new Error('Method not implemented', {
+      cause: 'Mixin method requires implementation'
+    });
   }
   
   isDedupable(): boolean {
-    throw new Error('Method not implemented');
+    throw new Error('Method not implemented', {
+      cause: 'Mixin method requires implementation'
+    });
   }
 }
 
