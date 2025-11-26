@@ -139,7 +139,9 @@ function parseRegexPattern(pattern: string | RegExp): RegexCharClass[] {
       // Character class like [a-z]
       const endBracket = patternStr.indexOf(']', i)
       if (endBracket === -1) {
-        throw new Error(`Invalid regex pattern: missing closing bracket for character class starting at position ${i}`)
+        throw new Error(`Invalid regex pattern: missing closing bracket for character class starting at position ${i}`, {
+          cause: `Pattern parsing error at position ${i} in pattern: ${patternStr}`
+        })
       }
       
       const charClass = patternStr.substring(i, endBracket + 1)
