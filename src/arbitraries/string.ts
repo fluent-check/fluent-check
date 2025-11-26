@@ -1,6 +1,7 @@
 import * as util from './util.js'
 import {constant, array} from './index.js'
 import {Arbitrary, ArbitraryInteger, NoArbitrary} from './internal.js'
+import type { HexChar } from './types.js'
 
 const charArb = (min = 0x20, max = 0x7e): Arbitrary<string> => 
   min < 0x20 || max > 0x7e ? 
@@ -18,8 +19,8 @@ export const char = (start?: string, end?: string): Arbitrary<string> => {
 export const ascii = (): Arbitrary<string> =>
   new ArbitraryInteger(0x00, 0x7f).map(v => String.fromCodePoint(util.printableCharactersMapper(v)))
 
-export const hex = (): Arbitrary<string> =>
-  new ArbitraryInteger(0, 15).map(v => String.fromCodePoint(v < 10 ? v + 48 : v + 97 - 10))
+export const hex = (): Arbitrary<HexChar> =>
+  new ArbitraryInteger(0, 15).map(v => String.fromCodePoint(v < 10 ? v + 48 : v + 97 - 10) as HexChar)
 
 export const base64 = (): Arbitrary<string> =>
   new ArbitraryInteger(0, 63).map(v => String.fromCodePoint(util.base64Mapper(v)))
