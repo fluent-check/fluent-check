@@ -1,0 +1,319 @@
+# Arbitraries
+
+## Purpose
+
+Data generators for property-based testing that produce random values and support shrinking.
+
+## Requirements
+
+### Requirement: Arbitrary Base Class
+
+The system SHALL provide an abstract `Arbitrary<A>` base class that all data generators extend or implement.
+
+#### Scenario: Abstract methods
+- **WHEN** a new Arbitrary is implemented
+- **THEN** it MUST implement `size()`, `pick(generator)`, and `canGenerate(pick)` methods
+
+### Requirement: Integer Arbitrary
+
+The system SHALL provide an `integer(min?, max?)` function that creates an arbitrary generating integers within a range.
+
+#### Scenario: Generate bounded integers
+- **WHEN** `fc.integer(0, 100)` is called
+- **THEN** all generated values SHALL be integers in [0, 100]
+
+#### Scenario: Default bounds
+- **WHEN** `fc.integer()` is called without arguments
+- **THEN** the range defaults to [MIN_SAFE_INTEGER, MAX_SAFE_INTEGER]
+
+#### Scenario: Empty range
+- **WHEN** `fc.integer(10, 5)` is called (min > max)
+- **THEN** NoArbitrary SHALL be returned
+
+#### Scenario: Single value
+- **WHEN** `fc.integer(5, 5)` is called (min === max)
+- **THEN** a constant arbitrary SHALL be returned
+
+### Requirement: Real Arbitrary
+
+The system SHALL provide a `real(min?, max?)` function that creates an arbitrary generating real numbers within a range.
+
+#### Scenario: Generate bounded reals
+- **WHEN** `fc.real(-1.0, 1.0)` is called
+- **THEN** all generated values SHALL be real numbers in [-1.0, 1.0]
+
+### Requirement: Natural Number Arbitrary
+
+The system SHALL provide a `nat(min?, max?)` function that creates an arbitrary generating non-negative integers.
+
+#### Scenario: Generate natural numbers
+- **WHEN** `fc.nat()` is called
+- **THEN** all generated values SHALL be >= 0
+
+#### Scenario: Negative max returns empty
+- **WHEN** `fc.nat(0, -5)` is called
+- **THEN** NoArbitrary SHALL be returned
+
+### Requirement: Boolean Arbitrary
+
+The system SHALL provide a `boolean()` function that creates an arbitrary generating true/false values.
+
+#### Scenario: Generate booleans
+- **WHEN** `fc.boolean()` is called
+- **THEN** the arbitrary generates both `true` and `false` values
+
+### Requirement: String Arbitraries
+
+The system SHALL provide string generation functions with various character sets.
+
+#### Scenario: char function
+- **WHEN** `fc.char('a', 'z')` is called
+- **THEN** single characters in the range 'a' to 'z' are generated
+
+#### Scenario: string function
+- **WHEN** `fc.string(5, 10)` is called
+- **THEN** strings of length 5-10 are generated using printable characters
+
+#### Scenario: ascii function
+- **WHEN** `fc.ascii()` is called
+- **THEN** single ASCII characters are generated
+
+#### Scenario: unicode function
+- **WHEN** `fc.unicode()` is called
+- **THEN** unicode characters are generated
+
+#### Scenario: hex function
+- **WHEN** `fc.hex()` is called
+- **THEN** hexadecimal digit characters (0-9, a-f) are generated
+
+#### Scenario: base64 function
+- **WHEN** `fc.base64()` is called
+- **THEN** base64 alphabet characters are generated
+
+### Requirement: Array Arbitrary
+
+The system SHALL provide an `array(arbitrary, min?, max?)` function that creates arrays of generated values.
+
+#### Scenario: Generate bounded arrays
+- **WHEN** `fc.array(fc.integer(), 1, 5)` is called
+- **THEN** arrays of 1-5 integers are generated
+
+#### Scenario: Empty range
+- **WHEN** `fc.array(fc.integer(), 5, 1)` is called (min > max)
+- **THEN** NoArbitrary SHALL be returned
+
+### Requirement: Set Arbitrary
+
+The system SHALL provide a `set(elements, min?, max?)` function that creates subsets of the given elements.
+
+#### Scenario: Generate subsets
+- **WHEN** `fc.set([1, 2, 3, 4, 5], 2, 3)` is called
+- **THEN** arrays of 2-3 unique elements from the input are generated
+
+### Requirement: Tuple Arbitrary
+
+The system SHALL provide a `tuple(...arbitraries)` function that creates tuples of generated values.
+
+#### Scenario: Generate typed tuples
+- **WHEN** `fc.tuple(fc.integer(), fc.string(), fc.boolean())` is called
+- **THEN** tuples of type `[number, string, boolean]` are generated
+
+### Requirement: Constant Arbitrary
+
+The system SHALL provide a `constant(value)` function that always generates the same value.
+
+#### Scenario: Generate constant
+- **WHEN** `fc.constant(42)` is called
+- **THEN** the value 42 is always generated
+
+### Requirement: OneOf Combinator
+
+The system SHALL provide an `oneof(elements)` function that generates one of the given values.
+
+#### Scenario: Generate from set
+- **WHEN** `fc.oneof(['a', 'b', 'c'])` is called
+- **THEN** one of 'a', 'b', or 'c' is generated each time
+
+#### Scenario: Empty array
+- **WHEN** `fc.oneof([])` is called
+- **THEN** NoArbitrary SHALL be returned
+
+### Requirement: Union Combinator
+
+The system SHALL provide a `union(...arbitraries)` function that combines multiple arbitraries.
+
+#### Scenario: Union of arbitraries
+- **WHEN** `fc.union(fc.integer(0, 10), fc.integer(90, 100))` is called
+- **THEN** values from either range are generated
+
+#### Scenario: Single arbitrary
+- **WHEN** `fc.union(fc.integer())` is called with one arbitrary
+- **THEN** that arbitrary is returned directly
+
+### Requirement: Date/Time Arbitraries
+
+The system SHALL provide date and time generation functions.
+
+#### Scenario: date function
+- **WHEN** `fc.date(new Date('2020-01-01'), new Date('2020-12-31'))` is called
+- **THEN** Date objects within the range are generated
+
+#### Scenario: time function
+- **WHEN** `fc.time()` is called
+- **THEN** time objects with hour, minute, second, millisecond are generated
+
+#### Scenario: datetime function
+- **WHEN** `fc.datetime()` is called
+- **THEN** Date objects with full datetime precision are generated
+
+#### Scenario: duration function
+- **WHEN** `fc.duration(48)` is called
+- **THEN** duration objects up to 48 hours are generated
+
+### Requirement: Time Utilities
+
+The system SHALL provide utility functions for working with time and duration.
+
+#### Scenario: Convert to milliseconds
+- **WHEN** `fc.timeToMilliseconds(timeObj)` is called
+- **THEN** the total duration in milliseconds is returned
+
+### Requirement: Regex Arbitrary
+
+The system SHALL provide a `regex(pattern, maxLength?)` function that generates strings matching a regular expression.
+
+#### Scenario: Generate from pattern
+- **WHEN** `fc.regex(/\d{3}-\d{4}/)` is called
+- **THEN** strings matching the phone number pattern are generated
+
+#### Scenario: Respect maxLength
+- **WHEN** `fc.regex(/\w+/, 10)` is called
+- **THEN** generated strings SHALL not exceed 10 characters
+
+### Requirement: Pattern Generators
+
+The system SHALL provide pre-built generators for common patterns via `fc.patterns`.
+
+#### Scenario: email pattern
+- **WHEN** `fc.patterns.email()` is called
+- **THEN** valid email address strings are generated
+
+#### Scenario: uuid pattern
+- **WHEN** `fc.patterns.uuid()` is called
+- **THEN** valid UUID v4 strings are generated
+
+#### Scenario: ipv4 pattern
+- **WHEN** `fc.patterns.ipv4()` is called
+- **THEN** valid IPv4 address strings are generated
+
+#### Scenario: url pattern
+- **WHEN** `fc.patterns.url()` is called
+- **THEN** valid URL strings are generated
+
+### Requirement: Map Transformation
+
+The system SHALL provide a `map(f, shrinkHelper?)` method to transform generated values.
+
+#### Scenario: Transform values
+- **WHEN** `fc.integer().map(n => n * 2)` is called
+- **THEN** all generated values are doubled
+
+#### Scenario: Inverse map for shrinking
+- **WHEN** `map(f, {inverseMap: f'})` is provided
+- **THEN** shrinking can work backwards through the transformation
+
+### Requirement: Filter Transformation
+
+The system SHALL provide a `filter(predicate)` method to constrain generated values.
+
+#### Scenario: Filter values
+- **WHEN** `fc.integer().filter(n => n % 2 === 0)` is called
+- **THEN** only even numbers are generated
+
+#### Scenario: Corner cases filtered
+- **WHEN** a filter is applied
+- **THEN** corner cases that don't pass the filter SHALL be excluded
+
+### Requirement: Chain Transformation
+
+The system SHALL provide a `chain(f)` method for dependent arbitrary generation.
+
+#### Scenario: Dependent generation
+- **WHEN** `fc.integer(1, 10).chain(n => fc.array(fc.string(), n, n))` is called
+- **THEN** arrays whose length depends on the generated integer are produced
+
+### Requirement: Corner Cases
+
+The system SHALL provide corner case values with higher priority during sampling.
+
+#### Scenario: Integer corner cases
+- **WHEN** sampling from `fc.integer(0, 100)`
+- **THEN** values like 0, 1, and 100 SHALL be included as corner cases
+
+#### Scenario: Boolean corner cases
+- **WHEN** sampling from `fc.boolean()`
+- **THEN** both `true` and `false` SHALL be corner cases
+
+#### Scenario: String corner cases
+- **WHEN** sampling from `fc.string(0, 10)`
+- **THEN** the empty string SHALL be a corner case
+
+#### Scenario: Array corner cases
+- **WHEN** sampling from `fc.array(fc.integer(), 0, 10)`
+- **THEN** the empty array SHALL be a corner case
+
+### Requirement: Sampling Methods
+
+The system SHALL provide multiple sampling methods for generating test cases.
+
+#### Scenario: sample method
+- **WHEN** `arbitrary.sample(10)` is called
+- **THEN** 10 picks are returned (may contain duplicates)
+
+#### Scenario: sampleUnique method
+- **WHEN** `arbitrary.sampleUnique(10)` is called
+- **THEN** up to 10 unique picks are returned
+
+#### Scenario: sampleWithBias method
+- **WHEN** `arbitrary.sampleWithBias(10)` is called
+- **THEN** corner cases are included at the start of the sample
+
+#### Scenario: sampleUniqueWithBias method
+- **WHEN** `arbitrary.sampleUniqueWithBias(10)` is called
+- **THEN** unique picks with corner case bias are returned
+
+### Requirement: Size Estimation
+
+The system SHALL provide size information for arbitraries.
+
+#### Scenario: Exact size
+- **WHEN** `fc.integer(0, 10).size()` is called
+- **THEN** an exact size with value 11 is returned
+
+#### Scenario: Estimated size
+- **WHEN** a filtered arbitrary's size is queried
+- **THEN** an estimated size with credible interval is returned
+
+### Requirement: NoArbitrary Singleton
+
+The system SHALL provide a `NoArbitrary` instance representing an impossible/empty arbitrary.
+
+#### Scenario: Empty factory
+- **WHEN** `fc.empty()` is called
+- **THEN** the NoArbitrary singleton is returned
+
+#### Scenario: Size is zero
+- **WHEN** `NoArbitrary.size()` is called
+- **THEN** size value SHALL be 0
+
+#### Scenario: Sample is empty
+- **WHEN** `NoArbitrary.sample()` is called
+- **THEN** an empty array SHALL be returned
+
+#### Scenario: Vacuous truth for universal
+- **WHEN** a forall property uses NoArbitrary
+- **THEN** the property SHALL be satisfiable (vacuous truth)
+
+#### Scenario: Unsatisfiable for existential
+- **WHEN** an exists property uses NoArbitrary
+- **THEN** the property SHALL be unsatisfiable
