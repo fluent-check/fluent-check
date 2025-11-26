@@ -13,7 +13,7 @@ Instructions for AI coding assistants using OpenSpec for spec-driven development
 - Run `openspec validate <change-id> --strict` and fix issues
 - Wait for approval before implementing
 - Run `git checkout -b openspec/<change-id>` before implementing
-- Run `gh pr create --draft --title "Implement: <title>" --body "Closes: #<N>"`
+- Run `gh pr create --draft --title "<type>: <description>"` (use semantic PR title format)
 - After all tasks complete, run `gh pr ready`
 
 ## GitHub Integration
@@ -68,6 +68,38 @@ git pull origin openspec/<change-id> 2>/dev/null || true
 
 Never implement on `main` or `master`.
 
+### PR Title Format (Semantic)
+
+**IMPORTANT:** This repository uses `amannn/action-semantic-pull-request@v5` to enforce semantic PR titles. Check `.github/workflows/pull-request.yml` for project-specific configuration.
+
+PR titles MUST follow the format: `<type>: <description>`
+
+**Allowed types:**
+- `feat` - New feature or capability
+- `fix` - Bug fix
+- `docs` - Documentation changes
+- `chore` - Maintenance tasks, dependency updates
+- `style` - Code style changes (formatting, no logic change)
+- `refactor` - Code refactoring (no feature change)
+- `perf` - Performance improvements
+- `test` - Adding or updating tests
+- `build` - Build system changes
+- `ci` - CI/CD changes
+- `revert` - Reverting previous changes
+
+**Examples:**
+```
+feat: add template literal types for pattern validation
+fix: resolve regex parsing edge case
+refactor: modernize to ES2024 syntax
+docs: update API documentation
+```
+
+**DO NOT use:**
+- `Implement: ...` ❌
+- `Add feature: ...` ❌
+- `WIP: ...` ❌
+
 ### Draft PR Creation
 
 Push branch:
@@ -76,11 +108,11 @@ Push branch:
 git push -u origin openspec/<change-id>
 ```
 
-Create draft PR with issue link:
+Create draft PR with semantic title and issue link:
 
 ```bash
 gh pr create \
-  --title "Implement: <change-title>" \
+  --title "feat: <short-description>" \
   --body "$(cat <<'EOF'
 ## Summary
 
@@ -103,7 +135,7 @@ EOF
   --draft
 ```
 
-Always use `--draft` flag. Always include `Closes: #<issue-number>` in body.
+Always use `--draft` flag. Always include `Closes: #<issue-number>` in body. Always use semantic PR title format.
 
 ### PR Completion
 
@@ -136,10 +168,11 @@ gh issue edit <number> --body "..."
 gh issue view <number>
 gh issue list --label "enhancement"
 
-# Pull Requests
-gh pr create --title "<title>" --body "..." --draft
+# Pull Requests (use semantic titles: feat/fix/docs/chore/refactor/perf/test/build/ci/revert)
+gh pr create --title "feat: <description>" --body "..." --draft
 gh pr ready
 gh pr edit --add-reviewer <user>
+gh pr edit --title "feat: <new-title>"  # Fix title if needed
 gh pr view
 gh pr list --state open
 
@@ -160,7 +193,7 @@ Stage 1 (Proposal):
 Stage 2 (Implementation):
 1. Run `git branch --show-current` - verify not on main/master
 2. Run `git checkout -b openspec/<change-id>` if branch doesn't exist
-3. Run `gh pr create --draft` with `Closes: #<issue-number>`
+3. Run `gh pr create --draft` with semantic title (`feat:`, `fix:`, etc.) and `Closes: #<issue-number>`
 4. Complete all tasks in `tasks.md`
 5. Run `openspec validate <change-id> --strict`
 6. Run `gh pr ready`
@@ -212,7 +245,7 @@ Track these steps as TODOs and complete them one by one.
 1. Run `cat openspec/changes/<change-id>/proposal.md | grep "GitHub Issue:"` to verify issue link exists
 2. Run `git branch --show-current` to verify not on main/master
 3. Run `git checkout -b openspec/<change-id>` to create branch
-4. Run `gh pr create --draft` with `Closes: #<issue-number>` in body
+4. Run `gh pr create --draft` with semantic title (`feat:`, `fix:`, etc.) and `Closes: #<issue-number>` in body
 
 **Implementation:**
 5. Read `openspec/changes/<change-id>/proposal.md` to understand what's being built
