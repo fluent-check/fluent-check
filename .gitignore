@@ -4,3 +4,15 @@ node_modules
 src/notebook*.ts
 coverage
 .nyc_output
+.DS_Store
+
+# Latex temporary files
+docs/papers/*.aux
+docs/papers/*.log
+docs/papers/*.out
+docs/papers/*.tex
+docs/papers/*.blg
+docs/papers/*.bbl
+docs/papers/*.fls
+docs/papers/*.fdb_latexmk
+docs/papers/*.synctex.gz
