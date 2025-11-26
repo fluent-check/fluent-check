@@ -50,27 +50,39 @@ it('finds if addition has an inverse', () => {
 
 ## Implementation Details
 
-The implementation distinguishes between universal and existential quantifiers by having different "break values":
+The implementation distinguishes between universal and existential quantifiers using specialized classes that extend a common base:
 
 ```typescript
 abstract class FluentCheckQuantifier<K extends string, A, Rec extends ParentRec & Record<K, A>, ParentRec extends {}>
   extends FluentCheck<Rec, ParentRec> {
-  // ...
+
+  constructor(
+    protected readonly parent: FluentCheck<ParentRec, any>,
+    public readonly name: K,
+    public readonly a: Arbitrary<A>,
+    strategy: FluentStrategy) {
+    super(strategy, parent)
+    this.strategy.addArbitrary(this.name, a)
+  }
+
   protected run(
     testCase: WrapFluentPick<Rec>,
     callback: (arg: WrapFluentPick<Rec>) => FluentResult,
     partial: FluentResult | undefined = undefined,
     depth = 0): FluentResult {
-    // ...
+
+    this.strategy.configArbitrary(this.name, partial, depth)
+
     while (this.strategy.hasInput(this.name)) {
       testCase[this.name] = this.strategy.getInput(this.name)
       const result = callback(testCase)
       if (result.satisfiable === this.breakValue) {
         result.addExample(this.name, testCase[this.name])
-        return this.run(testCase, callback, result, depth + 1)
+        return this.run(testCase, callback, result, depth + 1)  // Shrinking loop
       }
     }
-    // ...
+
+    return partial ?? new FluentResult(!this.breakValue)
   }
 
   abstract breakValue: boolean
@@ -78,12 +90,12 @@ abstract class FluentCheckQuantifier<K extends string, A, Rec extends ParentRec 
 
 class FluentCheckUniversal<K extends string, A, Rec extends ParentRec & Record<K, A>, ParentRec extends {}>
   extends FluentCheckQuantifier<K, A, Rec, ParentRec> {
-  breakValue = false
+  breakValue = false  // Stops when property fails (found counterexample)
 }
 
 class FluentCheckExistential<K extends string, A, Rec extends ParentRec & Record<K, A>, ParentRec extends {}>
   extends FluentCheckQuantifier<K, A, Rec, ParentRec> {
-  breakValue = true
+  breakValue = true   // Stops when property succeeds (found witness)
 }
 ```
 

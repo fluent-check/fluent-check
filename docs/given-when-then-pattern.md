@@ -23,65 +23,73 @@ FluentCheck implements the pattern through a series of fluent method calls:
 
 ```typescript
 export class FluentCheck<Rec extends ParentRec, ParentRec extends {}> {
-  // Given methods for defining inputs
-  forall<K extends string, A>(
-    arbitraryName: K,
-    arbitrary: Arbitrary<A>,
-  ): FluentCheck<Record<K, A> & Rec, ParentRec> {
-    this.strategy.addArbitrary(arbitraryName, arbitrary)
-    return this as unknown as FluentCheck<Record<K, A> & Rec, ParentRec>
+  constructor(
+    public strategy: FluentStrategy = new FluentStrategyFactory().defaultStrategy().build(),
+    protected readonly parent: FluentCheck<ParentRec, any> | undefined = undefined
+  ) {}
+
+  // Given methods for defining inputs (universal quantifier)
+  forall<K extends string, A>(name: K, a: Arbitrary<A>): FluentCheck<Rec & Record<K, A>, Rec> {
+    return new FluentCheckUniversal(this, name, a, this.strategy)
   }
 
-  // Conditional inputs
-  assuming<R extends Rec>(
-    condition: (input: R) => boolean,
-  ): FluentCheck<Rec, ParentRec> {
-    this.strategy.conditions.push(condition as (input: any) => boolean)
-    return this
+  // Existential quantifier
+  exists<K extends string, A>(name: K, a: Arbitrary<A>): FluentCheck<Rec & Record<K, A>, Rec> {
+    return new FluentCheckExistential(this, name, a, this.strategy)
   }
 
-  // When methods for processing
-  map<A, T extends ParentRec = ParentRec>(
-    f: (input: Rec) => A,
-  ): FluentCheckTransformed<A, Rec, T> {
-    // Transform the input and return a new FluentCheck instance
-    return new FluentCheckTransformed<A, Rec, T>(f, this)
+  // Given methods for computing derived values
+  given<K extends string, V>(name: K, v: V | ((args: Rec) => V)): FluentCheckGiven<K, V, Rec & Record<K, V>, Rec> {
+    return v instanceof Function ?
+      new FluentCheckGivenMutable(this, name, v, this.strategy) :
+      new FluentCheckGivenConstant<K, V, Rec & Record<K, V>, Rec>(this, name, v, this.strategy)
+  }
+
+  // When methods for side effects
+  when(f: (givens: Rec) => void): FluentCheckWhen<Rec, ParentRec> {
+    return new FluentCheckWhen(this, f, this.strategy)
   }
 
   // Then methods for assertions
-  then(
-    property: (input: Rec) => boolean | Promise<boolean>,
-  ): FluentCheckResult {
-    // Handle the property evaluation
-    return this.evaluate(property)
+  then(f: (arg: Rec) => boolean): FluentCheckAssert<Rec, ParentRec> {
+    return new FluentCheckAssert(this, f, this.strategy)
   }
 }
 ```
 
 The core implementation uses TypeScript's type system to ensure type safety between phases:
 
-1. `.forall()` methods add arbitraries and extend the type signature
-2. `.assuming()` adds runtime conditions without changing the type
-3. `.map()` transforms inputs and potentially changes the type
+1. `.forall()` / `.exists()` methods add arbitraries and extend the type signature
+2. `.given()` computes derived values and extends the type
+3. `.when()` executes side effects without changing the type
 4. `.then()` accepts a property function matching the accumulated type
 
-The `FluentCheckResult` instance returned by `.then()` provides methods to control test execution:
+The `FluentResult` class encapsulates test results:
 
 ```typescript
-export class FluentCheckResult {
+export class FluentResult {
   constructor(
-    private readonly checkFn: () => Promise<CheckResult>,
-    private readonly rethrow = false,
+    public readonly satisfiable = false,
+    public example: PickResult<any> = {},
+    public readonly seed?: number
   ) {}
 
-  async check(): Promise<CheckResult> {
-    // Run the test and return the result
-    return this.checkFn()
+  addExample<A>(name: string, value: FluentPick<A>) {
+    this.example[name] = value
   }
+}
+```
 
-  // Control behavior on failure
-  rethrowOnFailure(): FluentCheckResult {
-    return new FluentCheckResult(this.checkFn, true)
+The `check()` method runs the test and returns a `FluentResult`:
+
+```typescript
+check(child: (testCase: WrapFluentPick<any>) => FluentResult = () => new FluentResult(true)): FluentResult {
+  if (this.parent !== undefined) return this.parent.check(testCase => this.run(testCase, child))
+  else {
+    this.strategy.randomGenerator.initialize()
+    const r = this.run({} as Rec, child)
+    return new FluentResult(r.satisfiable, FluentCheck.unwrapFluentPick(r.example),
+      this.strategy.randomGenerator.seed)
   }
 }
 ```
@@ -95,15 +103,17 @@ const result = fc.scenario()
   .forall('x', fc.integer())
   .forall('y', fc.integer())
   .then(({x, y}) => x + y === y + x) // TypeScript knows x and y are integers
+  .check()
 ```
 
-The type system even handles transformations:
+The type system also handles computed values with `.given()`:
 
 ```typescript
 const result = fc.scenario()
   .forall('x', fc.integer())
-  .map(({x}) => ({squared: x * x}))
-  .then(({squared}) => squared >= 0) // TypeScript knows squared is a number
+  .given('squared', ({x}) => x * x)
+  .then(({x, squared}) => squared >= 0) // TypeScript knows both x and squared are numbers
+  .check()
 ```
 
 ## Practical Usage Examples
@@ -118,32 +128,29 @@ fc.scenario()
   .check()
 ```
 
-Testing with preconditions:
+Testing with preconditions using filtered arbitraries:
 
 ```typescript
+// Use filter on the arbitrary rather than a separate precondition method
 fc.scenario()
-  .forall('x', fc.integer())
-  .forall('y', fc.integer())
-  .assuming(({x, y}) => y !== 0)
+  .forall('x', fc.integer(-100, 100))
+  .forall('y', fc.integer(-100, 100).filter(y => y !== 0))  // Precondition via filter
   .then(({x, y}) => (x / y) * y === x - (x % y))
   .check()
 ```
 
-Multi-step scenario with transformations:
+Multi-step scenario with given computed values:
 
 ```typescript
 fc.scenario()
   .forall('array', fc.array(fc.integer()))
-  .map(({array}) => {
-    const sorted = [...array].sort((a, b) => a - b);
-    return {original: array, sorted};
-  })
-  .then(({original, sorted}) => {
+  .given('sorted', ({array}) => [...array].sort((a, b) => a - b))
+  .then(({array, sorted}) => {
     // Array length doesn't change
-    if (original.length !== sorted.length) return false;
+    if (array.length !== sorted.length) return false;
     
     // Every element from original is in sorted
-    for (const item of original) {
+    for (const item of array) {
       if (!sorted.includes(item)) return false;
     }
     
@@ -159,74 +166,65 @@ fc.scenario()
 
 ## Integration with Testing Frameworks
 
-FluentCheck's Given-When-Then pattern integrates smoothly with testing frameworks like Jest:
+FluentCheck's Given-When-Then pattern integrates smoothly with testing frameworks like Mocha/Chai:
 
 ```typescript
+import * as fc from 'fluent-check'
+import {expect} from 'chai'
+
 describe('Array sorting', () => {
-  test('maintains all elements and sorts them', async () => {
-    const result = await fc.scenario()
+  it('maintains all elements and sorts them', () => {
+    const result = fc.scenario()
       .forall('array', fc.array(fc.integer(), 0, 100))
-      .map(({array}) => {
-        const sorted = [...array].sort((a, b) => a - b);
-        return {original: array, sorted};
-      })
-      .then(({original, sorted}) => {
-        // Property checks...
-        return original.length === sorted.length &&
-               original.every(x => sorted.includes(x)) &&
+      .given('sorted', ({array}) => [...array].sort((a, b) => a - b))
+      .then(({array, sorted}) => {
+        return array.length === sorted.length &&
+               array.every(x => sorted.includes(x)) &&
                [...sorted.keys()].slice(1).every(i => sorted[i] >= sorted[i-1]);
       })
       .check();
     
-    expect(result.counterexample).toBeUndefined();
+    expect(result).to.have.property('satisfiable', true);
   });
 });
 ```
 
 ## Advanced Features
 
-### Dependent Inputs
+### Chained Arbitraries
 
-FluentCheck supports defining arbitraries that depend on previously defined values:
-
-```typescript
-fc.scenario()
-  .forall('size', fc.integer(1, 100))
-  .forall('array', ({size}) => fc.array(fc.integer(), size, size))
-  .then(({size, array}) => array.length === size)
-  .check()
-```
-
-### Asynchronous Properties
-
-The Given-When-Then pattern fully supports asynchronous property functions:
+FluentCheck supports arbitraries that depend on other values using `.chain()`:
 
 ```typescript
 fc.scenario()
-  .forall('id', fc.integer(1, 1000))
-  .then(async ({id}) => {
-    const user = await fetchUserById(id);
-    return user.id === id;
-  })
+  .forall('array', fc.integer(1, 10).chain(size => fc.array(fc.integer(), size, size)))
+  .then(({array}) => array.length >= 1 && array.length <= 10)
   .check()
 ```
 
-### Multiple Property Assertions
+### Using Given for Computed Values
 
-Multiple properties can be tested within a single test case:
+The `.given()` method allows computing derived values from previously defined inputs:
+
+```typescript
+fc.scenario()
+  .forall('n', fc.integer(0, 100))
+  .given('a', () => fc.integer(0, 50))  // Can also create new arbitraries
+  .then(({n, a}) => a.sample(n).every(i => i.value <= 50))
+  .check()
+```
+
+### Multiple Property Assertions with `.and()`
+
+Multiple properties can be chained using `.and()`:
 
 ```typescript
 fc.scenario()
   .forall('x', fc.integer())
-  .then(({x}) => {
-    // Test multiple properties of the result
-    const absX = Math.abs(x);
-    return (
-      absX >= 0 &&
-      (x !== 0 ? absX > 0 : absX === 0) &&
-      absX === Math.abs(-x)
-    );
-  })
+  .given('absX', ({x}) => Math.abs(x))
+  .then(({absX}) => absX >= 0)
+  .and(({x, absX}) => x !== 0 ? absX > 0 : absX === 0)
+  .and(({x, absX}) => absX === Math.abs(-x))
   .check()
 ```
 

@@ -16,9 +16,7 @@ Many bugs occur at boundary conditions or corner cases. Rather than relying sole
 The corner case system is implemented in the `Arbitrary` base class:
 
 ```typescript
-abstract class Arbitrary<A> {
-  // ...
-  
+export abstract class Arbitrary<A> {
   /**
    * The special cases for this arbitrary, which can be used during sampling to give
    * higher weight to certain elements.
@@ -41,41 +39,41 @@ abstract class Arbitrary<A> {
 
     return sample
   }
-  
-  // ...
+
+  /**
+   * Returns a sample of unique picks biased toward corner cases.
+   */
+  sampleUniqueWithBias(sampleSize = 10, generator: () => number = Math.random): FluentPick<A>[] {
+    const cornerCases = this.cornerCases()
+
+    if (sampleSize <= cornerCases.length)
+      return this.sampleUnique(sampleSize, [], generator)
+
+    return this.sampleUnique(sampleSize, cornerCases, generator)
+  }
 }
 ```
 
-Each specific arbitrary type can override the `cornerCases` method to define its own corner cases:
+Each specific arbitrary type overrides the `cornerCases` method to define its own corner cases. The tests verify the actual corner cases returned:
 
 ```typescript
-class ArbitraryInteger extends Arbitrary<number> {
-  // ...
-  
-  cornerCases(): FluentPick<number>[] {
-    const cases: number[] = []
-    if (this.min <= 0 && this.max >= 0) cases.push(0)
-    if (this.min <= 1 && this.max >= 1) cases.push(1)
-    if (this.min <= -1 && this.max >= -1) cases.push(-1)
-    if (this.min !== Number.MIN_SAFE_INTEGER) cases.push(this.min)
-    if (this.max !== Number.MAX_SAFE_INTEGER) cases.push(this.max)
-    
-    return cases.map(n => ({value: n, path: [n]}))
-  }
-}
+// From arbitrary.test.ts - actual corner case behavior
+it('should return the corner cases of integers', () => {
+  expect(fc.integer().cornerCases().map(c => c.value)).to.have.members(
+    [0, -Number.MAX_SAFE_INTEGER, Number.MAX_SAFE_INTEGER]
+  )
+  expect(fc.integer(1,10).cornerCases().map(c => c.value)).to.have.members([1, 6, 10])
+  expect(fc.integer(-10,10).cornerCases().map(c => c.value)).to.have.members([0, -10, 10])
+})
 
-class ArbitraryString extends Arbitrary<string> {
-  // ...
-  
-  cornerCases(): FluentPick<string>[] {
-    return [
-      {value: '', path: ['']},
-      {value: ' ', path: [' ']},
-      {value: '\n', path: ['\n']},
-      {value: '\0', path: ['\0']}
-    ]
-  }
-}
+it('should return the corner cases of booleans', () => {
+  expect(fc.boolean().cornerCases().map(c => c.value)).to.have.members([true, false])
+})
+
+it('should return the corner cases of strings', () => {
+  expect(fc.string(0, 0).cornerCases().map(c => c.value)).to.have.members([''])
+  expect(fc.string(1, 3, fc.char('a')).cornerCases().map(c => c.value)).to.have.members(['a', 'aaa'])
+})
 ```
 
 The tests verify that these corner cases are correctly implemented:

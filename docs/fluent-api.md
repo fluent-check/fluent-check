@@ -45,20 +45,38 @@ The implementation uses TypeScript's generic types and record types to build up 
 
 ```typescript
 export class FluentCheck<Rec extends ParentRec, ParentRec extends {}> {
-  // ...
+  constructor(
+    public strategy: FluentStrategy = new FluentStrategyFactory().defaultStrategy().build(),
+    protected readonly parent: FluentCheck<ParentRec, any> | undefined = undefined
+  ) {}
+
+  // Universal quantifier - property must hold for all values
   forall<K extends string, A>(name: K, a: Arbitrary<A>): FluentCheck<Rec & Record<K, A>, Rec> {
     return new FluentCheckUniversal(this, name, a, this.strategy)
   }
-  // ...
+
+  // Existential quantifier - property must hold for at least one value
+  exists<K extends string, A>(name: K, a: Arbitrary<A>): FluentCheck<Rec & Record<K, A>, Rec> {
+    return new FluentCheckExistential(this, name, a, this.strategy)
+  }
+
+  // Computed values added to the context
+  given<K extends string, V>(name: K, v: V | ((args: Rec) => V)): FluentCheckGiven<K, V, Rec & Record<K, V>, Rec>
+
+  // Side effects before assertions
+  when(f: (givens: Rec) => void): FluentCheckWhen<Rec, ParentRec>
+
+  // Property assertion
+  then(f: (arg: Rec) => boolean): FluentCheckAssert<Rec, ParentRec>
 }
 ```
 
-Each call to `forall` returns a new `FluentCheck` instance with an updated type parameter that includes the new variable name and type. The generic type parameters track:
+Each call to `forall` or `exists` returns a new `FluentCheck` instance with an updated type parameter that includes the new variable name and type. The generic type parameters track:
 
 1. `Rec`: The current record of all variables defined so far
 2. `ParentRec`: The previous record, used for maintaining the chain
 
-The result of property tests is encapsulated in the `FluentResult` class, which includes:
+The result of property tests is encapsulated in the `FluentResult` class:
 
 ```typescript
 export class FluentResult {
@@ -66,19 +84,27 @@ export class FluentResult {
     public readonly satisfiable = false,
     public example: PickResult<any> = {},
     public readonly seed?: number) { }
-  // ...
+
+  addExample<A>(name: string, value: FluentPick<A>) {
+    this.example[name] = value
+  }
 }
 ```
 
 This allows for rich assertions in tests:
 
 ```typescript
+// Check if property is satisfiable
 expect(result).to.have.property('satisfiable', true);
-// Or for checking specific examples:
+
+// Check specific example values
 expect(result).to.deep.include({
   satisfiable: true, 
-  example: {a: 0} // Example value that satisfies the property
+  example: {a: 0}  // Example value that satisfies the property
 });
+
+// Check the seed for reproducibility
+console.log('Seed for reproduction:', result.seed);
 ```
 
 ## Limitations

@@ -16,9 +16,7 @@ When a property test fails, the initial counterexample is often complex and cont
 Shrinking is implemented at the arbitrary level through the `shrink` method:
 
 ```typescript
-abstract class Arbitrary<A> {
-  // ...
-  
+export abstract class Arbitrary<A> {
   /**
    * Given a pick known to falsify a property, returns a new arbitrary with simpler cases to be tested.
    * This is part of FluentCheck's behavior of searching for simpler counter-examples after one is found.
@@ -26,8 +24,6 @@ abstract class Arbitrary<A> {
   shrink<B extends A>(_initial: FluentPick<B>): Arbitrary<A> {
     return NoArbitrary
   }
-  
-  // ...
 }
 ```
 
@@ -52,24 +48,23 @@ Each arbitrary type implements its own shrinking strategy:
 1. **Numbers**: Shrink toward 0 or other "simple" values
 2. **Strings**: Shrink by reducing length or complexity
 3. **Arrays**: Shrink by removing elements or shrinking individual elements
-4. **Objects**: Shrink each property while maintaining the structure
+4. **Tuples**: Shrink each element while maintaining the structure
 
-Composite arbitraries like `MappedArbitrary` handle shrinking by leveraging the base arbitrary's shrinking capabilities:
+Shrinking is integrated into the strategy system through the `Shrinkable` mixin:
 
 ```typescript
-class MappedArbitrary<A, B> extends Arbitrary<B> {
-  // ...
-  
-  shrink<C extends B>(initial: FluentPick<C>): Arbitrary<B> {
-    if (this.inverseMap) {
-      // Use inverse map to shrink the base value
-      const possibleAs = this.inverseMap(initial.value)
-      // ... shrinking logic
+export function Shrinkable<TBase extends MixinStrategy>(Base: TBase) {
+  return class extends Base {
+    shrink<K extends string>(arbitraryName: K, partial: FluentResult) {
+      const shrinkedArbitrary = this.arbitraries[arbitraryName].arbitrary.shrink(partial.example[arbitraryName])
+      this.arbitraries[arbitraryName].collection = this.buildArbitraryCollection(shrinkedArbitrary,
+        this.configuration.shrinkSize!)
     }
-    return NoArbitrary
   }
 }
 ```
+
+The shrinking process is triggered automatically when a property fails and the strategy includes the `Shrinkable` mixin (which is part of the default strategy).
 
 Tests show that shrinking works for complex, composed arbitraries:
 

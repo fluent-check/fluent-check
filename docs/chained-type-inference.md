@@ -18,37 +18,40 @@ FluentCheck uses TypeScript's generic type parameters and type inference to buil
 
 ```typescript
 export class FluentCheck<Rec extends ParentRec, ParentRec extends {}> {
+  constructor(
+    public strategy: FluentStrategy = new FluentStrategyFactory().defaultStrategy().build(),
+    protected readonly parent: FluentCheck<ParentRec, any> | undefined = undefined
+  ) {}
+
   // Core methods that maintain and extend type information
-  forall<K extends string, A>(
-    arbitraryName: K,
-    arbitrary: Arbitrary<A>,
-  ): FluentCheck<Record<K, A> & Rec, ParentRec> {
-    this.strategy.addArbitrary(arbitraryName, arbitrary)
-    return this as unknown as FluentCheck<Record<K, A> & Rec, ParentRec>
+  forall<K extends string, A>(name: K, a: Arbitrary<A>): FluentCheck<Rec & Record<K, A>, Rec> {
+    return new FluentCheckUniversal(this, name, a, this.strategy)
   }
 
-  // Type transformation
-  map<A, T extends ParentRec = ParentRec>(
-    f: (input: Rec) => A,
-  ): FluentCheckTransformed<A, Rec, T> {
-    return new FluentCheckTransformed<A, Rec, T>(f, this)
+  exists<K extends string, A>(name: K, a: Arbitrary<A>): FluentCheck<Rec & Record<K, A>, Rec> {
+    return new FluentCheckExistential(this, name, a, this.strategy)
+  }
+
+  // Given methods for computing derived values
+  given<K extends string, V>(name: K, v: V | ((args: Rec) => V)): FluentCheckGiven<K, V, Rec & Record<K, V>, Rec> {
+    return v instanceof Function ?
+      new FluentCheckGivenMutable(this, name, v, this.strategy) :
+      new FluentCheckGivenConstant<K, V, Rec & Record<K, V>, Rec>(this, name, v, this.strategy)
   }
 
   // Property definition with inferred types
-  then(
-    property: (input: Rec) => boolean | Promise<boolean>,
-  ): FluentCheckResult {
-    return this.evaluate(property)
+  then(f: (arg: Rec) => boolean): FluentCheckAssert<Rec, ParentRec> {
+    return new FluentCheckAssert(this, f, this.strategy)
   }
 }
 ```
 
 The type parameters `<Rec extends ParentRec, ParentRec extends {}>` track:
 
-1. `Rec`: The current record type, which gets extended with each `.forall()` call
-2. `ParentRec`: The parent record type for handling nested scenarios
+1. `Rec`: The current record type, which gets extended with each `.forall()` or `.given()` call
+2. `ParentRec`: The parent record type for handling nested scenarios and type safety
 
-The `.forall()` method extends the record type with each new arbitrary:
+The `.forall()` method extends the record type with each new arbitrary by returning a new `FluentCheckUniversal` instance:
 
 ```typescript
 // When called like this:
@@ -57,22 +60,28 @@ fc.scenario()
   .forall('y', fc.string())
 
 // The type becomes: 
-// FluentCheck<{x: number, y: string}, {}>
+// FluentCheck<{x: number} & {y: string}, {x: number}>
 ```
 
-For transformations, FluentCheck uses a specialized class:
+FluentCheck uses specialized subclasses for different quantifiers:
 
 ```typescript
-export class FluentCheckTransformed<A, Rec extends {}, ParentRec extends {}> 
-  extends FluentCheck<A, ParentRec> {
-  constructor(
-    private readonly transform: (input: Rec) => A,
-    private readonly parent: FluentCheck<Rec, ParentRec>,
-  ) {
-    super()
-  }
+// Abstract base for quantifiers
+abstract class FluentCheckQuantifier<K extends string, A, Rec extends ParentRec & Record<K, A>, ParentRec extends {}>
+  extends FluentCheck<Rec, ParentRec> {
+  abstract breakValue: boolean  // false for universal, true for existential
+}
 
-  // Implementation details for transforming the input
+// Universal quantifier (forall) - breaks when property fails
+class FluentCheckUniversal<K extends string, A, Rec extends ParentRec & Record<K, A>, ParentRec extends {}>
+  extends FluentCheckQuantifier<K, A, Rec, ParentRec> {
+  breakValue = false
+}
+
+// Existential quantifier (exists) - breaks when property succeeds
+class FluentCheckExistential<K extends string, A, Rec extends ParentRec & Record<K, A>, ParentRec extends {}>
+  extends FluentCheckQuantifier<K, A, Rec, ParentRec> {
+  breakValue = true
 }
 ```
 
@@ -85,37 +94,35 @@ One of the most powerful aspects of FluentCheck's type system is how it composes
 With each `.forall()` call, the type is extended using TypeScript's intersection types:
 
 ```typescript
-forall<K extends string, A>(
-  arbitraryName: K,
-  arbitrary: Arbitrary<A>,
-): FluentCheck<Record<K, A> & Rec, ParentRec>
+forall<K extends string, A>(name: K, a: Arbitrary<A>): FluentCheck<Rec & Record<K, A>, Rec>
 ```
 
 This creates a new type that includes all previous properties plus the new one.
 
-### 2. Type Transformation
+### 2. Given Computed Values
 
-The `.map()` method enables complete transformation of the type:
-
-```typescript
-map<A, T extends ParentRec = ParentRec>(
-  f: (input: Rec) => A,
-): FluentCheckTransformed<A, Rec, T>
-```
-
-TypeScript infers the return type `A` from the provided function, preserving type information.
-
-### 3. Dependent Type Creation
-
-FluentCheck supports defining arbitraries that depend on previously defined values while maintaining type safety:
+The `.given()` method allows computing derived values that are added to the type context:
 
 ```typescript
-// The function argument is typed with the existing record
-forall<K extends string, R extends Rec, A>(
-  arbitraryName: K,
-  arbitraryFn: (r: R) => Arbitrary<A>,
-): FluentCheck<Record<K, A> & Rec, ParentRec>
+given<K extends string, V>(name: K, v: V | ((args: Rec) => V)): FluentCheckGiven<K, V, Rec & Record<K, V>, Rec>
 ```
+
+TypeScript infers the return type `V` from the provided function, preserving type information. This supports both constant values and computed values based on existing context.
+
+### 3. Arbitrary-Level Transformations
+
+FluentCheck supports type transformations at the arbitrary level using `.map()`, `.filter()`, and `.chain()`:
+
+```typescript
+// The Arbitrary class provides these transformation methods
+abstract class Arbitrary<A> {
+  map<B>(f: (a: A) => B, shrinkHelper?: ...): Arbitrary<B>
+  filter(f: (a: A) => boolean): Arbitrary<A>
+  chain<B>(f: (a: A) => Arbitrary<B>): Arbitrary<B>
+}
+```
+
+This allows building complex generators while maintaining full type safety.
 
 ## Usage Examples
 
@@ -131,55 +138,53 @@ fc.scenario()
     // - y is string
     return x.toString() === y;
   })
+  .check()
 ```
 
-Transformations with type inference:
+Computed values with type inference using `.given()`:
 
 ```typescript
 fc.scenario()
   .forall('numbers', fc.array(fc.integer()))
-  .map(({numbers}) => {
-    const sum = numbers.reduce((a, b) => a + b, 0);
-    const product = numbers.reduce((a, b) => a * b, 1);
-    return {sum, product, count: numbers.length};
-  })
+  .given('sum', ({numbers}) => numbers.reduce((a, b) => a + b, 0))
+  .given('product', ({numbers}) => numbers.reduce((a, b) => a * b, 1))
+  .given('count', ({numbers}) => numbers.length)
   .then(({sum, product, count}) => {
     // TypeScript knows:
     // - sum is number
     // - product is number
     // - count is number
-    return count === 0 || product/count <= sum;
+    return count === 0 || product / count <= sum;
   })
+  .check()
 ```
 
-Dependent arbitraries with type inference:
+Arbitrary-level transformations with chaining:
 
 ```typescript
 fc.scenario()
-  .forall('length', fc.integer(1, 100))
-  .forall('array', ({length}) => fc.array(fc.integer(), length, length))
-  .then(({length, array}) => {
+  .forall('size', fc.integer(1, 10))
+  .forall('array', fc.integer(1, 10).chain(i => fc.array(fc.constant(i), i, i)))
+  .then(({size, array}) => {
     // TypeScript knows:
-    // - length is number
+    // - size is number
     // - array is number[]
-    // - array depends on length
-    return array.length === length;
+    return array.length === array[0];
   })
+  .check()
 ```
 
-Nested scenarios with preserved type information:
+Mapped arbitraries preserving type information:
 
 ```typescript
 fc.scenario()
-  .forall('outer', fc.integer())
-  .mapToScenario(({outer}) => 
-    fc.scenario()
-      .forall('inner', fc.integer())
-      .then(({inner}) => {
-        // TypeScript knows both inner and outer
-        return inner + outer > 0;
-      })
-  )
+  .forall('point', fc.tuple(fc.integer(0, 100), fc.integer(0, 100))
+    .map(([x, y]) => ({ x, y, distance: Math.sqrt(x*x + y*y) })))
+  .then(({point}) => {
+    // TypeScript knows point has x, y, and distance properties (all numbers)
+    return point.distance >= 0;
+  })
+  .check()
 ```
 
 ## Advanced Type Features
@@ -189,15 +194,16 @@ fc.scenario()
 FluentCheck preserves union types when using combinators:
 
 ```typescript
-// Define an arbitrary for either numbers or strings
-const numOrStr = fc.oneOf([fc.integer(), fc.string()]);
+// Define a union arbitrary using fc.union
+const numOrBool = fc.union(fc.integer(0, 10), fc.boolean());
 
 fc.scenario()
-  .forall('x', numOrStr)
+  .forall('x', numOrBool)
   .then(({x}) => {
-    // TypeScript knows x is number | string
-    return typeof x === 'number' || x.length > 0;
+    // TypeScript knows x is number | boolean
+    return typeof x === 'number' || typeof x === 'boolean';
   })
+  .check()
 ```
 
 ### Generic Arbitraries
@@ -205,38 +211,38 @@ fc.scenario()
 FluentCheck supports generic arbitraries with full type inference:
 
 ```typescript
-// Define a generic pair arbitrary
-function pair<T, U>(first: Arbitrary<T>, second: Arbitrary<U>): Arbitrary<[T, U]> {
-  return fc.tuple([first, second]);
-}
+// Define a generic pair arbitrary using fc.tuple
+const pair = fc.tuple(fc.integer(), fc.string());
 
 fc.scenario()
-  .forall('pair', pair(fc.integer(), fc.string()))
+  .forall('pair', pair)
   .then(({pair}) => {
     // TypeScript knows pair is [number, string]
     const [num, str] = pair;
     return typeof num === 'number' && typeof str === 'string';
   })
+  .check()
 ```
 
 ### Conditional Types
 
-FluentCheck's type system works with TypeScript's conditional types:
+FluentCheck's type system works with TypeScript's conditional types at the arbitrary level:
 
 ```typescript
 type IsNumber<T> = T extends number ? true : false;
 
 fc.scenario()
   .forall('x', fc.integer())
-  .map(({x}) => {
+  .given('isNumber', ({x}) => {
     // Type is computed based on the input
-    const isNumber: IsNumber<typeof x> = true;
-    return {value: x, isNumber};
+    const result: IsNumber<typeof x> = true;
+    return result;
   })
-  .then(({value, isNumber}) => {
+  .then(({x, isNumber}) => {
     // TypeScript knows isNumber is of type true (a literal type)
-    return isNumber === true;
+    return isNumber === true && typeof x === 'number';
   })
+  .check()
 ```
 
 ## Implementation Challenges and Solutions

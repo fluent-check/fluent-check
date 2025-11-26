@@ -12,9 +12,14 @@ Property-based testing involves sampling from potentially enormous input spaces.
 
 ## Implementation Details
 
-FluentCheck implements various probability distributions to model test outcomes and calculate confidence levels. The code is based on sound statistical principles, with well-tested distribution implementations:
+FluentCheck implements various probability distributions to model test outcomes and calculate confidence levels. The code is based on sound statistical principles, using the `jstat` library for mathematical functions:
 
 ```typescript
+import jstat from 'jstat'
+
+/**
+ * A probability distribution (https://en.wikipedia.org/wiki/Probability_distribution).
+ */
 export abstract class Distribution {
   abstract mean(): number
   abstract mode(): number
@@ -23,16 +28,31 @@ export abstract class Distribution {
   abstract inv(p: number): number   // Inverse cumulative distribution function
 }
 
+/**
+ * A beta distribution (https://en.wikipedia.org/wiki/Beta_distribution).
+ */
 export class BetaDistribution extends Distribution {
   constructor(public alpha: number, public beta: number) {
     super()
   }
-  // Implementation of beta distribution methods
+
+  mean(): number { return jstat.beta.mean(this.alpha, this.beta) }
+  mode(): number { return jstat.beta.mode(this.alpha, this.beta) }
+  pdf(x: number): number { return jstat.beta.pdf(x, this.alpha, this.beta) }
+  cdf(x: number): number { return jstat.beta.cdf(x, this.alpha, this.beta) }
+  inv(x: number): number { return jstat.beta.inv(x, this.alpha, this.beta) }
 }
 
+/**
+ * A beta-binomial distribution (https://en.wikipedia.org/wiki/Beta-binomial_distribution).
+ */
 export class BetaBinomialDistribution extends IntegerDistribution {
   constructor(public trials: number, public alpha: number, public beta: number) { super() }
-  // Implementation of beta-binomial distribution methods
+
+  pdf(x: number): number { return Math.exp(this.logPdf(x)) }
+  supportMin(): number { return 0 }
+  supportMax(): number { return this.trials }
+  mean(): number { return this.trials * this.alpha / (this.alpha + this.beta) }
 }
 ```
 
@@ -124,6 +144,9 @@ FluentCheck's statistical approach is based on Bayesian statistics, which allows
 The `IntegerDistribution` base class provides default implementations of key statistical functions:
 
 ```typescript
+/**
+ * A discrete probability distribution where the support is a contiguous set of integers.
+ */
 export abstract class IntegerDistribution extends Distribution {
   abstract supportMin(): number
   abstract supportMax(): number
@@ -137,7 +160,8 @@ export abstract class IntegerDistribution extends Distribution {
     return avg
   }
 
-  // Default implementation is O(n) on the support size
+  // Default implementation is O(n) on the support size. Can be made better if distribution is
+  // known to be unimodal
   mode(): number {
     let max = NaN, maxP = 0
     for (let k = this.supportMin(); k <= this.supportMax(); k++) {
@@ -147,7 +171,27 @@ export abstract class IntegerDistribution extends Distribution {
     return max
   }
 
-  // Default implementation for cdf and inv...
+  // Default implementation is O(n * pdf), where `pdf` is the time complexity of pdf(k)
+  cdf(k: number): number {
+    if (k < this.supportMin()) return 0.0
+    if (k >= this.supportMax()) return 1.0
+    let sum = 0
+    for (let k2 = this.supportMin(); k2 <= k; k2++) {
+      sum += this.pdf(k2)
+    }
+    return sum
+  }
+
+  // Default implementation is O(log(n) * cdf), where `cdf` is the time complexity of cdf(k)
+  inv(p: number): number {
+    let low = this.supportMin(), high = this.supportMax()
+    while (low < high) {
+      const mid = Math.floor((high + low) / 2)
+      if (this.cdf(mid) >= p) high = mid
+      else low = mid + 1
+    }
+    return low
+  }
 }
 ```
 

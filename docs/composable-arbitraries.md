@@ -17,21 +17,29 @@ The arbitrary system is built around the `Arbitrary<A>` abstract class:
 
 ```typescript
 export abstract class Arbitrary<A> {
+  // Core abstract methods
   abstract size(): ArbitrarySize
   abstract pick(generator: () => number): FluentPick<A> | undefined
   abstract canGenerate<B extends A>(pick: FluentPick<B>): boolean
 
   // Composable operations
-  map<B>(f: (a: A) => B, shrinkHelper?: XOR<{inverseMap: (b: B) => A[]},{canGenerate: (pick: FluentPick<B>) => boolean}>): Arbitrary<B> {
+  map<B>(f: (a: A) => B,
+    shrinkHelper?: XOR<{inverseMap: (b: B) => A[]}, {canGenerate: (pick: FluentPick<B>) => boolean}>
+  ): Arbitrary<B> {
     return new MappedArbitrary(this, f, shrinkHelper)
   }
   filter(f: (a: A) => boolean): Arbitrary<A> { return new FilteredArbitrary(this, f) }
   chain<B>(f: (a: A) => Arbitrary<B>): Arbitrary<B> { return new ChainedArbitrary(this, f) }
 
-  // Utility methods
-  sample(sampleSize = 10, generator: () => number = Math.random): FluentPick<A>[] { /* ... */ }
-  sampleUnique(sampleSize = 10, cornerCases: FluentPick<A>[] = [], generator: () => number = Math.random): FluentPick<A>[] { /* ... */ }
-  // ...
+  // Sampling methods
+  sample(sampleSize = 10, generator: () => number = Math.random): FluentPick<A>[]
+  sampleUnique(sampleSize = 10, cornerCases: FluentPick<A>[] = [], generator: () => number = Math.random): FluentPick<A>[]
+  sampleWithBias(sampleSize = 10, generator: () => number = Math.random): FluentPick<A>[]
+  sampleUniqueWithBias(sampleSize = 10, generator: () => number = Math.random): FluentPick<A>[]
+
+  // Corner cases and shrinking
+  cornerCases(): FluentPick<A>[] { return [] }
+  shrink<B extends A>(_initial: FluentPick<B>): Arbitrary<A> { return NoArbitrary }
 }
 ```
 
@@ -39,19 +47,28 @@ FluentCheck provides numerous built-in arbitraries:
 
 ```typescript
 // Primitive arbitraries
-export const boolean = () => new ArbitraryBoolean()
-export const integer = (min = Number.MIN_SAFE_INTEGER, max = Number.MAX_SAFE_INTEGER) => new ArbitraryInteger(min, max)
-export const real = (min = Number.MIN_VALUE, max = Number.MAX_VALUE) => new ArbitraryReal(min, max)
+export const boolean = (): Arbitrary<boolean> => new ArbitraryBoolean()
+export const integer = (min = Number.MIN_SAFE_INTEGER, max = Number.MAX_SAFE_INTEGER): Arbitrary<number> =>
+  min > max ? NoArbitrary : min === max ? constant(min) : new ArbitraryInteger(min, max)
+export const real = (min = Number.MIN_SAFE_INTEGER, max = Number.MAX_SAFE_INTEGER): Arbitrary<number> =>
+  min > max ? NoArbitrary : min === max ? constant(min) : new ArbitraryReal(min, max)
+export const nat = (min = 0, max = Number.MAX_SAFE_INTEGER): Arbitrary<number> =>
+  max < 0 ? NoArbitrary : integer(Math.max(0, min), max)
 
 // Container arbitraries
-export const array = <T>(arbitrary: Arbitrary<T>, minLength = 0, maxLength = 10) => new ArbitraryArray(arbitrary, minLength, maxLength)
-export const set = <T>(arbitrary: Arbitrary<T>, minSize = 0, maxSize = 10) => new ArbitrarySet(arbitrary, minSize, maxSize)
-export const tuple = <Ts extends any[]>(...arbitraries: { [K in keyof Ts]: Arbitrary<Ts[K]> }) => new ArbitraryTuple(arbitraries)
+export const array = <A>(arbitrary: Arbitrary<A>, min = 0, max = 10): Arbitrary<A[]> =>
+  min > max ? NoArbitrary : new ArbitraryArray(arbitrary, min, max)
+export const set = <A>(elements: A[], min = 0, max = 10): Arbitrary<A[]> =>
+  min > max || min > elements.length ? NoArbitrary : new ArbitrarySet(elements, min, max)
+export const tuple = <U extends Arbitrary<any>[]>(...arbitraries: U): Arbitrary<UnwrapFluentPick<U>> =>
+  arbitraries.some(a => a === NoArbitrary) ? NoArbitrary : new ArbitraryTuple(arbitraries)
 
 // Combinators
-export const constant = <T>(v: T) => new ArbitraryConstant(v)
-export const oneof = <T>(...arbitraries: Arbitrary<T>[]) => new ArbitraryOneOf(arbitraries)
-// ...
+export const constant = <A>(constant: A): Arbitrary<A> => new ArbitraryConstant(constant)
+export const oneof = <A>(elements: A[]): Arbitrary<A> =>
+  elements.length === 0 ? NoArbitrary : integer(0, elements.length - 1).map(i => elements[i])
+export const union = <A>(...arbitraries: Arbitrary<A>[]): Arbitrary<A> => /* combines multiple arbitraries */
+export const empty = () => NoArbitrary
 ```
 
 The tests validate these arbitraries with various properties:

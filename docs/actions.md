@@ -36,7 +36,7 @@ This workflow runs on push to the main branch, pull requests, and manual trigger
 **Triggering**: 
 - Pushes to `main`
 - Pull requests to `main`
-- Manual trigger through GitHub UI
+- Manual trigger through GitHub UI (workflow_dispatch)
 
 ```yaml
 name: Node.js CI
@@ -48,17 +48,36 @@ on:
     branches: [ main ]
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   build:
     runs-on: ubuntu-latest
     strategy:
       matrix:
         node-version: [18.x, 20.x]
-    # ... steps for testing, linting, etc.
+    steps:
+    - uses: actions/checkout@v4
+    - name: Use Node.js ${{ matrix.node-version }}
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ matrix.node-version }}
+        cache: 'npm'
+    - run: npm ci
+    - run: npm run lint
+    - run: npm test
+    - run: npm run coverage > coverage.txt
     
   type-check:
     runs-on: ubuntu-latest
-    # ... steps for type checking
+    steps:
+    - uses: actions/checkout@v4
+    - uses: actions/setup-node@v4
+      with:
+        node-version: '20.x'
+    - run: npm ci
+    - run: npm run prepare  # TypeScript compilation check
 ```
 
 ### 2. NPM Publishing (`.github/workflows/npm-publish.yml`)

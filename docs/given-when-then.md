@@ -6,22 +6,22 @@ FluentCheck implements the Given-When-Then pattern, a behavior-driven developmen
 
 The Given-When-Then pattern structures tests into three distinct phases:
 
-1. **Given**: Set up the test context or preconditions
-2. **When**: Execute the action or operation being tested
-3. **Then**: Verify expected outcomes or assertions
+1. **Given**: Set up the test context or preconditions (using `.given()`)
+2. **When**: Execute actions or operations (using `.when()`)
+3. **Then**: Verify expected outcomes or assertions (using `.then()` and `.and()`)
 
-This pattern improves test readability and organization, especially for complex scenarios. FluentCheck integrates this pattern directly into its fluent API, making it natural to express test setup, actions, and expectations.
+This pattern improves test readability and organization, especially for complex scenarios. FluentCheck integrates this pattern directly into its fluent API:
 
 ```typescript
 fc.scenario()
   .forall('x', fc.integer(1, 100))
   .forall('y', fc.integer(1, 100))
-  .given('sum', ({x, y}) => x + y)            // Compute preconditions
-  .when(({x, y, sum}) => {                    // Perform actions
-    console.log(`Testing with x=${x}, y=${y}`);
-    // Side effects or system state changes happen here
+  .given('sum', ({x, y}) => x + y)            // Compute derived values
+  .when(({x, y, sum}) => {                    // Perform side effects
+    console.log(`Testing with x=${x}, y=${y}, sum=${sum}`);
   })
   .then(({sum}) => sum > 0)                   // Assert properties
+  .and(({x, y, sum}) => sum === x + y)        // Chain multiple assertions
   .check()
 ```
 
@@ -30,29 +30,37 @@ fc.scenario()
 The implementation uses specialized classes to handle each phase of the pattern:
 
 ```typescript
-class FluentCheckGiven<K extends string, V, Rec extends ParentRec & Record<K, V>, ParentRec extends {}>
+// Given phase - adds computed values to context
+abstract class FluentCheckGiven<K extends string, V, Rec extends ParentRec & Record<K, V>, ParentRec extends {}>
   extends FluentCheck<Rec, ParentRec> {
-  // ...
   and<NK extends string, V>(name: NK, f: ((args: Rec) => V) | V) {
     return super.given(name, f)
   }
 }
 
+// Two implementations: mutable (function) and constant (value)
+class FluentCheckGivenMutable<K extends string, V, ...> extends FluentCheckGiven<K, V, ...> {
+  constructor(parent, name, factory: (args: ParentRec) => V, strategy) { ... }
+}
+
+class FluentCheckGivenConstant<K extends string, V, ...> extends FluentCheckGiven<K, V, ...> {
+  constructor(parent, name, value: V, strategy) { ... }
+}
+
+// When phase - executes side effects
 class FluentCheckWhen<Rec extends ParentRec, ParentRec extends {}> extends FluentCheck<Rec, ParentRec> {
-  // ...
+  constructor(parent, f: (givens: Rec) => void, strategy) { ... }
   and(f: (givens: Rec) => void) { return this.when(f) }
 }
 
+// Then phase - property assertions
 class FluentCheckAssert<Rec extends ParentRec, ParentRec extends {}> extends FluentCheck<Rec, ParentRec> {
-  // ...
-  and(assertion: (args: Rec) => boolean) {
-    return this.then(assertion)
-  }
-  // ...
+  constructor(parent, assertion: (args: Rec) => boolean, strategy) { ... }
+  and(assertion: (args: Rec) => boolean) { return this.then(assertion) }
 }
 ```
 
-The `given` method can handle both computed values (functions) and constants:
+The `given` method accepts both computed values (functions) and constants:
 
 ```typescript
 given<K extends string, V>(name: K, v: V | ((args: Rec) => V)): FluentCheckGiven<K, V, Rec & Record<K, V>, Rec> {

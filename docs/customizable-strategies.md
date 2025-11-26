@@ -13,104 +13,155 @@ Different testing scenarios require different approaches to test generation and 
 
 ## Implementation Details
 
-FluentCheck implements strategies through a flexible class hierarchy:
+FluentCheck implements strategies through a flexible class hierarchy with mixin-based composition:
+
+### Base Strategy
 
 ```typescript
-export class FluentStrategy implements FluentStrategyInterface {
-  public arbitraries: StrategyArbitraries = {}
-  public randomGenerator = new FluentRandomGenerator()
-  
-  constructor(public readonly configuration: FluentConfig) {
-    // Initialize configuration with defaults
-    this.configuration.sampleSize = this.configuration.sampleSize ?? 1000;
-    this.configuration.shrinkSize = this.configuration.shrinkSize ?? 500;
-  }
-  
-  // Methods for manipulating arbitraries and generating values
-  addArbitrary<K extends string, A>(arbitraryName: K, a: Arbitrary<A>) { /* ... */ }
-  configArbitrary<K extends string>(arbitraryName: K, partial: FluentResult | undefined, depth: number) { /* ... */ }
-  // ...
-}
-```
+export type FluentConfig = { sampleSize?: number, shrinkSize?: number }
 
-The `FluentStrategyInterface` defines the core operations that any strategy must implement:
-
-```typescript
 export interface FluentStrategyInterface {
   hasInput: <K extends string>(arbitraryName: K) => boolean
   getInput: <K extends string, A>(arbitraryName: K) => FluentPick<A>
   handleResult: () => void
 }
-```
 
-These methods control:
-- Whether more test cases should be generated
-- How to generate the next test case
-- What to do after a test completes
-
-A factory pattern is used to create and configure strategies:
-
-```typescript
-export class FluentStrategyFactory {
-  // Configuration methods
-  withMaxIterations(iterations: number): FluentStrategyFactory { /* ... */ }
-  withSeed(seed: number): FluentStrategyFactory { /* ... */ }
-  withConfidence(confidence: number): FluentStrategyFactory { /* ... */ }
-  // ...
+export class FluentStrategy implements FluentStrategyInterface {
+  public arbitraries: StrategyArbitraries = {}
+  public randomGenerator = new FluentRandomGenerator()
   
-  // Build the final strategy
-  build(): FluentStrategy { /* ... */ }
+  constructor(public readonly configuration: FluentConfig) {
+    this.configuration.sampleSize = this.configuration.sampleSize ?? 1000;
+    this.configuration.shrinkSize = this.configuration.shrinkSize ?? 500;
+  }
+  
+  addArbitrary<K extends string, A>(arbitraryName: K, a: Arbitrary<A>) {
+    this.arbitraries[arbitraryName] = {arbitrary: a, pickNum: 0, collection: []}
+    this.setArbitraryCache(arbitraryName)
+  }
+
+  configArbitrary<K extends string>(arbitraryName: K, partial: FluentResult | undefined, depth: number) {
+    // Configure arbitrary for testing, including shrinking on subsequent iterations
+  }
+
+  buildArbitraryCollection<A>(arbitrary: Arbitrary<A>, sampleSize?: number): FluentPick<A>[]
+  isDedupable(): boolean { return false }
+  setArbitraryCache<K extends string>(_arbitraryName: K) {}
+  shrink<K extends string>(_name: K, _partial: FluentResult | undefined) {}
 }
 ```
 
-The factory pattern allows for method chaining and separates the configuration from the implementation:
+### Mixin-Based Composition
+
+FluentCheck uses TypeScript mixins to compose strategy behaviors:
 
 ```typescript
-// From FluentStrategyFactory.ts
+// Random sampling mixin
+export function Random<TBase extends MixinStrategy>(Base: TBase) {
+  return class extends Base implements FluentStrategyInterface {
+    hasInput<K extends string>(arbitraryName: K): boolean {
+      return this.arbitraries[arbitraryName] !== undefined &&
+        this.arbitraries[arbitraryName].pickNum < this.arbitraries[arbitraryName].collection.length
+    }
+
+    getInput<K extends string, A>(arbitraryName: K): FluentPick<A> {
+      return this.arbitraries[arbitraryName].collection[this.arbitraries[arbitraryName].pickNum++]
+    }
+
+    handleResult() {}
+  }
+}
+
+// Shrinking mixin
+export function Shrinkable<TBase extends MixinStrategy>(Base: TBase) {
+  return class extends Base {
+    shrink<K extends string>(arbitraryName: K, partial: FluentResult) {
+      const shrinkedArbitrary = this.arbitraries[arbitraryName].arbitrary.shrink(partial.example[arbitraryName])
+      this.arbitraries[arbitraryName].collection = this.buildArbitraryCollection(shrinkedArbitrary,
+        this.configuration.shrinkSize!)
+    }
+  }
+}
+
+// Deduplication mixin
+export function Dedupable<TBase extends MixinStrategy>(Base: TBase) {
+  return class extends Base {
+    isDedupable() { return true }
+  }
+}
+
+// Caching mixin
+export function Cached<TBase extends MixinStrategy>(Base: TBase) {
+  return class extends Base {
+    setArbitraryCache<K extends string>(arbitraryName: K) {
+      this.arbitraries[arbitraryName].cache = this.buildArbitraryCollection(this.arbitraries[arbitraryName].arbitrary)
+    }
+  }
+}
+
+// Biased sampling mixin
+export function Biased<TBase extends MixinStrategy>(Base: TBase) {
+  return class extends Base {
+    buildArbitraryCollection<A>(arbitrary: Arbitrary<A>, sampleSize?: number): FluentPick<A>[] {
+      return this.isDedupable() ? 
+        arbitrary.sampleUniqueWithBias(sampleSize!, this.randomGenerator.generator) :
+        arbitrary.sampleWithBias(sampleSize!, this.randomGenerator.generator)
+    }
+  }
+}
+```
+
+### Factory Pattern
+
+The factory composes these mixins to build strategies:
+
+```typescript
 export class FluentStrategyFactory {
-  private iterations?: number
-  private seed?: number
-  private _confidence?: number
-  // ...
+  private strategy: new (config: FluentConfig) => FluentStrategy = FluentStrategy
+  public configuration: FluentConfig = {sampleSize: 1000}
 
-  withMaxIterations(iterations: number): FluentStrategyFactory {
-    this.iterations = iterations
+  withSampleSize(sampleSize: number) {
+    this.configuration = {...this.configuration, sampleSize}
     return this
   }
 
-  withSeed(seed: number): FluentStrategyFactory {
-    this.seed = seed
+  withoutReplacement() {
+    this.strategy = Dedupable(this.strategy)
     return this
   }
 
-  withConfidence(confidence: number): FluentStrategyFactory {
-    this._confidence = confidence
+  withBias() {
+    this.strategy = Biased(this.strategy)
     return this
   }
 
-  // ...
+  usingCache() {
+    this.strategy = Cached(this.strategy)
+    return this
+  }
+
+  withRandomSampling() {
+    this.strategy = Random(this.strategy)
+    return this
+  }
+
+  withShrinking(shrinkSize = 500) {
+    this.configuration = {...this.configuration, shrinkSize}
+    this.strategy = Shrinkable(this.strategy)
+    return this
+  }
+
+  defaultStrategy() {
+    this.configuration = {...this.configuration, shrinkSize: 500}
+    this.strategy = Shrinkable(Cached(Biased(Dedupable(Random(this.strategy)))))
+    return this
+  }
+
   build(): FluentStrategy {
-    return new FluentStrategy({
-      sampleSize: this.iterations,
-      shrinkSize: this.iterations ? Math.floor(this.iterations / 2) : undefined,
-      // other configuration properties...
-    })
+    return new this.strategy(this.configuration)
   }
 }
 ```
-
-Extension points are provided through mixins:
-
-```typescript
-export const withMaxResults = 
-  <TBase extends Constructor<FluentStrategyFactory>>(Base: TBase) => {
-    return class extends Base {
-      // Add methods to the factory
-    };
-  };
-```
-
-This mixin pattern allows for composable strategy extensions without complex inheritance hierarchies.
 
 ## Random Number Generation
 
@@ -172,67 +223,109 @@ This allows strategies to be configured at the scenario level.
 
 ## Usage Examples
 
-Basic strategy configuration:
+Basic strategy configuration using the factory:
 
 ```typescript
+// Create a custom strategy using the factory
+const strategy = new FluentStrategyFactory()
+  .withSampleSize(500)
+  .withBias()
+  .withShrinking(200)
+  .withoutReplacement()
+  .withRandomSampling()
+  .usingCache()
+
 fc.scenario()
-  .config(fc.strategy()
-    .withMaxIterations(1000)
-    .withSeed(42)
-    .withConfidence(0.99))
+  .config(strategy)
   .forall('x', fc.integer())
   .then(({x}) => x * x >= 0)
   .check()
 ```
 
-Creating a custom strategy for performance testing:
+Using the default strategy (recommended for most cases):
 
 ```typescript
-const performanceStrategy = fc.strategy()
-  .withMaxIterations(100)
-  .withTimeout(5000)  // milliseconds
-  .withPerformanceThreshold(100);  // milliseconds
+// The default strategy includes all mixins: Random, Dedupable, Biased, Cached, Shrinkable
+const strategy = new FluentStrategyFactory()
+  .defaultStrategy()
 
 fc.scenario()
-  .config(performanceStrategy)
-  .forall('data', fc.array(fc.integer(), 1000, 10000))
-  .then(({data}) => {
-    const startTime = performance.now();
-    sortAlgorithm(data);
-    const endTime = performance.now();
-    return (endTime - startTime) < 100;  // Test performance constraint
-  })
+  .config(strategy)
+  .forall('a', fc.integer(-10, 10))
+  .forall('b', fc.integer(-10, 10))
+  .then(({a, b}) => a + b === b + a)
+  .check()
+```
+
+Minimal strategy for simple tests:
+
+```typescript
+// Just random sampling without other features
+const minimalStrategy = new FluentStrategyFactory()
+  .withSampleSize(100)
+  .withRandomSampling()
+
+fc.scenario()
+  .config(minimalStrategy)
+  .forall('x', fc.boolean())
+  .then(({x}) => x === true || x === false)
   .check()
 ```
 
 ## Deterministic Testing
 
-One key benefit of customizable strategies is the ability to make tests deterministic:
+FluentCheck allows using custom random number generators for deterministic testing:
 
 ```typescript
-// Using a fixed seed ensures the test behaves the same way every time
-const deterministicStrategy = fc.strategy()
-  .withSeed(12345)
-  .withMaxIterations(500);
-
+// Using withGenerator for reproducible tests
 fc.scenario()
-  .config(deterministicStrategy)
-  // ...
+  .withGenerator((seed) => {
+    // Custom PRNG - this example uses a simple LCG
+    let state = seed;
+    return () => {
+      state = (state * 1103515245 + 12345) & 0x7fffffff;
+      return state / 0x7fffffff;
+    };
+  }, 12345)  // Fixed seed
+  .forall('x', fc.integer())
+  .then(({x}) => x * x >= 0)
+  .check()
+```
+
+The `FluentRandomGenerator` class handles random number generation:
+
+```typescript
+export class FluentRandomGenerator {
+  public seed: number
+  private prng: () => number
+
+  constructor(
+    rngBuilder: (seed: number) => (() => number) = defaultGenerator,
+    seed?: number) {
+    this.seed = seed ?? this.getRandomSeed()
+    this.prng = rngBuilder(this.seed)
+  }
+}
 ```
 
 This is particularly valuable for:
-- Reproducing test failures
+- Reproducing test failures using the seed reported in results
 - Ensuring consistent test behavior across environments
 - Debugging property tests
 
-## Built-in Strategy Builders
+## Available Strategy Mixins
 
-FluentCheck includes several built-in strategy factories for common use cases:
+FluentCheck provides these composable strategy mixins:
 
-1. **Default strategy**: Balanced approach for general testing
-2. **Thorough strategy**: Extensive testing with high iteration counts
-3. **Quick strategy**: Fast feedback with fewer iterations
-4. **Statistical strategy**: Runs until a specified confidence level is achieved
+| Mixin | Method | Description |
+|-------|--------|-------------|
+| **Random** | `withRandomSampling()` | Basic random sampling from arbitraries |
+| **Dedupable** | `withoutReplacement()` | Avoids testing duplicate values |
+| **Biased** | `withBias()` | Prioritizes corner cases in sampling |
+| **Cached** | `usingCache()` | Caches generated samples for reuse |
+| **Shrinkable** | `withShrinking(n)` | Enables shrinking with configurable sample size |
+
+The **default strategy** combines all these mixins for comprehensive testing.
 
 ## Advanced Strategy Features
 
