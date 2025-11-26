@@ -17,10 +17,10 @@ export class ArbitraryComposite<A> extends Arbitrary<A> {
 
   pick(generator: () => number) {
     const weights = this.arbitraries.reduce(
-      (acc, a) => { acc.push((acc[acc.length - 1] | 0) + a.size().value); return acc },
+      (acc, a) => { acc.push((acc.at(-1) ?? 0) + a.size().value); return acc },
       new Array<number>()
     )
-    const picked = Math.floor(generator() * weights[weights.length - 1])
+    const picked = Math.floor(generator() * weights.at(-1)!)
     return this.arbitraries[weights.findIndex(s => s > picked)].pick(generator)
   }
 

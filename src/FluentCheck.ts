@@ -76,9 +76,9 @@ export class FluentCheck<Rec extends ParentRec, ParentRec extends {}> {
   }
 
   static unwrapFluentPick<T>(testCase: PickResult<T>): ValueResult<T> {
-    const result = {}
-    for (const k in testCase) result[k] = testCase[k].value
-    return result
+    const result: Record<string, unknown> = {}
+    for (const [k, v] of Object.entries(testCase)) result[k] = v.value
+    return result as ValueResult<T>
   }
 
   setRandomGenerator(prng: FluentRandomGenerator) {

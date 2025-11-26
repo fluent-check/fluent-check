@@ -49,8 +49,8 @@ export abstract class Arbitrary<A> {
     generator: () => number = Math.random): FluentPick<A>[] {
     const result = new Map<string, FluentPick<A>>()
 
-    for (const k in cornerCases)
-      result.set(stringify(cornerCases[k].value), cornerCases[k])
+    for (const cc of cornerCases)
+      result.set(stringify(cc.value), cc)
 
     const initialSize = this.size()
     let bagSize = Math.min(sampleSize, initialSize.value)
