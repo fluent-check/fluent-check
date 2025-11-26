@@ -4,87 +4,282 @@ Instructions for AI coding assistants using OpenSpec for spec-driven development
 
 ## TL;DR Quick Checklist
 
-- Search existing work: `openspec spec list --long`, `openspec list` (use `rg` only for full-text search)
-- Decide scope: new capability vs modify existing capability
-- Pick a unique `change-id`: kebab-case, verb-led (`add-`, `update-`, `remove-`, `refactor-`)
-- Scaffold: `proposal.md`, `tasks.md`, `design.md` (only if needed), and delta specs per affected capability
-- Write deltas: use `## ADDED|MODIFIED|REMOVED|RENAMED Requirements`; include at least one `#### Scenario:` per requirement
-- Validate: `openspec validate [change-id] --strict` and fix issues
-- Request approval: Do not start implementation until proposal is approved
+- Run `openspec spec list --long` and `openspec list` to search existing work
+- Pick unique `change-id`: kebab-case, verb-led (`add-`, `update-`, `remove-`, `refactor-`)
+- Scaffold: `proposal.md`, `tasks.md`, optional `design.md`, delta specs per affected capability
+- Write deltas: use `## ADDED|MODIFIED|REMOVED|RENAMED Requirements` with at least one `#### Scenario:` per requirement
+- Run `gh issue create --title "<title>" --body "$(cat openspec/changes/<id>/proposal.md)"`
+- Add issue link to `proposal.md`: `> **GitHub Issue:** [#<N>](https://github.com/<owner>/<repo>/issues/<N>)`
+- Run `openspec validate <change-id> --strict` and fix issues
+- Wait for approval before implementing
+- Run `git checkout -b openspec/<change-id>` before implementing
+- Run `gh pr create --draft --title "Implement: <title>" --body "Closes: #<N>"`
+- After all tasks complete, run `gh pr ready`
+
+## GitHub Integration
+
+### GitHub Issue Creation
+
+Create GitHub issue for every proposal:
+
+```bash
+gh issue create \
+  --title "<descriptive-title>" \
+  --label "enhancement" \
+  --body "$(cat openspec/changes/<change-id>/proposal.md)"
+```
+
+Add issue reference to `proposal.md` after title:
+
+```markdown
+# Change: Your Change Title
+
+> **GitHub Issue:** [#<issue-number>](https://github.com/<owner>/<repo>/issues/<issue-number>)
+
+## Why
+```
+
+Sync proposal with issue when updating:
+
+```bash
+gh issue edit <issue-number> --body "$(cat openspec/changes/<change-id>/proposal.md)"
+```
+
+### Branch Management
+
+Check current branch before implementing:
+
+```bash
+git branch --show-current
+```
+
+Create branch using pattern `openspec/<change-id>`:
+
+```bash
+git checkout -b openspec/<change-id>
+```
+
+If branch exists, checkout and pull:
+
+```bash
+git checkout openspec/<change-id>
+git pull origin openspec/<change-id> 2>/dev/null || true
+```
+
+Never implement on `main` or `master`.
+
+### Draft PR Creation
+
+Push branch:
+
+```bash
+git push -u origin openspec/<change-id>
+```
+
+Create draft PR with issue link:
+
+```bash
+gh pr create \
+  --title "Implement: <change-title>" \
+  --body "$(cat <<'EOF'
+## Summary
+
+Implements openspec change proposal.
+
+**Proposal:** openspec/changes/<change-id>/proposal.md
+**Closes:** #<issue-number>
+
+## Tasks
+
+See `openspec/changes/<change-id>/tasks.md` for implementation checklist.
+
+## Test Plan
+
+- [ ] All existing tests pass
+- [ ] New tests added for changed behavior
+- [ ] `openspec validate <change-id> --strict` passes
+EOF
+)" \
+  --draft
+```
+
+Always use `--draft` flag. Always include `Closes: #<issue-number>` in body.
+
+### PR Completion
+
+Verify all tasks complete:
+
+```bash
+cat openspec/changes/<change-id>/tasks.md | grep -E "^\s*- \["
+openspec validate <change-id> --strict
+npm test
+```
+
+Mark PR ready:
+
+```bash
+gh pr ready
+```
+
+Optional: add reviewers:
+
+```bash
+gh pr edit --add-reviewer <username>
+```
+
+### Command Reference
+
+```bash
+# Issues
+gh issue create --title "<title>" --body "..." --label "enhancement"
+gh issue edit <number> --body "..."
+gh issue view <number>
+gh issue list --label "enhancement"
+
+# Pull Requests
+gh pr create --title "<title>" --body "..." --draft
+gh pr ready
+gh pr edit --add-reviewer <user>
+gh pr view
+gh pr list --state open
+
+# Check branch
+git branch --show-current
+
+# Create branch
+git checkout -b openspec/<change-id>
+```
+
+### Required Actions by Stage
+
+Stage 1 (Proposal):
+1. Create `openspec/changes/<change-id>/proposal.md`
+2. Run `gh issue create` with proposal content
+3. Add issue reference to proposal.md
+
+Stage 2 (Implementation):
+1. Run `git branch --show-current` - verify not on main/master
+2. Run `git checkout -b openspec/<change-id>` if branch doesn't exist
+3. Run `gh pr create --draft` with `Closes: #<issue-number>`
+4. Complete all tasks in `tasks.md`
+5. Run `openspec validate <change-id> --strict`
+6. Run `gh pr ready`
+
+Stage 3 (Archive):
+1. After PR merged, run `openspec archive <change-id> --yes`
+2. GitHub issue auto-closes via `Closes:` link
+
+---
 
 ## Three-Stage Workflow
 
 ### Stage 1: Creating Changes
-Create proposal when you need to:
-- Add features or functionality
-- Make breaking changes (API, schema)
-- Change architecture or patterns  
-- Optimize performance (changes behavior)
-- Update security patterns
+Create proposal when:
+- Adding features or functionality
+- Making breaking changes (API, schema)
+- Changing architecture or patterns  
+- Optimizing performance (changes behavior)
+- Updating security patterns
 
-Triggers (examples):
+User request patterns that trigger proposal creation:
 - "Help me create a change proposal"
 - "Help me plan a change"
 - "Help me create a proposal"
 - "I want to create a spec proposal"
 - "I want to create a spec"
 
-Loose matching guidance:
-- Contains one of: `proposal`, `change`, `spec`
-- With one of: `create`, `plan`, `make`, `start`, `help`
+Pattern matching: request contains one of `proposal`, `change`, `spec` with one of `create`, `plan`, `make`, `start`, `help`
 
 Skip proposal for:
-- Bug fixes (restore intended behavior)
+- Bug fixes (restoring intended behavior)
 - Typos, formatting, comments
 - Dependency updates (non-breaking)
 - Configuration changes
 - Tests for existing behavior
 
 **Workflow**
-1. Review `openspec/project.md`, `openspec list`, and `openspec list --specs` to understand current context.
-2. Choose a unique verb-led `change-id` and scaffold `proposal.md`, `tasks.md`, optional `design.md`, and spec deltas under `openspec/changes/<id>/`.
-3. Draft spec deltas using `## ADDED|MODIFIED|REMOVED Requirements` with at least one `#### Scenario:` per requirement.
-4. Run `openspec validate <id> --strict` and resolve any issues before sharing the proposal.
+1. Run `openspec list` and `openspec list --specs` to understand current context
+2. Choose unique verb-led `change-id` and scaffold files under `openspec/changes/<id>/`
+3. Write spec deltas using `## ADDED|MODIFIED|REMOVED Requirements` with at least one `#### Scenario:` per requirement
+4. Run `openspec validate <id> --strict` and resolve issues
+5. Run `gh issue create --title "<title>" --body "$(cat openspec/changes/<id>/proposal.md)"`
+6. Add issue reference to `proposal.md` after title: `> **GitHub Issue:** [#<N>](...)`
 
 ### Stage 2: Implementing Changes
 Track these steps as TODOs and complete them one by one.
-1. **Read proposal.md** - Understand what's being built
-2. **Read design.md** (if exists) - Review technical decisions
-3. **Read tasks.md** - Get implementation checklist
-4. **Implement tasks sequentially** - Complete in order
-5. **Confirm completion** - Ensure every item in `tasks.md` is finished before updating statuses
-6. **Update checklist** - After all work is done, set every task to `- [x]` so the list reflects reality
-7. **Approval gate** - Do not start implementation until the proposal is reviewed and approved
+
+**Pre-Implementation (Required):**
+1. Run `cat openspec/changes/<change-id>/proposal.md | grep "GitHub Issue:"` to verify issue link exists
+2. Run `git branch --show-current` to verify not on main/master
+3. Run `git checkout -b openspec/<change-id>` to create branch
+4. Run `gh pr create --draft` with `Closes: #<issue-number>` in body
+
+**Implementation:**
+5. Read `openspec/changes/<change-id>/proposal.md` to understand what's being built
+6. Read `openspec/changes/<change-id>/design.md` if exists
+7. Read `openspec/changes/<change-id>/tasks.md` for implementation checklist
+8. Implement tasks sequentially, commit regularly
+9. Confirm every item in `tasks.md` is complete
+10. Update `tasks.md` to set every task to `- [x]`
+
+**Completion:**
+11. Run `openspec validate <change-id> --strict`
+12. Run `npm test` to verify all tests pass
+13. Run `gh pr ready` when ALL tasks complete
+14. Optional: run `gh pr edit --add-reviewer <username>`
 
 ### Stage 3: Archiving Changes
-After deployment, create separate PR to:
-- Move `changes/[name]/` → `changes/archive/YYYY-MM-DD-[name]/`
-- Update `specs/` if capabilities changed
-- Use `openspec archive <change-id> --skip-specs --yes` for tooling-only changes (always pass the change ID explicitly)
-- Run `openspec validate --strict` to confirm the archived change passes checks
+After PR is merged:
+
+1. PR merge auto-closes GitHub issue via `Closes: #N` link
+2. Run `openspec archive <change-id> --yes` to archive change
+3. Commit archived files
+4. Push to main or create archive PR
+
+**Archive commands:**
+
+```bash
+# Standard archive (updates specs)
+openspec archive <change-id> --yes
+
+# Tooling-only changes (no spec updates)
+openspec archive <change-id> --skip-specs --yes
+
+# Validate after archive
+openspec validate --strict
+```
+
+**Result:**
+- `changes/<name>/` moves to `changes/archive/YYYY-MM-DD-<name>/`
+- `specs/` updated with merged deltas (unless `--skip-specs`)
+- GitHub issue closed via PR merge
 
 ## Before Any Task
 
 **Context Checklist:**
-- [ ] Read relevant specs in `specs/[capability]/spec.md`
-- [ ] Check pending changes in `changes/` for conflicts
+- [ ] Read relevant specs in `specs/<capability>/spec.md`
+- [ ] Run `openspec list` to check for pending changes and conflicts
 - [ ] Read `openspec/project.md` for conventions
-- [ ] Run `openspec list` to see active changes
 - [ ] Run `openspec list --specs` to see existing capabilities
 
+**GitHub Checklist (for implementation):**
+- [ ] Run `cat openspec/changes/<change-id>/proposal.md | grep "GitHub Issue:"` to verify issue link exists
+- [ ] Run `git branch --show-current` to check current branch
+- [ ] Run `git checkout -b openspec/<change-id>` to create implementation branch
+- [ ] Run `gh pr list --head openspec/<change-id>` to verify draft PR exists
+
 **Before Creating Specs:**
-- Always check if capability already exists
-- Prefer modifying existing specs over creating duplicates
-- Use `openspec show [spec]` to review current state
-- If request is ambiguous, ask 1–2 clarifying questions before scaffolding
+- Run `openspec list --specs` to check if capability exists
+- Modify existing specs instead of creating duplicates
+- Run `openspec show <spec>` to review current state
+- Ask 1-2 clarifying questions if request is ambiguous
 
 ### Search Guidance
-- Enumerate specs: `openspec spec list --long` (or `--json` for scripts)
-- Enumerate changes: `openspec list` (or `openspec change list --json` - deprecated but available)
-- Show details:
-  - Spec: `openspec show <spec-id> --type spec` (use `--json` for filters)
-  - Change: `openspec show <change-id> --json --deltas-only`
-- Full-text search (use ripgrep): `rg -n "Requirement:|Scenario:" openspec/specs`
+- Run `openspec spec list --long` to enumerate specs (use `--json` for scripts)
+- Run `openspec list` to enumerate changes
+- Run `openspec show <spec-id> --type spec` to show spec details (use `--json` for filters)
+- Run `openspec show <change-id> --json --deltas-only` to show change details
+- Run `rg -n "Requirement:|Scenario:" openspec/specs` for full-text search
 
 ## Quick Start
 
@@ -156,25 +351,25 @@ New request?
 
 ### Proposal Structure
 
-1. **Create directory:** `changes/[change-id]/` (kebab-case, verb-led, unique)
+1. Create directory `changes/<change-id>/` (kebab-case, verb-led, unique)
 
-2. **Write proposal.md:**
+2. Write `proposal.md`:
 ```markdown
-# Change: [Brief description of change]
+# Change: <brief-description>
 
 ## Why
-[1-2 sentences on problem/opportunity]
+<1-2 sentences on problem/opportunity>
 
 ## What Changes
-- [Bullet list of changes]
-- [Mark breaking changes with **BREAKING**]
+- <bullet list of changes>
+- <mark breaking changes with **BREAKING**>
 
 ## Impact
-- Affected specs: [list capabilities]
-- Affected code: [key files/systems]
+- Affected specs: <list capabilities>
+- Affected code: <key files/systems>
 ```
 
-3. **Create spec deltas:** `specs/[capability]/spec.md`
+3. Create spec deltas in `specs/<capability>/spec.md`
 ```markdown
 ## ADDED Requirements
 ### Requirement: New Feature
@@ -193,9 +388,9 @@ The system SHALL provide...
 **Reason**: [Why removing]
 **Migration**: [How to handle]
 ```
-If multiple capabilities are affected, create multiple delta files under `changes/[change-id]/specs/<capability>/spec.md`—one per capability.
+For multiple capabilities, create multiple delta files under `changes/<change-id>/specs/<capability>/spec.md` (one per capability).
 
-4. **Create tasks.md:**
+4. Create `tasks.md`:
 ```markdown
 ## 1. Implementation
 - [ ] 1.1 Create database schema
@@ -204,8 +399,7 @@ If multiple capabilities are affected, create multiple delta files under `change
 - [ ] 1.4 Write tests
 ```
 
-5. **Create design.md when needed:**
-Create `design.md` if any of the following apply; otherwise omit it:
+5. Create `design.md` if any of the following apply; otherwise omit:
 - Cross-cutting change (multiple services/modules) or a new architectural pattern
 - New external dependency or significant data model changes
 - Security, performance, or migration complexity
@@ -255,7 +449,8 @@ Minimal `design.md` skeleton:
 Every requirement MUST have at least one scenario.
 
 ### Requirement Wording
-- Use SHALL/MUST for normative requirements (avoid should/may unless intentionally non-normative)
+- Use `SHALL` or `MUST` for normative requirements
+- Avoid `should` or `may` unless intentionally non-normative
 
 ### Delta Operations
 
@@ -267,17 +462,21 @@ Every requirement MUST have at least one scenario.
 Headers matched with `trim(header)` - whitespace ignored.
 
 #### When to use ADDED vs MODIFIED
-- ADDED: Introduces a new capability or sub-capability that can stand alone as a requirement. Prefer ADDED when the change is orthogonal (e.g., adding "Slash Command Configuration") rather than altering the semantics of an existing requirement.
-- MODIFIED: Changes the behavior, scope, or acceptance criteria of an existing requirement. Always paste the full, updated requirement content (header + all scenarios). The archiver will replace the entire requirement with what you provide here; partial deltas will drop previous details.
-- RENAMED: Use when only the name changes. If you also change behavior, use RENAMED (name) plus MODIFIED (content) referencing the new name.
+- Use `ADDED` when introducing new capability or sub-capability that stands alone
+- Use `ADDED` for orthogonal changes (e.g., adding "Slash Command Configuration")
+- Use `MODIFIED` when changing behavior, scope, or acceptance criteria of existing requirement
+- Use `RENAMED` when only name changes
 
 Common pitfall: Using MODIFIED to add a new concern without including the previous text. This causes loss of detail at archive time. If you aren’t explicitly changing the existing requirement, add a new requirement under ADDED instead.
 
-Authoring a MODIFIED requirement correctly:
-1) Locate the existing requirement in `openspec/specs/<capability>/spec.md`.
-2) Copy the entire requirement block (from `### Requirement: ...` through its scenarios).
-3) Paste it under `## MODIFIED Requirements` and edit to reflect the new behavior.
-4) Ensure the header text matches exactly (whitespace-insensitive) and keep at least one `#### Scenario:`.
+For `MODIFIED` requirements:
+1. Locate existing requirement in `openspec/specs/<capability>/spec.md`
+2. Copy entire requirement block (from `### Requirement: ...` through scenarios)
+3. Paste under `## MODIFIED Requirements` and edit to reflect new behavior
+4. Ensure header text matches exactly (whitespace-insensitive) with at least one `#### Scenario:`
+5. Include full updated content (header + all scenarios) - archiver replaces entire requirement
+
+Common error: Using `MODIFIED` to add new concern without including previous text causes loss of detail. Use `ADDED` instead.
 
 Example for RENAMED:
 ```markdown
@@ -290,29 +489,29 @@ Example for RENAMED:
 
 ### Common Errors
 
-**"Change must have at least one delta"**
-- Check `changes/[name]/specs/` exists with .md files
-- Verify files have operation prefixes (## ADDED Requirements)
+Error: "Change must have at least one delta"
+- Check `changes/<change-id>/specs/` exists with .md files
+- Verify files have operation prefixes (`## ADDED Requirements`)
 
-**"Requirement must have at least one scenario"**
-- Check scenarios use `#### Scenario:` format (4 hashtags)
-- Don't use bullet points or bold for scenario headers
+Error: "Requirement must have at least one scenario"
+- Verify scenarios use `#### Scenario:` format (4 hashtags)
+- Do not use bullet points or bold for scenario headers
 
-**Silent scenario parsing failures**
-- Exact format required: `#### Scenario: Name`
-- Debug with: `openspec show [change] --json --deltas-only`
+Error: Silent scenario parsing failures
+- Use exact format: `#### Scenario: Name`
+- Run `openspec show <change-id> --json --deltas-only` to debug
 
 ### Validation Tips
 
 ```bash
-# Always use strict mode for comprehensive checks
-openspec validate [change] --strict
+# Use strict mode for comprehensive checks
+openspec validate <change-id> --strict
 
 # Debug delta parsing
-openspec show [change] --json | jq '.deltas'
+openspec show <change-id> --json | jq '.deltas'
 
 # Check specific requirement
-openspec show [spec] --json -r 1
+openspec show <spec-id> --json -r 1
 ```
 
 ## Happy Path Script
@@ -382,10 +581,10 @@ notifications/spec.md
 - Choose boring, proven patterns
 
 ### Complexity Triggers
-Only add complexity with:
-- Performance data showing current solution too slow
-- Concrete scale requirements (>1000 users, >100MB data)
-- Multiple proven use cases requiring abstraction
+Add complexity only when:
+- Performance data shows current solution too slow
+- Concrete scale requirements exist (>1000 users, >100MB data)
+- Multiple proven use cases require abstraction
 
 ### Clear References
 - Use `file.ts:42` format for code locations
@@ -421,16 +620,16 @@ Only add complexity with:
 4. Consider combining proposals
 
 ### Validation Failures
-1. Run with `--strict` flag
-2. Check JSON output for details
-3. Verify spec file format
-4. Ensure scenarios properly formatted
+1. Run `openspec validate <change-id> --strict`
+2. Run `openspec show <change-id> --json` to check details
+3. Verify spec file format matches requirements
+4. Verify scenarios use `#### Scenario:` format
 
 ### Missing Context
-1. Read project.md first
-2. Check related specs
-3. Review recent archives
-4. Ask for clarification
+1. Read `openspec/project.md`
+2. Run `openspec show <spec>` to check related specs
+3. Run `ls openspec/changes/archive` to review recent archives
+4. Ask user for clarification
 
 ## Quick Reference
 
@@ -447,10 +646,9 @@ Only add complexity with:
 
 ### CLI Essentials
 ```bash
-openspec list              # What's in progress?
-openspec show [item]       # View details
-openspec validate --strict # Is it correct?
-openspec archive <change-id> [--yes|-y]  # Mark complete (add --yes for automation)
+openspec list                                # List active changes
+openspec show <item>                         # View details
+openspec validate --strict                   # Validate all
+openspec validate <change-id> --strict       # Validate specific change
+openspec archive <change-id> [--yes|-y]      # Archive change after merge
 ```
-
-Remember: Specs are truth. Changes are proposals. Keep them in sync.
