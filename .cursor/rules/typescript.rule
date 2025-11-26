@@ -1,0 +1,11 @@
+description: Rules for TypeScript code in fluent-check
+patterns: ["**/*.ts"]
+rules:
+  - Maintain strong type safety. This is a type-focused project.
+  - Follow the fluent API pattern that's used throughout the codebase.
+  - Use descriptive variable names that express intent.
+  - Prefer immutable data structures and functional programming patterns.
+  - Maintain the chained type inference capabilities when modifying code.
+  - Use TypeScript's advanced type features when appropriate (conditional types, mapped types, etc).
+  - Export all public APIs with proper TypeScript interfaces and type definitions.
+  - Document complex type operations with comments explaining the intent. 

@@ -1,0 +1,11 @@
+description: Rules for test files in fluent-check
+patterns: ["**/test/**/*.ts"]
+rules:
+  - Test files should demonstrate proper usage of the fluent-check API.
+  - Tests should cover both positive cases and failure cases.
+  - Include tests for edge cases and boundary values.
+  - Use the chai assertion library consistently.
+  - Maintain the structure of existing tests when adding new ones.
+  - Structure tests to be clear examples of how to use the library.
+  - Include comments explaining the purpose of complex test cases.
+  - Prefer declarative test descriptions that explain what is being tested. 

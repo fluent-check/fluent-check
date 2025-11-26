@@ -1,0 +1,22 @@
+const violationPatterns = [
+  {
+    name: 'Violations at Edge Cases Only',
+    isViolation: (x: number) => edgeCases.includes(x),
+    violationSize: edgeCases.length
+  },
+  {
+    name: 'Violations Disjoint from Edge Cases',
+    isViolation: (x: number) => x >= 100 && x <= 199 && !edgeCases.includes(x),
+    violationSize: 100
+  },
+  {
+    name: 'Violations Include Some Edge Cases',
+    isViolation: (x: number) => (x < 100) || edgeCases.includes(x),
+    violationSize: 100 + edgeCases.filter(e => e >= 100).length
+  },
+  {
+    name: 'Uniformly Distributed Violations',
+    isViolation: (x: number) => x % 100 === 0,
+    violationSize: Math.floor(domainSize / 100)
+  }
+]

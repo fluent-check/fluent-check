@@ -1,0 +1,14 @@
+description: Project context for fluent-check
+patterns: ["**/*"]
+rules:
+  - This is fluent-check, a type-safe property-based testing framework for TypeScript.
+  - The project follows a fluent API design pattern for defining property-based tests.
+  - Key components include Arbitraries (data generators), Strategies (test execution plans), and the main FluentCheck API.
+  - Arbitraries generate test data and handle shrinking to find minimal counterexamples.
+  - Strategies control how tests are executed, validated, and reported.
+  - The codebase heavily uses TypeScript's type system to provide type safety throughout the testing pipeline.
+  - Type inference is crucial - types should flow correctly through method chains.
+  - Type correctness is crucial - avoid at all costs type coercion, specially the `as unknown as T` pattern.
+  - The project aims to maintain a clean, intuitive API while providing powerful testing capabilities.
+  - It is designed as a modern alternative to FastCheck, QuickCheck, and similar property-based testing frameworks. 
+  

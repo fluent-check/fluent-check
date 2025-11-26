@@ -1,0 +1,11 @@
+description: Rules for documentation files in fluent-check
+patterns: ["**/docs/**/*.md", "README.md"]
+rules:
+  - Documentation should be clear, concise, and provide examples.
+  - Use proper Markdown formatting for code blocks, headings, and lists.
+  - Include TypeScript examples demonstrating recommended usage.
+  - Match documentation style with existing docs.
+  - Explain complex concepts in simple terms with concrete examples.
+  - Keep API documentation up-to-date with implementation.
+  - Include both basic and advanced usage examples.
+  - Documentation should be accessible to developers new to property-based testing. 

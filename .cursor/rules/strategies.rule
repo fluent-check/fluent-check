@@ -1,0 +1,11 @@
+description: Rules for FluentCheck testing strategies
+patterns: ["**/strategies/*.ts"]
+rules:
+  - Strategies should follow the fluent API design pattern.
+  - Ensure all strategies properly compose and can be chained.
+  - Maintain proper type inference through all transformation stages.
+  - Include proper statistical analysis and confidence calculations.
+  - Support customization of test parameters (number of samples, etc).
+  - Edge cases should be prioritized in test case generation.
+  - Make behavior predictable and consistent across runs when using the same seed.
+  - Strategies should be composable with different types of arbitraries. 

@@ -1,0 +1,11 @@
+description: Rules for Arbitrary implementations in fluent-check
+patterns: ["**/arbitraries/*.ts"]
+rules:
+  - All Arbitrary implementations must extend the base Arbitrary class or implement the Arbitrary interface.
+  - Arbitraries should handle edge cases appropriately (empty arrays, min/max values, etc).
+  - Ensure proper shrinking behavior is implemented for each Arbitrary.
+  - Maintain consistent statistical distribution characteristics.
+  - Include appropriate type parameters and constraints.
+  - Support method chaining for transformations (map, filter, etc).
+  - Make sure that type information flows correctly through all transformations.
+  - Document the behavior of complex arbitraries with examples. 

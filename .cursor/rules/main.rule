@@ -1,0 +1,9 @@
+description: Rules for main project files implementing core functionality
+patterns: ["**/src/*.ts", "!**/src/notebook*.ts"]
+rules:
+  - Core files should maintain a clean and consistent API design.
+  - Follow the fluent builder pattern consistently.
+  - Ensure all public functions have appropriate TypeScript type definitions.
+  - Keep complex implementations behind a simple, intuitive interface.
+  - Use descriptive naming that aligns with property-based testing concepts.
+  - Prefer composition over inheritance where possible. 
