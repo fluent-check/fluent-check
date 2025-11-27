@@ -104,18 +104,18 @@ export class BetaBinomialDistribution extends IntegerDistribution {
       this.betaln(x + this.alpha, this.trials - x + this.beta) -
       this.betaln(this.alpha, this.beta)
   }
-  
+
   // Helper functions since jstat's API changed
   private combinationln(n: number, k: number): number {
-    return this.factorialln(n) - this.factorialln(k) - this.factorialln(n - k);
+    return this.factorialln(n) - this.factorialln(k) - this.factorialln(n - k)
   }
-  
+
   private betaln(a: number, b: number): number {
-    return jstat.gammaln(a) + jstat.gammaln(b) - jstat.gammaln(a + b);
+    return jstat.gammaln(a) + jstat.gammaln(b) - jstat.gammaln(a + b)
   }
-  
+
   private factorialln(n: number): number {
-    return jstat.gammaln(n + 1);
+    return jstat.gammaln(n + 1)
   }
 }
 

@@ -12,9 +12,7 @@ export default tseslint.config(
         ...globals.es2020,
       },
       parserOptions: {
-        projectService: {
-          allowDefaultProject: ['test/*.ts'],
-        },
+        project: './tsconfig.eslint.json',
         tsconfigRootDir: import.meta.dirname,
       },
     },
@@ -64,6 +62,13 @@ export default tseslint.config(
     },
   },
   {
-    ignores: ['dist/**', 'node_modules/**', 'coverage/**', 'test/types/**'],
+    // Test files: disable no-unused-expressions for Chai assertions
+    files: ['test/**/*.ts'],
+    rules: {
+      '@typescript-eslint/no-unused-expressions': 'off',
+    },
+  },
+  {
+    ignores: ['dist/**', 'node_modules/**', 'coverage/**'],
   }
 )

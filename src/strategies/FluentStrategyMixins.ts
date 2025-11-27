@@ -22,26 +22,27 @@ type MixinConstructor<T = {}> = new (...args: any[]) => T
 type MixinStrategy = MixinConstructor<FluentStrategy>
 
 // Base class with the common properties to be used by the mixins
-abstract class MixinBase {
-  arbitraries: Record<string, ArbitraryContainer<any>> = {};
+// Note: This abstract class documents the expected interface for mixin targets
+abstract class _MixinBase {
+  arbitraries: Record<string, ArbitraryContainer<any>> = {}
   configuration: StrategyConfiguration = {
     sampleSize: 100,
     shrinkSize: 100
-  };
-  randomGenerator: { generator: () => number } = { 
-    generator: () => Math.random() 
-  };
-  
-  buildArbitraryCollection<A>(arbitrary: Arbitrary<A>, sampleSize?: number): FluentPick<A>[] {
+  }
+  randomGenerator: { generator: () => number } = {
+    generator: () => Math.random()
+  }
+
+  buildArbitraryCollection<A>(_arbitrary: Arbitrary<A>, _sampleSize?: number): FluentPick<A>[] {
     throw new Error('Method not implemented', {
       cause: 'Mixin method requires implementation'
-    });
+    })
   }
-  
+
   isDedupable(): boolean {
     throw new Error('Method not implemented', {
       cause: 'Mixin method requires implementation'
-    });
+    })
   }
 }
 

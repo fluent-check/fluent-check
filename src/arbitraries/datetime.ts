@@ -1,5 +1,5 @@
-import { Arbitrary, ArbitraryInteger, NoArbitrary } from './internal.js'
-import { tuple, integer } from './index.js'
+import {Arbitrary, ArbitraryInteger, NoArbitrary} from './internal.js'
+import {tuple, integer} from './index.js'
 
 /**
  * Date arbitrary - generates random Date objects within a specified range
@@ -13,9 +13,9 @@ export const date = (
 ): Arbitrary<Date> => {
   const minTimestamp = minDate.getTime()
   const maxTimestamp = maxDate.getTime()
-  
+
   if (minTimestamp > maxTimestamp) return NoArbitrary
-  
+
   return integer(minTimestamp, maxTimestamp).map(timestamp => new Date(timestamp))
 }
 
@@ -29,7 +29,7 @@ export const time = (): Arbitrary<{ hour: number; minute: number; second: number
     integer(0, 59),
     integer(0, 59),
     integer(0, 999)
-  ).map(([hour, minute, second, millisecond]) => ({ hour, minute, second, millisecond }))
+  ).map(([hour, minute, second, millisecond]) => ({hour, minute, second, millisecond}))
 }
 
 /**
@@ -45,9 +45,9 @@ export const datetime = (
   // Get dates with time set to midnight
   const minTimestamp = new Date(minDate).setHours(0, 0, 0, 0)
   const maxTimestamp = new Date(maxDate).setHours(23, 59, 59, 999)
-  
+
   if (minTimestamp > maxTimestamp) return NoArbitrary
-  
+
   return tuple(
     integer(minTimestamp, maxTimestamp),
     integer(0, 23),
@@ -70,13 +70,13 @@ export const duration = (
   maxHours: number = 24
 ): Arbitrary<{ hours: number; minutes: number; seconds: number; milliseconds: number }> => {
   if (maxHours < 0) return NoArbitrary
-  
+
   return tuple(
     integer(0, maxHours),
     integer(0, 59),
     integer(0, 59),
     integer(0, 999)
-  ).map(([hours, minutes, seconds, milliseconds]) => ({ hours, minutes, seconds, milliseconds }))
+  ).map(([hours, minutes, seconds, milliseconds]) => ({hours, minutes, seconds, milliseconds}))
 }
 
 /**
@@ -88,10 +88,10 @@ export const timeToMilliseconds = (
   time: { hour?: number; minute?: number; second?: number; millisecond?: number } |
         { hours?: number; minutes?: number; seconds?: number; milliseconds?: number }
 ): number => {
-  const h = 'hours' in time ? time.hours || 0 : 'hour' in time ? time.hour || 0 : 0
-  const m = 'minutes' in time ? time.minutes || 0 : 'minute' in time ? time.minute || 0 : 0
-  const s = 'seconds' in time ? time.seconds || 0 : 'second' in time ? time.second || 0 : 0
-  const ms = 'milliseconds' in time ? time.milliseconds || 0 : 'millisecond' in time ? time.millisecond || 0 : 0
-  
+  const h = 'hours' in time ? (time.hours ?? 0) : 'hour' in time ? (time.hour ?? 0) : 0
+  const m = 'minutes' in time ? (time.minutes ?? 0) : 'minute' in time ? (time.minute ?? 0) : 0
+  const s = 'seconds' in time ? (time.seconds ?? 0) : 'second' in time ? (time.second ?? 0) : 0
+  const ms = 'milliseconds' in time ? (time.milliseconds ?? 0) : 'millisecond' in time ? (time.millisecond ?? 0) : 0
+
   return h * 3600000 + m * 60000 + s * 1000 + ms
-} 
+}

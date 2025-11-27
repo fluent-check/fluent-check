@@ -27,8 +27,8 @@ export class FluentStrategy implements FluentStrategyInterface {
    */
   constructor(public readonly configuration: FluentConfig) {
     // Ensure sampleSize and shrinkSize are always defined
-    this.configuration.sampleSize = this.configuration.sampleSize ?? 1000;
-    this.configuration.shrinkSize = this.configuration.shrinkSize ?? 500;
+    this.configuration.sampleSize = this.configuration.sampleSize ?? 1000
+    this.configuration.shrinkSize = this.configuration.shrinkSize ?? 500
   }
 
   /**
