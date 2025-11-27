@@ -1,6 +1,6 @@
 import {Arbitrary} from './internal.js'
-import {FluentPick} from './types.js'
-import {mapArbitrarySize, NilArbitrarySize} from './util.js'
+import {ArbitrarySize, FluentPick} from './types.js'
+import {exactSize, estimatedSize, NilArbitrarySize} from './util.js'
 import * as fc from './index.js'
 
 export class ArbitraryComposite<A> extends Arbitrary<A> {
@@ -8,11 +8,18 @@ export class ArbitraryComposite<A> extends Arbitrary<A> {
     super()
   }
 
-  size() {
-    return this.arbitraries.reduce((acc, e) =>
-      mapArbitrarySize(e.size(), v => ({value: acc.value + v, type: acc.type, credibleInterval: acc.credibleInterval})),
-    NilArbitrarySize
-    )
+  size(): ArbitrarySize {
+    let value = 0
+    let isEstimated = false
+
+    for (const a of this.arbitraries) {
+      const size = a.size()
+      if (size.type === 'estimated') isEstimated = true
+      value += size.value
+    }
+
+    // todo: fix credible interval for estimated sizes
+    return isEstimated ? estimatedSize(value, [value, value]) : exactSize(value)
   }
 
   pick(generator: () => number) {

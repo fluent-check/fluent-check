@@ -1,7 +1,7 @@
 import {BetaDistribution} from '../statistics.js'
-import {FluentPick} from './types.js'
+import {EstimatedSize, FluentPick} from './types.js'
 import {Arbitrary, NoArbitrary, WrappedArbitrary} from './internal.js'
-import {lowerCredibleInterval, mapArbitrarySize, upperCredibleInterval} from './util.js'
+import {estimatedSize, lowerCredibleInterval, mapArbitrarySize, upperCredibleInterval} from './util.js'
 
 export class FilteredArbitrary<A> extends WrappedArbitrary<A> {
   sizeEstimation: BetaDistribution
@@ -11,20 +11,21 @@ export class FilteredArbitrary<A> extends WrappedArbitrary<A> {
     this.sizeEstimation = new BetaDistribution(2, 1) // use 1,1 for .mean instead of .mode in point estimation
   }
 
-  size() {
+  size(): EstimatedSize {
     // TODO: Still not sure if we should use mode or mean for estimating the size (depends on which error we are trying
     // to minimize, L1 or L2)
     // Also, this assumes we estimate a continuous interval between 0 and 1;
     // We could try to change this to a beta-binomial distribution, which would provide us a discrete approach
     // for when we know the exact base population size.
-    return mapArbitrarySize(this.baseArbitrary.size(), v => ({
-      type: 'estimated',
-      value: Math.round(v * this.sizeEstimation.mode()),
-      credibleInterval: [
+    const baseSize = this.baseArbitrary.size()
+    const v = baseSize.value
+    return estimatedSize(
+      Math.round(v * this.sizeEstimation.mode()),
+      [
         v * this.sizeEstimation.inv(lowerCredibleInterval),
         v * this.sizeEstimation.inv(upperCredibleInterval)
       ]
-    }))
+    )
   }
 
   pick(generator: () => number): FluentPick<A> | undefined {

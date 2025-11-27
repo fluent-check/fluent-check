@@ -1,5 +1,6 @@
-import {ArbitrarySize, FluentPick} from './types.js'
+import {ExactSize, FluentPick} from './types.js'
 import {Arbitrary, NoArbitrary} from './internal.js'
+import {exactSize} from './util.js'
 import * as fc from './index.js'
 
 export class ArbitraryInteger extends Arbitrary<number> {
@@ -7,9 +8,8 @@ export class ArbitraryInteger extends Arbitrary<number> {
     super()
   }
 
-  size(): ArbitrarySize {
-    const value = this.max - this.min + 1
-    return {value, type: 'exact', credibleInterval: [value, value]}
+  size(): ExactSize {
+    return exactSize(this.max - this.min + 1)
   }
 
   pick(generator: () => number) {

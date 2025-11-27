@@ -1,4 +1,5 @@
 import * as fc from '../src/index.js'
+import {exactSize, estimatedSize} from '../src/arbitraries/index.js'
 import {it, describe} from 'mocha'
 import * as chai from 'chai'
 const {expect} = chai
@@ -181,6 +182,151 @@ describe('Arbitrary tests', () => {
   })
 
   describe('Sizes', () => {
+    describe('Discriminated Unions', () => {
+      describe('Factory functions', () => {
+        it('exactSize creates an ExactSize with only type and value', () => {
+          const size = exactSize(42)
+          expect(size).to.deep.equal({type: 'exact', value: 42})
+          expect(size).to.have.property('type', 'exact')
+          expect(size).to.have.property('value', 42)
+          expect(size).to.not.have.property('credibleInterval')
+        })
+
+        it('estimatedSize creates an EstimatedSize with type, value, and credibleInterval', () => {
+          const size = estimatedSize(100, [90, 110])
+          expect(size).to.deep.equal({type: 'estimated', value: 100, credibleInterval: [90, 110]})
+          expect(size).to.have.property('type', 'estimated')
+          expect(size).to.have.property('value', 100)
+          expect(size).to.have.property('credibleInterval').deep.equal([90, 110])
+        })
+      })
+
+      describe('ExactSize implementations', () => {
+        it('integer arbitrary returns ExactSize without credibleInterval', () => {
+          const size = fc.integer(0, 10).size()
+          expect(size.type).to.equal('exact')
+          expect(size.value).to.equal(11)
+          expect(size).to.not.have.property('credibleInterval')
+        })
+
+        it('constant arbitrary returns ExactSize', () => {
+          const size = fc.constant(42).size()
+          expect(size.type).to.equal('exact')
+          expect(size.value).to.equal(1)
+          expect(size).to.not.have.property('credibleInterval')
+        })
+
+        it('empty arbitrary returns ExactSize with value 0', () => {
+          const size = fc.empty().size()
+          expect(size.type).to.equal('exact')
+          expect(size.value).to.equal(0)
+          expect(size).to.not.have.property('credibleInterval')
+        })
+
+        it('set arbitrary returns ExactSize', () => {
+          const size = fc.set(['a', 'b', 'c'], 1, 3).size()
+          expect(size.type).to.equal('exact')
+          expect(size.value).to.equal(7)
+          expect(size).to.not.have.property('credibleInterval')
+        })
+
+        it('boolean arbitrary returns ExactSize', () => {
+          const size = fc.boolean().size()
+          expect(size.type).to.equal('exact')
+          expect(size.value).to.equal(2)
+          expect(size).to.not.have.property('credibleInterval')
+        })
+      })
+
+      describe('EstimatedSize implementations', () => {
+        it('filtered arbitrary returns EstimatedSize with credibleInterval', () => {
+          const size = fc.integer(0, 100).filter(n => n > 50).size()
+          expect(size.type).to.equal('estimated')
+          expect(size).to.have.property('credibleInterval')
+          expect(size.credibleInterval).to.be.an('array').with.length(2)
+          expect(size.credibleInterval[0]).to.be.a('number')
+          expect(size.credibleInterval[1]).to.be.a('number')
+          expect(size.credibleInterval[0]).to.be.at.most(size.credibleInterval[1])
+        })
+      })
+
+      describe('Conditional implementations', () => {
+        it('tuple of exact arbitraries returns ExactSize', () => {
+          const size = fc.tuple(fc.integer(0, 1), fc.boolean()).size()
+          expect(size.type).to.equal('exact')
+          expect(size.value).to.equal(4) // 2 * 2
+          expect(size).to.not.have.property('credibleInterval')
+        })
+
+        it('tuple containing filtered arbitrary returns EstimatedSize', () => {
+          const size = fc.tuple(fc.integer(0, 10).filter(n => n > 5), fc.boolean()).size()
+          expect(size.type).to.equal('estimated')
+          expect(size).to.have.property('credibleInterval')
+        })
+
+        it('union of exact arbitraries returns ExactSize', () => {
+          const size = fc.union(fc.integer(0, 5), fc.integer(10, 15)).size()
+          expect(size.type).to.equal('exact')
+          expect(size.value).to.equal(12) // 6 + 6
+          expect(size).to.not.have.property('credibleInterval')
+        })
+
+        it('union containing filtered arbitrary returns EstimatedSize', () => {
+          const size = fc.union(fc.integer(0, 10).filter(n => n > 5), fc.boolean()).size()
+          expect(size.type).to.equal('estimated')
+          expect(size).to.have.property('credibleInterval')
+        })
+
+        it('array of exact arbitrary returns ExactSize', () => {
+          const size = fc.array(fc.boolean(), 2, 2).size()
+          expect(size.type).to.equal('exact')
+          expect(size.value).to.equal(4) // 2^2
+          expect(size).to.not.have.property('credibleInterval')
+        })
+
+        it('array of filtered arbitrary returns EstimatedSize', () => {
+          const size = fc.array(fc.integer(0, 10).filter(n => n > 5), 1, 2).size()
+          expect(size.type).to.equal('estimated')
+          expect(size).to.have.property('credibleInterval')
+        })
+      })
+
+      describe('Type narrowing at runtime', () => {
+        it('can discriminate between exact and estimated sizes', () => {
+          const exactSz = fc.integer(0, 10).size()
+          const estimatedSz = fc.integer(0, 100).filter(n => n > 50).size()
+
+          // Runtime type narrowing
+          if (exactSz.type === 'exact') {
+            expect(exactSz).to.not.have.property('credibleInterval')
+          } else {
+            throw new Error('Expected exact size')
+          }
+
+          if (estimatedSz.type === 'estimated') {
+            expect(estimatedSz.credibleInterval).to.be.an('array')
+          } else {
+            throw new Error('Expected estimated size')
+          }
+        })
+
+        it('switch statement covers all cases', () => {
+          const formatSize = (size: fc.ArbitrarySize): string => {
+            switch (size.type) {
+              case 'exact':
+                return `exact:${size.value}`
+              case 'estimated':
+                return `estimated:${size.value}:[${size.credibleInterval.join(',')}]`
+            }
+          }
+
+          expect(formatSize(fc.integer(0, 5).size())).to.equal('exact:6')
+          const filtered = fc.integer(0, 100).filter(n => n > 50).size()
+          expect(formatSize(filtered)).to.match(/^estimated:\d+:\[\d+\.?\d*,\d+\.?\d*\]$/)
+        })
+      })
+    })
+
     describe('Statistics tests', () => {
       it('size should be exact for exact well-bounded integer arbitraries', () => {
         expect(fc.integer(1, 1000).size()).to.deep.include({value: 1000, type: 'exact'})
@@ -194,14 +340,14 @@ describe('Arbitrary tests', () => {
       })
 
       it('size should be estimated for filtered arbitraries', () => {
-        expect(fc.integer(1, 1000).filter(i => i > 200).filter(i => i < 800).size().credibleInterval[0])
-          .to.be.below(600)
-        expect(fc.integer(1, 1000).filter(i => i > 200).filter(i => i < 800).size().credibleInterval[1])
-          .to.be.above(600)
-        expect(fc.integer(1, 1000).filter(i => i > 200 && i < 800).size().credibleInterval[0])
-          .to.be.below(600)
-        expect(fc.integer(1, 1000).filter(i => i > 200 && i < 800).size().credibleInterval[1])
-          .to.be.above(600)
+        const size1 = fc.integer(1, 1000).filter(i => i > 200).filter(i => i < 800).size()
+        expect(size1.type).to.equal('estimated')
+        expect(size1.credibleInterval[0]).to.be.below(600)
+        expect(size1.credibleInterval[1]).to.be.above(600)
+        const size2 = fc.integer(1, 1000).filter(i => i > 200 && i < 800).size()
+        expect(size2.type).to.equal('estimated')
+        expect(size2.credibleInterval[0]).to.be.below(600)
+        expect(size2.credibleInterval[1]).to.be.above(600)
       })
 
       it("sampling should terminate even if arbitrary's size is potentially zero", () => {

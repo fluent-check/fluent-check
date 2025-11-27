@@ -13,6 +13,7 @@ import {
 
 export * from './types.js'
 export {Arbitrary} from './internal.js'
+export {exactSize, estimatedSize} from './util.js'
 export {char, hex, base64, ascii, unicode, string} from './string.js'
 export {date, time, datetime, duration, timeToMilliseconds} from './datetime.js'
 export {regex, patterns, shrinkRegexString} from './regex.js'
