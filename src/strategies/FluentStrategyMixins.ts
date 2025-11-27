@@ -63,7 +63,7 @@ export function Random<TBase extends MixinStrategy>(Base: TBase) {
 
 export function Shrinkable<TBase extends MixinStrategy>(Base: TBase) {
   return class extends Base {
-    shrink<K extends string>(arbitraryName: K, partial: FluentResult) {
+    shrink<K extends string>(arbitraryName: K, partial: FluentResult<Record<string, unknown>>) {
       const shrinkedArbitrary = this.arbitraries[arbitraryName].arbitrary.shrink(partial.example[arbitraryName])
       this.arbitraries[arbitraryName].collection = this.buildArbitraryCollection(shrinkedArbitrary,
         this.configuration.shrinkSize!)
