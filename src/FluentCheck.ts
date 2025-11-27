@@ -6,14 +6,64 @@ type WrapFluentPick<T> = { [P in keyof T]: FluentPick<T[P]> }
 type PickResult<V> = Record<string, FluentPick<V>>
 type ValueResult<V> = Record<string, V>
 
+/**
+ * Error thrown when a precondition fails in a property test.
+ * This signals that the current test case should be skipped,
+ * not counted as a failure.
+ */
+export class PreconditionFailure extends Error {
+  readonly __brand = 'PreconditionFailure'
+
+  constructor(public readonly message: string = '') {
+    super(message)
+    this.name = 'PreconditionFailure'
+  }
+}
+
+/**
+ * Assert a precondition within a property test body.
+ * If the condition is false, the test case is skipped (not counted as pass or fail).
+ *
+ * @param condition - The precondition to check
+ * @param message - Optional message for debugging skipped cases
+ *
+ * @example
+ * ```typescript
+ * fc.scenario()
+ *   .forall('a', fc.integer())
+ *   .forall('b', fc.integer())
+ *   .then(({ a, b }) => {
+ *     fc.pre(b !== 0);  // Skip if b is zero
+ *     return a / b * b + a % b === a;
+ *   })
+ *   .check();
+ *
+ * // With message
+ * fc.pre(arr.length > 0, 'array must be non-empty');
+ * ```
+ */
+export function pre(condition: boolean, message?: string): asserts condition {
+  if (!condition) {
+    throw new PreconditionFailure(message)
+  }
+}
+
 export class FluentResult<Rec extends {} = {}> {
   constructor(
     public readonly satisfiable = false,
     public example: Rec = {} as Rec,
-    public readonly seed?: number) { }
+    public readonly seed?: number,
+    public skipped: number = 0) { }
 
   addExample<A>(name: string, value: FluentPick<A>) {
     (this.example as PickResult<A>)[name] = value
+  }
+
+  /**
+   * Increment the skip counter when a precondition fails.
+   */
+  addSkipped(count: number = 1) {
+    this.skipped += count
   }
 }
 
@@ -92,7 +142,7 @@ export class FluentCheck<Rec extends ParentRec, ParentRec extends {}> {
       this.strategy.randomGenerator.initialize()
       const r = this.run({} as Rec, child)
       return new FluentResult<Rec>(r.satisfiable, FluentCheck.unwrapFluentPick(r.example) as Rec,
-        this.strategy.randomGenerator.seed)
+        this.strategy.randomGenerator.seed, r.skipped)
     }
   }
 
@@ -192,20 +242,26 @@ abstract class FluentCheckQuantifier<K extends string, A, Rec extends ParentRec 
     testCase: WrapFluentPick<Rec>,
     callback: (arg: WrapFluentPick<Rec>) => FluentResult,
     partial: FluentResult | undefined = undefined,
-    depth = 0): FluentResult {
+    depth = 0,
+    accumulatedSkips = 0): FluentResult {
 
     this.strategy.configArbitrary(this.name, partial, depth)
+
+    let totalSkipped = accumulatedSkips
 
     while (this.strategy.hasInput(this.name)) {
       testCase[this.name] = this.strategy.getInput(this.name)
       const result = callback(testCase)
+      totalSkipped += result.skipped
       if (result.satisfiable === this.breakValue) {
         result.addExample(this.name, testCase[this.name])
-        return this.run(testCase, callback, result, depth + 1)
+        return this.run(testCase, callback, result, depth + 1, totalSkipped)
       }
     }
 
-    return partial ?? new FluentResult(!this.breakValue)
+    const finalResult = partial ?? new FluentResult(!this.breakValue)
+    finalResult.skipped = totalSkipped
+    return finalResult
   }
 
   abstract breakValue: boolean
@@ -253,9 +309,23 @@ class FluentCheckAssert<Rec extends ParentRec, ParentRec extends {}> extends Flu
   protected run(testCase: WrapFluentPick<Rec>,
     callback: (arg: WrapFluentPick<Rec>) => FluentResult): FluentResult {
     const unwrappedTestCase = FluentCheck.unwrapFluentPick(testCase)
-    return this.assertion({...unwrappedTestCase, ...this.runPreliminaries(unwrappedTestCase)} as Rec) ?
-      callback(testCase) :
-      new FluentResult(false)
+    try {
+      const passed = this.assertion({...unwrappedTestCase, ...this.runPreliminaries(unwrappedTestCase)} as Rec)
+      if (passed) {
+        return callback(testCase)
+      } else {
+        return new FluentResult(false)
+      }
+    } catch (e) {
+      if (e instanceof PreconditionFailure) {
+        // Precondition failed - skip this test case
+        // Return satisfiable=true so quantifier continues with other cases
+        const result = callback(testCase)
+        result.addSkipped()
+        return result
+      }
+      throw e // Re-throw other errors
+    }
   }
 }
 
