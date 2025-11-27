@@ -136,7 +136,9 @@ Traditional shrinking requires composing shrink functions, which is error-prone.
 
 ## 4. Concrete Examples
 
-### 4.1 Advantage: Filtered Generators
+### 4.1 Filtered Generators: NOT Solved by Integrated Shrinking
+
+**Important Clarification**: Integrated shrinking does NOT solve filter rejection problems. Even Hypothesis documentation warns: "Excessive filtering can lead to Hypothesis discarding many generated examples."
 
 **Scenario**: Testing with even integers only.
 
@@ -144,16 +146,27 @@ Traditional shrinking requires composing shrink functions, which is error-prone.
 const evenInt = integer(0, 1000).filter(x => x % 2 === 0);
 ```
 
-**Traditional shrinking problem**:
+**Traditional shrinking**:
 - Counterexample found: `500`
-- Shrinker tries: `250` (even ✓), `125` (odd ✗ - filter rejects), `62` (even ✓)...
-- Many rejected candidates waste effort
-- **FluentCheck current behavior**: Filters during shrinking, but shrink candidates are generated from the base arbitrary without the filter, leading to potentially many rejections
+- Shrinker tries: `250` (even ✓), `125` (odd ✗), `62` (even ✓)...
+- ~50% rejection rate
 
 **Integrated shrinking**:
 - Choices that produced `500`: `[0x01, 0xF4]` (conceptually)
-- Shrink choices → re-run through generator → filter naturally applied
-- Every candidate is valid by construction
+- Shrink choices → re-run through generator → filter applied
+- If filter rejects, discard this choice sequence and try another
+- **Still ~50% rejection rate!**
+
+**The filter is opaque in both approaches** - neither can avoid testing candidates.
+
+**The solution is to avoid filters when possible:**
+```typescript
+// Bad: 50% rejection rate
+const evenInt = integer(0, 500).filter(x => x % 2 === 0);
+
+// Good: 0% rejection rate  
+const evenInt = integer(0, 500).map(x => x * 2);
+```
 
 ### 4.2 Advantage: Dependent Generators
 
@@ -366,38 +379,54 @@ class IntegerStrategy implements SearchStrategy<number> {
 
 | Aspect | Traditional (Current) | Integrated |
 |--------|----------------------|------------|
-| Constraint preservation | Manual, error-prone | Automatic |
+| Dependent generators (chain) | Can break invariants | Preserves automatically |
+| Filtered generators | Slow (rejections) | **Also slow (rejections)** |
 | Custom shrink logic | Full control | Limited control |
 | Performance (small values) | Faster | Slower (re-generation) |
-| Performance (filtered) | Slow (rejections) | Fast (no rejections) |
 | Implementation complexity | Per-arbitrary | Centralized |
 | Debugging | Clear value flow | Opaque choices |
 | Compositional | Manual composition | Automatic |
 
 ## 7. Recommendations
 
-### 7.1 Why Traditional Shrinking Cannot Fully Solve Filter Inefficiency
+### 7.1 Filter Inefficiency: Neither Approach Solves It
 
-The filter predicate `f` in `FilteredArbitrary` is an **opaque function** - we cannot inspect, invert, or predict what values it accepts. This means:
+The filter predicate `f` is an **opaque function** - we cannot inspect, invert, or predict what values it accepts. This is true for BOTH traditional and integrated shrinking:
 
 - We **must** test candidates to know if they pass
 - We **cannot** generate only valid shrink candidates
 - Rejection is inherent to the approach
 
-Possible mitigations (but not solutions):
-- **Lazy evaluation with early termination**: Limit wasted work by giving up after N rejections
-- **Heuristic ordering**: Try shrinks "closer" to the original value first
-- **Statistical tracking**: Detect high-rejection scenarios and adjust strategy
+**Even Hypothesis (integrated shrinking) has this problem.** Their documentation explicitly warns about filter performance and recommends using `map()` instead of `filter()` when possible.
 
-**None of these avoid rejections - they just reduce the cost.** This is a fundamental limitation of traditional shrinking with opaque predicates.
+### 7.2 What Integrated Shrinking Actually Solves
 
-### 7.2 Recommended Path Forward
+Integrated shrinking solves **dependent generator** problems, not filter problems:
 
-1. **Short-term**: Accept filter inefficiency in traditional shrinking; add early termination to bound worst-case behavior
+```typescript
+// This is what integrated shrinking fixes:
+const listAndIndex = integer(1, 10).chain(len => 
+  tuple(array(integer(), len, len), integer(0, len - 1))
+);
 
-2. **Medium-term**: Implement hybrid approach where choice recording is optional, enabling integrated shrinking for complex filtered/dependent generators - this is the only way to truly solve the filter problem
+// Traditional: Shrink list, index can become invalid
+// Integrated: Shrink length choice, index automatically constrained
+```
 
-3. **Long-term**: Evaluate full migration based on user feedback and performance data
+### 7.3 Recommended Path Forward
+
+1. **Short-term**: 
+   - Accept filter inefficiency (it's fundamental)
+   - Add early termination to bound worst-case behavior
+   - Document guidance: prefer `map()` over `filter()` when possible
+
+2. **Medium-term**: 
+   - Implement integrated shrinking for `chain()`/dependent generators
+   - This is where integrated shrinking provides real value
+
+3. **Long-term**: 
+   - Evaluate full migration based on user feedback
+   - Keep traditional shrinking for backward compatibility
 
 ## 8. References
 
