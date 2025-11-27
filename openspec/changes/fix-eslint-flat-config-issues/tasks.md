@@ -33,4 +33,4 @@
 
 ## 7. Archive
 
-- [ ] 7.1 Archive `migrate-eslint-flat-config` change with `openspec archive migrate-eslint-flat-config --yes`
+- [x] 7.1 Archive `migrate-eslint-flat-config` change with `openspec archive migrate-eslint-flat-config --yes`
