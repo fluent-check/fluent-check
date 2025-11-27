@@ -1,6 +1,6 @@
 import {Arbitrary} from './internal.js'
 import {ArbitrarySize, FluentPick} from './types.js'
-import {exactSize, estimatedSize, NilArbitrarySize} from './util.js'
+import {exactSize, estimatedSize} from './util.js'
 import * as fc from './index.js'
 
 export class ArbitraryComposite<A> extends Arbitrary<A> {
@@ -27,7 +27,8 @@ export class ArbitraryComposite<A> extends Arbitrary<A> {
       (acc, a) => { acc.push((acc.at(-1) ?? 0) + a.size().value); return acc },
       new Array<number>()
     )
-    const picked = Math.floor(generator() * weights.at(-1)!)
+    const lastWeight = weights.at(-1)
+    const picked = Math.floor(generator() * (lastWeight ?? 0))
     return this.arbitraries[weights.findIndex(s => s > picked)].pick(generator)
   }
 
