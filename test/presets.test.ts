@@ -343,4 +343,229 @@ describe('Arbitrary Presets', () => {
       ).to.have.property('satisfiable', true)
     })
   })
+
+  describe('Shrinking', () => {
+    it('positiveInt should shrink toward 1', () => {
+      const result = fc.scenario()
+        .exists('n', fc.positiveInt())
+        .then(({n}) => n > 100)
+        .check()
+      result.assertSatisfiable()
+      // Shrinking should find the smallest value > 100
+      expect(result.example?.n).to.equal(101)
+    })
+
+    it('byte should shrink toward 0', () => {
+      const result = fc.scenario()
+        .exists('n', fc.byte())
+        .then(({n}) => n > 50)
+        .check()
+      result.assertSatisfiable()
+      expect(result.example?.n).to.equal(51)
+    })
+
+    it('nonEmptyArray should shrink toward minimal length', () => {
+      const result = fc.scenario()
+        .exists('arr', fc.nonEmptyArray(fc.integer(0, 10), 5))
+        .then(({arr}) => arr.length > 2)
+        .check()
+      result.assertSatisfiable()
+      // Should shrink to the smallest array that satisfies length > 2
+      expect(result.example?.arr.length).to.equal(3)
+    })
+  })
+
+  describe('Real-world Use Cases', () => {
+    it('nonZeroInt is safe for division', () => {
+      fc.scenario()
+        .forall('dividend', fc.integer(-1000, 1000))
+        .forall('divisor', fc.nonZeroInt())
+        .then(({dividend, divisor}) => {
+          // This should never throw - divisor is never 0
+          const quotient = Math.trunc(dividend / divisor)
+          const remainder = dividend % divisor
+          return quotient * divisor + remainder === dividend
+        })
+        .check()
+        .assertSatisfiable()
+    })
+
+    it('nonEmptyArray is safe for array operations', () => {
+      fc.scenario()
+        .forall('arr', fc.nonEmptyArray(fc.integer()))
+        .then(({arr}) => {
+          // These operations are safe because arr is never empty
+          const first = arr[0]
+          const last = arr[arr.length - 1]
+          const sum = arr.reduce((a, b) => a + b, 0)
+          const avg = sum / arr.length
+          return typeof first === 'number' && typeof last === 'number' && !isNaN(avg)
+        })
+        .check()
+        .assertSatisfiable()
+    })
+
+    it('nullable models optional API responses', () => {
+      interface ApiResponse {
+        data: number | null
+        error: string | null
+      }
+
+      fc.scenario()
+        .forall('data', fc.nullable(fc.integer(0, 100)))
+        .forall('error', fc.nullable(fc.nonEmptyString(50)))
+        .given('response', ({data, error}): ApiResponse => ({data, error}))
+        .then(({response}) => {
+          // Valid response: either has data or error, but not both null
+          if (response.data !== null) {
+            return response.data >= 0 && response.data <= 100
+          }
+          return true
+        })
+        .check()
+        .assertSatisfiable()
+    })
+
+    it('pair models coordinate points', () => {
+      fc.scenario()
+        .forall('point', fc.pair(fc.integer(-100, 100)))
+        .then(({point}) => {
+          const [x, y] = point
+          const distance = Math.sqrt(x * x + y * y)
+          return distance >= 0 // Distance is always non-negative
+        })
+        .check()
+        .assertSatisfiable()
+    })
+
+    it('byte is suitable for RGB color components', () => {
+      // Use tuple instead of three separate foralls for better performance
+      fc.scenario()
+        .forall('rgb', fc.tuple(fc.byte(), fc.byte(), fc.byte()))
+        .then(({rgb}) => {
+          const [r, g, b] = rgb
+          // Valid RGB components
+          const hex = `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`
+          return /^#[0-9a-f]{6}$/.test(hex)
+        })
+        .check()
+        .assertSatisfiable()
+    })
+
+    it('optional models function parameters with defaults', () => {
+      const processConfig = (value?: number): number => {
+        return value ?? 42 // Default to 42 if undefined
+      }
+
+      fc.scenario()
+        .forall('input', fc.optional(fc.integer(0, 100)))
+        .then(({input}) => {
+          const result = processConfig(input)
+          if (input === undefined) {
+            return result === 42
+          }
+          return result === input
+        })
+        .check()
+        .assertSatisfiable()
+    })
+  })
+
+  describe('Edge Cases', () => {
+    it('nonEmptyString(1) generates single characters', () => {
+      const samples = fc.nonEmptyString(1).sample(100)
+      expect(samples.every(s => s.value.length === 1)).to.be.true
+    })
+
+    it('nonEmptyArray with maxLength 1 generates single-element arrays', () => {
+      const samples = fc.nonEmptyArray(fc.integer(), 1).sample(100)
+      expect(samples.every(s => s.value.length === 1)).to.be.true
+    })
+
+    it('pair of constants generates identical pairs', () => {
+      const samples = fc.pair(fc.constant(42)).sample(10)
+      expect(samples.every(s => s.value[0] === 42 && s.value[1] === 42)).to.be.true
+    })
+
+    it('nullable of empty generates only null', () => {
+      // When wrapped arbitrary is empty, only null is generated
+      const samples = fc.nullable(fc.empty()).sample(100)
+      expect(samples.every(s => s.value === null)).to.be.true
+    })
+
+    it('optional of empty generates only undefined', () => {
+      // When wrapped arbitrary is empty, only undefined is generated
+      const samples = fc.optional(fc.empty()).sample(100)
+      expect(samples.every(s => s.value === undefined)).to.be.true
+    })
+
+    it('nested nullable creates T | null | null which simplifies to T | null', () => {
+      const samples = fc.nullable(fc.nullable(fc.integer(0, 10))).sampleWithBias(100)
+      for (const s of samples) {
+        expect(s.value === null || (typeof s.value === 'number' && s.value >= 0 && s.value <= 10)).to.be.true
+      }
+    })
+
+    it('nonEmptyArray of nonEmptyArray ensures nested structure', () => {
+      fc.scenario()
+        .forall('matrix', fc.nonEmptyArray(fc.nonEmptyArray(fc.byte(), 3), 3))
+        .then(({matrix}) => {
+          return matrix.length >= 1 &&
+                 matrix.every(row => row.length >= 1) &&
+                 matrix.every(row => row.every(cell => cell >= 0 && cell <= 255))
+        })
+        .check()
+        .assertSatisfiable()
+    })
+  })
+
+  describe('Property-based Verification', () => {
+    it('positiveInt * positiveInt is always positive', () => {
+      fc.scenario()
+        .forall('a', fc.positiveInt())
+        .forall('b', fc.positiveInt())
+        .then(({a, b}) => a * b > 0)
+        .check()
+        .assertSatisfiable()
+    })
+
+    it('negativeInt * negativeInt is always positive', () => {
+      fc.scenario()
+        .forall('a', fc.negativeInt())
+        .forall('b', fc.negativeInt())
+        .then(({a, b}) => a * b > 0)
+        .check()
+        .assertSatisfiable()
+    })
+
+    it('positiveInt + positiveInt is always > 1', () => {
+      fc.scenario()
+        .forall('a', fc.positiveInt())
+        .forall('b', fc.positiveInt())
+        .then(({a, b}) => a + b > 1)
+        .check()
+        .assertSatisfiable()
+    })
+
+    it('nonEmptyString concatenation is never empty', () => {
+      fc.scenario()
+        .forall('a', fc.nonEmptyString(50))
+        .forall('b', fc.nonEmptyString(50))
+        .then(({a, b}) => (a + b).length >= 2)
+        .check()
+        .assertSatisfiable()
+    })
+
+    it('byte arithmetic stays in range with modulo', () => {
+      fc.scenario()
+        .forall('a', fc.byte())
+        .forall('b', fc.byte())
+        .then(({a, b}) => {
+          const sum = (a + b) % 256
+          return sum >= 0 && sum <= 255
+        })
+        .check()
+        .assertSatisfiable()
+    })
+  })
 })
