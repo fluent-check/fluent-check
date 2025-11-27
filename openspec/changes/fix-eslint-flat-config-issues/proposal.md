@@ -1,5 +1,6 @@
 # Change: Fix ESLint Flat Config Issues from PR #394
 
+> **GitHub Issue:** [#396](https://github.com/fluent-check/fluent-check/issues/396)
 > **Related Change:** `migrate-eslint-flat-config` (PR #394)
 
 ## Why
