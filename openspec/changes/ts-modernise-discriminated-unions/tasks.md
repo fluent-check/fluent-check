@@ -39,9 +39,18 @@
 - [x] 7.1 Review `Arbitrary.ts:sampleUnique()` for potential type narrowing improvements
 - [x] 7.2 Add exhaustive switch statements with `never` checks where beneficial
 
-## 8. Validation
+## 8. Testing
 
-- [x] 8.1 Run TypeScript compiler to verify all type errors are resolved
-- [x] 8.2 Run full test suite (`npm test`) to ensure no runtime regressions
-- [x] 8.3 Verify all `size()` implementations compile without type assertions
-- [x] 8.4 Check that discriminated union narrowing works correctly in IDE
+- [x] 8.1 Add type-level tests for discriminated union narrowing (`test/types/discriminated-unions.types.ts`)
+- [x] 8.2 Add runtime tests for factory functions (`exactSize`, `estimatedSize`)
+- [x] 8.3 Add runtime tests for ExactSize implementations (integer, constant, empty, set, boolean)
+- [x] 8.4 Add runtime tests for EstimatedSize implementations (filtered)
+- [x] 8.5 Add runtime tests for conditional implementations (tuple, union, array)
+- [x] 8.6 Add runtime tests for type narrowing behavior
+
+## 9. Validation
+
+- [x] 9.1 Run TypeScript compiler to verify all type errors are resolved
+- [x] 9.2 Run full test suite (`npm test`) to ensure no runtime regressions
+- [x] 9.3 Verify all `size()` implementations compile without type assertions
+- [x] 9.4 Check that discriminated union narrowing works correctly in IDE
