@@ -38,12 +38,12 @@ export const array = <A>(arbitrary: Arbitrary<A>, min = 0, max = 10): Arbitrary<
   return new ArbitraryArray(arbitrary, min, max)
 }
 
-export const set = <A>(elements: A[], min = 0, max = 10): Arbitrary<A[]> => {
+export const set = <const A extends readonly unknown[]>(elements: A, min = 0, max = 10): Arbitrary<A[number][]> => {
   if (min > max || min > elements.length) return NoArbitrary
   return new ArbitrarySet(Array.from(new Set(elements)), min, max)
 }
 
-export const oneof = <A>(elements: A[]): Arbitrary<A> =>
+export const oneof = <const A extends readonly unknown[]>(elements: A): Arbitrary<A[number]> =>
   elements.length === 0 ? NoArbitrary : integer(0, elements.length - 1).map(i => elements[i])
 
 export const union = <A>(...arbitraries: Arbitrary<A>[]): Arbitrary<A> => {
@@ -61,7 +61,7 @@ export const constant = <A>(constant: A): Arbitrary<A> => new ArbitraryConstant(
 
 type UnwrapFluentPick<T> = { [P in keyof T]: T[P] extends Arbitrary<infer E> ? E : T[P] }
 
-export const tuple = <U extends Arbitrary<any>[]>(...arbitraries: U): Arbitrary<UnwrapFluentPick<U>> => {
+export const tuple = <const U extends readonly Arbitrary<any>[]>(...arbitraries: U): Arbitrary<UnwrapFluentPick<U>> => {
   if (arbitraries.some(a => a === NoArbitrary)) return NoArbitrary
-  return new ArbitraryTuple(arbitraries) as Arbitrary<UnwrapFluentPick<U>>
+  return new ArbitraryTuple([...arbitraries]) as Arbitrary<UnwrapFluentPick<U>>
 }

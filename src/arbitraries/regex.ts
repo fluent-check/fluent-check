@@ -21,9 +21,9 @@ const array = <A>(arbitrary: Arbitrary<A>, min = 0, max = 10): Arbitrary<A[]> =>
   return new ArbitraryArray(arbitrary, min, max)
 }
 
-const tuple = <U extends Arbitrary<any>[]>(...arbitraries: U): Arbitrary<any> => {
+const tuple = <const U extends readonly Arbitrary<any>[]>(...arbitraries: U): Arbitrary<any> => {
   if (arbitraries.some(a => a === NoArbitrary)) return NoArbitrary
-  return new ArbitraryTuple(arbitraries)
+  return new ArbitraryTuple([...arbitraries])
 }
 
 const union = <A>(...arbitraries: Arbitrary<A>[]): Arbitrary<A> => {
@@ -33,7 +33,7 @@ const union = <A>(...arbitraries: Arbitrary<A>[]): Arbitrary<A> => {
   return new ArbitraryComposite(filtered)
 }
 
-const oneof = <A>(elements: A[]): Arbitrary<A> =>
+const oneof = <const A extends readonly unknown[]>(elements: A): Arbitrary<A[number]> =>
   elements.length === 0 ? NoArbitrary : integer(0, elements.length - 1).map(i => elements[i])
 
 // Local implementation of string to avoid circular dependency
