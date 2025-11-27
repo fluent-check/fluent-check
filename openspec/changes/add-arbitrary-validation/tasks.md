@@ -1,43 +1,56 @@
-# Tasks: Add Arbitrary Validation
+# Tasks: Add InvalidArbitrary
 
-## 1. Core Implementation
+## 1. Core Type Implementation
 
-- [ ] 1.1 Add `ArbitraryOptions` type with `unsafe?: boolean` to `src/arbitraries/types.ts`
-- [ ] 1.2 Update `fc.integer()` to accept options and throw on invalid range (unless unsafe)
-- [ ] 1.3 Update `fc.real()` to accept options and throw on invalid range (unless unsafe)
-- [ ] 1.4 Update `fc.nat()` to accept options and throw when `max < 0` (unless unsafe)
-- [ ] 1.5 Update `fc.array()` to accept options and throw on invalid bounds (unless unsafe)
-- [ ] 1.6 Update `fc.set()` to accept options and throw on invalid bounds (unless unsafe)
-- [ ] 1.7 Update `fc.oneof()` to accept options and throw on empty array (unless unsafe)
+- [ ] 1.1 Create `src/arbitraries/InvalidArbitrary.ts` with `InvalidArbitrary<R>` type and factory
+- [ ] 1.2 Add `isInvalidArbitrary()` type guard function
+- [ ] 1.3 Export from `src/arbitraries/index.ts`
+- [ ] 1.4 Add `_tag` discriminant to `NoArbitrary` for type narrowing (optional)
 
-## 2. Shrinking Updates
+## 2. Factory Function Updates
 
-- [ ] 2.1 Update `ArbitraryInteger.shrink()` to use `fc.integer(..., { unsafe: true })`
-- [ ] 2.2 Update `ArbitraryReal.shrink()` to use `fc.real(..., { unsafe: true })` (if applicable)
-- [ ] 2.3 Update `ArbitraryArray.shrink()` to use `fc.array(..., { unsafe: true })`
-- [ ] 2.4 Update `ArbitrarySet.shrink()` to use `fc.set(..., { unsafe: true })` (if applicable)
-- [ ] 2.5 Audit all other `shrink()` methods for unsafe factory calls
+- [ ] 2.1 Update `fc.integer()` to return `InvalidArbitrary` when `min > max`
+- [ ] 2.2 Update `fc.real()` to return `InvalidArbitrary` when `min > max`
+- [ ] 2.3 Update `fc.nat()` to return `InvalidArbitrary` when `max < 0`
+- [ ] 2.4 Update `fc.array()` to return `InvalidArbitrary` when `min > max` or `min < 0`
+- [ ] 2.5 Update `fc.set()` to return `InvalidArbitrary` when bounds invalid or `min > elements.length`
+- [ ] 2.6 Update `fc.oneof()` to return `InvalidArbitrary` when `elements` is empty
+- [ ] 2.7 Audit other factory functions for similar validation opportunities
 
-## 3. Tests
+## 3. FluentCheck Runner Updates
 
-- [ ] 3.1 Add tests for `fc.integer()` throwing on `min > max`
-- [ ] 3.2 Add tests for `fc.real()` throwing on `min > max`
-- [ ] 3.3 Add tests for `fc.nat()` throwing on `max < 0`
-- [ ] 3.4 Add tests for `fc.array()` throwing on invalid bounds
-- [ ] 3.5 Add tests for `fc.set()` throwing on invalid bounds
-- [ ] 3.6 Add tests for `fc.oneof()` throwing on empty array
-- [ ] 3.7 Add tests verifying shrinking still works with `unsafe: true`
-- [ ] 3.8 Add tests verifying existing valid code continues to work
+- [ ] 3.1 Add `'invalid'` status to `PropertyResult` type
+- [ ] 3.2 Update `FluentCheck` to detect `InvalidArbitrary` in arbitrary chain
+- [ ] 3.3 Return `invalid` result with reason when `InvalidArbitrary` detected
+- [ ] 3.4 Ensure `InvalidArbitrary` in composed arbitraries (tuple, chain, etc.) is detected
 
-## 4. Documentation
+## 4. Reporter Updates
 
-- [ ] 4.1 Update README with migration guide for breaking change
-- [ ] 4.2 Add CHANGELOG entry for breaking change
-- [ ] 4.3 Document `unsafe` option in API docs (if applicable)
+- [ ] 4.1 Add formatting for `invalid` status in `FluentReporter`
+- [ ] 4.2 Display reason and suggestion in output
+- [ ] 4.3 Ensure clear distinction from regular failures
 
-## 5. Optional: Warning Mode
+## 5. Tests
 
-- [ ] 5.1 Add `FluentCheckConfig` type with `warnOnEmpty?: boolean`
-- [ ] 5.2 Add `fc.configure()` function
-- [ ] 5.3 Emit console warning when `NoArbitrary` used in `forall`/`exists`
-- [ ] 5.4 Add tests for warning mode
+- [ ] 5.1 Add tests for `InvalidArbitrary` type and factory
+- [ ] 5.2 Add tests for `isInvalidArbitrary()` type guard
+- [ ] 5.3 Add tests for `fc.integer()` returning `InvalidArbitrary` on invalid range
+- [ ] 5.4 Add tests for `fc.real()` returning `InvalidArbitrary` on invalid range
+- [ ] 5.5 Add tests for `fc.nat()` returning `InvalidArbitrary` on negative max
+- [ ] 5.6 Add tests for `fc.array()` returning `InvalidArbitrary` on invalid bounds
+- [ ] 5.7 Add tests for `fc.set()` returning `InvalidArbitrary` on invalid bounds
+- [ ] 5.8 Add tests for `fc.oneof()` returning `InvalidArbitrary` on empty array
+- [ ] 5.9 Add tests verifying shrinking still returns `NoArbitrary` (not `InvalidArbitrary`)
+- [ ] 5.10 Add tests for FluentCheck detecting and reporting `InvalidArbitrary`
+- [ ] 5.11 Add tests for composed arbitraries containing `InvalidArbitrary`
+
+## 6. Documentation
+
+- [ ] 6.1 Update README with explanation of `InvalidArbitrary` vs `NoArbitrary`
+- [ ] 6.2 Add CHANGELOG entry for new validation behavior
+- [ ] 6.3 Document common error messages and fixes
+
+## 7. Type-Level Enhancements (Optional/Future)
+
+- [ ] 7.1 Investigate type-level guards for literal number comparisons
+- [ ] 7.2 Add branded types or conditional return types where feasible
