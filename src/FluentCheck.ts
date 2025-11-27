@@ -337,7 +337,7 @@ class FluentCheckGivenConstant<K extends string, V, Rec extends ParentRec & Reco
     super(parent, name, strategy)
   }
 
-  protected run(testCase: Rec, callback: (arg: Rec) => FluentResult) {
+  protected override run(testCase: Rec, callback: (arg: Rec) => FluentResult) {
     (testCase as Record<string, V>)[this.name] = this.value
     return callback(testCase)
   }
@@ -356,7 +356,7 @@ abstract class FluentCheckQuantifier<K extends string, A, Rec extends ParentRec 
     this.strategy.addArbitrary(this.name, a)
   }
 
-  protected run(
+  protected override run(
     testCase: WrapFluentPick<Rec>,
     callback: (arg: WrapFluentPick<Rec>) => FluentResult,
     partial: FluentResult | undefined = undefined,
@@ -424,7 +424,7 @@ class FluentCheckAssert<Rec extends ParentRec, ParentRec extends {}> extends Flu
     return data as Rec
   }
 
-  protected run(testCase: WrapFluentPick<Rec>,
+  protected override run(testCase: WrapFluentPick<Rec>,
     callback: (arg: WrapFluentPick<Rec>) => FluentResult): FluentResult {
     const unwrappedTestCase = FluentCheck.unwrapFluentPick(testCase)
     try {

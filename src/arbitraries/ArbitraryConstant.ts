@@ -7,11 +7,11 @@ export class ArbitraryConstant<A> extends Arbitrary<A> {
     super()
   }
 
-  size(): ExactSize { return exactSize(1) }
-  pick(): FluentPick<A> { return {value: this.constant, original: this.constant} }
-  cornerCases() { return [this.pick()] }
-  canGenerate(pick: FluentPick<A>) {
+  override size(): ExactSize { return exactSize(1) }
+  override pick(): FluentPick<A> { return {value: this.constant, original: this.constant} }
+  override cornerCases() { return [this.pick()] }
+  override canGenerate(pick: FluentPick<A>) {
     return pick.value === this.constant
   }
-  toString(depth = 0): string { return ' '.repeat(depth * 2) + `Constant Arbitrary: ${this.constant}` }
+  override toString(depth = 0): string { return ' '.repeat(depth * 2) + `Constant Arbitrary: ${this.constant}` }
 }

@@ -6,22 +6,22 @@ export class ChainedArbitrary<A, B> extends Arbitrary<B> {
     super()
   }
 
-  size() { return this.baseArbitrary.size() }
+  override size() { return this.baseArbitrary.size() }
 
-  pick(generator: () => number): FluentPick<B> | undefined {
+  override pick(generator: () => number): FluentPick<B> | undefined {
     const pick = this.baseArbitrary.pick(generator)
     return pick === undefined ? undefined : this.f(pick.value).pick(generator)
   }
 
-  cornerCases(): FluentPick<B>[] {
+  override cornerCases(): FluentPick<B>[] {
     return this.baseArbitrary.cornerCases().flatMap(p => this.f(p.value).cornerCases())
   }
 
-  canGenerate<B>(_: FluentPick<B>): boolean {
+  override canGenerate<B>(_: FluentPick<B>): boolean {
     return true
   }
 
-  toString(depth = 0) {
+  override toString(depth = 0) {
     return ' '.repeat(depth * 2) +
       `Chained Arbitrary: f = ${this.f.toString()}\n` + this.baseArbitrary.toString(depth + 1)
   }
