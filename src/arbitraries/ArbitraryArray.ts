@@ -1,5 +1,5 @@
 import {FluentPick} from './types.js'
-import {mapArbitrarySize} from './util.js'
+import {mapArbitrarySize, exactSize} from './util.js'
 import {Arbitrary} from './internal.js'
 import * as fc from './index.js'
 
@@ -15,7 +15,7 @@ export class ArbitraryArray<A> extends Arbitrary<A[]> {
     }
     return mapArbitrarySize(this.arbitrary.size(), v => {
       const value = sizeUpTo(v, this.max) - sizeUpTo(v, this.min - 1)
-      return {type: 'exact', value, credibleInterval: [value, value]}
+      return exactSize(value)
     })
   }
 

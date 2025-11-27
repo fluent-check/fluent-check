@@ -1,5 +1,6 @@
 import {ArbitrarySize, FluentPick} from './types.js'
 import {Arbitrary} from './internal.js'
+import {exactSize, estimatedSize} from './util.js'
 import * as fc from './index.js'
 
 type UnwrapArbitrary<T> = { [P in keyof T]: T[P] extends Arbitrary<infer E> ? E : never }
@@ -11,16 +12,16 @@ export class ArbitraryTuple<U extends Arbitrary<any>[], A = UnwrapArbitrary<U>> 
 
   size(): ArbitrarySize {
     let value = 1
-    let type: 'exact' | 'estimated' = 'exact'
+    let isEstimated = false
 
     for (const a of this.arbitraries) {
       const size = a.size()
-      type = size.type === 'exact' ? type : 'estimated'
-      value *= a.size().value
+      if (size.type === 'estimated') isEstimated = true
+      value *= size.value
     }
 
-    // todo: fix credible interval
-    return {value, type, credibleInterval: [value, value]}
+    // todo: fix credible interval for estimated sizes
+    return isEstimated ? estimatedSize(value, [value, value]) : exactSize(value)
   }
 
   pick(generator: () => number): FluentPick<A> | undefined {
@@ -49,18 +50,22 @@ export class ArbitraryTuple<U extends Arbitrary<any>[], A = UnwrapArbitrary<U>> 
   }
 
   shrink(initial: FluentPick<A>): Arbitrary<A> {
+    const value = initial.value as unknown[]
+    const original = initial.original as unknown[]
     return fc.union(...this.arbitraries.map((_, selected) =>
       fc.tuple(...this.arbitraries.map((arbitrary, i) =>
         selected === i ?
-          arbitrary.shrink({value: initial.value[i], original: initial.original[i]}) :
-          fc.constant(initial.value[i])
-      )))) as unknown as Arbitrary<A>
+          arbitrary.shrink({value: value[i], original: original[i]}) :
+          fc.constant(value[i])
+      )))) as Arbitrary<A>
   }
 
   canGenerate(pick: FluentPick<A>): boolean {
-    for (const i in pick.value) {
+    const value = pick.value as unknown[]
+    const original = pick.original as unknown[]
+    for (const i in value) {
       const index = Number(i)
-      if (!this.arbitraries[index].canGenerate({value: pick.value[index], original: pick.original[index]}))
+      if (!this.arbitraries[index].canGenerate({value: value[index], original: original[index]}))
         return false
     }
 

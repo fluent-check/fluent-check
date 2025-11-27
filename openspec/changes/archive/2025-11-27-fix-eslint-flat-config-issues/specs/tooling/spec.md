@@ -1,6 +1,6 @@
 ## MODIFIED Requirements
 
-### Requirement: ESLint Configuration
+### Requirement: ESLint Flat Config
 
 The project SHALL use ESLint flat config format with typescript-eslint for type-aware linting.
 

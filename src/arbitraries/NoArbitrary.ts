@@ -1,9 +1,10 @@
-import {ArbitrarySize, FluentPick} from './types.js'
+import {ExactSize, FluentPick} from './types.js'
 import {Arbitrary} from './internal.js'
+import {exactSize} from './util.js'
 
 export const NoArbitrary: Arbitrary<never> = new class extends Arbitrary<never> {
   pick(): FluentPick<never> | undefined { return undefined }
-  size(): ArbitrarySize { return {value: 0, type: 'exact', credibleInterval: [0, 0]} }
+  size(): ExactSize { return exactSize(0) }
   sampleWithBias(): FluentPick<never>[] { return [] }
   sample(): FluentPick<never>[] { return [] }
   map(_: (a: never) => any) { return NoArbitrary }

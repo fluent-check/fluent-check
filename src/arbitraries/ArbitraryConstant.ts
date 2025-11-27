@@ -1,12 +1,13 @@
-import {ArbitrarySize, FluentPick} from './types.js'
+import {ExactSize, FluentPick} from './types.js'
 import {Arbitrary} from './internal.js'
+import {exactSize} from './util.js'
 
 export class ArbitraryConstant<A> extends Arbitrary<A> {
   constructor(public readonly constant: A) {
     super()
   }
 
-  size(): ArbitrarySize { return {type: 'exact', value: 1, credibleInterval: [1, 1]} }
+  size(): ExactSize { return exactSize(1) }
   pick(): FluentPick<A> { return {value: this.constant, original: this.constant} }
   cornerCases() { return [this.pick()] }
   canGenerate(pick: FluentPick<A>) {

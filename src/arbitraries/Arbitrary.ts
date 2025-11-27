@@ -115,9 +115,14 @@ export abstract class Arbitrary<A> {
    * that mutually exclusively contains either an inverse map function or an entirely new canGenerate method can be
    * passed. The former allows the mapped arbitrary to be reverted back to its base arbitrary (inverse map === f').
    * Since some transformations cannot be easily inverted, the latter allows entirely overriding the canGenerate method.
+   *
+   * @remarks
+   * Type inference for `B` is controlled: the transformation function `f` is always the primary inference source.
+   * The `shrinkHelper` parameter uses `NoInfer<B>` to prevent it from affecting type inference, ensuring that
+   * `B` is derived from `f`'s return type rather than from `shrinkHelper`'s parameter types.
    */
   map<B>(f: (a: A) => B,
-    shrinkHelper?: XOR<{inverseMap: (b: B) => A[]},{canGenerate: (pick: FluentPick<B>) => boolean}>
+    shrinkHelper?: XOR<{inverseMap: (b: NoInfer<B>) => A[]},{canGenerate: (pick: FluentPick<NoInfer<B>>) => boolean}>
   ): Arbitrary<B> {
     return new MappedArbitrary(this, f, shrinkHelper)
   }

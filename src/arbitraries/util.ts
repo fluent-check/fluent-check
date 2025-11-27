@@ -1,17 +1,23 @@
-import {ArbitrarySize} from './types.js'
+import {ArbitrarySize, ExactSize, EstimatedSize} from './types.js'
 
-export const NilArbitrarySize: ArbitrarySize = {value: 0, type: 'exact', credibleInterval: [0, 0]}
+/** Factory function for creating exact size values */
+export const exactSize = (value: number): ExactSize => ({type: 'exact', value})
+
+/** Factory function for creating estimated size values with credible interval */
+export const estimatedSize = (value: number, credibleInterval: [number, number]): EstimatedSize =>
+  ({type: 'estimated', value, credibleInterval})
+
+export const NilArbitrarySize: ExactSize = exactSize(0)
 export const significance = 0.90
 export const lowerCredibleInterval = (1 - significance) / 2
 export const upperCredibleInterval = 1 - lowerCredibleInterval
 
 export function mapArbitrarySize(sz: ArbitrarySize, f: (v: number) => ArbitrarySize): ArbitrarySize {
   const result = f(sz.value)
-  return {
-    value : result.value,
-    type : sz.type === 'exact' && result.type === 'exact' ? 'exact' : 'estimated',
-    credibleInterval : result.credibleInterval
+  if (sz.type === 'exact' && result.type === 'exact') {
+    return exactSize(result.value)
   }
+  return estimatedSize(result.value, result.type === 'estimated' ? result.credibleInterval : [result.value, result.value])
 }
 
 export function stringify(object: any) {

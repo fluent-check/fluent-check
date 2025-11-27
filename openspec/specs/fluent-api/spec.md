@@ -3,9 +3,7 @@
 ## Purpose
 
 The core FluentCheck API for building property-based tests using a fluent, chainable interface.
-
 ## Requirements
-
 ### Requirement: Scenario Builder
 
 The system SHALL provide a `scenario()` function that creates a new FluentCheck instance for building property-based tests.
@@ -52,7 +50,7 @@ The system SHALL provide an `exists(name, arbitrary)` method that binds a named 
 
 ### Requirement: Given Clause
 
-The system SHALL provide a `given(name, valueOrFactory)` method for setting up derived values or constants before assertions.
+The system SHALL provide a `given(name, valueOrFactory)` method for setting up derived values or constants before assertions, with controlled type inference from factory functions.
 
 #### Scenario: Given with constant value
 - **WHEN** `.given('c', 42)` is called
@@ -66,6 +64,11 @@ The system SHALL provide a `given(name, valueOrFactory)` method for setting up d
 #### Scenario: Chained given clauses
 - **WHEN** `.given('a', 1).and('b', ({a}) => a + 1)` is called
 - **THEN** `b` can reference the value of `a`
+
+#### Scenario: Type inference from factory return
+- **WHEN** both constant and factory positions could infer a type parameter
+- **THEN** the factory return type SHALL be the primary inference source
+- **AND** type errors SHALL point to the factory function location
 
 ### Requirement: When Clause
 
@@ -87,6 +90,10 @@ The system SHALL provide a `then(predicate)` method that defines the property to
 #### Scenario: Chained assertions
 - **WHEN** `.then(predicate1).and(predicate2)` is called
 - **THEN** both predicates must hold for the property to pass
+
+#### Scenario: And clause type inference
+- **WHEN** `.and(name, valueOrFactory)` is used after `.then()`
+- **THEN** the factory return type SHALL be the primary inference source for type parameter `V`
 
 ### Requirement: Check Execution
 
@@ -128,3 +135,26 @@ The system SHALL provide a `withGenerator(builder, seed?)` method to use a custo
 #### Scenario: Custom PRNG without seed
 - **WHEN** `.withGenerator((seed) => customRng(seed))` is called without a seed
 - **THEN** a random seed is generated automatically
+
+### Requirement: Result Type Safety
+
+The FluentCheck result SHALL preserve type information from the fluent chain, enabling type-safe access to example values without manual type assertions.
+
+#### Scenario: Typed example access after check
+- **GIVEN** a scenario with `forall('name', arbitrary)` where arbitrary produces type `T`
+- **WHEN** the scenario completes via `.check()`
+- **THEN** `result.example.name` SHALL be typed as `T`
+- **AND** no type assertion SHALL be required to access the value with its correct type
+
+#### Scenario: Multiple bindings preserve types
+- **GIVEN** a scenario with multiple `forall` or `exists` bindings
+- **WHEN** each binding uses arbitraries of different types
+- **THEN** `result.example` SHALL be typed as the intersection of all bound names and their types
+- **AND** accessing any bound name SHALL return its correctly typed value
+
+#### Scenario: Backwards compatibility
+- **GIVEN** existing code that uses `FluentResult` without explicit type parameters
+- **WHEN** the code is compiled with the updated library
+- **THEN** compilation SHALL succeed
+- **AND** runtime behavior SHALL be unchanged
+
