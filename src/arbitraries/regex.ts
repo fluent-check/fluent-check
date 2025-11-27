@@ -1,11 +1,11 @@
-import {Arbitrary, NoArbitrary} from './internal.js'
-import {ArbitraryInteger} from './ArbitraryInteger.js'
-import {ArbitraryConstant} from './ArbitraryConstant.js'
-import {ArbitraryArray} from './ArbitraryArray.js'
-import {ArbitraryTuple} from './ArbitraryTuple.js'
-import {ArbitraryComposite} from './ArbitraryComposite.js'
-import {char} from './string.js'
-import type {CharClassKey, IPv4Address, HttpUrl} from './types.js'
+import { Arbitrary, NoArbitrary } from './internal.js'
+import { ArbitraryInteger } from './ArbitraryInteger.js'
+import { ArbitraryConstant } from './ArbitraryConstant.js'
+import { ArbitraryArray } from './ArbitraryArray.js'
+import { ArbitraryTuple } from './ArbitraryTuple.js'
+import { ArbitraryComposite } from './ArbitraryComposite.js'
+import { char } from './string.js'
+import type { CharClassKey, IPv4Address, HttpUrl } from './types.js'
 
 // Direct implementations to avoid circular dependencies
 const integer = (min = Number.MIN_SAFE_INTEGER, max = Number.MAX_SAFE_INTEGER): Arbitrary<number> => {
@@ -54,9 +54,10 @@ type RegexCharClass = {
 }
 
 /**
- * Maps common regex character classes to their corresponding arbitraries
+ * Maps common regex character classes to their corresponding arbitraries.
+ * Uses `satisfies` to validate the type while preserving literal key types for type-safe lookups.
  */
-const charClassMap: Record<string, Arbitrary<string>> = {
+const charClassMap = {
   // Digit classes
   '\\d': integer(0, 9).map(String),
   '[0-9]': integer(0, 9).map(String),
@@ -90,7 +91,7 @@ const charClassMap: Record<string, Arbitrary<string>> = {
   '\\S': char().filter(c => !' \t\n\r\f\v'.includes(c)),
   '\\D': char().filter(c => !/\d/.test(c)),
   '\\W': char().filter(c => !/[a-zA-Z0-9_]/.test(c))
-}
+} satisfies Record<string, Arbitrary<string>>
 
 /**
  * Parses a simple regex pattern into a sequence of character classes
@@ -355,7 +356,9 @@ export function regex(pattern: string | RegExp, maxLength: number = 100): Arbitr
 }
 
 /**
- * Creates an arbitrary that generates strings matching common patterns
+ * Creates an arbitrary that generates strings matching common patterns.
+ * Uses `satisfies` to validate the type while preserving literal key types for type-safe access.
+ * `keyof typeof patterns` produces `'email' | 'uuid' | 'ipv4' | 'url'` for type-safe iteration.
  */
 export const patterns = {
   /**
@@ -475,7 +478,7 @@ export const patterns = {
         return `${protocol}://${domain}${path}${query}${hash}` as HttpUrl
       })
   }
-}
+} satisfies Record<string, () => Arbitrary<string>>
 
 /**
  * Handles shrinking for regex-based strings by trying to maintain the pattern while reducing length
@@ -516,7 +519,8 @@ export function shrinkRegexString(s: string, pattern: RegExp | string): string[]
 
   // 3. Simplify character choices
   // Replace characters with simpler ones if they still match the pattern
-  const simplifyMappings: Record<string, string[]> = {
+  // Uses `satisfies` to validate the type while preserving literal key types
+  const simplifyMappings = {
     // Replace digits with smaller ones
     '9': ['0', '1'],
     '8': ['0', '1'],
@@ -532,8 +536,8 @@ export function shrinkRegexString(s: string, pattern: RegExp | string): string[]
     'Z': ['a'],
     'Y': ['a'],
     // ... other character simplifications
-  }
-
+  } satisfies Record<string, string[]>
+  
   for (let i = 0; i < s.length; i++) {
     const char = s[i]
     const simplifications = simplifyMappings[char]
