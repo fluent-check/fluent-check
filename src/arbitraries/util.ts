@@ -1,4 +1,4 @@
-import {ArbitrarySize, ExactSize, EstimatedSize} from './types.js'
+import type {ArbitrarySize, ExactSize, EstimatedSize} from './types.js'
 
 /** Factory function for creating exact size values */
 export const exactSize = (value: number): ExactSize => ({type: 'exact', value})

@@ -1,4 +1,4 @@
-import {FluentPick} from './types.js'
+import type {FluentPick} from './types.js'
 import {Arbitrary} from './internal.js'
 
 export class ChainedArbitrary<A, B> extends Arbitrary<B> {

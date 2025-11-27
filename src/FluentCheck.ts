@@ -1,4 +1,4 @@
-import {Arbitrary, FluentPick, FluentRandomGenerator} from './arbitraries/index.js'
+import {Arbitrary, type FluentPick, FluentRandomGenerator} from './arbitraries/index.js'
 import {FluentStrategy} from './strategies/FluentStrategy.js'
 import {FluentStrategyFactory} from './strategies/FluentStrategyFactory.js'
 

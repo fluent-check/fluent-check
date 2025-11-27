@@ -1,4 +1,4 @@
-import {FluentResult} from './FluentCheck.js'
+import type {FluentResult} from './FluentCheck.js'
 
 export function expect<Rec extends {}>(result: FluentResult<Rec>): void | never {
   if (!result.satisfiable) {

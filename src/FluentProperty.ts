@@ -1,5 +1,5 @@
 import {Arbitrary} from './arbitraries/index.js'
-import {FluentCheck, FluentResult} from './FluentCheck.js'
+import {FluentCheck, type FluentResult} from './FluentCheck.js'
 import {FluentStrategyFactory} from './strategies/FluentStrategyFactory.js'
 
 /**

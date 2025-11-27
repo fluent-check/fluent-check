@@ -1,4 +1,4 @@
-import {FluentPick} from './types.js'
+import type {FluentPick} from './types.js'
 import {Arbitrary} from './internal.js'
 
 export abstract class WrappedArbitrary<A> extends Arbitrary<A> {
