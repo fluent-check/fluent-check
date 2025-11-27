@@ -158,3 +158,94 @@ The FluentCheck result SHALL preserve type information from the fluent chain, en
 - **THEN** compilation SHALL succeed
 - **AND** runtime behavior SHALL be unchanged
 
+### Requirement: FluentResult Assertion Methods
+
+The `FluentResult` class SHALL provide assertion methods for fluent test verification.
+
+#### Scenario: Assert satisfiable success
+- **WHEN** `assertSatisfiable()` is called on a satisfiable result
+- **THEN** no error SHALL be thrown
+- **AND** the method SHALL return void
+
+#### Scenario: Assert satisfiable failure
+- **WHEN** `assertSatisfiable()` is called on an unsatisfiable result
+- **THEN** an error SHALL be thrown
+- **AND** the error message SHALL include the counterexample
+- **AND** the error message SHALL include the seed for reproducibility
+
+#### Scenario: Assert not satisfiable success
+- **WHEN** `assertNotSatisfiable()` is called on an unsatisfiable result
+- **THEN** no error SHALL be thrown
+
+#### Scenario: Assert not satisfiable failure
+- **WHEN** `assertNotSatisfiable()` is called on a satisfiable result
+- **THEN** an error SHALL be thrown
+- **AND** the error message SHALL include the found example
+
+#### Scenario: Assert example match
+- **WHEN** `assertExample(expected)` is called
+- **AND** the result example matches the expected partial object
+- **THEN** no error SHALL be thrown
+
+#### Scenario: Assert example mismatch
+- **WHEN** `assertExample(expected)` is called
+- **AND** the result example does not match the expected partial object
+- **THEN** an error SHALL be thrown
+- **AND** the error message SHALL indicate which properties differ
+
+#### Scenario: Custom error message
+- **WHEN** an assertion method is called with a custom message
+- **THEN** the custom message SHALL be included in any thrown error
+
+### Requirement: Property Shorthand
+
+The system SHALL provide a simplified `prop()` function for defining property tests without the full BDD structure.
+
+#### Scenario: Single arbitrary property
+- **WHEN** a property is defined with `fc.prop(arb, predicate)`
+- **THEN** the property SHALL be tested against values from the arbitrary
+- **AND** the predicate SHALL receive the generated value as its argument
+
+#### Scenario: Multiple arbitrary property
+- **WHEN** a property is defined with `fc.prop(arb1, arb2, ..., predicate)`
+- **THEN** the predicate SHALL receive values from each arbitrary as positional arguments
+- **AND** up to 5 arbitraries SHALL be supported
+
+#### Scenario: Property assertion
+- **WHEN** `assert()` is called on a property
+- **THEN** the property SHALL be checked
+- **AND** an error SHALL be thrown if the property is not satisfiable
+- **AND** the error message SHALL include the counterexample
+
+#### Scenario: Property check without assertion
+- **WHEN** `check()` is called on a property
+- **THEN** a `FluentResult` SHALL be returned
+- **AND** no error SHALL be thrown regardless of satisfiability
+
+#### Scenario: Property with strategy configuration
+- **WHEN** `config(strategy)` is called on a property
+- **THEN** the property SHALL use the provided strategy for testing
+- **AND** a new `FluentProperty` SHALL be returned for chaining
+
+### Requirement: API Ergonomics Documentation
+
+The system documentation SHALL include comprehensive ergonomics considerations and best practices for fluent API usage.
+
+#### Scenario: Ergonomics research findings documented
+- **WHEN** developers reference the fluent API documentation
+- **THEN** they SHALL find documented patterns for common testing scenarios
+- **AND** recommendations for reducing verbosity SHALL be provided
+- **AND** examples demonstrating best practices SHALL be included
+
+#### Scenario: Framework comparison insights
+- **WHEN** developers evaluate FluentCheck against other property testing frameworks
+- **THEN** documented comparisons SHALL highlight ergonomic advantages
+- **AND** design decisions SHALL be explained with rationale
+- **AND** trade-offs between verbosity and explicitness SHALL be documented
+
+#### Scenario: Type safety and ergonomics balance
+- **WHEN** developers write complex property tests with multiple quantifiers
+- **THEN** documentation SHALL provide guidance on maintaining type safety
+- **AND** patterns for simplifying complex chains SHALL be demonstrated
+- **AND** error message interpretation guidance SHALL be available
+

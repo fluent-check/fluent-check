@@ -3,9 +3,7 @@
 ## Purpose
 
 Data generators for property-based testing that produce random values and support shrinking.
-
 ## Requirements
-
 ### Requirement: Arbitrary Base Class
 
 The system SHALL provide an abstract `Arbitrary<A>` base class that all data generators extend or implement.
@@ -104,19 +102,27 @@ The system SHALL provide an `array(arbitrary, min?, max?)` function that creates
 
 ### Requirement: Set Arbitrary
 
-The system SHALL provide a `set(elements, min?, max?)` function that creates subsets of the given elements.
+The system SHALL provide a `set(elements, min?, max?)` function that creates subsets of the given elements, preserving literal types when called with literal arrays.
 
 #### Scenario: Generate subsets
 - **WHEN** `fc.set([1, 2, 3, 4, 5], 2, 3)` is called
 - **THEN** arrays of 2-3 unique elements from the input are generated
 
+#### Scenario: Literal type preservation
+- **WHEN** `fc.set(['red', 'green', 'blue'], 1, 2)` is called with literal values
+- **THEN** the inferred type SHALL be `Arbitrary<('red' | 'green' | 'blue')[]>`
+
 ### Requirement: Tuple Arbitrary
 
-The system SHALL provide a `tuple(...arbitraries)` function that creates tuples of generated values.
+The system SHALL provide a `tuple(...arbitraries)` function that creates tuples of generated values with strict tuple type inference.
 
 #### Scenario: Generate typed tuples
 - **WHEN** `fc.tuple(fc.integer(), fc.string(), fc.boolean())` is called
 - **THEN** tuples of type `[number, string, boolean]` are generated
+
+#### Scenario: Strict tuple inference
+- **WHEN** arbitrary combinators are composed with `tuple()`
+- **THEN** TypeScript SHALL infer exact tuple types in all contexts
 
 ### Requirement: Constant Arbitrary
 
@@ -128,7 +134,7 @@ The system SHALL provide a `constant(value)` function that always generates the 
 
 ### Requirement: OneOf Combinator
 
-The system SHALL provide an `oneof(elements)` function that generates one of the given values.
+The system SHALL provide an `oneof(elements)` function that generates one of the given values, preserving literal types when called with literal arrays.
 
 #### Scenario: Generate from set
 - **WHEN** `fc.oneof(['a', 'b', 'c'])` is called
@@ -137,6 +143,11 @@ The system SHALL provide an `oneof(elements)` function that generates one of the
 #### Scenario: Empty array
 - **WHEN** `fc.oneof([])` is called
 - **THEN** NoArbitrary SHALL be returned
+
+#### Scenario: Literal type preservation
+- **WHEN** `fc.oneof(['pending', 'active', 'done'])` is called with literal values
+- **THEN** the inferred type SHALL be `Arbitrary<'pending' | 'active' | 'done'>`
+- **AND** exhaustive switch statements on generated values SHALL be type-safe
 
 ### Requirement: Union Combinator
 
@@ -284,15 +295,27 @@ The system SHALL provide multiple sampling methods for generating test cases.
 
 ### Requirement: Size Estimation
 
-The system SHALL provide size information for arbitraries.
+The system SHALL provide size information for arbitraries using a discriminated union type for exact and estimated sizes.
 
 #### Scenario: Exact size
 - **WHEN** `fc.integer(0, 10).size()` is called
 - **THEN** an exact size with value 11 is returned
+- **AND** the returned type SHALL be `ExactSize` with only `type` and `value` fields
 
 #### Scenario: Estimated size
 - **WHEN** a filtered arbitrary's size is queried
 - **THEN** an estimated size with credible interval is returned
+- **AND** the returned type SHALL be `EstimatedSize` with `type`, `value`, and `credibleInterval` fields
+
+#### Scenario: Discriminated union type narrowing
+- **WHEN** code checks `size.type === 'exact'`
+- **THEN** TypeScript SHALL narrow the type to exclude `credibleInterval` field access
+- **AND** exhaustive switch statements on `size.type` SHALL be type-safe
+
+#### Scenario: Factory functions for size creation
+- **WHEN** creating size values programmatically
+- **THEN** `exactSize(value)` SHALL return an `ExactSize` object
+- **AND** `estimatedSize(value, interval)` SHALL return an `EstimatedSize` object
 
 ### Requirement: NoArbitrary Singleton
 
@@ -317,3 +340,64 @@ The system SHALL provide a `NoArbitrary` instance representing an impossible/emp
 #### Scenario: Unsatisfiable for existential
 - **WHEN** an exists property uses NoArbitrary
 - **THEN** the property SHALL be unsatisfiable
+
+### Requirement: Integer Preset Factories
+
+The system SHALL provide shorthand factories for common integer ranges.
+
+#### Scenario: Positive integer generation
+- **WHEN** `fc.positiveInt()` is called
+- **THEN** it SHALL return an arbitrary that generates integers >= 1
+- **AND** the maximum value SHALL be `Number.MAX_SAFE_INTEGER`
+
+#### Scenario: Negative integer generation
+- **WHEN** `fc.negativeInt()` is called
+- **THEN** it SHALL return an arbitrary that generates integers <= -1
+- **AND** the minimum value SHALL be `Number.MIN_SAFE_INTEGER`
+
+#### Scenario: Non-zero integer generation
+- **WHEN** `fc.nonZeroInt()` is called
+- **THEN** it SHALL return an arbitrary that never generates 0
+- **AND** it SHALL generate both positive and negative integers
+
+#### Scenario: Byte generation
+- **WHEN** `fc.byte()` is called
+- **THEN** it SHALL return an arbitrary that generates integers in range [0, 255]
+
+### Requirement: String Preset Factories
+
+The system SHALL provide shorthand factories for common string patterns.
+
+#### Scenario: Non-empty string generation
+- **WHEN** `fc.nonEmptyString(maxLength?)` is called
+- **THEN** it SHALL return an arbitrary that generates strings with length >= 1
+- **AND** the maximum length SHALL default to 100 if not specified
+
+### Requirement: Collection Preset Factories
+
+The system SHALL provide shorthand factories for common collection patterns.
+
+#### Scenario: Non-empty array generation
+- **WHEN** `fc.nonEmptyArray(arb, maxLength?)` is called
+- **THEN** it SHALL return an arbitrary that generates arrays with length >= 1
+- **AND** elements SHALL be generated from the provided arbitrary
+
+#### Scenario: Pair generation
+- **WHEN** `fc.pair(arb)` is called
+- **THEN** it SHALL return an arbitrary that generates 2-tuples
+- **AND** both elements SHALL be generated from the same arbitrary
+
+### Requirement: Nullable/Optional Factories
+
+The system SHALL provide factories for nullable and optional value generation.
+
+#### Scenario: Nullable value generation
+- **WHEN** `fc.nullable(arb)` is called
+- **THEN** it SHALL return an arbitrary that generates values of type `T | null`
+- **AND** it SHALL sometimes generate `null`
+
+#### Scenario: Optional value generation
+- **WHEN** `fc.optional(arb)` is called
+- **THEN** it SHALL return an arbitrary that generates values of type `T | undefined`
+- **AND** it SHALL sometimes generate `undefined`
+
