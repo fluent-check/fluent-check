@@ -1,6 +1,6 @@
 import type {Arbitrary, FluentPick} from '../arbitraries/index.js'
 import type {FluentResult} from '../FluentCheck.js'
-import {FluentStrategy, FluentStrategyInterface} from './FluentStrategy.js'
+import {type FluentStrategy, type FluentStrategyInterface} from './FluentStrategy.js'
 
 // Define a constructor type for use with mixins
 type MixinConstructor<T = {}> = new (...args: any[]) => T

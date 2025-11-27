@@ -1,6 +1,6 @@
-import {Arbitrary} from './arbitraries/index.js'
+import {type Arbitrary} from './arbitraries/index.js'
 import {FluentCheck, type FluentResult} from './FluentCheck.js'
-import {FluentStrategyFactory} from './strategies/FluentStrategyFactory.js'
+import {type FluentStrategyFactory} from './strategies/FluentStrategyFactory.js'
 
 /**
  * A fluent property test builder that provides a simplified API for property-based testing.

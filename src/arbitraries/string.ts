@@ -1,6 +1,6 @@
 import * as util from './util.js'
 import {constant, array} from './index.js'
-import {Arbitrary, ArbitraryInteger, NoArbitrary} from './internal.js'
+import {type Arbitrary, ArbitraryInteger, NoArbitrary} from './internal.js'
 import type {HexChar} from './types.js'
 
 const charArb = (min = 0x20, max = 0x7e): Arbitrary<string> =>

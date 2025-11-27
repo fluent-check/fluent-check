@@ -1,4 +1,4 @@
-import {Arbitrary, NoArbitrary} from './internal.js'
+import {type Arbitrary, NoArbitrary} from './internal.js'
 import {ArbitraryInteger} from './ArbitraryInteger.js'
 import {ArbitraryConstant} from './ArbitraryConstant.js'
 import {ArbitraryArray} from './ArbitraryArray.js'
