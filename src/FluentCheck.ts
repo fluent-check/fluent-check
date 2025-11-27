@@ -97,7 +97,7 @@ export class FluentCheck<Rec extends ParentRec, ParentRec extends {}> {
   }
 
   static unwrapFluentPick<T>(testCase: PickResult<T>): ValueResult<T> {
-    const result = {}
+    const result: Record<string, T> = {}
     for (const k in testCase) result[k] = testCase[k].value
     return result
   }
@@ -170,7 +170,7 @@ class FluentCheckGivenConstant<K extends string, V, Rec extends ParentRec & Reco
   }
 
   protected run(testCase: Rec, callback: (arg: Rec) => FluentResult) {
-    testCase[this.name as string] = this.value
+    (testCase as Record<string, V>)[this.name] = this.value
     return callback(testCase)
   }
 }
@@ -240,14 +240,14 @@ class FluentCheckAssert<Rec extends ParentRec, ParentRec extends {}> extends Flu
   }
 
   private runPreliminaries<T>(testCase: ValueResult<T>): Rec {
-    const data = { } as Rec
+    const data: Record<string, unknown> = {}
 
     this.preliminaries.forEach(node => {
       if (node instanceof FluentCheckGivenMutable) data[node.name] = node.factory({...testCase, ...data})
       else if (node instanceof FluentCheckWhen) node.f({...testCase, ...data})
     })
 
-    return data
+    return data as Rec
   }
 
   protected run(testCase: WrapFluentPick<Rec>,
