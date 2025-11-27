@@ -11,7 +11,7 @@ export class FilteredArbitrary<A> extends WrappedArbitrary<A> {
     this.sizeEstimation = new BetaDistribution(2, 1) // use 1,1 for .mean instead of .mode in point estimation
   }
 
-  size(): EstimatedSize {
+  override size(): EstimatedSize {
     // TODO: Still not sure if we should use mode or mean for estimating the size (depends on which error we are trying
     // to minimize, L1 or L2)
     // Also, this assumes we estimate a continuous interval between 0 and 1;
@@ -28,7 +28,7 @@ export class FilteredArbitrary<A> extends WrappedArbitrary<A> {
     )
   }
 
-  pick(generator: () => number): FluentPick<A> | undefined {
+  override pick(generator: () => number): FluentPick<A> | undefined {
     do {
       const pick = this.baseArbitrary.pick(generator)
       if (pick === undefined) break // TODO: update size estimation accordingly
@@ -40,18 +40,18 @@ export class FilteredArbitrary<A> extends WrappedArbitrary<A> {
     return undefined
   }
 
-  cornerCases() { return this.baseArbitrary.cornerCases().filter(a => this.f(a.value)) }
+  override cornerCases() { return this.baseArbitrary.cornerCases().filter(a => this.f(a.value)) }
 
-  shrink(initialValue: FluentPick<A>) {
+  override shrink(initialValue: FluentPick<A>) {
     if (!this.f(initialValue.value)) return NoArbitrary
     return this.baseArbitrary.shrink(initialValue).filter(v => this.f(v))
   }
 
-  canGenerate(pick: FluentPick<A>) {
+  override canGenerate(pick: FluentPick<A>) {
     return this.baseArbitrary.canGenerate(pick) && this.f(pick.value)
   }
 
-  toString(depth = 0) {
+  override toString(depth = 0) {
     return ' '.repeat(depth * 2) +
       `Filtered Arbitrary: f = ${this.f.toString()}\n` + this.baseArbitrary.toString(depth + 1)
   }

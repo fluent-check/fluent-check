@@ -10,7 +10,7 @@ export class ArbitraryTuple<U extends Arbitrary<any>[], A = UnwrapArbitrary<U>> 
     super()
   }
 
-  size(): ArbitrarySize {
+  override size(): ArbitrarySize {
     let value = 1
     let isEstimated = false
 
@@ -24,7 +24,7 @@ export class ArbitraryTuple<U extends Arbitrary<any>[], A = UnwrapArbitrary<U>> 
     return isEstimated ? estimatedSize(value, [value, value]) : exactSize(value)
   }
 
-  pick(generator: () => number): FluentPick<A> | undefined {
+  override pick(generator: () => number): FluentPick<A> | undefined {
     const value: any = []
     const original: any[] = []
 
@@ -40,7 +40,7 @@ export class ArbitraryTuple<U extends Arbitrary<any>[], A = UnwrapArbitrary<U>> 
     return {value, original}
   }
 
-  cornerCases(): FluentPick<A>[] {
+  override cornerCases(): FluentPick<A>[] {
     const cornerCases = this.arbitraries.map(a => a.cornerCases())
 
     return cornerCases.reduce((acc, cc) => acc.flatMap(a => cc.map(b => ({
@@ -49,7 +49,7 @@ export class ArbitraryTuple<U extends Arbitrary<any>[], A = UnwrapArbitrary<U>> 
     }))), [{value: [], original: []}])
   }
 
-  shrink(initial: FluentPick<A>): Arbitrary<A> {
+  override shrink(initial: FluentPick<A>): Arbitrary<A> {
     const value = initial.value as unknown[]
     const original = initial.original as unknown[]
     return fc.union(...this.arbitraries.map((_, selected) =>
@@ -60,7 +60,7 @@ export class ArbitraryTuple<U extends Arbitrary<any>[], A = UnwrapArbitrary<U>> 
       )))) as Arbitrary<A>
   }
 
-  canGenerate(pick: FluentPick<A>): boolean {
+  override canGenerate(pick: FluentPick<A>): boolean {
     const value = pick.value as unknown[]
     const original = pick.original as unknown[]
     for (const i in value) {
@@ -72,7 +72,7 @@ export class ArbitraryTuple<U extends Arbitrary<any>[], A = UnwrapArbitrary<U>> 
     return true
   }
 
-  toString(depth = 0) {
+  override toString(depth = 0) {
     return ' '.repeat(2 * depth) +
       'Tuple Arbitrary:\n' + this.arbitraries.map(a => a.toString(depth + 1)).join('\n')
   }

@@ -8,7 +8,7 @@ export class ArbitraryArray<A> extends Arbitrary<A[]> {
     super()
   }
 
-  size() {
+  override size() {
     // https://en.wikipedia.org/wiki/Geometric_progression#Geometric_series
     const sizeUpTo = (v: number, max: number) => {
       return v === 1 ? max + 1 : (1 - v ** (max + 1)) / (1 - v)
@@ -19,7 +19,7 @@ export class ArbitraryArray<A> extends Arbitrary<A[]> {
     })
   }
 
-  pick(generator: () => number): FluentPick<A[]> | undefined {
+  override pick(generator: () => number): FluentPick<A[]> | undefined {
     const size = Math.floor(generator() * (this.max - this.min + 1)) + this.min
     const fpa = this.arbitrary.sample(size)
 
@@ -32,7 +32,7 @@ export class ArbitraryArray<A> extends Arbitrary<A[]> {
     }
   }
 
-  shrink(initial: FluentPick<A[]>): Arbitrary<A[]> {
+  override shrink(initial: FluentPick<A[]>): Arbitrary<A[]> {
     if (this.min === initial.value.length) return fc.empty()
 
     const start = this.min
@@ -42,19 +42,19 @@ export class ArbitraryArray<A> extends Arbitrary<A[]> {
     return fc.union(fc.array(this.arbitrary, start, middle), fc.array(this.arbitrary, middle + 1, end))
   }
 
-  canGenerate(pick: FluentPick<A[]>) {
+  override canGenerate(pick: FluentPick<A[]>) {
     return pick.value.length >= this.min && pick.value.length <= this.max &&
            pick.value.every((v, i) => this.arbitrary.canGenerate({value: v, original: pick.original[i]}))
   }
 
-  cornerCases(): FluentPick<A[]>[] {
+  override cornerCases(): FluentPick<A[]>[] {
     return this.arbitrary.cornerCases().flatMap(cc => [
       {value: Array(this.min).fill(cc.value), original: Array(this.min).fill(cc.original)},
       {value: Array(this.max).fill(cc.value), original: Array(this.max).fill(cc.original)}
     ]).filter(v => v !== undefined) as FluentPick<A[]>[]
   }
 
-  toString(depth = 0): string {
+  override toString(depth = 0): string {
     return ' '.repeat(depth * 2) +
       `Array Arbitrary: min = ${this.min} max = ${this.max}\n${this.arbitrary.toString(depth + 1)}`
   }

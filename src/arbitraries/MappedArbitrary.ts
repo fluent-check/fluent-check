@@ -17,7 +17,7 @@ export class MappedArbitrary<A, B> extends Arbitrary<B> {
     return {value: this.f(p.value), original}
   }
 
-  pick(generator: () => number): FluentPick<B> | undefined {
+  override pick(generator: () => number): FluentPick<B> | undefined {
     const pick = this.baseArbitrary.pick(generator)
     return pick !== undefined ? this.mapFluentPick(pick) : undefined
   }
@@ -27,23 +27,23 @@ export class MappedArbitrary<A, B> extends Arbitrary<B> {
   // small arbitraries), or use a cardinality estimator such as HyperLogLog for big ones. One
   // interesting information we could leverage here is that the new arbitrary size will never
   // be *above* the baseArbitrary.
-  size() { return this.baseArbitrary.size() }
+  override size() { return this.baseArbitrary.size() }
 
-  cornerCases(): FluentPick<B>[] {
+  override cornerCases(): FluentPick<B>[] {
     return this.baseArbitrary.cornerCases().map(p => this.mapFluentPick(p))
   }
 
-  shrink(initial: FluentPick<B>): Arbitrary<B> {
+  override shrink(initial: FluentPick<B>): Arbitrary<B> {
     return this.baseArbitrary.shrink({value: initial.original, original: initial.original}).map(v => this.f(v))
   }
 
-  canGenerate(pick: FluentPick<B>) {
+  override canGenerate(pick: FluentPick<B>) {
     const inverseValues = this.shrinkHelper !== undefined && this.shrinkHelper.inverseMap !== undefined ?
       this.shrinkHelper.inverseMap(pick.value) : [pick.original]
     return inverseValues.some(value => this.baseArbitrary.canGenerate({value, original: pick.original}))
   }
 
-  toString(depth = 0) {
+  override toString(depth = 0) {
     return ' '.repeat(2 * depth) +
       `Map Arbitrary: f = ${this.f.toString()}\n` + this.baseArbitrary.toString(depth + 1)
   }

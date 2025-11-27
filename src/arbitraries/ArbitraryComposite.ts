@@ -8,7 +8,7 @@ export class ArbitraryComposite<A> extends Arbitrary<A> {
     super()
   }
 
-  size(): ArbitrarySize {
+  override size(): ArbitrarySize {
     let value = 0
     let isEstimated = false
 
@@ -22,7 +22,7 @@ export class ArbitraryComposite<A> extends Arbitrary<A> {
     return isEstimated ? estimatedSize(value, [value, value]) : exactSize(value)
   }
 
-  pick(generator: () => number) {
+  override pick(generator: () => number) {
     const weights = this.arbitraries.reduce(
       (acc, a) => { acc.push((acc.at(-1) ?? 0) + a.size().value); return acc },
       new Array<number>()
@@ -32,20 +32,20 @@ export class ArbitraryComposite<A> extends Arbitrary<A> {
     return this.arbitraries[weights.findIndex(s => s > picked)].pick(generator)
   }
 
-  cornerCases(): FluentPick<A>[] {
+  override cornerCases(): FluentPick<A>[] {
     return this.arbitraries.flatMap(a => a.cornerCases())
   }
 
-  shrink(initial: FluentPick<A>) {
+  override shrink(initial: FluentPick<A>) {
     const arbitraries = this.arbitraries.filter(a => a.canGenerate(initial)).map(a => a.shrink(initial))
     return fc.union(...arbitraries)
   }
 
-  canGenerate(pick: FluentPick<A>) {
+  override canGenerate(pick: FluentPick<A>) {
     return this.arbitraries.some(a => a.canGenerate(pick))
   }
 
-  toString(depth = 0) {
+  override toString(depth = 0) {
     return ' '.repeat(2 * depth) +
       'Composite Arbitrary:\n' + this.arbitraries.map(a => a.toString(depth + 1)).join('\n')
   }

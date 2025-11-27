@@ -12,7 +12,7 @@ export class ArbitrarySet<A> extends Arbitrary<A[]> {
     this.max = Math.min(max, elements.length)
   }
 
-  size(): ExactSize {
+  override size(): ExactSize {
     const comb = (n: number, s: number) => { return factorial (n) / (factorial(s) * factorial(n - s)) }
 
     let value = 0
@@ -21,7 +21,7 @@ export class ArbitrarySet<A> extends Arbitrary<A[]> {
     return exactSize(value)
   }
 
-  pick(generator: () => number): FluentPick<A[]> | undefined {
+  override pick(generator: () => number): FluentPick<A[]> | undefined {
     const size = Math.floor(generator() * (this.max - this.min + 1)) + this.min
     const pick = new Set<A>()
 
@@ -33,7 +33,7 @@ export class ArbitrarySet<A> extends Arbitrary<A[]> {
     return {value, original: value}
   }
 
-  shrink(initial: FluentPick<A[]>): Arbitrary<A[]> {
+  override shrink(initial: FluentPick<A[]>): Arbitrary<A[]> {
     if (this.min === initial.value.length) return fc.empty()
 
     const start = this.min
@@ -43,12 +43,12 @@ export class ArbitrarySet<A> extends Arbitrary<A[]> {
     return fc.union(fc.set(this.elements, start, middle), fc.set(this.elements, middle + 1, end))
   }
 
-  canGenerate(pick: FluentPick<A[]>) {
+  override canGenerate(pick: FluentPick<A[]>) {
     return pick.value.length >= this.min && pick.value.length <= this.max &&
            pick.value.every(v => this.elements.includes(v))
   }
 
-  cornerCases(): FluentPick<A[]>[] {
+  override cornerCases(): FluentPick<A[]>[] {
     const min: A[] = []
     for (let i = 0; i < this.min; i++) min.push(this.elements[i])
 
@@ -58,7 +58,7 @@ export class ArbitrarySet<A> extends Arbitrary<A[]> {
     return [{value: min, original: min}, {value: max, original: max}]
   }
 
-  toString(depth = 0) {
+  override toString(depth = 0) {
     return ' '.repeat(depth * 2) +
       `Set Arbitrary: min = ${this.min} max = ${this.max} elements = [${this.elements.join(', ')}]`
   }
