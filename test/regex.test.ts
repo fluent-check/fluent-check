@@ -135,7 +135,8 @@ describe('Regex tests', () => {
       .forall('email', fc.patterns.email())
       .then(({email}) => {
         // An email must contain exactly one @ symbol
-        return (email as string).includes('@') && (email as string).includes('.')
+        // eslint-disable-next-line @typescript-eslint/strict-boolean-expressions -- typescript-eslint incorrectly infers `any`; tsc correctly sees `string`
+        return email.includes('@') && email.includes('.')
       })
       .check()
     ).to.have.property('satisfiable', true)
