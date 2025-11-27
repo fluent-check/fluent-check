@@ -5,7 +5,7 @@ import {ArbitraryArray} from './ArbitraryArray.js'
 import {ArbitraryTuple} from './ArbitraryTuple.js'
 import {ArbitraryComposite} from './ArbitraryComposite.js'
 import {char} from './string.js'
-import type {CharClassKey, IPv4Address, HttpUrl} from './types.js'
+import type {IPv4Address, HttpUrl} from './types.js'
 
 // Direct implementations to avoid circular dependencies
 const integer = (min = Number.MIN_SAFE_INTEGER, max = Number.MAX_SAFE_INTEGER): Arbitrary<number> => {
@@ -35,10 +35,6 @@ const union = <A>(...arbitraries: Arbitrary<A>[]): Arbitrary<A> => {
 
 const oneof = <const A extends readonly unknown[]>(elements: A): Arbitrary<A[number]> =>
   elements.length === 0 ? NoArbitrary : integer(0, elements.length - 1).map(i => elements[i])
-
-// Local implementation of string to avoid circular dependency
-const _string = (min = 2, max = 10, charArb = char()): Arbitrary<string> =>
-  min === 0 && max === 0 ? constant('') : array(charArb, min, max).map(a => a.join(''))
 
 /**
  * RegexCharClass represents a character class in a regular expression
@@ -148,7 +144,8 @@ function parseRegexPattern(pattern: string | RegExp): RegexCharClass[] {
       // Character class like [a-z]
       const endBracket = patternStr.indexOf(']', i)
       if (endBracket === -1) {
-        throw new Error(`Invalid regex pattern: missing closing bracket for character class starting at position ${i}`, {
+        const msg = `Invalid regex pattern: missing closing bracket at position ${i}`
+        throw new Error(msg, {
           cause: `Pattern parsing error at position ${i} in pattern: ${patternStr}`
         })
       }
@@ -284,7 +281,7 @@ function parseCustomCharClass(charClass: string): Arbitrary<string> {
       try {
         const re = new RegExp(`[${content}]`)
         return !re.test(c)
-      } catch (_e) {
+      } catch {
         return true // If regex creation fails, don't filter
       }
     })
@@ -344,12 +341,12 @@ export function regex(pattern: string | RegExp, maxLength: number = 100): Arbitr
         try {
           const re = pattern instanceof RegExp ? pattern : new RegExp(`^${pattern}$`)
           return re.test(s)
-        } catch (_e) {
+        } catch {
           return false
         }
       })
-  } catch (_e) {
-    console.error('Error creating regex arbitrary:', _e)
+  } catch (e) {
+    console.error('Error creating regex arbitrary:', e)
     return NoArbitrary
   }
 }
@@ -444,15 +441,14 @@ export const patterns = {
       1, 5
     ).map(parts => parts.join('.'))
 
-    const pathSegment = array(
-      union(
-        char('a', 'z'),
-        char('A', 'Z'),
-        integer(0, 9).map(String),
-        oneof(['_', '-', '.', '~', ':', '@', '!', '$', '&', "'", '(', ')', '*', '+', ',', ';', '='])
-      ),
-      0, 10
-    ).map(chars => chars.join(''))
+    const pathChars = union(
+      char('a', 'z'),
+      char('A', 'Z'),
+      integer(0, 9).map(String),
+      oneof(['_', '-', '.', '~', ':', '@', '!', '$', '&', "'", '(', ')', '*', '+', ',', ';', '='])
+    )
+
+    const pathSegment = array(pathChars, 0, 10).map(chars => chars.join(''))
 
     const path = array(pathSegment, 0, 5)
       .map(segments => segments.length > 0 ? `/${segments.join('/')}` : '')

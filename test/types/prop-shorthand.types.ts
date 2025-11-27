@@ -9,6 +9,8 @@
  * If any type assertion fails, TypeScript will produce a compile error.
  */
 
+/* eslint-disable @typescript-eslint/no-unused-vars */
+
 import {prop, FluentProperty} from '../../src/FluentProperty.js'
 import {integer, string, boolean, array} from '../../src/arbitraries/index.js'
 

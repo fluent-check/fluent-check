@@ -1,50 +1,11 @@
-import {Arbitrary, FluentPick} from '../arbitraries/index.js'
-import {FluentResult} from '../FluentCheck.js'
+import type {Arbitrary, FluentPick} from '../arbitraries/index.js'
+import type {FluentResult} from '../FluentCheck.js'
 import {FluentStrategy, FluentStrategyInterface} from './FluentStrategy.js'
-
-// Interface to properly type the arbitrary structure used in the strategy
-interface ArbitraryContainer<A> {
-  arbitrary: Arbitrary<A>;
-  collection: FluentPick<A>[];
-  pickNum: number;
-  cache?: FluentPick<A>[];
-}
-
-// Interface to describe the configuration properties
-interface StrategyConfiguration {
-  sampleSize: number;
-  shrinkSize: number;
-}
 
 // Define a constructor type for use with mixins
 type MixinConstructor<T = {}> = new (...args: any[]) => T
 // Define a base type for the strategy constructor
 type MixinStrategy = MixinConstructor<FluentStrategy>
-
-// Base class with the common properties to be used by the mixins
-// Note: This abstract class documents the expected interface for mixin targets
-abstract class _MixinBase {
-  arbitraries: Record<string, ArbitraryContainer<any>> = {}
-  configuration: StrategyConfiguration = {
-    sampleSize: 100,
-    shrinkSize: 100
-  }
-  randomGenerator: { generator: () => number } = {
-    generator: () => Math.random()
-  }
-
-  buildArbitraryCollection<A>(_arbitrary: Arbitrary<A>, _sampleSize?: number): FluentPick<A>[] {
-    throw new Error('Method not implemented', {
-      cause: 'Mixin method requires implementation'
-    })
-  }
-
-  isDedupable(): boolean {
-    throw new Error('Method not implemented', {
-      cause: 'Mixin method requires implementation'
-    })
-  }
-}
 
 export function Random<TBase extends MixinStrategy>(Base: TBase) {
   return class extends Base implements FluentStrategyInterface {
@@ -66,7 +27,7 @@ export function Shrinkable<TBase extends MixinStrategy>(Base: TBase) {
     shrink<K extends string>(arbitraryName: K, partial: FluentResult<Record<string, unknown>>) {
       const shrinkedArbitrary = this.arbitraries[arbitraryName].arbitrary.shrink(partial.example[arbitraryName])
       this.arbitraries[arbitraryName].collection = this.buildArbitraryCollection(shrinkedArbitrary,
-        this.configuration.shrinkSize!)
+        this.configuration.shrinkSize)
     }
   }
 }
@@ -90,8 +51,9 @@ export function Cached<TBase extends MixinStrategy>(Base: TBase) {
 export function Biased<TBase extends MixinStrategy>(Base: TBase) {
   return class extends Base {
     buildArbitraryCollection<A>(arbitrary: Arbitrary<A>, sampleSize = this.configuration.sampleSize): FluentPick<A>[] {
-      return this.isDedupable() ? arbitrary.sampleUniqueWithBias(sampleSize!, this.randomGenerator.generator) :
-        arbitrary.sampleWithBias(sampleSize!, this.randomGenerator.generator)
+      return this.isDedupable()
+        ? arbitrary.sampleUniqueWithBias(sampleSize, this.randomGenerator.generator)
+        : arbitrary.sampleWithBias(sampleSize, this.randomGenerator.generator)
     }
   }
 }

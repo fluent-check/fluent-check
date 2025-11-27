@@ -84,7 +84,7 @@ export class FluentResult<Rec extends {} = {}> {
    */
   assertSatisfiable(message?: string): void {
     if (!this.satisfiable) {
-      const prefix = message ? `${message}: ` : ''
+      const prefix = message !== undefined && message !== '' ? `${message}: ` : ''
       const exampleStr = JSON.stringify(this.example)
       const seedStr = this.seed !== undefined ? ` (seed: ${this.seed})` : ''
       throw new Error(`${prefix}Expected property to be satisfiable, but found counterexample: ${exampleStr}${seedStr}`)
@@ -109,7 +109,7 @@ export class FluentResult<Rec extends {} = {}> {
    */
   assertNotSatisfiable(message?: string): void {
     if (this.satisfiable) {
-      const prefix = message ? `${message}: ` : ''
+      const prefix = message !== undefined && message !== '' ? `${message}: ` : ''
       const exampleStr = JSON.stringify(this.example)
       const seedStr = this.seed !== undefined ? ` (seed: ${this.seed})` : ''
       throw new Error(`${prefix}Expected property to NOT be satisfiable, but found example: ${exampleStr}${seedStr}`)
@@ -149,7 +149,7 @@ export class FluentResult<Rec extends {} = {}> {
     }
 
     if (mismatches.length > 0) {
-      const prefix = message ? `${message}: ` : ''
+      const prefix = message !== undefined && message !== '' ? `${message}: ` : ''
       const seedStr = this.seed !== undefined ? ` (seed: ${this.seed})` : ''
       throw new Error(`${prefix}Example mismatch - ${mismatches.join('; ')}${seedStr}`)
     }
@@ -213,7 +213,9 @@ export class FluentCheck<Rec extends ParentRec, ParentRec extends {}> {
    * .given('count', 42)
    * ```
    */
-  given<K extends string, V>(name: K, v: NoInfer<V> | ((args: Rec) => V)): FluentCheckGiven<K, V, Rec & Record<K, V>, Rec> {
+  given<K extends string, V>(
+    name: K, v: NoInfer<V> | ((args: Rec) => V)
+  ): FluentCheckGiven<K, V, Rec & Record<K, V>, Rec> {
     return v instanceof Function ?
       new FluentCheckGivenMutable(this, name, v, this.strategy) :
       new FluentCheckGivenConstant<K, V, Rec & Record<K, V>, Rec>(this, name, v, this.strategy)
@@ -250,7 +252,9 @@ export class FluentCheck<Rec extends ParentRec, ParentRec extends {}> {
     return this.parent !== undefined ? [...this.parent.pathFromRoot(), this] : [this]
   }
 
-  check(child: (testCase: WrapFluentPick<any>) => FluentResult<Record<string, unknown>> = () => new FluentResult(true)): FluentResult<Rec> {
+  check(
+    child: (testCase: WrapFluentPick<any>) => FluentResult<Record<string, unknown>> = () => new FluentResult(true)
+  ): FluentResult<Rec> {
     if (this.parent !== undefined) return this.parent.check(testCase => this.run(testCase, child)) as FluentResult<Rec>
     else {
       this.strategy.randomGenerator.initialize()

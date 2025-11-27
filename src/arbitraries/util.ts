@@ -17,7 +17,10 @@ export function mapArbitrarySize(sz: ArbitrarySize, f: (v: number) => ArbitraryS
   if (sz.type === 'exact' && result.type === 'exact') {
     return exactSize(result.value)
   }
-  return estimatedSize(result.value, result.type === 'estimated' ? result.credibleInterval : [result.value, result.value])
+  const interval = result.type === 'estimated'
+    ? result.credibleInterval
+    : [result.value, result.value] as [number, number]
+  return estimatedSize(result.value, interval)
 }
 
 export function stringify(object: any) {

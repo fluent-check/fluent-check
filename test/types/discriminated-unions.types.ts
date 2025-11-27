@@ -9,6 +9,8 @@
  * If any type assertion fails, TypeScript will produce a compile error.
  */
 
+/* eslint-disable @typescript-eslint/no-unused-vars */
+
 import {
   ArbitrarySize,
   ExactSize,
@@ -112,10 +114,11 @@ function exhaustiveSwitch(size: ArbitrarySize): string {
       return `Exactly ${size.value}`
     case 'estimated':
       return `~${size.value} (${size.credibleInterval[0]}-${size.credibleInterval[1]})`
-    default:
+    default: {
       // This ensures exhaustiveness - if a new variant is added, this will error
       const _exhaustive: never = size
       return _exhaustive
+    }
   }
 }
 

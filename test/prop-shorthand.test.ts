@@ -36,13 +36,13 @@ describe('prop() shorthand', () => {
     })
 
     it('should check associativity of addition', () => {
-      fc.prop(fc.integer(-1000, 1000), fc.integer(-1000, 1000), 
+      fc.prop(fc.integer(-1000, 1000), fc.integer(-1000, 1000),
         (a, b) => (a + b) - b === a
       ).check().assertSatisfiable()
     })
 
     it('should find counterexample with two arbitraries', () => {
-      fc.prop(fc.integer(1, 10), fc.integer(1, 10), 
+      fc.prop(fc.integer(1, 10), fc.integer(1, 10),
         (a, b) => a === b
       ).check().assertNotSatisfiable()
     })

@@ -445,7 +445,10 @@ describe('Arbitrary Presets', () => {
         .then(({rgb}) => {
           const [r, g, b] = rgb
           // Valid RGB components
-          const hex = `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`
+          const rHex = r.toString(16).padStart(2, '0')
+          const gHex = g.toString(16).padStart(2, '0')
+          const bHex = b.toString(16).padStart(2, '0')
+          const hex = `#${rHex}${gHex}${bHex}`
           return /^#[0-9a-f]{6}$/.test(hex)
         })
         .check()

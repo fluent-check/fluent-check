@@ -9,6 +9,8 @@
  * If any type assertion fails, TypeScript will produce a compile error.
  */
 
+/* eslint-disable @typescript-eslint/no-unused-vars */
+
 import {FluentCheck} from '../../src/FluentCheck.js'
 import {integer, Arbitrary} from '../../src/arbitraries/index.js'
 
