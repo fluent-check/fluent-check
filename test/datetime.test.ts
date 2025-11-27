@@ -6,7 +6,7 @@ describe('DateTime tests', () => {
   it('should generate dates in the specified range', () => {
     const MIN_DATE = new Date('2020-01-01')
     const MAX_DATE = new Date('2020-12-31')
-    
+
     expect(fc.scenario()
       .forall('d', fc.date(MIN_DATE, MAX_DATE))
       .then(({d}) => {
@@ -32,11 +32,11 @@ describe('DateTime tests', () => {
   it('should generate valid datetime objects', () => {
     const MIN_DATE = new Date('2020-01-01')
     const MAX_DATE = new Date('2020-12-31')
-    
+
     expect(fc.scenario()
       .forall('dt', fc.datetime(MIN_DATE, MAX_DATE))
       .then(({dt}) => {
-        return dt >= new Date(new Date(MIN_DATE.getTime()).setHours(0, 0, 0, 0)) && 
+        return dt >= new Date(new Date(MIN_DATE.getTime()).setHours(0, 0, 0, 0)) &&
                dt <= new Date(new Date(MAX_DATE.getTime()).setHours(23, 59, 59, 999))
       })
       .check()
@@ -45,7 +45,7 @@ describe('DateTime tests', () => {
 
   it('should generate valid duration objects', () => {
     const MAX_HOURS = 10
-    
+
     expect(fc.scenario()
       .forall('d', fc.duration(MAX_HOURS))
       .then(({d}) => {
@@ -87,11 +87,11 @@ describe('DateTime tests', () => {
       .then(({date, days}) => {
         const newDate = new Date(date)
         newDate.setDate(date.getDate() + days)
-        
+
         // Account for month changes
         const expectedDate = new Date(date)
         expectedDate.setDate(date.getDate() + days)
-        
+
         return newDate.getTime() === expectedDate.getTime()
       })
       .check()
@@ -105,10 +105,10 @@ describe('DateTime tests', () => {
       .then(({time, hours}) => {
         const originalHours = time.hour
         const newHours = (originalHours + hours) % 24
-        
+
         return newHours >= 0 && newHours < 24
       })
       .check()
     ).to.have.property('satisfiable', true)
   })
-}) 
+})

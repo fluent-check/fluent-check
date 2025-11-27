@@ -12,7 +12,7 @@ describe('Regex tests', () => {
       .check()
     ).to.have.property('satisfiable', true)
   })
-  
+
   it('should generate strings matching digit patterns', () => {
     expect(fc.scenario()
       .forall('s', fc.regex(/\d{5}/))
@@ -22,7 +22,7 @@ describe('Regex tests', () => {
       .check()
     ).to.have.property('satisfiable', true)
   })
-  
+
   it('should generate strings matching word character patterns', () => {
     expect(fc.scenario()
       .forall('s', fc.regex(/\w{1,5}/))  // Limiting the range to avoid memory issues
@@ -32,7 +32,7 @@ describe('Regex tests', () => {
       .check()
     ).to.have.property('satisfiable', true)
   })
-  
+
   it('should generate strings matching patterns with quantifiers', () => {
     expect(fc.scenario()
       .forall('s', fc.regex(/a{2,4}/))
@@ -42,7 +42,7 @@ describe('Regex tests', () => {
       .check()
     ).to.have.property('satisfiable', true)
   })
-  
+
   // Simplified alternatives test
   it('should generate strings matching patterns with alternatives', () => {
     expect(fc.scenario()
@@ -53,7 +53,7 @@ describe('Regex tests', () => {
       .check()
     ).to.have.property('satisfiable', true)
   })
-  
+
   it('should generate valid email addresses with patterns.email', () => {
     expect(fc.scenario()
       .forall('email', fc.patterns.email())
@@ -65,7 +65,7 @@ describe('Regex tests', () => {
       .check()
     ).to.have.property('satisfiable', true)
   })
-  
+
   it('should generate valid UUIDs with patterns.uuid', () => {
     expect(fc.scenario()
       .forall('uuid', fc.patterns.uuid())
@@ -77,7 +77,7 @@ describe('Regex tests', () => {
       .check()
     ).to.have.property('satisfiable', true)
   })
-  
+
   it('should generate valid IPv4 addresses with patterns.ipv4', () => {
     expect(fc.scenario()
       .forall('ip', fc.patterns.ipv4())
@@ -85,7 +85,7 @@ describe('Regex tests', () => {
         // Check format and valid octet ranges
         const parts = ip.split('.')
         if (parts.length !== 4) return false
-        
+
         return parts.every(part => {
           const num = parseInt(part, 10)
           return !isNaN(num) && num >= 0 && num <= 255
@@ -94,7 +94,7 @@ describe('Regex tests', () => {
       .check()
     ).to.have.property('satisfiable', true)
   })
-  
+
   it('should respect maxLength parameter in regex generation', () => {
     expect(fc.scenario()
       .forall('s', fc.regex(/\w+/, 5))  // Reducing max length to avoid memory issues
@@ -104,40 +104,40 @@ describe('Regex tests', () => {
       .check()
     ).to.have.property('satisfiable', true)
   })
-  
+
   it('should perform shrinking while maintaining regex pattern', () => {
     const pattern = /\d{3}-\d{2}-\d{4}/  // SSN format
     const original = '123-45-6789'
     const shrunk = fc.shrinkRegexString(original, pattern)
-    
+
     // Check that all shrunk values still match the pattern
     expect(shrunk.every(s => pattern.test(s))).to.be.true
-    
+
     // Check that some shrinking actually happened
     expect(shrunk.length).to.be.greaterThan(0)
-    
+
     // Check that shrunk values are in some way "simpler"
     // For numeric sequences, this often means "smaller numbers"
     const simplifiedExists = shrunk.some(s => {
       // Check if the shrunk value uses simpler digits (more 0's or 1's)
-      const countSimpleDigits = (str: string) => 
-        (str.match(/[01]/g) || []).length
-      
+      const countSimpleDigits = (str: string) =>
+        (str.match(/[01]/g) ?? []).length
+
       return countSimpleDigits(s) > countSimpleDigits(original)
     })
-    
+
     expect(simplifiedExists).to.be.true
   })
-  
+
   // Simplified validation test
   it('should validate proper email format', () => {
     expect(fc.scenario()
       .forall('email', fc.patterns.email())
       .then(({email}) => {
         // An email must contain exactly one @ symbol
-        return email.includes('@') && email.includes('.')
+        return (email as string).includes('@') && (email as string).includes('.')
       })
       .check()
     ).to.have.property('satisfiable', true)
   })
-}) 
+})

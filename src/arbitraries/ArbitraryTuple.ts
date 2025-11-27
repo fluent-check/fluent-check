@@ -59,7 +59,7 @@ export class ArbitraryTuple<U extends Arbitrary<any>[], A = UnwrapArbitrary<U>> 
 
   canGenerate(pick: FluentPick<A>): boolean {
     for (const i in pick.value) {
-      const index = Number(i);
+      const index = Number(i)
       if (!this.arbitraries[index].canGenerate({value: pick.value[index], original: pick.original[index]}))
         return false
     }
