@@ -5,26 +5,20 @@ TBD - created by archiving change migrate-eslint-flat-config. Update Purpose aft
 ## Requirements
 ### Requirement: ESLint Flat Config
 
-The project SHALL use ESLint's flat config format (`eslint.config.js`) for code linting configuration.
+The project SHALL use ESLint flat config format with typescript-eslint for type-aware linting.
 
-#### Scenario: Lint command executes successfully
+#### Scenario: Lint all source and test files
+- **WHEN** `npm run lint` is executed
+- **THEN** ESLint SHALL successfully parse and lint all files in `src/` and `test/`
+- **AND** exit with code 0 when no violations are present
 
-- **GIVEN** the project has an `eslint.config.js` file
-- **WHEN** the developer runs `npm run lint`
-- **THEN** ESLint executes and reports any code style violations
-- **AND** the command exits with code 0 if no errors are found
+#### Scenario: Type-aware linting for test files
+- **WHEN** ESLint lints files in the `test/` directory
+- **THEN** type-aware rules SHALL function correctly using `tsconfig.eslint.json`
+- **AND** no "default project" errors SHALL occur regardless of test file count
 
-#### Scenario: TypeScript files are linted with type-aware rules
-
-- **GIVEN** the ESLint configuration includes `typescript-eslint` parser and plugin
-- **WHEN** the developer runs `npm run lint`
-- **THEN** TypeScript files in `src/` and `test/` directories are analyzed
-- **AND** type-aware rules (e.g., `strict-boolean-expressions`) are enforced
-
-#### Scenario: Code style rules are enforced
-
-- **GIVEN** the ESLint configuration defines code style rules
-- **WHEN** the developer runs `npm run lint`
-- **THEN** code style violations are reported (indentation, quotes, semicolons, spacing)
-- **AND** the rules match the project conventions documented in `openspec/project.md`
+#### Scenario: Chai assertion support
+- **WHEN** test files contain Chai assertion expressions like `expect(x).to.be.true`
+- **THEN** ESLint SHALL NOT report `no-unused-expressions` errors
+- **AND** the `no-unused-expressions` rule SHALL be disabled for files in the `test/` directory
 
