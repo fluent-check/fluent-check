@@ -3,11 +3,18 @@ export type FluentPick<V> = {
   original?: any
 }
 
-export type ArbitrarySize = {
+export type ExactSize = {
+  type: 'exact'
   value: number
-  type: 'exact' | 'estimated'
+}
+
+export type EstimatedSize = {
+  type: 'estimated'
+  value: number
   credibleInterval: [number, number]
 }
+
+export type ArbitrarySize = ExactSize | EstimatedSize
 
 type Without<T, U> = { [P in Exclude<keyof T, keyof U>]?: never }
 export type XOR<T, U> = (T | U) extends object ? (Without<T, U> & U) | (Without<U, T> & T) : T | U

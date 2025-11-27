@@ -1,5 +1,6 @@
-import {FluentPick, ArbitrarySize} from './types.js'
+import {FluentPick, ExactSize} from './types.js'
 import {Arbitrary} from './internal.js'
+import {exactSize} from './util.js'
 import {factorial} from '../statistics.js'
 import * as fc from './index.js'
 
@@ -11,13 +12,13 @@ export class ArbitrarySet<A> extends Arbitrary<A[]> {
     this.max = Math.min(max, elements.length)
   }
 
-  size(): ArbitrarySize {
+  size(): ExactSize {
     const comb = (n: number, s: number) => { return factorial (n) / (factorial(s) * factorial(n - s)) }
 
-    let size = 0
-    for (let i = this.min; i <= this.max; i++) size += comb(this.elements.length, i)
+    let value = 0
+    for (let i = this.min; i <= this.max; i++) value += comb(this.elements.length, i)
 
-    return {value: size, type: 'exact', credibleInterval: [size, size]}
+    return exactSize(value)
   }
 
   pick(generator: () => number): FluentPick<A[]> | undefined {
