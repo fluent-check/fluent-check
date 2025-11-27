@@ -28,7 +28,28 @@ export class FluentCheck<Rec extends ParentRec, ParentRec extends {}> {
     return this
   }
 
-  given<K extends string, V>(name: K, v: V | ((args: Rec) => V)): FluentCheckGiven<K, V, Rec & Record<K, V>, Rec> {
+  /**
+   * Sets up a derived value or constant before assertions.
+   *
+   * @param name - The name to bind the value to
+   * @param v - A constant value or factory function that computes the value
+   *
+   * @remarks
+   * Type inference is controlled: when both constant and factory forms could
+   * infer `V`, the factory return type takes precedence. This uses `NoInfer<V>`
+   * on the constant position to prevent literal type inference issues (e.g.,
+   * inferring `5` instead of `number`).
+   *
+   * @example
+   * ```typescript
+   * // Factory form - V inferred from return type
+   * .given('stack', () => new Stack<number>())
+   *
+   * // Constant form - still works, but factory wins in unions
+   * .given('count', 42)
+   * ```
+   */
+  given<K extends string, V>(name: K, v: NoInfer<V> | ((args: Rec) => V)): FluentCheckGiven<K, V, Rec & Record<K, V>, Rec> {
     return v instanceof Function ?
       new FluentCheckGivenMutable(this, name, v, this.strategy) :
       new FluentCheckGivenConstant<K, V, Rec & Record<K, V>, Rec>(this, name, v, this.strategy)
@@ -110,7 +131,15 @@ abstract class FluentCheckGiven<K extends string, V, Rec extends ParentRec & Rec
     super(strategy, parent)
   }
 
-  and<NK extends string, V>(name: NK, f: ((args: Rec) => V) | V) {
+  /**
+   * Chains an additional derived value after a given clause.
+   *
+   * @remarks
+   * Type inference follows the same rules as `given()`: factory return type
+   * is the primary inference source for `V`. Uses `NoInfer<V>` on the constant
+   * position.
+   */
+  and<NK extends string, V>(name: NK, f: ((args: Rec) => V) | NoInfer<V>) {
     return super.given(name, f)
   }
 }
