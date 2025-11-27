@@ -1,5 +1,7 @@
 # Change: Add `fc.prop()` Shorthand for Simple Properties
 
+> **GitHub Issue:** [#406](https://github.com/fluent-check/fluent-check/issues/406)
+
 ## Why
 
 45% of property tests in the codebase are simple universal properties that don't benefit from the full BDD given/when/then structure. The current syntax requires 4+ method calls and wrapping with Chai assertions for basic property verification. This creates unnecessary friction for the most common use case.

@@ -1,5 +1,7 @@
 # Change: Add Strategy Presets
 
+> **GitHub Issue:** [#411](https://github.com/fluent-check/fluent-check/issues/411)
+
 ## Why
 
 Strategy configuration is verbose, requiring up to 9 method calls for thorough testing configuration. Most users want standard configurations without needing to understand all available options. Pre-configured strategy presets provide sensible defaults while maintaining access to full customization.

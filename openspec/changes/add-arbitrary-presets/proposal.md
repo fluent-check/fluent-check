@@ -1,5 +1,7 @@
 # Change: Add Common Arbitrary Presets
 
+> **GitHub Issue:** [#409](https://github.com/fluent-check/fluent-check/issues/409)
+
 ## Why
 
 Analysis of the test suite shows that common patterns like "positive integer", "non-empty array", and "nullable value" require verbose setup with explicit ranges or filter conditions. These patterns are frequent enough to warrant shorthand factories that improve readability and reduce boilerplate.

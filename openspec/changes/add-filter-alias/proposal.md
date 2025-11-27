@@ -1,5 +1,7 @@
 # Change: Add `suchThat` Alias for `filter`
 
+> **GitHub Issue:** [#408](https://github.com/fluent-check/fluent-check/issues/408)
+
 ## Why
 
 QuickCheck, ScalaCheck, and other property testing frameworks use `suchThat` as the standard name for filtered generation. Developers coming from these frameworks expect this naming convention. Adding `suchThat` as an alias improves discoverability and familiarity without removing the existing `filter` method.

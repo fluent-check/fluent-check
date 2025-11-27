@@ -1,5 +1,7 @@
 # Change: Add Fluent Assertion Terminal Methods
 
+> **GitHub Issue:** [#410](https://github.com/fluent-check/fluent-check/issues/410)
+
 ## Why
 
 The current pattern requires wrapping property test results in Chai assertions like `expect(...).to.have.property('satisfiable', true)`. This obscures the fluent API and adds visual noise to every test. Adding assertion terminal methods directly to `FluentResult` provides a cleaner, more fluent experience.

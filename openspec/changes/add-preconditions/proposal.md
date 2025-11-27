@@ -1,5 +1,7 @@
 # Change: Add `fc.pre()` Preconditions
 
+> **GitHub Issue:** [#407](https://github.com/fluent-check/fluent-check/issues/407)
+
 ## Why
 
 Currently, preconditions in property tests must be expressed via `filter()` on arbitraries or manual conditional logic that returns `true` to skip. This obscures intent and makes it difficult to track which test cases were skipped vs. actually tested.

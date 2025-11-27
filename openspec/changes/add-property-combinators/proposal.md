@@ -1,5 +1,7 @@
 # Change: Add Property Combinator Library
 
+> **GitHub Issue:** [#412](https://github.com/fluent-check/fluent-check/issues/412)
+
 ## Why
 
 Common mathematical properties (idempotent, commutative, associative, roundtrip) are reimplemented across tests. A combinator library encapsulates these patterns, reducing duplication and improving expressiveness. These are standard patterns in property-based testing that benefit from reusable implementations.
