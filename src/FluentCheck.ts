@@ -6,14 +6,14 @@ type WrapFluentPick<T> = { [P in keyof T]: FluentPick<T[P]> }
 type PickResult<V> = Record<string, FluentPick<V>>
 type ValueResult<V> = Record<string, V>
 
-export class FluentResult {
+export class FluentResult<Rec extends {} = {}> {
   constructor(
     public readonly satisfiable = false,
-    public example: PickResult<any> = {},
+    public example: Rec = {} as Rec,
     public readonly seed?: number) { }
 
   addExample<A>(name: string, value: FluentPick<A>) {
-    this.example[name] = value
+    (this.example as PickResult<A>)[name] = value
   }
 }
 
@@ -65,12 +65,12 @@ export class FluentCheck<Rec extends ParentRec, ParentRec extends {}> {
     return this.parent !== undefined ? [...this.parent.pathFromRoot(), this] : [this]
   }
 
-  check(child: (testCase: WrapFluentPick<any>) => FluentResult = () => new FluentResult(true)): FluentResult {
-    if (this.parent !== undefined) return this.parent.check(testCase => this.run(testCase, child))
+  check(child: (testCase: WrapFluentPick<any>) => FluentResult<Record<string, unknown>> = () => new FluentResult(true)): FluentResult<Rec> {
+    if (this.parent !== undefined) return this.parent.check(testCase => this.run(testCase, child)) as FluentResult<Rec>
     else {
       this.strategy.randomGenerator.initialize()
       const r = this.run({} as Rec, child)
-      return new FluentResult(r.satisfiable, FluentCheck.unwrapFluentPick(r.example),
+      return new FluentResult<Rec>(r.satisfiable, FluentCheck.unwrapFluentPick(r.example) as Rec,
         this.strategy.randomGenerator.seed)
     }
   }

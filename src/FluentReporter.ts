@@ -1,13 +1,13 @@
 import {FluentResult} from './FluentCheck.js'
 
-export function expect(result: FluentResult): void | never {
+export function expect<Rec extends {}>(result: FluentResult<Rec>): void | never {
   if (!result.satisfiable) {
     throw new FluentReporter(result)
   }
 }
 
 export class FluentReporter extends Error {
-  constructor(result: FluentResult) {
+  constructor(result: FluentResult<{}>) {
     super()
     this.name = 'Property not satisfiable'
 
