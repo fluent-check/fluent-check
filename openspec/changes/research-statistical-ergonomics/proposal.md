@@ -1,5 +1,7 @@
 # Change: Research Statistical Ergonomics and Confidence-Based Testing
 
+> **GitHub Issue:** [#413](https://github.com/fluent-check/fluent-check/issues/413)
+
 ## Why
 
 FluentCheck has sophisticated statistical foundations (Beta and Beta-Binomial distributions, Bayesian size estimation for filtered arbitraries) but these capabilities are not exposed to users in a meaningful way. Currently:
