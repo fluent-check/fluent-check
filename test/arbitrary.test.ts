@@ -179,6 +179,54 @@ describe('Arbitrary tests', () => {
         .check()
       ).to.have.property('satisfiable', true)
     })
+
+    describe('suchThat (filter alias)', () => {
+      it('suchThat should produce same results as filter', () => {
+        const predicate = (n: number) => n > 50
+        const filterArb = fc.integer(0, 100).filter(predicate)
+        const suchThatArb = fc.integer(0, 100).suchThat(predicate)
+
+        // Both should have the same estimated size type
+        expect(filterArb.size().type).to.equal(suchThatArb.size().type)
+        expect(filterArb.size().type).to.equal('estimated')
+      })
+
+      it('suchThat should work in property tests', () => {
+        fc.scenario()
+          .forall('n', fc.integer(0, 100).suchThat(n => n < 10))
+          .then(({n}) => n < 10)
+          .check()
+          .assertSatisfiable()
+      })
+
+      it('suchThat should chain with map correctly', () => {
+        fc.scenario()
+          .forall('n', fc.integer(0, 100).suchThat(n => n > 50).map(n => n * 2))
+          .then(({n}) => n > 100)
+          .check()
+          .assertSatisfiable()
+      })
+
+      it('suchThat should chain with other transformations', () => {
+        const arb = fc.integer(0, 100)
+          .suchThat(n => n % 2 === 0)  // even numbers
+          .map(n => n / 2)              // divide by 2
+
+        fc.scenario()
+          .forall('n', arb)
+          .then(({n}) => Number.isInteger(n) && n >= 0 && n <= 50)
+          .check()
+          .assertSatisfiable()
+      })
+
+      it('suchThat should exclude corner cases appropriately', () => {
+        fc.scenario()
+          .exists('a', fc.integer(-20, 20).suchThat(a => a !== 0))
+          .then(({a}) => a % 11 === 0 && a !== 11 && a !== -11)
+          .check()
+          .assertNotSatisfiable()
+      })
+    })
   })
 
   describe('Sizes', () => {

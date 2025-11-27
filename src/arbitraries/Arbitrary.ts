@@ -127,7 +127,26 @@ export abstract class Arbitrary<A> {
     return new MappedArbitrary(this, f, shrinkHelper)
   }
 
+  /**
+   * Filters the generated values to only include those that satisfy the predicate.
+   * Values that don't pass the filter will be rejected and regenerated.
+   */
   filter(f: (a: A) => boolean): Arbitrary<A> { return new FilteredArbitrary(this, f) }
+
+  /**
+   * Alias for `filter`. Filters the generated values to only include those that satisfy the predicate.
+   *
+   * This method follows the naming convention from QuickCheck and ScalaCheck, where
+   * `suchThat` is the standard name for filtered generation. Use whichever name
+   * reads more naturally in your context:
+   *
+   * ```typescript
+   * fc.integer().suchThat(x => x > 0)  // "integer such that it's positive"
+   * fc.integer().filter(x => x > 0)    // equivalent
+   * ```
+   */
+  suchThat(f: (a: A) => boolean): Arbitrary<A> { return this.filter(f) }
+
   chain<B>(f: (a: A) => Arbitrary<B>): Arbitrary<B> { return new ChainedArbitrary(this, f) }
 
   toString(depth = 0): string { return ' '.repeat(depth * 2) + `Base Arbitrary: ${this.constructor.name}`  }
