@@ -24,6 +24,7 @@ export {
   set,
   tuple,
   oneof,
+  record,
   date,
   time,
   datetime,
