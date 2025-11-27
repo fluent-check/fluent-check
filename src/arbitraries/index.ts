@@ -59,7 +59,7 @@ export const empty = () => NoArbitrary
 
 export const constant = <A>(constant: A): Arbitrary<A> => new ArbitraryConstant(constant)
 
-type UnwrapFluentPick<T> = { [P in keyof T]: T[P] extends Arbitrary<infer E> ? E : T[P] }
+type UnwrapFluentPick<T> = { -readonly [P in keyof T]: T[P] extends Arbitrary<infer E> ? E : T[P] }
 
 export const tuple = <const U extends readonly Arbitrary<any>[]>(...arbitraries: U): Arbitrary<UnwrapFluentPick<U>> => {
   if (arbitraries.some(a => a === NoArbitrary)) return NoArbitrary
