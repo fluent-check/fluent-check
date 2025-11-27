@@ -148,6 +148,42 @@ fc.scenario()
   .check()
 ```
 
+### Preconditions
+
+Use `fc.pre()` to skip test cases that don't meet certain preconditions. This is clearer than using `filter()` when the constraint applies to the test logic rather than the data generation:
+
+```typescript
+// Skip division by zero cases
+fc.scenario()
+  .forall('a', fc.integer(-100, 100))
+  .forall('b', fc.integer(-10, 10))
+  .then(({a, b}) => {
+    fc.pre(b !== 0);  // Skip if b is zero
+    return Math.trunc(a / b) * b + (a % b) === a;
+  })
+  .check();
+
+// With a descriptive message for debugging
+fc.scenario()
+  .forall('arr', fc.array(fc.integer()))
+  .then(({arr}) => {
+    fc.pre(arr.length > 0, 'array must be non-empty');
+    return arr[0] !== undefined;
+  })
+  .check();
+```
+
+**When to use `pre()` vs `filter()`:**
+
+| Use Case | Approach |
+|----------|----------|
+| Constraint on data generation | `filter()` on arbitrary |
+| Constraint discovered during test | `fc.pre()` in test body |
+| Multiple values must relate | `fc.pre()` in test body |
+| Improves readability of intent | `fc.pre()` in test body |
+
+The result includes a `skipped` count showing how many test cases were skipped due to failed preconditions. Skipped cases count as neither passes nor failures.
+
 ## Detailed Documentation
 
 For more details on each feature, check out our detailed documentation:
