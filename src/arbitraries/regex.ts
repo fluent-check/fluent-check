@@ -8,21 +8,29 @@ import {char} from './string.js'
 import type {CharClassKey, IPv4Address, HttpUrl} from './types.js'
 
 // Direct implementations to avoid circular dependencies
-const integer = (min = Number.MIN_SAFE_INTEGER, max = Number.MAX_SAFE_INTEGER): Arbitrary<number> =>
-  min > max ? NoArbitrary : min === max ? new ArbitraryConstant(min) as unknown as Arbitrary<number> : new ArbitraryInteger(min, max) as unknown as Arbitrary<number>
+const integer = (min = Number.MIN_SAFE_INTEGER, max = Number.MAX_SAFE_INTEGER): Arbitrary<number> => {
+  if (min > max) return NoArbitrary
+  if (min === max) return new ArbitraryConstant(min)
+  return new ArbitraryInteger(min, max)
+}
 
-const constant = <A>(constant: A): Arbitrary<A> => new ArbitraryConstant(constant) as unknown as Arbitrary<A>
+const constant = <A>(constant: A): Arbitrary<A> => new ArbitraryConstant(constant)
 
-const array = <A>(arbitrary: Arbitrary<A>, min = 0, max = 10): Arbitrary<A[]> =>
-  min > max ? NoArbitrary : new ArbitraryArray(arbitrary, min, max) as unknown as Arbitrary<A[]>
+const array = <A>(arbitrary: Arbitrary<A>, min = 0, max = 10): Arbitrary<A[]> => {
+  if (min > max) return NoArbitrary
+  return new ArbitraryArray(arbitrary, min, max)
+}
 
-const tuple = <U extends Arbitrary<any>[]>(...arbitraries: U): Arbitrary<any> =>
-  arbitraries.some(a => a === NoArbitrary) ? NoArbitrary : new ArbitraryTuple(arbitraries) as unknown as Arbitrary<any>
+const tuple = <U extends Arbitrary<any>[]>(...arbitraries: U): Arbitrary<any> => {
+  if (arbitraries.some(a => a === NoArbitrary)) return NoArbitrary
+  return new ArbitraryTuple(arbitraries)
+}
 
 const union = <A>(...arbitraries: Arbitrary<A>[]): Arbitrary<A> => {
-  arbitraries = arbitraries.filter(a => a !== NoArbitrary)
-  return arbitraries.length === 0 ? NoArbitrary :
-    arbitraries.length === 1 ? arbitraries[0] : new ArbitraryComposite(arbitraries) as unknown as Arbitrary<A>
+  const filtered = arbitraries.filter(a => a !== NoArbitrary)
+  if (filtered.length === 0) return NoArbitrary
+  if (filtered.length === 1) return filtered[0]
+  return new ArbitraryComposite(filtered)
 }
 
 const oneof = <A>(elements: A[]): Arbitrary<A> =>
@@ -48,7 +56,7 @@ type RegexCharClass = {
 /**
  * Maps common regex character classes to their corresponding arbitraries
  */
-const charClassMap: Record<CharClassKey, Arbitrary<string>> = {
+const charClassMap: Record<string, Arbitrary<string>> = {
   // Digit classes
   '\\d': integer(0, 9).map(String),
   '[0-9]': integer(0, 9).map(String),
