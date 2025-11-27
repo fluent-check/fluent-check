@@ -5,7 +5,7 @@ import {expect} from 'chai'
 describe('Precondition tests', () => {
   it('Basic precondition - test passes when precondition is true', () => {
     const result = fc.scenario()
-      .forall('n', fc.integer(1, 100))
+      .forall('n', fc.positiveInt())
       .then(({n}) => {
         fc.pre(n > 0)
         return n > 0
@@ -47,7 +47,7 @@ describe('Precondition tests', () => {
     let afterPreExecuted = false
 
     const result = fc.scenario()
-      .forall('n', fc.integer(1, 10))
+      .forall('n', fc.positiveInt())
       .then(({n}) => {
         fc.pre(n >= 1)
         afterPreExecuted = true
@@ -61,8 +61,8 @@ describe('Precondition tests', () => {
 
   it('Multiple preconditions - all must pass', () => {
     const result = fc.scenario()
-      .forall('a', fc.integer(1, 100))
-      .forall('b', fc.integer(1, 100))
+      .forall('a', fc.positiveInt())
+      .forall('b', fc.positiveInt())
       .then(({a, b}) => {
         fc.pre(a > 0)
         fc.pre(b > 0)
@@ -129,7 +129,7 @@ describe('Precondition tests', () => {
     // This is a compile-time check - if fc.pre has correct type assertion,
     // the type of value after fc.pre should be narrowed
     const result = fc.scenario()
-      .forall('value', fc.union(fc.integer(1, 10), fc.constant(null as null)))
+      .forall('value', fc.nullable(fc.integer(1, 10)))
       .then(({value}) => {
         fc.pre(value !== null)
         // After fc.pre, TypeScript should know value is not null

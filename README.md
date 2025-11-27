@@ -201,8 +201,49 @@ FluentCheck provides a comprehensive set of built-in arbitraries (data generator
 - **Pattern-based**: `regex`, `patterns.email`, `patterns.uuid`, `patterns.url`, `patterns.ipv4`
 - **Containers**: `array`, `set`, `tuple`
 - **Combinators**: `oneof`, `union`, `constant`
+- **Presets**: `positiveInt`, `negativeInt`, `nonZeroInt`, `byte`, `nonEmptyString`, `nonEmptyArray`, `pair`, `nullable`, `optional`
 
 All arbitraries are composable and can be transformed using `map`, `filter`, and other operations. For complete details, see the [Composable Arbitraries](docs/composable-arbitraries.md) documentation.
+
+### Arbitrary Presets
+
+FluentCheck provides shorthand factories for frequently-used patterns:
+
+```typescript
+// Integer presets - no more manual range specification
+fc.positiveInt()      // integer(1, MAX_SAFE_INTEGER)
+fc.negativeInt()      // integer(MIN_SAFE_INTEGER, -1)
+fc.nonZeroInt()       // union(negativeInt(), positiveInt())
+fc.byte()             // integer(0, 255)
+
+// String preset
+fc.nonEmptyString(50) // string(1, 50) - always at least 1 char
+
+// Collection presets
+fc.nonEmptyArray(fc.integer())      // array with length >= 1
+fc.nonEmptyArray(fc.integer(), 5)   // array with length 1-5
+fc.pair(fc.integer())               // tuple(integer, integer)
+
+// Nullable/optional presets - great for testing edge cases
+fc.nullable(fc.string())   // string | null
+fc.optional(fc.integer())  // integer | undefined
+```
+
+**Example: Testing with presets**
+
+```typescript
+// Before: verbose
+fc.scenario()
+  .forall('arr', fc.array(fc.integer(1, Number.MAX_SAFE_INTEGER), 1, 10))
+  .then(({arr}) => arr.length > 0 && arr.every(n => n > 0))
+  .check();
+
+// After: using presets
+fc.scenario()
+  .forall('arr', fc.nonEmptyArray(fc.positiveInt()))
+  .then(({arr}) => arr.length > 0 && arr.every(n => n > 0))
+  .check();
+```
 
 ## Advanced Usage
 
