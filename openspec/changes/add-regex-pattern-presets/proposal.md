@@ -1,5 +1,7 @@
 # Change: Add Additional Regex Pattern Presets
 
+> **GitHub Issue:** [#433](https://github.com/fluent-check/fluent-check/issues/433)
+
 ## Why
 
 The current `patterns` object provides generators for email, uuid, ipv4, and url formats. Users frequently need generators for other common data formats like phone numbers, credit cards, dates, and postal codes. Adding these presets reduces boilerplate and ensures consistent, valid test data generation.
