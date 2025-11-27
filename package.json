@@ -17,6 +17,7 @@
   "scripts": {
     "lint": "eslint src test",
     "test": "mocha",
+    "test:types": "tsc --project tsconfig.types.json",
     "prepare": "tsc",
     "coverage": "nyc mocha -reporter=min -r source-map-support"
   },
