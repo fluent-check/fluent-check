@@ -31,5 +31,15 @@ export {
   timeToMilliseconds,
   regex,
   patterns,
-  shrinkRegexString
+  shrinkRegexString,
+  // Presets
+  positiveInt,
+  negativeInt,
+  nonZeroInt,
+  byte,
+  nonEmptyString,
+  nonEmptyArray,
+  pair,
+  nullable,
+  optional
 } from './arbitraries/index.js'

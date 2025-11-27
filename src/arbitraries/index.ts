@@ -17,6 +17,17 @@ export {exactSize, estimatedSize} from './util.js'
 export {char, hex, base64, ascii, unicode, string} from './string.js'
 export {date, time, datetime, duration, timeToMilliseconds} from './datetime.js'
 export {regex, patterns, shrinkRegexString} from './regex.js'
+export {
+  positiveInt,
+  negativeInt,
+  nonZeroInt,
+  byte,
+  nonEmptyString,
+  nonEmptyArray,
+  pair,
+  nullable,
+  optional
+} from './presets.js'
 
 export const integer = (min = Number.MIN_SAFE_INTEGER, max = Number.MAX_SAFE_INTEGER): Arbitrary<number> => {
   if (min > max) return NoArbitrary
