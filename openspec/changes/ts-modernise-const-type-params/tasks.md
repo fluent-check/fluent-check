@@ -27,11 +27,22 @@
 - [x] 3.1 Review `UnwrapFluentPick<T>` type helper for readonly tuple compatibility
 - [x] 3.2 Ensure mapped types work correctly with readonly arrays
 
-## 4. Verification
+## 4. Type-Level Tests
 
-- [x] 4.1 Run TypeScript compiler to verify no type errors
-- [x] 4.2 Run full test suite (`npm test`) to ensure no runtime regressions
-- [x] 4.3 Manually verify improved type inference in IDE:
+- [x] 4.1 Add `test/types/const-type-params.types.ts` with compile-time type assertions:
+  - `oneof()` literal type inference (string, number, mixed literals)
+  - `set()` literal array type inference
+  - `tuple()` tuple structure preservation
+  - Backward compatibility with explicit type annotations
+  - Readonly array acceptance
+  - Nested compositions (tuple containing oneof)
+  - Integration with map() transformations
+
+## 5. Verification
+
+- [x] 5.1 Run TypeScript compiler to verify no type errors
+- [x] 5.2 Run full test suite (`npm test`) to ensure no runtime regressions
+- [x] 5.3 Manually verify improved type inference in IDE:
   - `oneof(['pending', 'active', 'done'])` shows `Arbitrary<'pending' | 'active' | 'done'>`
   - `set(['red', 'green', 'blue'], 1, 2)` shows `Arbitrary<('red' | 'green' | 'blue')[]>`
-- [x] 4.4 Verify backward compatibility: existing code with explicit types still compiles
+- [x] 5.4 Verify backward compatibility: existing code with explicit types still compiles
