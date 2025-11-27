@@ -2,6 +2,8 @@ import {FluentCheck, pre, PreconditionFailure} from './FluentCheck.js'
 import {FluentStrategyFactory} from './strategies/FluentStrategyFactory.js'
 export {expect} from './FluentReporter.js'
 export {pre, PreconditionFailure}
+export {prop} from './FluentProperty.js'
+export type {FluentProperty} from './FluentProperty.js'
 export const scenario = () => new FluentCheck()
 export const strategy = () => new FluentStrategyFactory()
 export {

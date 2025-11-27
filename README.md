@@ -54,6 +54,44 @@ fc.scenario()
   .assertSatisfiable();
 ```
 
+### Property Shorthand (`fc.prop()`)
+
+For simple properties that don't need the full BDD structure, use the `prop()` shorthand for minimal boilerplate:
+
+```typescript
+import * as fc from 'fluent-check';
+
+// Single arbitrary - 80% less verbose than scenario()
+fc.prop(fc.integer(), x => x + 0 === x).assert();
+
+// Multiple arbitraries (up to 5)
+fc.prop(fc.integer(), fc.integer(), (a, b) => a + b === b + a).assert();
+
+// With custom strategy configuration
+fc.prop(fc.integer(), x => x > 0)
+  .config(fc.strategy().defaultStrategy())
+  .assert();
+
+// Check without throwing (returns FluentResult)
+const result = fc.prop(fc.integer(), x => x >= 0).check();
+if (!result.satisfiable) {
+  console.log('Counterexample:', result.example);
+}
+```
+
+**Comparison:**
+```typescript
+// Before (verbose BDD-style)
+fc.scenario()
+  .forall('x', fc.integer())
+  .then(({x}) => x + 0 === x)
+  .check()
+  .assertSatisfiable();
+
+// After (shorthand) - 80% reduction
+fc.prop(fc.integer(), x => x + 0 === x).assert();
+```
+
 ### Fluent Assertions
 
 FluentCheck provides built-in assertion methods that integrate seamlessly with the fluent API:
