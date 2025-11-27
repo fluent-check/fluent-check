@@ -376,9 +376,26 @@ class IntegerStrategy implements SearchStrategy<number> {
 
 ## 7. Recommendations
 
-1. **Short-term**: Keep traditional shrinking but fix `FilteredArbitrary.shrink()` to avoid generating filtered-out values
+### 7.1 Why Traditional Shrinking Cannot Fully Solve Filter Inefficiency
 
-2. **Medium-term**: Implement hybrid approach where choice recording is optional, enabling integrated shrinking for complex filtered/dependent generators
+The filter predicate `f` in `FilteredArbitrary` is an **opaque function** - we cannot inspect, invert, or predict what values it accepts. This means:
+
+- We **must** test candidates to know if they pass
+- We **cannot** generate only valid shrink candidates
+- Rejection is inherent to the approach
+
+Possible mitigations (but not solutions):
+- **Lazy evaluation with early termination**: Limit wasted work by giving up after N rejections
+- **Heuristic ordering**: Try shrinks "closer" to the original value first
+- **Statistical tracking**: Detect high-rejection scenarios and adjust strategy
+
+**None of these avoid rejections - they just reduce the cost.** This is a fundamental limitation of traditional shrinking with opaque predicates.
+
+### 7.2 Recommended Path Forward
+
+1. **Short-term**: Accept filter inefficiency in traditional shrinking; add early termination to bound worst-case behavior
+
+2. **Medium-term**: Implement hybrid approach where choice recording is optional, enabling integrated shrinking for complex filtered/dependent generators - this is the only way to truly solve the filter problem
 
 3. **Long-term**: Evaluate full migration based on user feedback and performance data
 
