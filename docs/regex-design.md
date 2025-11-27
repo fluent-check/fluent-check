@@ -260,6 +260,107 @@ The current implementation has several limitations:
 
 3. **Distribution Control**: The distribution of generated strings could be improved to better cover the pattern space.
 
+### 7.1 Research Findings and Potential Improvements
+
+The following research findings inform potential improvements to the regex arbitrary implementation:
+
+#### 7.1.1 Automata-Based Generation (Performance)
+
+**Thompson's Construction** and **Subset Construction** algorithms provide a theoretical foundation for regex-to-automaton conversion. The current implementation uses a direct parsing approach, but an automata-based approach could provide:
+
+- More efficient generation for complex patterns
+- Better support for deterministic enumeration
+- Cleaner handling of alternation and nested groups
+
+**Reference**: Thompson, K. (1968). Programming Techniques: Regular expression search algorithm. Communications of the ACM, 11(6), 419-422.
+
+#### 7.1.2 Uniform Distribution Sampling
+
+Current generation may have bias toward certain string structures. Research on uniform random sampling from regular languages suggests:
+
+1. **Counting-based generation**: Count strings of each length, then sample proportionally
+2. **Rejection sampling**: Generate candidates and accept based on probability criterion
+3. **MCMC methods**: Use Markov Chain Monte Carlo for stationary uniform distribution
+
+**Reference**: Flajolet, P., Zimmerman, P., & Van Cutsem, B. (1994). A calculus for the random generation of labelled combinatorial structures. Theoretical Computer Science, 132(1-2), 1-35.
+
+#### 7.1.3 Pairwise Coverage Testing
+
+Zheng et al. (2020) introduced pairwise coverage criteria for regex testing:
+
+- **Combination coverage**: All combinations of subexpressions (exponential)
+- **Pairwise coverage**: All pairs of subexpression combinations (practical)
+
+This could enhance our testing strategy by generating minimal test sets that cover interaction faults between regex components.
+
+**Reference**: Zheng, L., Xie, X., Ma, S., Li, Y., Liu, Y., & Zhang, J. (2020). String generation for testing regular expressions. The Computer Journal, 63(1), 41-65.
+
+#### 7.1.4 Integrated Shrinking
+
+The **Hypothesis** (Python) and **Hedgehog** (Haskell) libraries pioneered **integrated shrinking**, where generation and shrinking are unified:
+
+- Generators produce values alongside their possible shrinks
+- Constraints are preserved throughout the shrinking process
+- Results in more meaningful minimal counterexamples
+
+Current implementation uses a separate shrinking phase that may produce shrunk values violating implicit constraints.
+
+**Reference**: MacIver, D. R. (2019). Hypothesis: A new approach to property-based testing. Journal of Open Source Software, 4(33), 1891.
+
+#### 7.1.5 Lookahead and Lookbehind Assertions
+
+Handling `(?=...)`, `(?!...)`, `(?<=...)`, `(?<!...)` requires:
+
+1. **Constraint solving approach**: Treat assertions as constraints to satisfy
+2. **Generate-and-filter**: Generate candidates, filter by assertion validity
+3. **Structured generation**: Use the assertion pattern to guide generation
+
+The generate-and-filter approach is simplest but potentially inefficient. A constraint-based approach would be more sophisticated but requires significant implementation effort.
+
+#### 7.1.6 Existing Libraries for Reference
+
+Several mature libraries provide reference implementations:
+
+| Library | Language | Key Features |
+|---------|----------|--------------|
+| **fast-check** `stringMatching` | TypeScript | Production-grade, AST-based parsing |
+| **quickcheck-regex** | Haskell | `matching` function for regex generation |
+| **Xeger/Generex** | Java | Automata-based, enumeration support |
+| **Falsify** | Haskell | Integrated shrinking approach |
+
+### 7.2 Proposed Improvements Roadmap
+
+#### Easy Improvements (Low Complexity)
+
+1. **Additional Pattern Presets**: Add `patterns.phone()`, `patterns.creditCard()`, `patterns.isoDate()`, `patterns.ssn()`, `patterns.zipCode()`
+2. **Escape Sequence Handling**: Proper support for `\t`, `\n`, `\r`, `\f`, `\v` in generation
+3. **Anchor Handling**: Treat `^` and `$` as no-ops during generation (they don't affect what strings match)
+4. **Unicode Property Escapes**: Support for `\p{Letter}`, `\p{Number}` when targeting modern environments
+
+#### Medium Complexity Improvements
+
+1. **Nested Group Support**: Proper AST-based parsing for `(a(b|c)d)+` patterns
+2. **Non-Capturing Groups**: Handle `(?:...)` syntax
+3. **Lazy Quantifiers**: Handle `*?`, `+?`, `??` (affects generation distribution)
+4. **Character Class Unions**: Handle `[a-z&&[^aeiou]]` intersection syntax
+
+#### High Complexity Improvements (Research Required)
+
+1. **Lookahead/Lookbehind**: Constraint-based generation or efficient filtering
+2. **Uniform Distribution**: Implement counting-based sampling for better coverage
+3. **Integrated Shrinking**: Architectural refactoring to unify generation and shrinking
+4. **Backreferences**: `\1`, `\2` support (technically not regular, requires context-sensitive generation)
+
+### 7.3 Open Questions
+
+1. **Performance vs. Correctness Trade-off**: Should we use filtering (always correct but potentially slow) or try to generate directly (faster but may miss edge cases)?
+
+2. **Distribution Goals**: Should we aim for uniform distribution over the language, or bias toward "interesting" values (boundary cases, minimal examples)?
+
+3. **Scope Boundaries**: Should we support full PCRE syntax, or define a clear subset? Full PCRE includes features like recursion (`(?R)`) that are context-free, not regular.
+
+4. **Shrinking Strategy**: Should shrinking be pattern-aware (understand the regex structure) or generic (just try to reduce and filter)?
+
 ## 8. Conclusion
 
 The regex-based string generation in FluentCheck demonstrates how compositional techniques can be applied to generate complex strings matching specific patterns. By mapping regex constructs to arbitraries and composing them systematically, we provide a flexible and extensible framework for testing string processing code.
@@ -272,4 +373,12 @@ The regex-based string generation in FluentCheck demonstrates how compositional 
 
 3. Thompson, K. (1968). Programming Techniques: Regular expression search algorithm. Communications of the ACM, 11(6), 419-422.
 
-4. Hopcroft, J. E., & Ullman, J. D. (1979). Introduction to automata theory, languages, and computation. Addison-Wesley. 
+4. Hopcroft, J. E., & Ullman, J. D. (1979). Introduction to automata theory, languages, and computation. Addison-Wesley.
+
+5. Zheng, L., Xie, X., Ma, S., Li, Y., Liu, Y., & Zhang, J. (2020). String generation for testing regular expressions. The Computer Journal, 63(1), 41-65. https://doi.org/10.1093/comjnl/bxy137
+
+6. MacIver, D. R. (2019). Hypothesis: A new approach to property-based testing. Journal of Open Source Software, 4(33), 1891. https://doi.org/10.21105/joss.01891
+
+7. Flajolet, P., Zimmerman, P., & Van Cutsem, B. (1994). A calculus for the random generation of labelled combinatorial structures. Theoretical Computer Science, 132(1-2), 1-35.
+
+8. Claessen, K. (2023). Falsify: Internal shrinking for Haskell. Well-Typed LLP. https://well-typed.com/blog/2023/04/falsify/ 
