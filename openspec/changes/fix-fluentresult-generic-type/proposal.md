@@ -1,5 +1,7 @@
 # Change: Add Generic Type Parameter to FluentResult
 
+> **GitHub Issue:** [#398](https://github.com/fluent-check/fluent-check/issues/398)
+
 ## Why
 
 The `FluentResult` class loses all type information because `example` is hardcoded as `PickResult<any>`:
