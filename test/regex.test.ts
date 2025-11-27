@@ -2,6 +2,26 @@ import * as fc from '../src/index'
 import {it, describe} from 'mocha'
 import {expect} from 'chai'
 
+/**
+ * Type-level test utilities.
+ * These compile-time assertions verify that literal types are preserved
+ * when using the `satisfies` operator.
+ */
+
+// Helper type for compile-time equality checking
+type Equals<T, U> = 
+  (<G>() => G extends T ? 1 : 2) extends (<G>() => G extends U ? 1 : 2) ? true : false
+
+// Compile-time assertion: if this line compiles, the types are equal
+type AssertEquals<T, U> = Equals<T, U> extends true ? true : never
+
+// Type-level test: patterns should have literal key union type
+type PatternKeys = keyof typeof fc.patterns
+type ExpectedPatternKeys = 'email' | 'uuid' | 'ipv4' | 'url'
+
+// This line will cause a compile error if PatternKeys !== ExpectedPatternKeys
+const _patternKeysTest: AssertEquals<PatternKeys, ExpectedPatternKeys> = true
+
 describe('Regex tests', () => {
   it('should generate strings matching simple character class patterns', () => {
     expect(fc.scenario()
@@ -139,5 +159,48 @@ describe('Regex tests', () => {
       })
       .check()
     ).to.have.property('satisfiable', true)
+  })
+  
+  describe('Type-level tests for satisfies operator', () => {
+    it('should preserve literal pattern keys for type-safe iteration', () => {
+      // This test verifies the runtime behavior that the satisfies operator enables
+      // keyof typeof patterns should be 'email' | 'uuid' | 'ipv4' | 'url'
+      const patternNames = Object.keys(fc.patterns) as (keyof typeof fc.patterns)[]
+      
+      // Verify all expected patterns exist
+      expect(patternNames).to.include('email')
+      expect(patternNames).to.include('uuid')
+      expect(patternNames).to.include('ipv4')
+      expect(patternNames).to.include('url')
+      expect(patternNames).to.have.lengthOf(4)
+      
+      // Verify type-safe access works
+      for (const name of patternNames) {
+        const patternFn = fc.patterns[name]
+        expect(patternFn).to.be.a('function')
+        const arbitrary = patternFn()
+        expect(arbitrary).to.have.property('pick')
+      }
+    })
+    
+    it('should allow type-safe pattern name extraction', () => {
+      // This demonstrates the consumer benefit of satisfies
+      type PatternName = keyof typeof fc.patterns
+      
+      // Function that only accepts valid pattern names (compile-time check)
+      const getPatternArbitrary = (name: PatternName) => fc.patterns[name]()
+      
+      // These should all work without type errors
+      const emailArb = getPatternArbitrary('email')
+      const uuidArb = getPatternArbitrary('uuid')
+      const ipv4Arb = getPatternArbitrary('ipv4')
+      const urlArb = getPatternArbitrary('url')
+      
+      // Verify they're all valid arbitraries
+      expect(emailArb).to.have.property('pick')
+      expect(uuidArb).to.have.property('pick')
+      expect(ipv4Arb).to.have.property('pick')
+      expect(urlArb).to.have.property('pick')
+    })
   })
 }) 
