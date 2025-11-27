@@ -1,39 +1,39 @@
 import * as fc from '../src/index'
 import {it} from 'mocha'
-import {expect} from 'chai'
 
 describe('Boolean tests', () => {
   it('finds two true booleans', () => {
-    expect(fc.scenario()
+    const result = fc.scenario()
       .exists('a', fc.boolean())
       .exists('b', fc.boolean())
       .then(({a, b}) => a === true && b === true)
       .check()
-    ).to.deep.include({satisfiable: true, example: {a: true, b: true}})
+    result.assertSatisfiable()
+    result.assertExample({a: true, b: true})
   })
 
   it('finds that some booleans are false', () => {
-    expect(fc.scenario()
+    fc.scenario()
       .exists('b', fc.boolean())
       .forall('a', fc.boolean())
       .then(({a, b}) => a === true && b === true)
       .check()
-    ).to.have.property('satisfiable', false)
+      .assertNotSatisfiable()
   })
 
   it('finds that self-XOR returns true', () => {
-    expect(fc.scenario()
+    fc.scenario()
       .forall('a', fc.boolean())
       .then(({a}) => !(a !== a))
       .check()
-    ).to.have.property('satisfiable', true)
+      .assertSatisfiable()
   })
 
   it('finds implication using ORs', () => {
-    expect(fc.scenario()
+    fc.scenario()
       .forall('a', fc.boolean())
       .then(({a}) => a === true || a === false)
       .check()
-    ).to.have.property('satisfiable', true)
+      .assertSatisfiable()
   })
 })

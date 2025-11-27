@@ -43,19 +43,77 @@ npm install fluent-check
 ## Basic Usage
 
 ```typescript
-import { fc } from 'fluent-check';
+import * as fc from 'fluent-check';
 
-const result = await fc.scenario()
+// Fluent assertion style - concise and readable
+fc.scenario()
   .forall('x', fc.integer())
   .forall('y', fc.integer())
   .then(({x, y}) => x + y === y + x)
+  .check()
+  .assertSatisfiable();
+```
+
+### Fluent Assertions
+
+FluentCheck provides built-in assertion methods that integrate seamlessly with the fluent API:
+
+```typescript
+// Assert a property holds for all inputs
+fc.scenario()
+  .forall('x', fc.integer(-10, 10))
+  .then(({x}) => x + 0 === x)
+  .check()
+  .assertSatisfiable();
+
+// Assert a property does NOT hold (find a counterexample)
+fc.scenario()
+  .forall('a', fc.integer(-10, 10))
+  .forall('b', fc.integer(-10, 10))
+  .then(({a, b}) => a - b === b - a)
+  .check()
+  .assertNotSatisfiable();
+
+// Assert the found example matches expected values (partial match)
+const result = fc.scenario()
+  .exists('a', fc.integer())
+  .forall('b', fc.integer(-10, 10))
+  .then(({a, b}) => a + b === b)
   .check();
 
-if (result.success) {
-  console.log('Property holds!');
-} else {
-  console.log('Counterexample found:', result.counterexample);
-}
+result.assertSatisfiable();
+result.assertExample({ a: 0 });  // The neutral element of addition
+```
+
+**Assertion Methods:**
+
+| Method | Description |
+|--------|-------------|
+| `assertSatisfiable(message?)` | Throws if property is NOT satisfiable |
+| `assertNotSatisfiable(message?)` | Throws if property IS satisfiable |
+| `assertExample(expected, message?)` | Throws if example doesn't match (partial match) |
+
+Error messages automatically include:
+- JSON-formatted example/counterexample
+- Seed value for test reproducibility
+- Custom message prefix (if provided)
+
+**Migrating from Chai-style assertions:**
+
+```typescript
+// Before (verbose)
+expect(fc.scenario()
+  .forall('x', fc.integer())
+  .then(({x}) => x + 0 === x)
+  .check()
+).to.have.property('satisfiable', true);
+
+// After (fluent)
+fc.scenario()
+  .forall('x', fc.integer())
+  .then(({x}) => x + 0 === x)
+  .check()
+  .assertSatisfiable();
 ```
 
 ## Example: Testing a Sort Function
