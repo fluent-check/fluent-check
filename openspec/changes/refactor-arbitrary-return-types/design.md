@@ -13,6 +13,16 @@ if (size.type === 'exact') {
 
 However, this benefit is lost because factory functions return `Arbitrary<A>`, whose `size()` method returns `ArbitrarySize`. Users must always narrow, even when the result is deterministic.
 
+### Key Insight: Runtime Already Does the Right Thing
+
+Investigation of the codebase reveals that the runtime implementations already return the correct size types:
+
+- `FilteredArbitrary.size()` already returns `EstimatedSize` (not `ArbitrarySize`)
+- `MappedArbitrary.size()` delegates to `this.baseArbitrary.size()` (preserves the base type)
+- `NoArbitrary.size()` returns `ExactSize` with value 0
+
+This means **no runtime changes are needed** — we only need to add type-level declarations to expose what the code already does.
+
 ## Goals / Non-Goals
 
 **Goals:**
@@ -61,16 +71,43 @@ export interface EstimatedSizeArbitrary<A> extends Arbitrary<A> {
 | `filter()` | `EstimatedSizeArbitrary<A>` | Filtering always produces estimated size |
 | `suchThat()` | `EstimatedSizeArbitrary<A>` | Alias for `filter()` |
 | `map()` | Preserves base type | Mapping doesn't change cardinality |
-| `chain()` | `Arbitrary<B>` | Complex composition, can't determine statically |
+| `chain()` | `Arbitrary<B>` (unchanged) | Complex composition, can't determine statically |
 
-For `map()`, we use method overloading:
+**Note:** `chain()` is out of scope for this change — it already returns `Arbitrary<B>` and will continue to do so.
+
+### Decision: Interface Method Signatures (not `this` type polymorphism)
+
+For `map()` to preserve the size type, we declare method signatures in the interfaces:
+
 ```typescript
-// On ExactSizeArbitrary<A>
-map<B>(f: (a: A) => B): ExactSizeArbitrary<B>
+export interface ExactSizeArbitrary<A> extends Arbitrary<A> {
+  size(): ExactSize
+  map<B>(f: (a: A) => B, shrinkHelper?: ...): ExactSizeArbitrary<B>
+  filter(f: (a: A) => boolean): EstimatedSizeArbitrary<A>
+  suchThat(f: (a: A) => boolean): EstimatedSizeArbitrary<A>
+}
 
-// On EstimatedSizeArbitrary<A>  
-map<B>(f: (a: A) => B): EstimatedSizeArbitrary<B>
+export interface EstimatedSizeArbitrary<A> extends Arbitrary<A> {
+  size(): EstimatedSize
+  map<B>(f: (a: A) => B, shrinkHelper?: ...): EstimatedSizeArbitrary<B>
+  filter(f: (a: A) => boolean): EstimatedSizeArbitrary<A>
+  suchThat(f: (a: A) => boolean): EstimatedSizeArbitrary<A>
+}
 ```
+
+**Why not `this` type polymorphism?**
+
+TypeScript's `this` type cannot parameterize over a new type variable:
+
+```typescript
+// ❌ Not valid TypeScript — can't substitute A with B
+map<B>(f: (a: A) => B): this<B>
+```
+
+The interface method signature approach is:
+- Idiomatic TypeScript (structural typing handles the rest)
+- Zero runtime changes (implementations already do the right thing)
+- Type-safe chaining works naturally
 
 ### Decision: Factory Function Categorization
 
@@ -80,11 +117,27 @@ map<B>(f: (a: A) => B): EstimatedSizeArbitrary<B>
 - `constant()` - Fixed cardinality (1)
 - `array()`, `set()` - Combinatorial but exact
 - `char()`, `ascii()`, `hex()`, `base64()`, `unicode()` - Fixed character sets
+- `oneof()` - Uses `integer().map()`, preserves ExactSize
 
 **Arbitrary factories (unknown size type):**
 - `union()` - Composite of potentially mixed types
 - `tuple()` - Depends on component arbitraries
-- `oneof()` - Uses `map()` internally, preserves base type
+
+### Decision: NoArbitrary is ExactSizeArbitrary<never>
+
+`NoArbitrary` already returns `ExactSize` with value 0:
+
+```typescript
+// Current implementation in NoArbitrary.ts
+size(): ExactSize { return exactSize(0) }
+```
+
+This is semantically correct:
+- An empty set has **exactly** 0 elements (not an estimate)
+- The `never` type means no values can be generated
+- Covariance on `never` means `ExactSizeArbitrary<never>` is assignable to `ExactSizeArbitrary<T>` for any `T`
+
+**No changes needed** — just update the type declaration to reflect what it already does.
 
 ## Risks / Trade-offs
 
@@ -103,10 +156,28 @@ map<B>(f: (a: A) => B): EstimatedSizeArbitrary<B>
 5. Update type-level tests to verify new behavior
 6. No runtime changes needed
 
-## Open Questions
+## Resolved Questions
 
-1. Should `MappedArbitrary` implement a specific interface, or remain `Arbitrary<B>`?
-   - **Proposed answer:** Keep it simple - `map()` on `ExactSizeArbitrary` returns `ExactSizeArbitrary`
+1. **Should `MappedArbitrary` implement a specific interface, or remain `Arbitrary<B>`?**
+   
+   **Answer:** The runtime class remains `MappedArbitrary`, but the *declared return type* of `map()` in the interfaces determines what TypeScript sees. Since `MappedArbitrary.size()` delegates to `this.baseArbitrary.size()`, it naturally returns the correct type at runtime. No class changes needed.
 
-2. Should presets (`positiveInt`, `nonEmptyString`, etc.) also return specific types?
-   - **Proposed answer:** Yes, they delegate to factories that return specific types
+2. **Should presets (`positiveInt`, `nonEmptyString`, etc.) also return specific types?**
+   
+   **Answer:** Yes — they delegate to factories that return specific types, so they inherit the precision automatically.
+
+3. **How should `NoArbitrary` cases affect return type declarations?**
+   
+   **Answer:** Non-issue. `NoArbitrary` is typed as `Arbitrary<never>` and already returns `ExactSize`. Due to covariance on `never`, factory return types like `ExactSizeArbitrary<number>` work correctly — `NoArbitrary` is assignable because `never` is a subtype of all types.
+
+4. **What about `this` type polymorphism for `map()`?**
+   
+   **Answer:** Not viable in TypeScript. The `this` type cannot parameterize over a new type variable (`this<B>` is invalid syntax). Interface method signatures are the idiomatic solution.
+
+## Pitfalls to Avoid
+
+1. **Don't try to use conditional return types on the base class** — TypeScript's `this` in a conditional type doesn't narrow based on the actual implementing class at call sites.
+
+2. **Don't change runtime implementations** — the code already returns the correct types; this is purely a type-level refactor.
+
+3. **Don't include `chain()` in scope** — it already returns `Arbitrary<B>` and that's intentional since the size type depends on runtime values.
