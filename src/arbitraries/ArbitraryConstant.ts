@@ -1,5 +1,5 @@
-import type {EstimatedSizeArbitrary, ExactSize, ExactSizeArbitrary, FluentPick} from './types.js'
-import {Arbitrary, FilteredArbitrary} from './internal.js'
+import type {EstimatedSizeArbitrary, ExactSize, ExactSizeArbitrary, FluentPick, XOR} from './types.js'
+import {Arbitrary, FilteredArbitrary, MappedArbitrary} from './internal.js'
 import {exactSize} from './util.js'
 
 export class ArbitraryConstant<A> extends Arbitrary<A> implements ExactSizeArbitrary<A> {
@@ -9,8 +9,15 @@ export class ArbitraryConstant<A> extends Arbitrary<A> implements ExactSizeArbit
 
   override size(): ExactSize { return exactSize(1) }
 
-  // ArbitraryConstant.map() returns another ArbitraryConstant, which implements ExactSizeArbitrary
-  override map<B>(f: (a: A) => B): ExactSizeArbitrary<B> {
+  // When shrinkHelper is provided, use MappedArbitrary to honor custom canGenerate/inverseMap.
+  // Otherwise, return a simple ArbitraryConstant for efficiency.
+  override map<B>(
+    f: (a: A) => B,
+    shrinkHelper?: XOR<{inverseMap: (b: NoInfer<B>) => A[]}, {canGenerate: (pick: FluentPick<NoInfer<B>>) => boolean}>
+  ): ExactSizeArbitrary<B> {
+    if (shrinkHelper !== undefined) {
+      return new MappedArbitrary(this, f, shrinkHelper) as ExactSizeArbitrary<B>
+    }
     return new ArbitraryConstant(f(this.constant))
   }
 
