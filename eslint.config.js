@@ -48,6 +48,7 @@ export default tseslint.config(
       'semi': ['warn', 'never'],
       '@typescript-eslint/no-non-null-assertion': 'warn',
       '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
+      '@typescript-eslint/consistent-type-imports': ['warn', { prefer: 'type-imports', fixStyle: 'inline-type-imports' }],
 
       // Level 0 rules: disabled
       'no-console': 'off',

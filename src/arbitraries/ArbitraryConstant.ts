@@ -1,4 +1,4 @@
-import {EstimatedSizeArbitrary, ExactSize, ExactSizeArbitrary, FluentPick} from './types.js'
+import type {EstimatedSizeArbitrary, ExactSize, ExactSizeArbitrary, FluentPick} from './types.js'
 import {Arbitrary, FilteredArbitrary} from './internal.js'
 import {exactSize} from './util.js'
 

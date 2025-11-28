@@ -1,4 +1,4 @@
-import {FluentPick, XOR} from './types.js'
+import type {FluentPick, XOR} from './types.js'
 import {Arbitrary} from './internal.js'
 
 export class MappedArbitrary<A, B> extends Arbitrary<B> {

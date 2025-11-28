@@ -1,4 +1,4 @@
-import {ArbitrarySize, FluentPick, XOR} from './types.js'
+import type {ArbitrarySize, FluentPick, XOR} from './types.js'
 import {ChainedArbitrary, FilteredArbitrary, MappedArbitrary, NoArbitrary} from './internal.js'
 import {stringify} from './util.js'
 

@@ -1,4 +1,4 @@
-import {FluentPick} from './types.js'
+import type {FluentPick} from './types.js'
 import {MappedArbitrary, NoArbitrary} from './internal.js'
 import * as fc from './index.js'
 

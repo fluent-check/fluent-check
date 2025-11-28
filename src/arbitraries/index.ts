@@ -1,5 +1,5 @@
 import {
-  Arbitrary,
+  type Arbitrary,
   ArbitraryArray,
   ArbitrarySet,
   ArbitraryBoolean,
@@ -8,6 +8,7 @@ import {
   ArbitraryTuple,
   ArbitraryInteger,
   ArbitraryReal,
+  ArbitraryRecord,
   NoArbitrary
 } from './internal.js'
 
@@ -80,4 +81,12 @@ type UnwrapFluentPick<T> = { -readonly [P in keyof T]: T[P] extends Arbitrary<in
 export const tuple = <const U extends readonly Arbitrary<any>[]>(...arbitraries: U): Arbitrary<UnwrapFluentPick<U>> => {
   if (arbitraries.some(a => a === NoArbitrary)) return NoArbitrary
   return new ArbitraryTuple([...arbitraries]) as Arbitrary<UnwrapFluentPick<U>>
+}
+
+type RecordSchema = Record<string, Arbitrary<unknown>>
+type UnwrapSchema<S extends RecordSchema> = { [K in keyof S]: S[K] extends Arbitrary<infer T> ? T : never }
+
+export const record = <S extends RecordSchema>(schema: S): Arbitrary<UnwrapSchema<S>> => {
+  if (Object.values(schema).some(a => a === NoArbitrary)) return NoArbitrary
+  return new ArbitraryRecord(schema)
 }

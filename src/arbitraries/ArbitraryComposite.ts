@@ -1,5 +1,5 @@
 import {Arbitrary} from './internal.js'
-import {ArbitrarySize, FluentPick} from './types.js'
+import type {ArbitrarySize, FluentPick} from './types.js'
 import {exactSize, estimatedSize} from './util.js'
 import * as fc from './index.js'
 
