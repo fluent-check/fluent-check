@@ -102,8 +102,11 @@ export const nonEmptyString = (maxLength = 100): ExactSizeArbitrary<string> =>
  * fc.nonEmptyArray(fc.string(), 5)      // ["a"], ["x", "y"], ...
  * ```
  */
-export const nonEmptyArray = <A>(arb: Arbitrary<A>, maxLength = 10): ExactSizeArbitrary<A[]> =>
-  array(arb, 1, maxLength)
+export function nonEmptyArray<A>(arb: ExactSizeArbitrary<A>, maxLength?: number): ExactSizeArbitrary<A[]>
+export function nonEmptyArray<A>(arb: Arbitrary<A>, maxLength?: number): Arbitrary<A[]>
+export function nonEmptyArray<A>(arb: Arbitrary<A>, maxLength = 10): Arbitrary<A[]> {
+  return array(arb, 1, maxLength)
+}
 
 /**
  * Creates an arbitrary that generates 2-tuples (pairs) of the same type.

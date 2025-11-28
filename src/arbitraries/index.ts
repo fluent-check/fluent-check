@@ -50,9 +50,13 @@ export const real = (min = Number.MIN_SAFE_INTEGER, max = Number.MAX_SAFE_INTEGE
 export const nat = (min = 0, max = Number.MAX_SAFE_INTEGER): ExactSizeArbitrary<number> =>
   max < 0 ? NoArbitrary : integer(Math.max(0, min), max)
 
-export const array = <A>(arbitrary: Arbitrary<A>, min = 0, max = 10): ExactSizeArbitrary<A[]> => {
+// array() returns ExactSizeArbitrary only when the input arbitrary is ExactSizeArbitrary.
+// When input has estimated size (e.g., filtered), the output size is also estimated.
+export function array<A>(arbitrary: ExactSizeArbitrary<A>, min?: number, max?: number): ExactSizeArbitrary<A[]>
+export function array<A>(arbitrary: Arbitrary<A>, min?: number, max?: number): Arbitrary<A[]>
+export function array<A>(arbitrary: Arbitrary<A>, min = 0, max = 10): Arbitrary<A[]> {
   if (min > max) return NoArbitrary
-  return asExact(new ArbitraryArray(arbitrary, min, max))
+  return new ArbitraryArray(arbitrary, min, max)
 }
 
 export const set = <const A extends readonly unknown[]>(elements: A, min = 0, max = 10): ExactSizeArbitrary<A[number][]> => {

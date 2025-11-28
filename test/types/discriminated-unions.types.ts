@@ -145,6 +145,21 @@ const oneofArb: ExactSizeArbitrary<'a' | 'b' | 'c'> = oneof(['a', 'b', 'c'] as c
 const charArb: ExactSizeArbitrary<string> = char()
 const stringArb: ExactSizeArbitrary<string> = string(1, 10)
 
+// ============================================================================
+// Test: array() with estimated input returns Arbitrary, not ExactSizeArbitrary
+// ============================================================================
+
+// When input is exact, array returns ExactSizeArbitrary
+const arrayOfExact: ExactSizeArbitrary<number[]> = array(integer(0, 10), 1, 5)
+
+// When input is filtered (estimated), array returns Arbitrary
+// This correctly reflects that the size will be estimated at runtime
+const filteredArb = integer(0, 100).filter(n => n > 50)  // EstimatedSizeArbitrary
+const arrayOfFiltered: Arbitrary<number[]> = array(filteredArb, 1, 5)
+
+// @ts-expect-error: array of filtered arbitrary is NOT ExactSizeArbitrary
+const _badArrayType: ExactSizeArbitrary<number[]> = array(filteredArb, 1, 5)
+
 // NoArbitrary is ExactSizeArbitrary<never>
 const noArb: ExactSizeArbitrary<never> = NoArbitrary
 type _T11 = Expect<Equal<typeof noArb, ExactSizeArbitrary<never>>>
@@ -231,3 +246,5 @@ void stringArb
 void noArb
 void exactArb
 void baseArb
+void arrayOfExact
+void arrayOfFiltered

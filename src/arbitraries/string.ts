@@ -37,5 +37,12 @@ export const base64String = (unscaledMin = 4, unscaledMax = 16): ExactSizeArbitr
   asExact(string(unscaledMin + 3 - (unscaledMin + 3) % 4, unscaledMax - unscaledMax % 4, base64())
     .map((s) => [s, s.slice(1), `${s}==`, `${s}=`][s.length % 4]))
 
-export const string = (min = 2, max = 10, charArb = char()): ExactSizeArbitrary<string> =>
-  min === 0 && max === 0 ? constant('') : asExact(array(charArb, min, max).map(a => a.join('')))
+// string() returns ExactSizeArbitrary only when charArb is ExactSizeArbitrary (or defaulted).
+// When charArb has estimated size, the output size is also estimated.
+export function string(min?: number, max?: number): ExactSizeArbitrary<string>
+export function string(min: number, max: number, charArb: ExactSizeArbitrary<string>): ExactSizeArbitrary<string>
+export function string(min: number, max: number, charArb: Arbitrary<string>): Arbitrary<string>
+export function string(min = 2, max = 10, charArb: Arbitrary<string> = char()): Arbitrary<string> {
+  if (min === 0 && max === 0) return constant('')
+  return array(charArb, min, max).map(a => a.join(''))
+}
