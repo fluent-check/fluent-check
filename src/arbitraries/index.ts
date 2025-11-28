@@ -19,6 +19,14 @@ export {char, hex, base64, ascii, unicode, string} from './string.js'
 export {date, time, datetime, duration, timeToMilliseconds} from './datetime.js'
 export {regex, patterns, shrinkRegexString} from './regex.js'
 export {
+  type LawResult,
+  type LawCheckOptions,
+  samplingLaws,
+  shrinkingLaws,
+  compositionLaws,
+  arbitraryLaws
+} from './laws.js'
+export {
   positiveInt,
   negativeInt,
   nonZeroInt,

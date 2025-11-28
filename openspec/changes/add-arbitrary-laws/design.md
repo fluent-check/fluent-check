@@ -31,58 +31,72 @@ The challenge is that TypeScript lacks Higher-Kinded Types (HKTs), making it dif
 - Type-level encoding with conditional types: Too complex, poor error messages
 - Interface with required law methods: Forces implementation burden on all arbitraries
 
-### Decision 2: Law registry pattern
+### Decision 2: Hybrid of stratified categories with registry pattern
 
-**What:** A collection of law-checking functions that accept any `Arbitrary<unknown>` and return test results.
+**What:** Organize laws into stratified categories, where each category is a registry of law-checking functions. This combines the organizational clarity of categories with the composability of the registry pattern.
 
 ```typescript
-const arbitraryLaws = {
-  sampleValidity: <T>(arb: Arbitrary<T>, sampleSize?: number) => { ... },
-  cornerCaseInclusion: <T>(arb: Arbitrary<T>) => { ... },
-  shrinkTermination: <T>(arb: Arbitrary<T>, pick: FluentPick<T>) => { ... },
-  // ...
+// Stratified categories with registry pattern within each
+export const samplingLaws = {
+  sampleValidity: <T>(arb: Arbitrary<T>) => LawResult,
+  sampleSizeBound: <T>(arb: Arbitrary<T>) => LawResult,
+  uniqueSampleUniqueness: <T>(arb: Arbitrary<T>) => LawResult,
+  cornerCaseInclusion: <T>(arb: Arbitrary<T>) => LawResult,
+  all: <T>(arb: Arbitrary<T>) => LawResult[]  // run all in category
+}
+
+export const shrinkingLaws = {
+  shrinkProducesSmallerValues: <T>(arb: Arbitrary<T>, pick: FluentPick<T>) => LawResult,
+  shrinkTermination: <T>(arb: Arbitrary<T>, pick: FluentPick<T>) => LawResult,
+  all: <T>(arb: Arbitrary<T>, pick: FluentPick<T>) => LawResult[]
+}
+
+export const compositionLaws = {
+  filterRespectsPredicate: <T>(arb: Arbitrary<T>, pred: (t: T) => boolean) => LawResult,
+  noArbitraryMapIdentity: <T>(noArb: Arbitrary<T>) => LawResult,
+  noArbitraryFilterIdentity: <T>(noArb: Arbitrary<T>) => LawResult,
+  all: <T>(arb: Arbitrary<T>, pred: (t: T) => boolean) => LawResult[]
+}
+
+// Unified entry point
+export const arbitraryLaws = {
+  sampling: samplingLaws,
+  shrinking: shrinkingLaws,
+  composition: compositionLaws,
+  check: <T>(arb: Arbitrary<T>, options?) => LawResult[],  // all applicable
+  assert: <T>(arb: Arbitrary<T>, options?) => void         // throws on failure
 }
 ```
 
-**Why:** 
+**Why:**
+- **Clear mental model** - "what aspect am I testing?"
+- **Granular control** - run individual laws or entire categories
+- **Extensible per category** - add shrinking laws without touching sampling
+- **Maps to spec structure** - each category corresponds to a section in the spec
 - Composable - run any subset of laws
-- Extensible - add new laws without changing existing code
 - Self-documenting - each law is named and isolated
 
-### Decision 3: Self-testing with arbitrary arbitraries
+### Decision 3: Self-testing with arbitrary registry
 
-**What:** Use `fc.oneof([...])` or a custom "arbitrary of arbitraries" to randomly select which arbitrary implementations to test.
+**What:** Provide a registry of representative arbitraries for comprehensive law verification.
 
 ```typescript
-const arbitraries = fc.oneof([
-  () => fc.integer(),
-  () => fc.integer(0, 100),
-  () => fc.boolean(),
-  () => fc.string(1, 10),
-  () => fc.array(fc.integer(), 1, 5),
+const arbitraryRegistry = [
+  { name: 'integer', arb: () => fc.integer(0, 100) },
+  { name: 'boolean', arb: () => fc.boolean() },
+  { name: 'string', arb: () => fc.string(1, 10) },
+  { name: 'array', arb: () => fc.array(fc.integer(0, 10), 1, 5) },
   // ...
-])
+]
 ```
 
-**Why:** Property-based testing the property-based testing framework - dogfooding at its finest. Tests multiple arbitrary implementations in a single test run.
+**Why:** Enables systematic verification of all arbitrary types while maintaining clear failure identification.
 
 **Trade-offs:**
 - Pro: Discovers edge cases across arbitrary types
-- Pro: Reduces explicit enumeration of test cases
-- Con: Harder to debug failures (which arbitrary failed?)
-- Mitigation: Laws include the arbitrary description in failure messages
-
-### Decision 4: Stratified law categories
-
-**What:** Organize laws into categories by what they test:
-
-1. **Sampling laws** - `sample`, `sampleUnique`, `sampleWithBias`
-2. **Generation laws** - `pick`, `canGenerate`
-3. **Size laws** - `size()` accuracy
-4. **Shrinking laws** - `shrink` behavior
-5. **Composition laws** - `map`, `filter`, `chain`
-
-**Why:** Allows running focused subsets of laws (e.g., just sampling laws) and organizes documentation.
+- Pro: Clear identification of which arbitrary failed
+- Con: Requires explicit enumeration
+- Mitigation: Registry is comprehensive and easy to extend
 
 ## Risks / Trade-offs
 
