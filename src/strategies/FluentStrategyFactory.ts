@@ -1,4 +1,4 @@
-import {FluentStrategy, FluentConfig} from './FluentStrategy.js'
+import {FluentStrategy, type FluentConfig} from './FluentStrategy.js'
 import {Biased, Cached, Dedupable, Random, Shrinkable} from './FluentStrategyMixins.js'
 
 export class FluentStrategyFactory {

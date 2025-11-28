@@ -1,5 +1,5 @@
 import {
-  Arbitrary,
+  type Arbitrary,
   ArbitraryArray,
   ArbitrarySet,
   ArbitraryBoolean,

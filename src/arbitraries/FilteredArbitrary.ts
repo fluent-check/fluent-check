@@ -1,6 +1,6 @@
 import {BetaDistribution} from '../statistics.js'
-import {EstimatedSize, FluentPick} from './types.js'
-import {Arbitrary, NoArbitrary, WrappedArbitrary} from './internal.js'
+import type {EstimatedSize, FluentPick} from './types.js'
+import {type Arbitrary, NoArbitrary, WrappedArbitrary} from './internal.js'
 import {estimatedSize, lowerCredibleInterval, upperCredibleInterval} from './util.js'
 
 export class FilteredArbitrary<A> extends WrappedArbitrary<A> {

@@ -1,4 +1,4 @@
-import {Arbitrary, NoArbitrary} from './internal.js'
+import {type Arbitrary, NoArbitrary} from './internal.js'
 import {tuple, integer} from './index.js'
 
 /**
