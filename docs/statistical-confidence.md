@@ -205,4 +205,64 @@ FluentCheck's statistical toolkit includes:
 
 ## Comparison with Other Frameworks
 
-Most property testing frameworks rely on a fixed number of test cases without statistical guarantees. FluentCheck's approach provides quantifiable confidence in test results, making it more suitable for critical applications where reliability is paramount. For instance, while FastCheck might run a fixed 100 tests by default, FluentCheck can adaptively decide how many tests to run based on the desired confidence level and observed results. 
+Most property testing frameworks rely on a fixed number of test cases without statistical guarantees. FluentCheck's approach provides quantifiable confidence in test results, making it more suitable for critical applications where reliability is paramount. For instance, while FastCheck might run a fixed 100 tests by default, FluentCheck can adaptively decide how many tests to run based on the desired confidence level and observed results.
+
+## Roadmap: Enhanced Statistical Features
+
+A comprehensive research effort has been conducted to design enhanced statistical ergonomics for FluentCheck. The planned features include:
+
+### Test Case Classification
+
+```typescript
+// Future API: Label and classify test cases
+fc.scenario()
+  .forall('xs', fc.array(fc.integer()))
+  .classify(({xs}) => xs.length === 0, 'empty')
+  .classify(({xs}) => xs.length < 5, 'small')
+  .classify(({xs}) => xs.length >= 5, 'large')
+  .then(({xs}) => xs.sort().length === xs.length)
+  .check()
+// result.statistics.labels = { empty: 152, small: 423, large: 425 }
+```
+
+### Coverage Requirements
+
+```typescript
+// Future API: Verify coverage with statistical confidence
+fc.scenario()
+  .forall('x', fc.integer(-100, 100))
+  .cover(10, ({x}) => x < 0, 'negative')
+  .cover(10, ({x}) => x > 0, 'positive')
+  .then(({x}) => Math.abs(x) >= 0)
+  .checkCoverage()  // Fails if coverage requirements not met
+```
+
+### Confidence-Based Termination
+
+```typescript
+// Future API: Run until specified confidence achieved
+fc.scenario()
+  .forall('x', fc.integer())
+  .then(({x}) => x * x >= 0)
+  .checkWithConfidence(0.999)
+// result.statistics.confidence = 0.9992
+// result.statistics.testsRun = 6905 (variable based on confidence achieved)
+```
+
+### Enhanced Statistics in Results
+
+```typescript
+// Future API: Comprehensive statistics in result
+const result = fc.scenario()
+  .forall('x', fc.integer())
+  .then(({x}) => x >= 0)
+  .check()
+
+console.log(result.statistics.testsRun)        // 1000
+console.log(result.statistics.executionTimeMs) // 45
+console.log(result.statistics.confidence)      // 0.997
+console.log(result.statistics.credibleInterval) // [0.995, 1.0]
+```
+
+For detailed research findings, API designs, and implementation plans, see:
+- [Research: Statistical Ergonomics](research/statistical-ergonomics/README.md)
