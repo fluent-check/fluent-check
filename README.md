@@ -295,6 +295,117 @@ fc.scenario()
   .check();
 ```
 
+### Property Helpers (`fc.props`)
+
+FluentCheck provides reusable property helpers for common assertions in your tests:
+
+```typescript
+import * as fc from 'fluent-check';
+
+// Simple property checks
+fc.props.sorted([1, 2, 3])                    // true - check if sorted
+fc.props.sorted([3, 2, 1], (a, b) => b - a)   // true - descending order
+fc.props.unique([1, 2, 3])                    // true - all elements unique
+fc.props.nonEmpty([1, 2, 3])                  // true - has elements
+fc.props.inRange(5, 1, 10)                    // true - 1 <= 5 <= 10
+fc.props.matches('hello', /^h/)               // true - matches regex
+
+// Mathematical property predicates (composable)
+fc.props.roundtrips(data, JSON.stringify, JSON.parse)   // decode(encode(x)) === x
+fc.props.isIdempotent(value, Math.abs)                  // f(f(x)) === f(x)
+fc.props.commutes(a, b, (x, y) => x + y)                // f(a, b) === f(b, a)
+fc.props.associates(a, b, c, (x, y) => x + y)           // f(a, f(b, c)) === f(f(a, b), c)
+fc.props.hasIdentity(value, (x, y) => x + y, 0)         // f(a, id) === a
+```
+
+**Composable predicates in scenarios:**
+
+```typescript
+// Use predicates in .then() clauses for full composability
+fc.scenario()
+  .forall('data', fc.array(fc.integer()))
+  .then(({ data }) => fc.props.roundtrips(data, JSON.stringify, JSON.parse))
+  .check()
+  .assertSatisfiable();
+
+// Combine multiple property checks in one scenario
+fc.scenario()
+  .forall('a', fc.integer(-100, 100))
+  .forall('b', fc.integer(-100, 100))
+  .forall('c', fc.integer(-100, 100))
+  .then(({ a, b, c }) =>
+    fc.props.commutes(a, b, (x, y) => x + y) &&
+    fc.props.associates(a, b, c, (x, y) => x + y) &&
+    fc.props.hasIdentity(a, (x, y) => x + y, 0)
+  )
+  .check()
+  .assertSatisfiable();
+
+// Dynamic encoder/decoder selection
+fc.scenario()
+  .forall('encoder', fc.oneof(fc.constant(JSON.stringify), fc.constant(customEncode)))
+  .forall('decoder', fc.oneof(fc.constant(JSON.parse), fc.constant(customDecode)))
+  .forall('data', fc.record({ id: fc.integer(), name: fc.string() }))
+  .then(({ encoder, decoder, data }) => fc.props.roundtrips(data, encoder, decoder))
+  .check();
+```
+
+### Property Templates (`fc.templates`)
+
+FluentCheck provides pre-built property test templates for common mathematical properties. Templates are standalone tests built on top of `fc.props` predicates:
+
+```typescript
+import * as fc from 'fluent-check';
+
+// Roundtrip: decode(encode(x)) === x
+fc.templates.roundtrip(
+  fc.array(fc.integer()),
+  JSON.stringify,
+  JSON.parse
+).assert();
+
+// Idempotent: f(f(x)) === f(x)
+fc.templates.idempotent(fc.integer(), Math.abs).assert();
+
+// Commutative: f(a, b) === f(b, a)
+fc.templates.commutative(
+  fc.integer(-100, 100),
+  (a, b) => a + b
+).assert();
+
+// Associative: f(a, f(b, c)) === f(f(a, b), c)
+fc.templates.associative(
+  fc.integer(-100, 100),
+  (a, b) => a + b
+).assert();
+
+// Identity: f(a, identity) === a && f(identity, a) === a
+fc.templates.identity(
+  fc.integer(),
+  (a, b) => a + b,
+  0  // 0 is identity for addition
+).assert();
+```
+
+**Templates vs Predicates:**
+
+| Need | Use |
+|------|-----|
+| Quick standalone test | `fc.templates.*` |
+| Compose in custom scenario | `fc.props.*` predicates |
+| Dynamic function/encoder | `fc.props.*` predicates |
+| Multiple checks in one test | `fc.props.*` predicates |
+
+**Templates with configuration:**
+
+```typescript
+// Use strategy presets for performance control
+fc.templates.roundtrip(fc.string(), JSON.stringify, JSON.parse)
+  .config(fc.strategies.fast)
+  .check()
+  .assertSatisfiable();
+```
+
 ## Advanced Usage
 
 ### Custom Arbitraries
