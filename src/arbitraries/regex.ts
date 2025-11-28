@@ -10,11 +10,11 @@ import type {IPv4Address, HttpUrl} from './types.js'
 // Direct implementations to avoid circular dependencies
 const integer = (min = Number.MIN_SAFE_INTEGER, max = Number.MAX_SAFE_INTEGER): Arbitrary<number> => {
   if (min > max) return NoArbitrary
-  if (min === max) return new ArbitraryConstant(min)
+  if (min === max) return ArbitraryConstant.create(min)
   return new ArbitraryInteger(min, max)
 }
 
-const constant = <A>(constant: A): Arbitrary<A> => new ArbitraryConstant(constant)
+const constant = <A>(constant: A): Arbitrary<A> => ArbitraryConstant.create(constant)
 
 const array = <A>(arbitrary: Arbitrary<A>, min = 0, max = 10): Arbitrary<A[]> => {
   if (min > max) return NoArbitrary

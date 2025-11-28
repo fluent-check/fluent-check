@@ -74,7 +74,7 @@ export const boolean = (): ExactSizeArbitrary<boolean> => asExact(new ArbitraryB
 
 export const empty = () => NoArbitrary
 
-export const constant = <A>(constant: A): ExactSizeArbitrary<A> => asExact(new ArbitraryConstant(constant))
+export const constant = <A>(constant: A): ExactSizeArbitrary<A> => asExact(ArbitraryConstant.create(constant))
 
 type UnwrapFluentPick<T> = { -readonly [P in keyof T]: T[P] extends Arbitrary<infer E> ? E : T[P] }
 
