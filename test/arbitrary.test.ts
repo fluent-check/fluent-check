@@ -6,43 +6,43 @@ const {expect} = chai
 
 describe('Arbitrary tests', () => {
   it('should return has many numbers has asked', () => {
-    expect(fc.scenario()
+    fc.scenario()
       .forall('n', fc.integer(0, 100))
       .given('a', () => fc.integer())
       .then(({n, a}) => a.sample(n).length === n)
       .check()
-    ).to.have.property('satisfiable', true)
+      .assertSatisfiable()
   })
 
   it('should return values in the specified range', () => {
-    expect(fc.scenario()
+    fc.scenario()
       .forall('n', fc.integer(0, 100))
       .given('a', () => fc.integer(0, 50))
       .then(({n, a}) => a.sample(n).every(i => i.value <= 50))
       .and(({n, a}) => a.sampleWithBias(n).every(i => i.value <= 50))
       .check()
-    ).to.have.property('satisfiable', true)
+      .assertSatisfiable()
   })
 
   it('should return corner cases if there is space', () => {
-    expect(fc.scenario()
+    fc.scenario()
       .forall('n', fc.integer(4, 100))
       .given('a', () => fc.integer(0, 50))
       .then(({n, a}) => a.sampleWithBias(n).some(v => v.value === 0))
       .and(({n, a}) => a.sampleWithBias(n).some(v => v.value === 50))
       .check()
-    ).to.have.property('satisfiable', true)
+      .assertSatisfiable()
   })
 
   it('should return values smaller than what was shrunk', () => {
-    expect(fc.scenario()
+    fc.scenario()
       .forall('n', fc.integer(0, 100))
       .forall('s', fc.integer(0, 100))
       .given('a', () => fc.integer(0, 100))
       .then(({n, s, a}) => a.shrink({value: s}).sample(n).every(i => i.value < s))
       .and(({n, s, a}) => a.shrink({value: s}).sampleWithBias(n).every(i => i.value < s))
       .check()
-    ).to.have.property('satisfiable', true)
+      .assertSatisfiable()
   })
 
   it('should allow shrinking of mapped arbitraries', () => {
@@ -147,21 +147,21 @@ describe('Arbitrary tests', () => {
 
   describe('Transformations', () => {
     it('should allow booleans to be mappeable', () => {
-      expect(fc.scenario()
+      fc.scenario()
         .forall('n', fc.integer(10, 100))
         .given('a', () => fc.boolean().map(e => e ? 'Heads' : 'Tails'))
         .then(({a, n}) => a.sampleWithBias(n).some(s => s.value === 'Heads'))
         .and(({a, n}) => a.sampleWithBias(n).some(s => s.value === 'Tails'))
         .check()
-      ).to.have.property('satisfiable', true)
+        .assertSatisfiable()
     })
 
     it('should allow integers to be filtered', () => {
-      expect(fc.scenario()
+      fc.scenario()
         .forall('n', fc.integer(0, 100).filter(n => n < 10))
         .then(({n}) => n < 10)
         .check()
-      ).to.have.property('satisfiable', true)
+        .assertSatisfiable()
     })
 
     it('filters should exclude corner cases, even after shrinking', () => {
@@ -173,11 +173,11 @@ describe('Arbitrary tests', () => {
     })
 
     it('should allow integers to be both mapped and filtered', () => {
-      expect(fc.scenario()
+      fc.scenario()
         .forall('n', fc.integer(0, 100).map(n => n + 100).filter(n => n < 150))
         .then(({n}) => n >= 100 && n <= 150)
         .check()
-      ).to.have.property('satisfiable', true)
+        .assertSatisfiable()
     })
 
     describe('suchThat (filter alias)', () => {
@@ -289,8 +289,8 @@ describe('Arbitrary tests', () => {
       describe('EstimatedSize implementations', () => {
         it('filtered arbitrary returns EstimatedSize with credibleInterval', () => {
           const size = fc.integer(0, 100).filter(n => n > 50).size()
-          
-          // We are loosing type information here, because .filter should automatically 
+
+          // We are loosing type information here, because .filter should automatically
           // narrow the type back to an estimated size. See #438
           if (size.type === 'estimated') {
             expect(size.type).to.equal('estimated')
@@ -397,7 +397,7 @@ describe('Arbitrary tests', () => {
       it('size should be estimated for filtered arbitraries', () => {
         const size1 = fc.integer(1, 1000).filter(i => i > 200).filter(i => i < 800).size()
         expect(size1.type).to.equal('estimated')
-        // We are loosing type information here, because .filter should automatically 
+        // We are loosing type information here, because .filter should automatically
         // narrow the type back to an estimated size. See #438
         if (size1.type === 'estimated') {
           expect(size1.credibleInterval[0]).to.be.below(600)
@@ -408,7 +408,7 @@ describe('Arbitrary tests', () => {
 
         const size2 = fc.integer(1, 1000).filter(i => i > 200 && i < 800).size()
         expect(size2.type).to.equal('estimated')
-        // We are loosing type information here, because .filter should automatically 
+        // We are loosing type information here, because .filter should automatically
         // narrow the type back to an estimated size. See #438
         if (size2.type === 'estimated') {
           expect(size2.credibleInterval[0]).to.be.below(600)
@@ -493,16 +493,16 @@ describe('Arbitrary tests', () => {
     })
 
     it('should return no more than the number of possible cases', () => {
-      expect(fc.scenario()
+      fc.scenario()
         .forall('n', fc.integer(3, 10))
         .given('ub', () => fc.boolean())
         .then(({n, ub}) => ub.sampleUnique(n).length === 2)
         .check()
-      ).to.have.property('satisfiable', true)
+        .assertSatisfiable()
     })
 
     it('should return a unique sample with bias with corner cases', () => {
-      expect(fc.scenario()
+      fc.scenario()
         .forall('n', fc.integer(10, 20))
         .forall('s', fc.integer(5, 10))
         .given('a', ({n}) => fc.integer(0, n))
@@ -511,11 +511,11 @@ describe('Arbitrary tests', () => {
         .and(({r}) => r.length === new Set(r.map(e => e.value)).size)
         .and(({a, r}) => a.cornerCases().map(c => c.value).every(e => r.map(e => e.value).includes(e)))
         .check()
-      ).to.have.property('satisfiable', true)
+        .assertSatisfiable()
     })
 
     it('should return a unique sample with bias even with a small sample', () => {
-      expect(fc.scenario()
+      fc.scenario()
         .forall('n', fc.integer(10, 20))
         .forall('s', fc.integer(0, 5))
         .given('a', ({n}) => fc.integer(0, n))
@@ -523,7 +523,7 @@ describe('Arbitrary tests', () => {
         .then(({r, s}) => r.length === s)
         .and(({r}) => r.length === new Set(r.map(e => e.value)).size)
         .check()
-      ).to.have.property('satisfiable', true)
+        .assertSatisfiable()
     })
   })
 
@@ -535,12 +535,11 @@ describe('Arbitrary tests', () => {
     })
 
     it('should check a property based on a chained arbitrary', () => {
-      expect(
-        fc.scenario()
-          .forall('a', fc.integer(1, 10).chain(i => fc.array(fc.constant(i), i, i)))
-          .then(({a}) => a.length === a[0])
-          .check()
-      ).to.have.property('satisfiable', true)
+      fc.scenario()
+        .forall('a', fc.integer(1, 10).chain(i => fc.array(fc.constant(i), i, i)))
+        .then(({a}) => a.length === a[0])
+        .check()
+        .assertSatisfiable()
     })
   })
 
@@ -604,7 +603,7 @@ describe('Arbitrary tests', () => {
 
     it('knows if it can be generated by a set', () => {
       expect(fc.set(['a', 'b', 'c'], 1, 3) .canGenerate({value: ['a', 'b', 'c']})).to.be.true
-      
+
       // Type system does not allow this
       // expect(fc.set(['a', 'b', 'c'], 1, 3) .canGenerate({value: ['a', 'b', 'd']})).to.be.false
       expect(fc.set(['a', 'b', 'c'], 1, 2) .canGenerate({value: ['a', 'b', 'c']})).to.be.false
@@ -652,11 +651,11 @@ describe('Arbitrary tests', () => {
 
     it('should always be satisfiable due to vacuous truth in universal assertions', () => {
       /* istanbul ignore next */
-      expect(fc.scenario()
+      fc.scenario()
         .forall('empty', fc.empty())
         .then(_ => false)
         .check()
-      ).to.have.property('satisfiable', true)
+        .assertSatisfiable()
     })
 
     it('should never be satisfiable due to vacuous truth in existential assertions', () => {

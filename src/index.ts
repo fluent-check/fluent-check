@@ -1,6 +1,5 @@
 import {FluentCheck, pre, PreconditionFailure} from './FluentCheck.js'
 import {FluentStrategyFactory} from './strategies/FluentStrategyFactory.js'
-import type { ArbitrarySize } from './arbitraries/types.js'
 export {expect} from './FluentReporter.js'
 export {pre, PreconditionFailure}
 export {prop} from './FluentProperty.js'

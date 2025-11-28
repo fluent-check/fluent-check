@@ -9,7 +9,7 @@ export default tseslint.config(
     languageOptions: {
       globals: {
         ...globals.node,
-        ...globals.es2020,
+        ...globals.es2025,
       },
       parserOptions: {
         project: './tsconfig.eslint.json',
@@ -49,6 +49,7 @@ export default tseslint.config(
       '@typescript-eslint/no-non-null-assertion': 'warn',
       '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
       '@typescript-eslint/consistent-type-imports': ['warn', { prefer: 'type-imports', fixStyle: 'inline-type-imports' }],
+      '@typescript-eslint/no-unnecessary-type-assertion': 'warn',
 
       // Level 0 rules: disabled
       'no-console': 'off',

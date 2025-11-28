@@ -4,58 +4,58 @@ import {expect} from 'chai'
 
 describe('Regex tests', () => {
   it('should generate strings matching simple character class patterns', () => {
-    expect(fc.scenario()
+    fc.scenario()
       .forall('s', fc.regex(/[a-z]{3}/))
       .then(({s}) => {
         return /^[a-z]{3}$/.test(s)
       })
       .check()
-    ).to.have.property('satisfiable', true)
+      .assertSatisfiable()
   })
 
   it('should generate strings matching digit patterns', () => {
-    expect(fc.scenario()
+    fc.scenario()
       .forall('s', fc.regex(/\d{5}/))
       .then(({s}) => {
         return /^\d{5}$/.test(s) && s.length === 5
       })
       .check()
-    ).to.have.property('satisfiable', true)
+      .assertSatisfiable()
   })
 
   it('should generate strings matching word character patterns', () => {
-    expect(fc.scenario()
+    fc.scenario()
       .forall('s', fc.regex(/\w{1,5}/))  // Limiting the range to avoid memory issues
       .then(({s}) => {
         return /^\w{1,5}$/.test(s) && s.length >= 1 && s.length <= 5
       })
       .check()
-    ).to.have.property('satisfiable', true)
+      .assertSatisfiable()
   })
 
   it('should generate strings matching patterns with quantifiers', () => {
-    expect(fc.scenario()
+    fc.scenario()
       .forall('s', fc.regex(/a{2,4}/))
       .then(({s}) => {
         return /^a{2,4}$/.test(s) && s.length >= 2 && s.length <= 4
       })
       .check()
-    ).to.have.property('satisfiable', true)
+      .assertSatisfiable()
   })
 
   // Simplified alternatives test
   it('should generate strings matching patterns with alternatives', () => {
-    expect(fc.scenario()
+    fc.scenario()
       .forall('s', fc.regex(/(cat|dog)/))  // Simplified with explicit grouping
       .then(({s}) => {
         return s === 'cat' || s === 'dog'
       })
       .check()
-    ).to.have.property('satisfiable', true)
+      .assertSatisfiable()
   })
 
   it('should generate valid email addresses with patterns.email', () => {
-    expect(fc.scenario()
+    fc.scenario()
       .forall('email', fc.patterns.email())
       .then(({email}) => {
         // Test with a comprehensive email regex
@@ -63,11 +63,11 @@ describe('Regex tests', () => {
         return emailRegex.test(email) && email.includes('@')
       })
       .check()
-    ).to.have.property('satisfiable', true)
+      .assertSatisfiable()
   })
 
   it('should generate valid UUIDs with patterns.uuid', () => {
-    expect(fc.scenario()
+    fc.scenario()
       .forall('uuid', fc.patterns.uuid())
       .then(({uuid}) => {
         // UUID v4 format: 8-4-4-4-12 hex digits with version 4 format
@@ -75,11 +75,11 @@ describe('Regex tests', () => {
         return uuidRegex.test(uuid)
       })
       .check()
-    ).to.have.property('satisfiable', true)
+      .assertSatisfiable()
   })
 
   it('should generate valid IPv4 addresses with patterns.ipv4', () => {
-    expect(fc.scenario()
+    fc.scenario()
       .forall('ip', fc.patterns.ipv4())
       .then(({ip}) => {
         // Check format and valid octet ranges
@@ -92,17 +92,17 @@ describe('Regex tests', () => {
         })
       })
       .check()
-    ).to.have.property('satisfiable', true)
+      .assertSatisfiable()
   })
 
   it('should respect maxLength parameter in regex generation', () => {
-    expect(fc.scenario()
+    fc.scenario()
       .forall('s', fc.regex(/\w+/, 5))  // Reducing max length to avoid memory issues
       .then(({s}) => {
         return /^\w+$/.test(s) && s.length <= 5
       })
       .check()
-    ).to.have.property('satisfiable', true)
+      .assertSatisfiable()
   })
 
   it('should perform shrinking while maintaining regex pattern', () => {
@@ -131,13 +131,13 @@ describe('Regex tests', () => {
 
   // Simplified validation test
   it('should validate proper email format', () => {
-    expect(fc.scenario()
+    fc.scenario()
       .forall('email', fc.patterns.email())
       .then(({email}) => {
         // An email must contain exactly one @ symbol
         return String(email).includes('@') && String(email).includes('.')
       })
       .check()
-    ).to.have.property('satisfiable', true)
+      .assertSatisfiable()
   })
 })

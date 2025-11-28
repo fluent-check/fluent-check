@@ -50,5 +50,7 @@ export class ArbitraryInteger extends Arbitrary<number> {
     return pick.value >= this.min && pick.value <= this.max
   }
 
-  override toString(depth = 0) { return ' '.repeat(depth * 2) + `Integer Arbitrary: min = ${this.min} max = ${this.max}` }
+  override toString(depth = 0) {
+    return ' '.repeat(2 * depth) + `Integer Arbitrary: min = ${this.min} max = ${this.max}`
+  }
 }
