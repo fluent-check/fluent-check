@@ -7,11 +7,11 @@ describe('Arbitrary Presets', () => {
   describe('Integer Presets', () => {
     describe('positiveInt()', () => {
       it('should only generate integers >= 1', () => {
-        expect(fc.scenario()
+        fc.scenario()
           .forall('n', fc.positiveInt())
           .then(({n}) => n >= 1)
           .check()
-        ).to.have.property('satisfiable', true)
+          .assertSatisfiable()
       })
 
       it('should generate values up to MAX_SAFE_INTEGER', () => {
@@ -34,11 +34,11 @@ describe('Arbitrary Presets', () => {
 
     describe('negativeInt()', () => {
       it('should only generate integers <= -1', () => {
-        expect(fc.scenario()
+        fc.scenario()
           .forall('n', fc.negativeInt())
           .then(({n}) => n <= -1)
           .check()
-        ).to.have.property('satisfiable', true)
+          .assertSatisfiable()
       })
 
       it('should generate values down to MIN_SAFE_INTEGER', () => {
@@ -61,11 +61,11 @@ describe('Arbitrary Presets', () => {
 
     describe('nonZeroInt()', () => {
       it('should never generate zero', () => {
-        expect(fc.scenario()
+        fc.scenario()
           .forall('n', fc.nonZeroInt())
           .then(({n}) => n !== 0)
           .check()
-        ).to.have.property('satisfiable', true)
+          .assertSatisfiable()
       })
 
       it('should generate both positive and negative integers', () => {
@@ -84,11 +84,11 @@ describe('Arbitrary Presets', () => {
 
     describe('byte()', () => {
       it('should only generate integers in range [0, 255]', () => {
-        expect(fc.scenario()
+        fc.scenario()
           .forall('n', fc.byte())
           .then(({n}) => n >= 0 && n <= 255)
           .check()
-        ).to.have.property('satisfiable', true)
+          .assertSatisfiable()
       })
 
       it('should have corner cases including 0 and 255', () => {
@@ -106,19 +106,19 @@ describe('Arbitrary Presets', () => {
   describe('String Presets', () => {
     describe('nonEmptyString()', () => {
       it('should only generate strings with length >= 1', () => {
-        expect(fc.scenario()
+        fc.scenario()
           .forall('s', fc.nonEmptyString())
           .then(({s}) => s.length >= 1)
           .check()
-        ).to.have.property('satisfiable', true)
+          .assertSatisfiable()
       })
 
       it('should respect maxLength parameter', () => {
-        expect(fc.scenario()
+        fc.scenario()
           .forall('s', fc.nonEmptyString(5))
           .then(({s}) => s.length >= 1 && s.length <= 5)
           .check()
-        ).to.have.property('satisfiable', true)
+          .assertSatisfiable()
       })
 
       it('should default to maxLength of 100', () => {
@@ -136,27 +136,27 @@ describe('Arbitrary Presets', () => {
   describe('Collection Presets', () => {
     describe('nonEmptyArray()', () => {
       it('should only generate arrays with length >= 1', () => {
-        expect(fc.scenario()
+        fc.scenario()
           .forall('arr', fc.nonEmptyArray(fc.integer()))
           .then(({arr}) => arr.length >= 1)
           .check()
-        ).to.have.property('satisfiable', true)
+          .assertSatisfiable()
       })
 
       it('should respect maxLength parameter', () => {
-        expect(fc.scenario()
+        fc.scenario()
           .forall('arr', fc.nonEmptyArray(fc.integer(), 3))
           .then(({arr}) => arr.length >= 1 && arr.length <= 3)
           .check()
-        ).to.have.property('satisfiable', true)
+          .assertSatisfiable()
       })
 
       it('should generate elements from the provided arbitrary', () => {
-        expect(fc.scenario()
+        fc.scenario()
           .forall('arr', fc.nonEmptyArray(fc.integer(0, 10)))
           .then(({arr}) => arr.every(n => n >= 0 && n <= 10))
           .check()
-        ).to.have.property('satisfiable', true)
+          .assertSatisfiable()
       })
 
       it('should never generate empty arrays', () => {
@@ -172,19 +172,19 @@ describe('Arbitrary Presets', () => {
 
     describe('pair()', () => {
       it('should generate 2-tuples', () => {
-        expect(fc.scenario()
+        fc.scenario()
           .forall('p', fc.pair(fc.integer()))
           .then(({p}) => Array.isArray(p) && p.length === 2)
           .check()
-        ).to.have.property('satisfiable', true)
+          .assertSatisfiable()
       })
 
       it('should generate both elements from the same arbitrary', () => {
-        expect(fc.scenario()
+        fc.scenario()
           .forall('p', fc.pair(fc.integer(0, 10)))
           .then(({p}) => p[0] >= 0 && p[0] <= 10 && p[1] >= 0 && p[1] <= 10)
           .check()
-        ).to.have.property('satisfiable', true)
+          .assertSatisfiable()
       })
 
       it('should work with different arbitrary types', () => {
@@ -209,11 +209,11 @@ describe('Arbitrary Presets', () => {
   describe('Nullable/Optional Presets', () => {
     describe('nullable()', () => {
       it('should generate values or null', () => {
-        expect(fc.scenario()
+        fc.scenario()
           .forall('v', fc.nullable(fc.integer(0, 10)))
           .then(({v}) => v === null || (typeof v === 'number' && v >= 0 && v <= 10))
           .check()
-        ).to.have.property('satisfiable', true)
+          .assertSatisfiable()
       })
 
       it('should sometimes generate null', () => {
@@ -238,11 +238,11 @@ describe('Arbitrary Presets', () => {
 
     describe('optional()', () => {
       it('should generate values or undefined', () => {
-        expect(fc.scenario()
+        fc.scenario()
           .forall('v', fc.optional(fc.integer(0, 10)))
           .then(({v}) => v === undefined || (typeof v === 'number' && v >= 0 && v <= 10))
           .check()
-        ).to.have.property('satisfiable', true)
+          .assertSatisfiable()
       })
 
       it('should sometimes generate undefined', () => {
@@ -327,20 +327,20 @@ describe('Arbitrary Presets', () => {
 
     it('nullable can wrap other presets', () => {
       const nullablePositive = fc.nullable(fc.positiveInt())
-      expect(fc.scenario()
+      fc.scenario()
         .forall('v', nullablePositive)
         .then(({v}) => v === null || v >= 1)
         .check()
-      ).to.have.property('satisfiable', true)
+        .assertSatisfiable()
     })
 
     it('nonEmptyArray can contain pairs', () => {
       const arrOfPairs = fc.nonEmptyArray(fc.pair(fc.byte()), 5)
-      expect(fc.scenario()
+      fc.scenario()
         .forall('arr', arrOfPairs)
         .then(({arr}) => arr.length >= 1 && arr.every(p => p.length === 2))
         .check()
-      ).to.have.property('satisfiable', true)
+        .assertSatisfiable()
     })
   })
 

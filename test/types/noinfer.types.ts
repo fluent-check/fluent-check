@@ -12,7 +12,7 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 
 import {FluentCheck} from '../../src/FluentCheck.js'
-import {integer, Arbitrary} from '../../src/arbitraries/index.js'
+import {integer, type Arbitrary} from '../../src/arbitraries/index.js'
 
 // ============================================================================
 // Type assertion utilities (standard type-testing pattern)

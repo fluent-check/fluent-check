@@ -117,7 +117,7 @@ export const nonEmptyArray = <A>(arb: Arbitrary<A>, maxLength = 10): Arbitrary<A
  * ```
  */
 export const pair = <A>(arb: Arbitrary<A>): Arbitrary<[A, A]> =>
-  tuple(arb, arb) as Arbitrary<[A, A]>
+  tuple(arb, arb)
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Nullable/Optional Presets
