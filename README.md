@@ -245,6 +245,56 @@ fc.scenario()
   .check();
 ```
 
+### Strategy Presets
+
+FluentCheck provides pre-configured strategy presets for common testing scenarios:
+
+```typescript
+import * as fc from 'fluent-check';
+
+// Default - balanced speed and coverage (recommended for most tests)
+fc.scenario()
+  .config(fc.strategies.default)
+  .forall('x', fc.integer())
+  .then(({x}) => x + 0 === x)
+  .check();
+
+// Fast - quick feedback during development
+fc.prop(fc.integer(), x => x >= 0)
+  .config(fc.strategies.fast)
+  .assert();
+
+// Thorough - comprehensive coverage for critical code
+fc.scenario()
+  .config(fc.strategies.thorough)
+  .forall('list', fc.array(fc.integer()))
+  .then(({list}) => isSorted(sort(list)))
+  .check();
+
+// Minimal - for debugging with only 10 samples
+fc.prop(fc.integer(), x => x + 0 === x)
+  .config(fc.strategies.minimal)
+  .assert();
+```
+
+| Preset | Sample Size | Features | Use Case |
+|--------|-------------|----------|----------|
+| `default` | 1000 | Random + Dedup + Bias + Cache + Shrink | General-purpose testing |
+| `fast` | 1000 | Random only | Quick iteration |
+| `thorough` | 1000 | Random + Cache + Dedup + Shrink | Critical code paths |
+| `minimal` | 10 | Random only | Debugging |
+
+Presets can be further customized:
+
+```typescript
+// Start with a preset, then customize
+fc.scenario()
+  .config(fc.strategies.thorough.withSampleSize(5000))
+  .forall('x', fc.integer())
+  .then(({x}) => x + 0 === x)
+  .check();
+```
+
 ## Advanced Usage
 
 ### Custom Arbitraries
