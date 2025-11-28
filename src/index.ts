@@ -5,6 +5,7 @@ export {expect} from './FluentReporter.js'
 export {pre, PreconditionFailure}
 export {prop} from './FluentProperty.js'
 export type {FluentProperty} from './FluentProperty.js'
+export {strategies} from './strategies/presets.js'
 export const scenario = () => new FluentCheck()
 export const strategy = () => new FluentStrategyFactory()
 export {

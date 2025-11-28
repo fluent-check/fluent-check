@@ -221,6 +221,76 @@ export class FluentCheck<Rec extends ParentRec, ParentRec extends {}> {
 
 This allows strategies to be configured at the scenario level.
 
+## Strategy Presets
+
+FluentCheck provides pre-configured strategy presets for common testing scenarios. These presets simplify strategy configuration by offering sensible defaults while maintaining access to full customization.
+
+### Available Presets
+
+```typescript
+import * as fc from 'fluent-check';
+
+// Default - balanced speed and coverage (recommended for most tests)
+fc.scenario()
+  .config(fc.strategies.default)
+  .forall('x', fc.integer())
+  .then(({x}) => x + 0 === x)
+  .check();
+
+// Fast - quick feedback during development
+fc.prop(fc.integer(), x => x >= 0)
+  .config(fc.strategies.fast)
+  .assert();
+
+// Thorough - comprehensive coverage for critical code
+fc.scenario()
+  .config(fc.strategies.thorough)
+  .forall('list', fc.array(fc.integer()))
+  .then(({list}) => isSorted(sort(list)))
+  .check();
+
+// Minimal - for debugging with only 10 samples
+fc.prop(fc.integer(), x => x + 0 === x)
+  .config(fc.strategies.minimal)
+  .assert();
+```
+
+### Preset Comparison
+
+| Preset | Sample Size | Random | Dedup | Bias | Cache | Shrink | Use Case |
+|--------|-------------|--------|-------|------|-------|--------|----------|
+| `default` | 1000 | ✅ | ✅ | ✅ | ✅ | ✅ | General-purpose testing, CI pipelines |
+| `fast` | 1000 | ✅ | ❌ | ❌ | ❌ | ❌ | Quick iteration during development |
+| `thorough` | 1000 | ✅ | ✅ | ❌ | ✅ | ✅ | Critical code paths, pre-release testing |
+| `minimal` | 10 | ✅ | ❌ | ❌ | ❌ | ❌ | Debugging, test setup verification |
+
+### Customizing Presets
+
+Presets return `FluentStrategyFactory` instances, allowing further customization:
+
+```typescript
+// Start with a preset, then customize
+fc.scenario()
+  .config(fc.strategies.thorough.withSampleSize(5000))
+  .forall('x', fc.integer())
+  .then(({x}) => x + 0 === x)
+  .check();
+
+// Add shrinking to the fast preset
+fc.scenario()
+  .config(fc.strategies.fast.withShrinking())
+  .forall('x', fc.integer())
+  .then(({x}) => x > 0)
+  .check();
+```
+
+### When to Use Each Preset
+
+- **`strategies.default`**: Use for most tests. Good balance of speed and coverage with all features enabled.
+- **`strategies.fast`**: Use during development for quick feedback. Sacrifices coverage for speed.
+- **`strategies.thorough`**: Use for critical code paths where finding minimal counterexamples matters.
+- **`strategies.minimal`**: Use for debugging test setup or quickly verifying a property works.
+
 ## Usage Examples
 
 Basic strategy configuration using the factory:
