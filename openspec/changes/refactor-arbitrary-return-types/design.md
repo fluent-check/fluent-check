@@ -181,3 +181,26 @@ This is semantically correct:
 2. **Don't change runtime implementations** — the code already returns the correct types; this is purely a type-level refactor.
 
 3. **Don't include `chain()` in scope** — it already returns `Arbitrary<B>` and that's intentional since the size type depends on runtime values.
+
+4. **Don't expect intersection types to override base class methods** — When you have `type T = BaseClass<A> & { method(): SpecificType }`, calling `method()` on a `T` still uses the base class's method signature. Type assertions are needed at boundaries.
+
+## Actual Implementation
+
+The implementation uses **type assertions at factory boundaries**:
+
+```typescript
+// Helper function in index.ts and string.ts
+const asExact = <A>(arb: Arbitrary<A>): ExactSizeArbitrary<A> => arb as ExactSizeArbitrary<A>
+
+export const integer = (...): ExactSizeArbitrary<number> => {
+  if (min > max) return NoArbitrary
+  if (min === max) return asExact(new ArbitraryConstant(min))
+  return asExact(new ArbitraryInteger(min, max))
+}
+```
+
+This approach:
+- Requires no runtime changes (implementations already do the right thing)
+- Provides the desired type precision at API boundaries
+- Works with TypeScript's structural type system
+- Is safe because the assertions document what the runtime already does
