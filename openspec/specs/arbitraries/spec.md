@@ -401,3 +401,60 @@ The system SHALL provide factories for nullable and optional value generation.
 - **THEN** it SHALL return an arbitrary that generates values of type `T | undefined`
 - **AND** it SHALL sometimes generate `undefined`
 
+### Requirement: suchThat Filter Alias
+
+The `Arbitrary` class SHALL provide a `suchThat()` method as an alias for `filter()`.
+
+#### Scenario: suchThat equivalence
+- **WHEN** `arbitrary.suchThat(predicate)` is called
+- **THEN** it SHALL behave identically to `arbitrary.filter(predicate)`
+- **AND** it SHALL return the same type of filtered arbitrary
+
+#### Scenario: suchThat chaining
+- **WHEN** `suchThat` is chained with other arbitrary methods
+- **THEN** it SHALL work correctly with `map`, `chain`, and other transformations
+- **AND** corner cases SHALL be filtered appropriately
+
+### Requirement: Record Arbitrary
+
+The system SHALL provide a `record(schema)` function that creates an arbitrary generating objects from a schema where keys map to arbitraries.
+
+#### Scenario: Generate typed objects
+
+- **WHEN** `fc.record({ name: fc.string(), age: fc.integer(0, 120) })` is called
+- **THEN** objects of type `{ name: string, age: number }` are generated
+- **AND** each property value SHALL be generated from its corresponding arbitrary
+
+#### Scenario: Type inference from schema
+
+- **WHEN** a record schema is provided with typed arbitraries
+- **THEN** TypeScript SHALL infer the exact object type from the schema
+- **AND** accessing non-existent properties SHALL be a compile-time error
+
+#### Scenario: Nested records
+
+- **WHEN** `fc.record({ user: fc.record({ name: fc.string() }), active: fc.boolean() })` is called
+- **THEN** nested objects are generated with the correct structure
+
+#### Scenario: Empty schema
+
+- **WHEN** `fc.record({})` is called
+- **THEN** empty objects `{}` SHALL be generated
+
+#### Scenario: NoArbitrary in schema
+
+- **WHEN** any property arbitrary is `NoArbitrary`
+- **THEN** `NoArbitrary` SHALL be returned
+
+#### Scenario: Corner cases
+
+- **WHEN** sampling from a record arbitrary
+- **THEN** corner cases SHALL be combinations of property corner cases
+- **AND** corner cases SHALL be generated for each property independently
+
+#### Scenario: Shrinking
+
+- **WHEN** shrinking a record value
+- **THEN** each property SHALL be shrunk independently
+- **AND** shrinking SHALL produce records with one property shrunk at a time
+
