@@ -41,9 +41,18 @@ These analyses are part of [#6 - Provide size estimation (codomain cardinality) 
 2. Use **Beta-Binomial** when base size is small and exact
 3. Keep equal-tailed credible intervals (consistent with median)
 
+**Validation:** Monte Carlo simulations proposed to empirically validate:
+- Credible interval coverage (should be ~95%)
+- Point estimator comparison (mode vs mean vs median)
+- Beta vs Beta-Binomial accuracy for small domains
+- Prior sensitivity analysis
+- Edge case handling (s=0, s=k)
+
 ## Status
 
 - [x] Initial mathematical analysis drafted
+- [x] Key assumptions identified and documented
+- [x] Monte Carlo validation simulations proposed
+- [ ] Implementation of validation simulations
 - [ ] Implementation proposals
-- [ ] Benchmarks and validation
 - [ ] Integration with codebase
