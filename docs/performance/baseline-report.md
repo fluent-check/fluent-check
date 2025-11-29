@@ -94,9 +94,9 @@ Given the excellent baseline performance, optimization priorities should focus o
 - **ROI**: Low - startup is one-time cost
 
 ### 2. Shrink Tree Generation (Medium Priority)
-- **Impact**: Visible in complex nested arbitrary tests
-- **Potential**: Lazy shrink tree construction
-- **ROI**: Medium - benefits large property tests
+- **Impact**: When a property test fails, FluentCheck generates a "shrink tree" — a lazy data structure containing progressively smaller counterexamples. For deeply nested arbitraries (e.g., arrays of records containing arrays), this tree can become large and expensive to traverse.
+- **Potential**: Currently shrink trees are constructed eagerly when `shrink()` is called. Moving to fully lazy construction (generators/iterators that compute children on-demand) could reduce memory allocations and speed up shrinking for complex types.
+- **ROI**: Medium - primarily benefits users with complex domain models or deeply nested data structures. Most simple property tests won't see improvement.
 
 ### 3. Regex Arbitrary Performance (Low Priority)
 - **Impact**: Email/UUID pattern tests are slower
@@ -104,9 +104,12 @@ Given the excellent baseline performance, optimization priorities should focus o
 - **ROI**: Low - isolated to specific arbitrary types
 
 ### 4. High-Arity Property Tests (Medium Priority)
-- **Impact**: Tests with 3+ arbitraries are noticeably slower
-- **Potential**: More aggressive pruning, parallel generation
-- **ROI**: Medium - affects power users
+- **Impact**: Property tests with multiple arbitraries (e.g., `forAll(int, int, int, string)`) execute significantly slower than single-arbitrary tests. This is because the search space grows exponentially — 3 arbitraries with 100 samples each means 100³ = 1,000,000 potential combinations, though FluentCheck samples intelligently rather than exhaustively.
+- **Potential**: 
+  - **Smarter sampling**: Use statistical techniques to reduce redundant combinations
+  - **Parallel generation**: Generate values for independent arbitraries concurrently
+  - **Early termination**: Stop generating when sufficient coverage is detected
+- **ROI**: Medium - affects users writing complex mathematical properties or integration tests with many inputs. Typical unit-level property tests use 1-2 arbitraries and won't benefit.
 
 ## Recommendations
 
