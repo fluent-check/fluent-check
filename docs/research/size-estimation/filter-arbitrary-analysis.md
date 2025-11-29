@@ -34,6 +34,18 @@ Let:
 - $s$ = number of samples that passed the filter
 - $\hat{m} = n \cdot \hat{p}$ = estimated filtered size
 
+### Key Assumptions
+
+The Bayesian model relies on several assumptions that should be validated:
+
+| # | Assumption | Description | Testable? |
+|---|------------|-------------|-----------|
+| A1 | **IID Sampling** | Each sample is independent and identically distributed | Yes |
+| A2 | **Constant Proportion** | The true proportion $p$ is fixed (not changing during sampling) | Yes |
+| A3 | **Uninformative Prior** | Beta(1,1) prior is appropriate when we have no prior knowledge | Yes |
+| A4 | **Binomial Likelihood** | The sampling process follows a Binomial distribution | Yes |
+| A5 | **Continuous Approximation** | Beta is appropriate even though domain is discrete | Yes |
+
 ### Bayesian Model
 
 **Prior:** $p \sim \text{Beta}(\alpha_0, \beta_0)$
@@ -261,10 +273,506 @@ $$k \approx \frac{16n^2}{w^2}$$
    - Current: Mode = 0, but CI excludes 0
    - Recommendation: Use median ≈ $0.5/(k+1)$
 
+---
+
+## Validation of Assumptions through Simulation
+
+Since we don't have formal methods to verify the mathematical correctness of our Bayesian model, we use Monte Carlo simulations to empirically validate (or falsify) our assumptions and recommendations.
+
+### Simulation Strategy
+
+Each simulation follows the pattern:
+1. **Ground Truth**: Establish known parameters (true $p$, true $n$)
+2. **Sampling**: Simulate the sampling process under controlled conditions
+3. **Estimation**: Apply our estimators to the simulated data
+4. **Evaluation**: Compare estimates to ground truth across many trials
+5. **Metrics**: Compute coverage, bias, MSE, and other relevant statistics
+
+### Simulation 1: Credible Interval Coverage
+
+**Hypothesis**: A 95% credible interval should contain the true proportion 95% of the time.
+
+**Setup**:
+```typescript
+interface CoverageSimulationParams {
+  trueProportions: number[]   // e.g., [0.01, 0.1, 0.3, 0.5, 0.7, 0.9, 0.99]
+  sampleSizes: number[]       // e.g., [10, 30, 50, 100, 200]
+  numTrials: number           // e.g., 10000
+  credibleLevel: number       // e.g., 0.95
+}
+```
+
+**Algorithm**:
+```typescript
+function simulateCoverage(params: CoverageSimulationParams): CoverageResults {
+  const results: CoverageResults = {}
+  
+  for (const p of params.trueProportions) {
+    for (const k of params.sampleSizes) {
+      let covered = 0
+      
+      for (let trial = 0; trial < params.numTrials; trial++) {
+        // Generate Binomial(k, p) sample
+        const successes = randomBinomial(k, p)
+        
+        // Compute posterior Beta(1 + s, 1 + k - s)
+        const alpha = 1 + successes
+        const beta = 1 + k - successes
+        
+        // Compute credible interval
+        const lowerTail = (1 - params.credibleLevel) / 2
+        const upperTail = 1 - lowerTail
+        const ciLow = betaInv(lowerTail, alpha, beta)
+        const ciHigh = betaInv(upperTail, alpha, beta)
+        
+        // Check if true p is inside CI
+        if (ciLow <= p && p <= ciHigh) covered++
+      }
+      
+      results[`p=${p},k=${k}`] = covered / params.numTrials
+    }
+  }
+  return results
+}
+```
+
+**Expected Outcome**: Coverage should be ≈0.95 for all parameter combinations.
+
+**What Would Falsify**: Coverage significantly below 0.95 (e.g., <0.90) would indicate a problem with the Bayesian model or our implementation.
+
+**Edge Cases to Test**:
+- Very small $p$ (0.001, 0.01) - tests behavior near boundary
+- Very large $p$ (0.99, 0.999) - tests symmetry
+- Small sample sizes ($k < 20$) - tests small-sample behavior
+
+---
+
+### Simulation 2: Point Estimator Comparison
+
+**Hypothesis**: Median provides better point estimates than mode for skewed distributions.
+
+**Metrics**:
+- **Bias**: $E[\hat{p}] - p$
+- **Mean Squared Error (MSE)**: $E[(\hat{p} - p)^2]$
+- **Mean Absolute Error (MAE)**: $E[|\hat{p} - p|]$
+- **Outside CI Rate**: How often the point estimate falls outside the credible interval
+
+**Algorithm**:
+```typescript
+function compareEstimators(params: EstimatorComparisonParams): EstimatorResults {
+  const estimators = ['mode', 'mean', 'median']
+  const results: Record<string, EstimatorMetrics> = {}
+  
+  for (const p of params.trueProportions) {
+    for (const k of params.sampleSizes) {
+      for (const estimator of estimators) {
+        let sumError = 0, sumSquaredError = 0, sumAbsError = 0
+        let outsideCI = 0
+        
+        for (let trial = 0; trial < params.numTrials; trial++) {
+          const s = randomBinomial(k, p)
+          const alpha = 1 + s, beta = 1 + k - s
+          
+          // Compute point estimate
+          let estimate: number
+          switch (estimator) {
+            case 'mode': estimate = (alpha > 1 && beta > 1) ? (alpha - 1) / (alpha + beta - 2) : s / k; break
+            case 'mean': estimate = alpha / (alpha + beta); break
+            case 'median': estimate = betaInv(0.5, alpha, beta); break
+          }
+          
+          // Compute CI
+          const ciLow = betaInv(0.025, alpha, beta)
+          const ciHigh = betaInv(0.975, alpha, beta)
+          
+          // Accumulate metrics
+          sumError += estimate - p
+          sumSquaredError += (estimate - p) ** 2
+          sumAbsError += Math.abs(estimate - p)
+          if (estimate < ciLow || estimate > ciHigh) outsideCI++
+        }
+        
+        const n = params.numTrials
+        results[`${estimator},p=${p},k=${k}`] = {
+          bias: sumError / n,
+          mse: sumSquaredError / n,
+          mae: sumAbsError / n,
+          outsideCIRate: outsideCI / n
+        }
+      }
+    }
+  }
+  return results
+}
+```
+
+**Expected Outcome**:
+- Mode should have highest "outside CI" rate for small $k$ and extreme $p$
+- Mean should have slight bias toward 0.5
+- Median should always be inside CI (by construction)
+
+**What Would Falsify**:
+- Median performing significantly worse than mode on MSE/MAE
+- Mode consistently inside CI (would invalidate Issue #2)
+
+---
+
+### Simulation 3: Mode-Outside-CI Rate
+
+**Hypothesis**: Mode falls outside equal-tailed CI for skewed Beta distributions (supporting Issue #2).
+
+**Algorithm**:
+```typescript
+function simulateModeOutsideCI(params: SimulationParams): ModeOutsideCIResults {
+  const results: ModeOutsideCIResults = {}
+  
+  for (const p of params.trueProportions) {
+    for (const k of params.sampleSizes) {
+      let modeOutside = 0
+      let modeBelowCI = 0, modeAboveCI = 0
+      
+      for (let trial = 0; trial < params.numTrials; trial++) {
+        const s = randomBinomial(k, p)
+        const alpha = 1 + s, beta = 1 + k - s
+        
+        // Mode (with boundary handling)
+        let mode: number
+        if (alpha <= 1) mode = 0
+        else if (beta <= 1) mode = 1
+        else mode = (alpha - 1) / (alpha + beta - 2)
+        
+        const ciLow = betaInv(0.025, alpha, beta)
+        const ciHigh = betaInv(0.975, alpha, beta)
+        
+        if (mode < ciLow) { modeOutside++; modeBelowCI++ }
+        else if (mode > ciHigh) { modeOutside++; modeAboveCI++ }
+      }
+      
+      results[`p=${p},k=${k}`] = {
+        outsideRate: modeOutside / params.numTrials,
+        belowRate: modeBelowCI / params.numTrials,
+        aboveRate: modeAboveCI / params.numTrials
+      }
+    }
+  }
+  return results
+}
+```
+
+**Expected Outcome**:
+- High "outside" rates for $p < 0.1$ or $p > 0.9$ with small $k$
+- Particularly high "below CI" rate when $s = 0$ (mode = 0, but CI excludes 0)
+- Near-zero "outside" rates for moderate $p$ (0.3-0.7) and large $k$
+
+---
+
+### Simulation 4: Beta vs Beta-Binomial Comparison
+
+**Hypothesis**: Beta-Binomial provides more accurate discrete estimates for small known $n$.
+
+**Setup**:
+```typescript
+interface BetaBinomialComparisonParams {
+  baseSizes: number[]         // e.g., [10, 20, 50, 100, 500, 1000]
+  trueProportions: number[]   // e.g., [0.1, 0.3, 0.5, 0.7]
+  sampleSizes: number[]       // e.g., [20, 50, 100]
+  numTrials: number
+}
+```
+
+**Algorithm**:
+```typescript
+function compareBetaVsBetaBinomial(params: BetaBinomialComparisonParams): ComparisonResults {
+  const results: ComparisonResults = {}
+  
+  for (const n of params.baseSizes) {
+    for (const p of params.trueProportions) {
+      const trueFilteredSize = Math.round(n * p)  // Ground truth
+      
+      for (const k of params.sampleSizes) {
+        let betaMSE = 0, betaBinomialMSE = 0
+        let betaCoverage = 0, betaBinomialCoverage = 0
+        
+        for (let trial = 0; trial < params.numTrials; trial++) {
+          const s = randomBinomial(k, p)
+          const alpha = 1 + s, beta_ = 1 + k - s
+          
+          // Beta estimate: n * median(Beta)
+          const betaMedian = betaInv(0.5, alpha, beta_)
+          const betaEstimate = Math.round(n * betaMedian)
+          const betaCILow = Math.round(n * betaInv(0.025, alpha, beta_))
+          const betaCIHigh = Math.round(n * betaInv(0.975, alpha, beta_))
+          
+          // Beta-Binomial estimate: median of BetaBinomial(n, alpha, beta)
+          const bbMedian = betaBinomialInv(0.5, n, alpha, beta_)
+          const bbCILow = betaBinomialInv(0.025, n, alpha, beta_)
+          const bbCIHigh = betaBinomialInv(0.975, n, alpha, beta_)
+          
+          // Accumulate metrics
+          betaMSE += (betaEstimate - trueFilteredSize) ** 2
+          betaBinomialMSE += (bbMedian - trueFilteredSize) ** 2
+          
+          if (betaCILow <= trueFilteredSize && trueFilteredSize <= betaCIHigh) betaCoverage++
+          if (bbCILow <= trueFilteredSize && trueFilteredSize <= bbCIHigh) betaBinomialCoverage++
+        }
+        
+        results[`n=${n},p=${p},k=${k}`] = {
+          betaMSE: betaMSE / params.numTrials,
+          betaBinomialMSE: betaBinomialMSE / params.numTrials,
+          betaCoverage: betaCoverage / params.numTrials,
+          betaBinomialCoverage: betaBinomialCoverage / params.numTrials
+        }
+      }
+    }
+  }
+  return results
+}
+```
+
+**Expected Outcome**:
+- For $n < 100$: Beta-Binomial should have better coverage and similar/lower MSE
+- For $n > 100$: Negligible difference between the two approaches
+- Crossover point around $n \approx 50-100$
+
+**What Would Falsify**: No significant improvement from Beta-Binomial for small $n$ would suggest the added complexity isn't worthwhile.
+
+---
+
+### Simulation 5: CI Width Formula Validation
+
+**Hypothesis**: CI width for proportion is approximately $\frac{4}{\sqrt{k}}$.
+
+**Algorithm**:
+```typescript
+function validateCIWidthFormula(params: WidthValidationParams): WidthResults {
+  const results: WidthResults = {}
+  
+  for (const p of params.trueProportions) {
+    for (const k of params.sampleSizes) {
+      let totalWidth = 0
+      
+      for (let trial = 0; trial < params.numTrials; trial++) {
+        const s = randomBinomial(k, p)
+        const alpha = 1 + s, beta = 1 + k - s
+        
+        const ciLow = betaInv(0.025, alpha, beta)
+        const ciHigh = betaInv(0.975, alpha, beta)
+        totalWidth += ciHigh - ciLow
+      }
+      
+      const empiricalWidth = totalWidth / params.numTrials
+      const theoreticalWidth = 4 / Math.sqrt(k)
+      
+      results[`p=${p},k=${k}`] = {
+        empirical: empiricalWidth,
+        theoretical: theoreticalWidth,
+        ratio: empiricalWidth / theoreticalWidth
+      }
+    }
+  }
+  return results
+}
+```
+
+**Expected Outcome**:
+- Ratio should be ≈1.0 for moderate $p$ (0.3-0.7)
+- Ratio may deviate for extreme $p$ (0.01, 0.99) since the formula assumes $p \approx 0.5$
+
+**What Would Falsify**: Consistently large deviations (ratio < 0.5 or > 2.0) would indicate the formula is not useful for planning.
+
+---
+
+### Simulation 6: Edge Cases
+
+**Hypothesis**: Edge cases ($s = 0$, $s = k$) are handled correctly.
+
+**Test Cases**:
+
+| Case | $s$ | $k$ | Expected Behavior |
+|------|-----|-----|-------------------|
+| Zero successes | 0 | 10 | Mode = 0, Median ≈ 0.067, CI should not include 0 (barely) |
+| All successes | 10 | 10 | Mode = 1, Median ≈ 0.933, CI should not include 1 (barely) |
+| One success | 1 | 100 | Mode = 0.01, Median ≈ 0.015, CI ≈ [0.002, 0.054] |
+| Near-certain | 99 | 100 | Mode = 0.99, Median ≈ 0.985, CI ≈ [0.946, 0.998] |
+
+**Algorithm**:
+```typescript
+function validateEdgeCases(): EdgeCaseResults {
+  const cases = [
+    { s: 0, k: 10, description: 'zero successes' },
+    { s: 10, k: 10, description: 'all successes' },
+    { s: 1, k: 100, description: 'one success' },
+    { s: 99, k: 100, description: 'near certain' },
+    { s: 0, k: 100, description: 'many failures' },
+    { s: 1, k: 1000, description: 'rare event' }
+  ]
+  
+  return cases.map(({ s, k, description }) => {
+    const alpha = 1 + s, beta = 1 + k - s
+    
+    const mode = (alpha > 1 && beta > 1) 
+      ? (alpha - 1) / (alpha + beta - 2) 
+      : (alpha <= 1 ? 0 : 1)
+    const mean = alpha / (alpha + beta)
+    const median = betaInv(0.5, alpha, beta)
+    const ciLow = betaInv(0.025, alpha, beta)
+    const ciHigh = betaInv(0.975, alpha, beta)
+    
+    return {
+      description,
+      s, k, alpha, beta,
+      mode, mean, median,
+      ci: [ciLow, ciHigh],
+      modeInCI: ciLow <= mode && mode <= ciHigh
+    }
+  })
+}
+```
+
+---
+
+### Simulation 7: Prior Sensitivity Analysis
+
+**Hypothesis**: Posterior converges regardless of prior choice as $k$ increases.
+
+**Priors to Test**:
+
+| Prior | $\alpha_0$ | $\beta_0$ | Interpretation |
+|-------|------------|-----------|----------------|
+| Uninformative | 1 | 1 | Uniform on [0,1] |
+| Jeffreys | 0.5 | 0.5 | Reference prior |
+| Pessimistic | 1 | 10 | Expect low pass rate |
+| Optimistic | 10 | 1 | Expect high pass rate |
+| Concentrated | 5 | 5 | Expect ~50% pass rate |
+
+**Algorithm**:
+```typescript
+function priorSensitivityAnalysis(params: PriorSensitivityParams): SensitivityResults {
+  const priors = [
+    { name: 'uninformative', alpha0: 1, beta0: 1 },
+    { name: 'jeffreys', alpha0: 0.5, beta0: 0.5 },
+    { name: 'pessimistic', alpha0: 1, beta0: 10 },
+    { name: 'optimistic', alpha0: 10, beta0: 1 },
+    { name: 'concentrated', alpha0: 5, beta0: 5 }
+  ]
+  
+  const results: SensitivityResults = {}
+  const trueP = 0.3  // Fixed ground truth
+  
+  for (const k of params.sampleSizes) {
+    for (const prior of priors) {
+      let sumEstimate = 0
+      
+      for (let trial = 0; trial < params.numTrials; trial++) {
+        const s = randomBinomial(k, trueP)
+        const alpha = prior.alpha0 + s
+        const beta = prior.beta0 + k - s
+        sumEstimate += betaInv(0.5, alpha, beta)  // Median
+      }
+      
+      results[`${prior.name},k=${k}`] = {
+        meanEstimate: sumEstimate / params.numTrials,
+        biasFromTrue: (sumEstimate / params.numTrials) - trueP
+      }
+    }
+  }
+  return results
+}
+```
+
+**Expected Outcome**:
+- All priors should converge to similar estimates as $k \to \infty$
+- For small $k$ (< 20), prior choice may significantly affect estimates
+- Jeffreys prior may have best overall properties
+
+**What Would Falsify**: Persistent large differences between priors even for large $k$ would indicate a problem.
+
+---
+
+### Simulation 8: Incremental Update Validation
+
+**Hypothesis**: Sequential Bayesian updates give the same result as batch processing.
+
+This validates that our implementation correctly accumulates evidence:
+
+**Algorithm**:
+```typescript
+function validateIncrementalUpdates(params: IncrementalParams): ValidationResults {
+  const results: ValidationResults = { allMatch: true, discrepancies: [] }
+  
+  for (let trial = 0; trial < params.numTrials; trial++) {
+    const trueP = Math.random()  // Random ground truth
+    const samples = Array.from({ length: params.totalSamples }, () => Math.random() < trueP)
+    
+    // Method 1: Batch - count all at once
+    const totalSuccesses = samples.filter(Boolean).length
+    const batchAlpha = 1 + totalSuccesses
+    const batchBeta = 1 + params.totalSamples - totalSuccesses
+    
+    // Method 2: Incremental - update one at a time
+    let incAlpha = 1, incBeta = 1
+    for (const success of samples) {
+      if (success) incAlpha++
+      else incBeta++
+    }
+    
+    // Compare
+    if (batchAlpha !== incAlpha || batchBeta !== incBeta) {
+      results.allMatch = false
+      results.discrepancies.push({ trial, batch: [batchAlpha, batchBeta], inc: [incAlpha, incBeta] })
+    }
+  }
+  
+  return results
+}
+```
+
+**Expected Outcome**: Perfect match (this validates the implementation, not the math).
+
+---
+
+### Summary: Simulation Test Matrix
+
+| Simulation | Validates | Key Metric | Pass Criterion |
+|------------|-----------|------------|----------------|
+| 1. Coverage | A4, Model correctness | Coverage rate | 0.93–0.97 for 95% CI |
+| 2. Estimator comparison | Recommendation #1 | MSE, MAE, outside-CI rate | Median ≤ Mode on metrics |
+| 3. Mode-outside-CI | Issue #2 | Outside-CI rate | >5% for extreme $p$, small $k$ |
+| 4. Beta vs Beta-Binomial | Recommendation #3 | Coverage, MSE | BB better for $n < 100$ |
+| 5. CI width formula | Planning utility | Empirical/theoretical ratio | 0.7–1.5 for moderate $p$ |
+| 6. Edge cases | Boundary behavior | Correct values | Match analytical expectations |
+| 7. Prior sensitivity | A3 | Convergence | Estimates converge as $k$ → ∞ |
+| 8. Incremental updates | Implementation | Batch = Incremental | 100% match |
+
+### Running the Simulations
+
+A reference implementation should be created in `tests/simulations/filter-arbitrary-validation.ts` with:
+
+1. Configurable parameters for sample sizes, proportions, and trial counts
+2. Statistical tests (e.g., chi-squared for coverage) to determine pass/fail
+3. Visualization outputs (histograms, scatter plots) for manual inspection
+4. CI for simulation results themselves (to account for Monte Carlo error)
+
+**Recommended Default Parameters**:
+```typescript
+const DEFAULT_PARAMS = {
+  trueProportions: [0.01, 0.05, 0.1, 0.3, 0.5, 0.7, 0.9, 0.95, 0.99],
+  sampleSizes: [10, 20, 50, 100, 200, 500],
+  baseSizes: [10, 50, 100, 500, 1000],
+  numTrials: 10000,
+  credibleLevel: 0.95
+}
+```
+
+**Monte Carlo Error**: With 10,000 trials, the standard error for a proportion estimate is approximately $\sqrt{p(1-p)/10000} \approx 0.005$ at $p = 0.5$. This means coverage estimates will have ±1% uncertainty (95% CI).
+
+---
+
 ## References
 
 - Gelman, A., et al. (2013). Bayesian Data Analysis, 3rd Edition
 - Agresti, A., & Coull, B. A. (1998). Approximate is better than "exact" for interval estimation of binomial proportions
+- Brown, L. D., Cai, T. T., & DasGupta, A. (2001). Interval Estimation for a Binomial Proportion. Statistical Science, 16(2), 101-133
 
 ## Next Steps
 
@@ -273,3 +781,5 @@ $$k \approx \frac{16n^2}{w^2}$$
 - [ ] Benchmark CI coverage with simulations
 - [ ] Consider HPD intervals as alternative
 - [ ] Handle edge cases (s=0, s=k)
+- [ ] Implement validation simulations (see above)
+- [ ] Create visualization dashboard for simulation results
