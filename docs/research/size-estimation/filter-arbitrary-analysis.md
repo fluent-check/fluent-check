@@ -52,12 +52,34 @@ The Bayesian model relies on several assumptions that should be validated:
 
 With uninformative prior $\alpha_0 = \beta_0 = 1$ (uniform on [0,1]).
 
+> **Future consideration:** Jeffreys prior $\text{Beta}(0.5, 0.5)$ may provide better small-sample coverage and less shrinkage bias near boundaries. See Brown, Cai, & DasGupta (2001). The current Beta(1,1) is simpler and sufficient for most use cases.
+
 **Likelihood:** $s | p, k \sim \text{Binomial}(k, p)$
 
 **Posterior:** $p | s, k \sim \text{Beta}(\alpha_0 + s, \beta_0 + k - s)$
 
 After observing $s$ successes in $k$ trials:
 $$p | s, k \sim \text{Beta}(1 + s, 1 + k - s)$$
+
+### Special Case: No Samples ($k = 0$)
+
+When no samples have been tested yet, the estimator should return the prior:
+
+| Property | Value at $k = 0$ |
+|----------|------------------|
+| Posterior | Prior itself: $\text{Beta}(1, 1)$ |
+| Point estimate | Median of prior = 0.5 |
+| CI | Prior CI: [0.025, 0.975] |
+
+This represents "we have learned nothing" — maximum uncertainty.
+
+### Asymptotic Requirement
+
+As $k \to \infty$, the estimator must converge to the MLE:
+
+$$\lim_{k \to \infty} \hat{p}_{\text{median}} = \frac{s}{k}$$
+
+This ensures the Bayesian estimator behaves like classical statistics for large samples. The prior's influence vanishes as evidence accumulates.
 
 ## Issue 1: Point Estimator Choice
 
@@ -118,12 +140,21 @@ credibleInterval: [
 ]
 ```
 
-For $\text{Beta}(1, 10)$ (observed 0 successes in 9 trials):
+**Example 1:** $\text{Beta}(1, 10)$ — observed 0 successes in 9 trials ($s = 0$):
 - Mode = 0 (at boundary)
 - 2.5th percentile ≈ 0.003
 - 97.5th percentile ≈ 0.28
 
-**Result:** Point estimate (0) is outside the credible interval!
+**Result:** Point estimate (0) is *below* the credible interval!
+
+**Example 2:** $\text{Beta}(10, 1)$ — observed 9 successes in 9 trials ($s = k$):
+- Mode = 1 (at boundary)
+- 2.5th percentile ≈ 0.72
+- 97.5th percentile ≈ 0.997
+
+**Result:** Point estimate (1) is *above* the credible interval!
+
+Both boundary cases demonstrate the same fundamental issue: mode falls outside equal-tailed CI for skewed distributions.
 
 ### Solutions
 
@@ -156,6 +187,18 @@ credibleInterval: this.sizeEstimation.hpdInterval(0.95)
 ### Recommendation: Option A (Median + Equal-tailed)
 
 Simplest, always consistent, widely understood.
+
+### Rationale: Equal-tailed vs HPD Intervals
+
+| Interval | Pros | Cons |
+|----------|------|------|
+| **Equal-tailed** | Deterministically contains median; direct from quantiles; widely understood | Less efficient (wider) for skewed posteriors |
+| **HPD** | Smallest credible region; contains mode | Harder to compute (requires optimization); less common in engineering tools |
+
+Given the library use-case (engineering simplicity over statistical efficiency), **equal-tailed + median** is the pragmatic choice:
+- No optimization needed—just two quantile evaluations
+- Guarantees point estimate is always inside interval
+- Users intuitively understand percentile-based intervals
 
 ## Issue 3: Beta vs Beta-Binomial
 
@@ -248,6 +291,53 @@ size(): ArbitrarySize {
 | Interval type | Equal-tailed percentiles | Keep (consistent with median) |
 | Distribution | Always Beta | Beta-Binomial when $n < 100$ and exact |
 
+### Implementation Note: Integer Rounding
+
+When converting proportion estimates to counts, **round after computing the quantile, not before**:
+
+```typescript
+// CORRECT: Round the final count estimate
+credibleInterval: [
+  Math.round(n * dist.inv(0.025)),  // ✓ Quantile first, then round
+  Math.round(n * dist.inv(0.975))
+]
+
+// INCORRECT: Don't round the proportion then multiply
+credibleInterval: [
+  n * Math.round(dist.inv(0.025)),  // ✗ Loses precision
+  n * Math.round(dist.inv(0.975))
+]
+```
+
+## Computational Complexity Considerations
+
+### Beta Quantile Computation
+
+The `inv()` function (quantile/inverse CDF) for Beta distribution:
+- Requires computing the **incomplete regularized beta function inverse**
+- Typically implemented via numerical root-finding (Newton-Raphson or bisection)
+- **Complexity:** $O(\log(1/\epsilon))$ iterations for precision $\epsilon$, each iteration $O(1)$
+- Libraries like `jstat` provide optimized implementations
+
+### Beta-Binomial Quantile Computation
+
+More expensive than Beta:
+- Requires iterating over discrete support $\{0, 1, ..., n\}$
+- Current implementation: $O(n)$ for CDF, $O(n \cdot \log n)$ for quantile via binary search
+- For small $n < 100$, this is acceptable
+- **Optimization opportunity:** Precompute CDF table for repeated queries
+
+### Performance Impact
+
+| Operation | Beta | Beta-Binomial ($n < 100$) |
+|-----------|------|---------------------------|
+| Single quantile | ~10μs | ~100μs |
+| Size estimation (3 quantiles) | ~30μs | ~300μs |
+
+For stacked filters like `filter(f).filter(g).filter(h)`, each filter maintains its own estimator. With default settings, this overhead is negligible compared to predicate evaluation.
+
+**Recommendation:** The computational cost is acceptable for the accuracy improvement. Profile if filters are called in tight loops.
+
 ## Credible Interval Width Analysis
 
 For planning sample sizes, the expected width of a 95% CI for proportion $p$:
@@ -275,9 +365,11 @@ $$k \approx \frac{16n^2}{w^2}$$
 
 ---
 
-## Validation of Assumptions through Simulation
+## Appendix: Validation of Assumptions through Simulation
 
 Since we don't have formal methods to verify the mathematical correctness of our Bayesian model, we use Monte Carlo simulations to empirically validate (or falsify) our assumptions and recommendations.
+
+> **Note:** This appendix contains detailed simulation pseudocode. For the core proposal, see the Summary of Recommendations above.
 
 ### Simulation Strategy
 
@@ -779,7 +871,8 @@ const DEFAULT_PARAMS = {
 - [ ] Change point estimator from mode to median
 - [ ] Add Beta-Binomial for small exact domains
 - [ ] Benchmark CI coverage with simulations
-- [ ] Consider HPD intervals as alternative
-- [ ] Handle edge cases (s=0, s=k)
-- [ ] Implement validation simulations (see above)
+- [ ] Handle edge cases (k=0, s=0, s=k)
+- [ ] Implement validation simulations (see Appendix)
 - [ ] Create visualization dashboard for simulation results
+- [ ] Consider Jeffreys prior $\text{Beta}(0.5, 0.5)$ for improved boundary coverage
+- [ ] Profile quantile computation for performance-critical paths
