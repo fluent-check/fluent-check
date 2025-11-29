@@ -98,6 +98,7 @@ Given the excellent baseline performance, optimization priorities should focus o
 - **Impact**: When a property test fails, FluentCheck generates a "shrink tree" — a lazy data structure containing progressively smaller counterexamples. For deeply nested arbitraries (e.g., arrays of records containing arrays), this tree can become large and expensive to traverse.
 - **Potential**: Currently shrink trees are constructed eagerly when `shrink()` is called. Moving to fully lazy construction (generators/iterators that compute children on-demand) could reduce memory allocations and speed up shrinking for complex types.
 - **ROI**: Medium - primarily benefits users with complex domain models or deeply nested data structures. Most simple property tests won't see improvement.
+- **Proposal**: [#452](https://github.com/fluent-check/fluent-check/issues/452) - Refactor shrink trees to lazy generator-based construction
 - **Related Issues**:
   - [#434](https://github.com/fluent-check/fluent-check/issues/434) - Research: Integrated Shrinking Approach (Hypothesis/Hedgehog)
   - [#138](https://github.com/fluent-check/fluent-check/issues/138) - Shrinking mapped tuples sometimes fails with timeout
