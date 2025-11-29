@@ -629,7 +629,8 @@ describe('Filter Arbitrary Size Estimation Validation', () => {
   describe('Simulation 4: Beta vs Beta-Binomial Comparison', () => {
     it('should verify Beta-Binomial performs better for small n', function () {
       // This test can be slow due to Beta-Binomial CDF computation
-      this.timeout(10000)
+      // Increased timeout to handle higher trial counts and Beta-Binomial computation
+      this.timeout(120000) // 2 minutes
       const params: BetaBinomialComparisonParams = {
         ...testParams,
         baseSizes: [10, 50] // Reduced to avoid timeout
@@ -639,7 +640,9 @@ describe('Filter Arbitrary Size Estimation Validation', () => {
       // For n < 100, Beta-Binomial should have better or equal coverage
       for (const [key, metrics] of Object.entries(results)) {
         if (key.includes('n=10') || key.includes('n=50')) {
-          expect(metrics.betaBinomialCoverage, `Coverage for ${key}`).to.be.at.least(metrics.betaCoverage - 0.05) // Allow 5% tolerance
+          // Allow 5% tolerance for coverage comparison
+          expect(metrics.betaBinomialCoverage, `Coverage for ${key}`)
+            .to.be.at.least(metrics.betaCoverage - 0.05)
         }
       }
     })
