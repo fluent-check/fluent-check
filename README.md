@@ -385,6 +385,20 @@ For more details on each feature, check out our detailed documentation:
 - [Chained Type Inference](docs/chained-type-inference.md)
 - [Corner Case Prioritization](docs/corner-case-prioritization.md)
 
+### Performance Analysis
+
+FluentCheck includes profiling tools and performance documentation for contributors:
+
+- [Performance Baseline Report](docs/performance/baseline-report.md) - Executive summary and optimization roadmap
+- [CPU Profile Analysis](docs/performance/cpu-profile.md) - Detailed CPU profiling methodology and findings
+- [Memory Profile Analysis](docs/performance/memory-profile.md) - Heap and GC analysis
+
+Run profiling locally:
+```bash
+npm run profile:cpu   # Generate flame graphs and CPU profiles
+npm run profile:heap  # Generate heap profiles and GC traces
+```
+
 ### Date & Time Testing
 
 FluentCheck provides arbitraries for dates, times, and durations:
