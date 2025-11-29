@@ -19,7 +19,9 @@
     "lint:fix": "eslint src test --fix",
     "test": "mocha",
     "prepare": "husky && tsc",
-    "coverage": "nyc mocha -reporter=min -r source-map-support"
+    "coverage": "nyc mocha -reporter=min -r source-map-support",
+    "profile:cpu": "./scripts/profile-cpu.sh",
+    "profile:heap": "./scripts/profile-heap.sh"
   },
   "keywords": [
     "testing",
@@ -41,6 +43,7 @@
     "@types/mocha": "^10.0.10",
     "@typescript-eslint/eslint-plugin": "^8.48.0",
     "@typescript-eslint/parser": "^8.48.0",
+    "0x": "^6.0.0",
     "chai": "^6.2.1",
     "eslint": "^9.39.1",
     "globals": "^16.5.0",
