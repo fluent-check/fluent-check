@@ -25,7 +25,8 @@
  * Check if an array is sorted according to a comparator.
  *
  * @param arr - The array to check
- * @param comparator - Optional comparator function. Defaults to numeric ascending order.
+ * @param comparator - Optional comparator function. Defaults to ascending order using `<` and `>` operators,
+ *                     which works for numbers (numeric order) and strings (lexicographic order).
  * @returns `true` if the array is sorted according to the comparator
  *
  * @example
@@ -33,13 +34,14 @@
  * fc.props.sorted([1, 2, 3])  // true
  * fc.props.sorted([3, 2, 1])  // false
  * fc.props.sorted([3, 2, 1], (a, b) => b - a)  // true (descending)
- * fc.props.sorted(['a', 'b', 'c'], (a, b) => a.localeCompare(b))  // true
+ * fc.props.sorted(['a', 'b', 'c'])  // true (lexicographic)
+ * fc.props.sorted(['b', 'a'])  // false
  * ```
  */
 export function sorted<T>(arr: readonly T[], comparator?: (a: T, b: T) => number): boolean {
   if (arr.length <= 1) return true
 
-  const cmp = comparator ?? ((a: T, b: T) => (a as number) - (b as number))
+  const cmp = comparator ?? ((a: T, b: T) => (a < b ? -1 : a > b ? 1 : 0))
 
   for (let i = 1; i < arr.length; i++) {
     if (cmp(arr[i - 1], arr[i]) > 0) return false

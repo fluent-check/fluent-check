@@ -151,6 +151,20 @@ describe('Property Helpers (fc.props)', () => {
       expect(fc.props.sorted(['apple', 'banana', 'cherry'], (a, b) => a.localeCompare(b))).to.be.true
     })
 
+    // Regression tests: default comparator should work with strings (lexicographic)
+    // Previously, the default comparator used subtraction which produced NaN for strings,
+    // causing sorted(['b', 'a']) to incorrectly return true
+    it('should work with strings using default comparator (lexicographic)', () => {
+      expect(fc.props.sorted(['a', 'b', 'c'])).to.be.true
+      expect(fc.props.sorted(['apple', 'banana', 'cherry'])).to.be.true
+    })
+
+    it('should return false for unsorted strings without custom comparator', () => {
+      expect(fc.props.sorted(['b', 'a'])).to.be.false
+      expect(fc.props.sorted(['z', 'a', 'm'])).to.be.false
+      expect(fc.props.sorted(['cherry', 'apple', 'banana'])).to.be.false
+    })
+
     it('should work in scenario .then() clause', () => {
       fc.scenario()
         .forall('arr', fc.array(fc.integer(-100, 100)))
