@@ -391,6 +391,53 @@ For stacked filters like `filter(f).filter(g).filter(h)`, each filter maintains 
 
 **Recommendation:** The computational cost is acceptable for the accuracy improvement at $n < 20$. The linear scaling is why the threshold was revised from $n < 100$.
 
+### Implementation Note: Integer Rounding
+
+When converting proportion estimates to counts, **round after computing the quantile, not before**:
+
+```typescript
+// CORRECT: Round the final count estimate
+credibleInterval: [
+  Math.round(n * dist.inv(0.025)),  // ✓ Quantile first, then round
+  Math.round(n * dist.inv(0.975))
+]
+
+// INCORRECT: Don't round the proportion then multiply
+credibleInterval: [
+  n * Math.round(dist.inv(0.025)),  // ✗ Loses precision
+  n * Math.round(dist.inv(0.975))
+]
+```
+
+## Computational Complexity Considerations
+
+### Beta Quantile Computation
+
+The `inv()` function (quantile/inverse CDF) for Beta distribution:
+- Requires computing the **incomplete regularized beta function inverse**
+- Typically implemented via numerical root-finding (Newton-Raphson or bisection)
+- **Complexity:** $O(\log(1/\epsilon))$ iterations for precision $\epsilon$, each iteration $O(1)$
+- Libraries like `jstat` provide optimized implementations
+
+### Beta-Binomial Quantile Computation
+
+More expensive than Beta:
+- Requires iterating over discrete support $\{0, 1, ..., n\}$
+- Current implementation: $O(n)$ for CDF, $O(n \cdot \log n)$ for quantile via binary search
+- For small $n < 100$, this is acceptable
+- **Optimization opportunity:** Precompute CDF table for repeated queries
+
+### Performance Impact
+
+| Operation | Beta | Beta-Binomial ($n < 100$) |
+|-----------|------|---------------------------|
+| Single quantile | ~10μs | ~100μs |
+| Size estimation (3 quantiles) | ~30μs | ~300μs |
+
+For stacked filters like `filter(f).filter(g).filter(h)`, each filter maintains its own estimator. With default settings, this overhead is negligible compared to predicate evaluation.
+
+**Recommendation:** The computational cost is acceptable for the accuracy improvement. Profile if filters are called in tight loops.
+
 ## Credible Interval Width Analysis
 
 For planning sample sizes, the expected width of a 95% CI for proportion $p$:
@@ -424,6 +471,8 @@ The following Monte Carlo simulations were implemented in [PR #463](https://gith
 
 > **Implementation:** `test/simulations/filter-arbitrary-validation.ts`
 > **Results:** See [PR #463 comments](https://github.com/fluent-check/fluent-check/pull/463) for detailed analysis with up to 1,000,000 trials.
+
+> **Note:** This appendix contains detailed simulation pseudocode. For the core proposal, see the Summary of Recommendations above.
 
 ### Simulation Strategy
 
