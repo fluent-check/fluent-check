@@ -7,8 +7,10 @@
  * Based on the analysis document: docs/research/size-estimation/mapped-arbitrary-analysis.md
  */
 
-import {describe, it} from 'mocha'
+import {describe, it, before, after} from 'mocha'
 import {expect} from 'chai'
+import {writeFileSync} from 'node:fs'
+import path from 'node:path'
 
 // ============================================================================
 // Configuration and Default Parameters
@@ -20,6 +22,37 @@ interface SimulationParams {
   sampleSizes: number[]
   numTrials: number
   targetAccuracy: number
+}
+
+interface SummaryEntry {
+  simulation: string
+  passed: boolean
+  details: string
+}
+
+interface CsvRow {
+  simulation: string
+  config: string
+  metric: string
+  value: string
+}
+
+const summaryEntries: SummaryEntry[] = []
+const csvRows: CsvRow[] = []
+
+function recordSummary(simulation: string, passed: boolean, details: string): void {
+  summaryEntries.push({simulation, passed, details})
+}
+
+function recordCsv(simulation: string, config: string, metrics: Record<string, number | string>): void {
+  for (const [metric, value] of Object.entries(metrics)) {
+    csvRows.push({
+      simulation,
+      config,
+      metric,
+      value: typeof value === 'number' ? value.toString() : value
+    })
+  }
 }
 
 interface BirthdayComparisonParams extends SimulationParams {
@@ -240,8 +273,8 @@ interface SampleSizeResults {
 function validateSampleSizeFormula(params: SimulationParams): SampleSizeResults {
   const results: SampleSizeResults = {}
   const rng = mulberry32(123)
-  const multipliers = [5, 10, 20, 50]
-  const kMax = 2000
+  const multipliers = [5, 10, 20, 40]
+  const kMax = 4000
 
   for (const n of params.domainSizes) {
     for (const ratio of params.codomainRatios) {
@@ -668,94 +701,93 @@ describe('Mapped Arbitrary Size Estimation Validation', () => {
   // (when trueM < sample size k, it overestimates significantly)
   // We focus on larger domain sizes where the estimator works well
   const testParams: SimulationParams = {
-    domainSizes: [1000, 10000],
+    domainSizes: [10000],
     codomainRatios: [0.1, 0.3, 0.5, 0.7, 0.9],
-    sampleSizes: [100, 200],
-    numTrials: 500, // Reduced for faster tests
+    sampleSizes: [500, 1000, 2000],
+    numTrials: 200, // Reduced for faster tests while keeping statistical power
     targetAccuracy: 0.20
   }
 
-  // Helper to check if a parameter combination is "extreme" (small absolute codomain)
-  const isSmallCodomain = (n: number, ratio: number, k: number): boolean => {
-    const trueM = Math.round(n * ratio)
-    // Codomain is "small" if it's smaller than sample size (will be fully saturated)
-    return trueM < k
-  }
-
   describe('Simulation 1: Fraction Estimator Accuracy', () => {
-    it('should produce bounded estimates for all parameter combinations', function () {
-      this.timeout(30000) // Allow more time for simulation
-      const results = simulateFractionEstimator(testParams)
+    let results: FractionEstimatorResults
 
-      // Key validation: all estimates should be bounded and positive
-      for (const [_key, result] of Object.entries(results)) {
-        expect(result.meanEstimate, 'Mean estimate should be positive').to.be.at.least(1)
-        // Estimate should not exceed domain size (bounded)
-        expect(result.rmse, 'RMSE should be finite').to.be.finite
+    before(function () {
+      this.timeout(60000)
+      results = simulateFractionEstimator(testParams)
+      for (const [key, result] of Object.entries(results)) {
+        recordCsv('Simulation 1', key, {
+          trueM: result.trueM,
+          meanEstimate: result.meanEstimate,
+          relativeError: result.relativeError,
+          coverage: result.coverage
+        })
       }
-
-      // Document: the fraction estimator has high error for small codomains
-      // This is expected behavior per the analysis document
     })
 
-    it('should show that large codomains have better coverage than small ones', function () {
-      this.timeout(30000)
-      const results = simulateFractionEstimator(testParams)
-
-      // Group results by whether codomain is "large" (trueM > k)
-      const largeCoverages: number[] = []
-      const smallCoverages: number[] = []
+    it('meets accuracy and coverage requirements for moderate codomain ratios', () => {
+      const failures: string[] = []
+      const skipped: string[] = []
 
       for (const [key, result] of Object.entries(results)) {
         const nMatch = key.match(/n=(\d+)/)
         const ratioMatch = key.match(/ratio=([\d.]+)/)
         const kMatch = key.match(/k=(\d+)/)
 
-        if (nMatch !== null && ratioMatch !== null && kMatch !== null) {
-          const n = parseInt(nMatch[1])
-          const ratio = parseFloat(ratioMatch[1])
-          const k = parseInt(kMatch[1])
+        if (nMatch === null || ratioMatch === null || kMatch === null) continue
 
-          if (isSmallCodomain(n, ratio, k)) {
-            smallCoverages.push(result.coverage)
-          } else {
-            largeCoverages.push(result.coverage)
-          }
+        const ratio = parseFloat(ratioMatch[1])
+        const k = parseInt(kMatch[1])
+
+        if (ratio < 0.1 || ratio > 0.9) continue
+        if (result.trueM < k) {
+          skipped.push(`${key} (trueM=${result.trueM} < k=${k})`)
+          continue
+        }
+
+        if (result.relativeError >= 0.2) {
+          failures.push(`${key} relative error ${(result.relativeError * 100).toFixed(1)}%`)
+        }
+        if (result.coverage < 0.8) {
+          failures.push(`${key} coverage ${(result.coverage * 100).toFixed(1)}%`)
         }
       }
 
-      // Document the coverage patterns
-      // Large codomains typically have better coverage than small ones
-      const avgLarge = largeCoverages.length > 0
-        ? largeCoverages.reduce((a, b) => a + b, 0) / largeCoverages.length
-        : 0
-      const avgSmall = smallCoverages.length > 0
-        ? smallCoverages.reduce((a, b) => a + b, 0) / smallCoverages.length
-        : 0
-
-      // Just verify we got results for both categories
-      expect(largeCoverages.length + smallCoverages.length, 'Should have coverage data').to.be.greaterThan(0)
-      // Coverage values should be valid probabilities
-      for (const cov of [...largeCoverages, ...smallCoverages]) {
-        expect(cov, 'Coverage should be valid probability').to.be.at.least(0)
-        expect(cov, 'Coverage should be valid probability').to.be.at.most(1)
+      const passed = failures.length === 0
+      const detailParts = []
+      if (passed) {
+        detailParts.push('All moderate ratios <20% error with ≥80% coverage')
+      } else {
+        detailParts.push(`Failures: ${failures.join('; ')}`)
       }
+      if (skipped.length > 0) {
+        detailParts.push(`Skipped saturated codomains: ${skipped.join('; ')}`)
+      }
+      recordSummary('Simulation 1', passed, detailParts.join(' | '))
 
-      // Log for informational purposes (these are the key findings)
-      console.log(`    Large codomain avg coverage: ${(avgLarge * 100).toFixed(1)}%`)
-      console.log(`    Small codomain avg coverage: ${(avgSmall * 100).toFixed(1)}%`)
+      expect(
+        passed,
+        `Moderate codomain ratios violated thresholds:\n${failures.join('\n')}`
+      ).to.be.true
     })
   })
 
   describe('Simulation 2: Sample Size Adequacy', () => {
-    it('should produce valid accuracy metrics for all sample size configurations', function () {
-      this.timeout(30000)
-      const results = validateSampleSizeFormula(testParams)
+    let results: SampleSizeResults
+    let meanAccuracy: Record<number, number>
 
-      // Compare accuracy rates across multipliers
+    before(function () {
+      this.timeout(60000)
+      results = validateSampleSizeFormula(testParams)
+      meanAccuracy = {}
       const accuracyByMultiplier: Record<number, number[]> = {}
 
       for (const [key, result] of Object.entries(results)) {
+        recordCsv('Simulation 2', key, {
+          k: result.k,
+          meanRelativeError: result.meanRelativeError,
+          accuracyRate: result.accuracyRate
+        })
+
         const multMatch = key.match(/mult=(\d+)/)
         if (multMatch !== null) {
           const mult = parseInt(multMatch[1])
@@ -764,24 +796,44 @@ describe('Mapped Arbitrary Size Estimation Validation', () => {
         }
       }
 
-      // Calculate mean accuracy for each multiplier
-      const meanAccuracy: Record<number, number> = {}
       for (const [mult, rates] of Object.entries(accuracyByMultiplier)) {
         meanAccuracy[parseInt(mult)] = rates.reduce((a, b) => a + b, 0) / rates.length
       }
+    })
 
-      // Verify all accuracy rates are valid
-      const multipliers = Object.keys(meanAccuracy).map(Number).sort((a, b) => a - b)
-      for (const mult of multipliers) {
-        expect(meanAccuracy[mult], `Accuracy for mult=${mult}`).to.be.at.least(0)
-        expect(meanAccuracy[mult], `Accuracy for mult=${mult}`).to.be.at.most(1)
-      }
+    it('ensures k = 20√n hits ≥70% accuracy and additional samples have diminishing returns', () => {
+      const formulaAccuracy = meanAccuracy[20]
+      expect(
+        formulaAccuracy,
+        'Mean accuracy for multiplier 20 should be defined'
+      ).to.not.equal(undefined)
+      const formulaAccuracyValue = formulaAccuracy as number
+      const meetsAccuracy = formulaAccuracyValue >= 0.7
 
-      // Log findings - the relationship between sample size and accuracy depends on codomain
-      console.log('    Mean accuracy by sample size multiplier:')
-      for (const mult of multipliers) {
-        console.log(`      mult=${mult}: ${(meanAccuracy[mult] * 100).toFixed(1)}%`)
-      }
+      const largerMultiplier = meanAccuracy[40]
+      expect(
+        largerMultiplier,
+        'Mean accuracy for multiplier 40 should be defined'
+      ).to.not.equal(undefined)
+      const largerMultiplierValue = largerMultiplier as number
+      const deltaAccuracy = largerMultiplierValue - formulaAccuracyValue
+      const plateauDetected = deltaAccuracy <= 0.05
+
+      recordSummary(
+        'Simulation 2',
+        meetsAccuracy && plateauDetected,
+        `k=20√n avg accuracy ${(formulaAccuracyValue * 100).toFixed(1)}%; Δaccuracy @40√n ${(deltaAccuracy * 100).toFixed(1)}%`
+      )
+
+      expect(
+        meetsAccuracy,
+        `Accuracy for k = 20√n must be ≥70% but was ${(formulaAccuracyValue * 100).toFixed(1)}%`
+      ).to.be.true
+
+      expect(
+        plateauDetected,
+        'Accuracy gains beyond 20√n should be ≤5 percentage points'
+      ).to.be.true
     })
   })
 
@@ -816,58 +868,67 @@ describe('Mapped Arbitrary Size Estimation Validation', () => {
         expect(balanced.meanEstimate, 'Balanced estimate').to.be.at.most(params.domainSize)
         expect(skewed.meanEstimate, 'Skewed estimate').to.be.at.most(params.domainSize)
       }
+
+      recordSummary(
+        'Simulation 3',
+        true,
+        'Skewed codomains reduce effective distinct counts as expected'
+      )
     })
   })
 
   describe('Simulation 4: Birthday Paradox Comparison', () => {
-    it('should compare fraction and birthday estimators across parameter space', function () {
-      this.timeout(30000)
-      const results = compareBirthdayVsFraction(testParams)
+    let results: BirthdayComparisonResults
 
-      let total = 0
-      let fractionWins = 0
-
+    before(function () {
+      this.timeout(60000)
+      results = compareBirthdayVsFraction(testParams)
       for (const [key, result] of Object.entries(results)) {
-        const nMatch = key.match(/n=(\d+)/)
-        const ratioMatch = key.match(/ratio=([\d.]+)/)
-        const kMatch = key.match(/k=(\d+)/)
-
-        if (nMatch !== null && ratioMatch !== null && kMatch !== null) {
-          // Count all cases
-          total++
-          if (result.fractionBetter) fractionWins++
-
-          // Verify results are valid
-          expect(result.fractionRMSE, `Fraction RMSE for ${key}`).to.be.finite
-          expect(result.birthdayRMSE, `Birthday RMSE for ${key}`).to.be.finite
-        }
+        recordCsv('Simulation 4', key, {
+          fractionRMSE: result.fractionRMSE,
+          birthdayRMSE: result.birthdayRMSE,
+          birthdayExplodedRate: result.birthdayExplodedRate,
+          birthdayUnstableRate: result.birthdayUnstableRate
+        })
       }
-
-      // Document the comparison - both estimators have different strengths
-      const winRate = total > 0 ? fractionWins / total : 0
-      console.log(`    Fraction wins: ${(winRate * 100).toFixed(1)}% of ${total} cases`)
-
-      // Both estimators should produce finite results
-      expect(total, 'Should have comparison data').to.be.greaterThan(0)
     })
 
-    it('should demonstrate birthday estimator explosion/instability for large codomains', function () {
-      this.timeout(30000)
-      const results = compareBirthdayVsFraction(testParams)
+    it('prefers fraction estimator in ≥60% of cases and reports birthday instability', () => {
+      const total = Object.keys(results).length
+      expect(total, 'Should have comparison data').to.be.greaterThan(0)
 
-      // For large codomain ratios (0.9), birthday should have high explosion/instability
-      let foundHighInstability = false
+      let fractionWins = 0
+      let explosionSum = 0
+      let instabilitySum = 0
 
-      for (const [key, result] of Object.entries(results)) {
-        if (key.includes('ratio=0.9')) {
-          // Either exploded or unstable rate should be significant
-          if (result.birthdayExplodedRate > 0.1 || result.birthdayUnstableRate > 0.1) {
-            foundHighInstability = true
-          }
-        }
+      for (const result of Object.values(results)) {
+        if (result.fractionBetter) fractionWins++
+        explosionSum += result.birthdayExplodedRate
+        instabilitySum += result.birthdayUnstableRate
       }
 
-      expect(foundHighInstability, 'Birthday should be unstable for large codomains').to.be.true
+      const winRate = fractionWins / total
+      const avgExplosion = explosionSum / total
+      const avgInstability = instabilitySum / total
+
+      const meetsWinTarget = winRate >= 0.6
+      const instabilityObserved = avgExplosion > 0 && avgInstability > 0
+
+      recordSummary(
+        'Simulation 4',
+        meetsWinTarget && instabilityObserved,
+        `Fraction win rate ${(winRate * 100).toFixed(1)}%; birthday explosion ${(avgExplosion * 100).toFixed(1)}%; instability ${(avgInstability * 100).toFixed(1)}%`
+      )
+
+      expect(
+        meetsWinTarget,
+        `Fraction estimator win rate ${(winRate * 100).toFixed(1)}% must be ≥60%`
+      ).to.be.true
+
+      expect(
+        instabilityObserved,
+        'Birthday estimator should exhibit non-zero explosion and instability rates'
+      ).to.be.true
     })
   })
 
@@ -880,6 +941,14 @@ describe('Mapped Arbitrary Size Estimation Validation', () => {
         200,
         100
       )
+
+      for (const [key, result] of Object.entries(results)) {
+        recordCsv('Simulation 5', key, {
+          enumTime: result.enumTime,
+          sampleTime: result.sampleTime,
+          sampleError: result.sampleError
+        })
+      }
 
       // Enumeration should be faster for small n, slower for large n
       const n100 = results['n=100,ratio=0.5']
@@ -896,61 +965,55 @@ describe('Mapped Arbitrary Size Estimation Validation', () => {
         expect(n100.enumResult, 'Enum result for n=100').to.equal(n100.trueM)
         expect(n10000.enumResult, 'Enum result for n=10000').to.equal(n10000.trueM)
       }
+
+      recordSummary(
+        'Simulation 5',
+        true,
+        'Enumeration produces exact counts; sampling slower but approximate for large n'
+      )
     })
   })
 
   describe('Simulation 6: Edge Cases & Pathological Functions', () => {
-    it('should handle constant function exactly', function () {
-      this.timeout(5000)
-      const results = validateEdgeCases(10000, 500, 500)
+    let edgeResults: EdgeCaseResult[]
 
-      const constant = results.find(r => r.name === 'constant')
+    before(function () {
+      this.timeout(30000)
+      edgeResults = validateEdgeCases(10000, 500, 500)
+      for (const result of edgeResults) {
+        recordCsv('Simulation 6', result.name, {
+          trueM: result.trueM,
+          meanEstimate: result.meanEstimate,
+          relativeError: result.relativeError
+        })
+      }
+    })
+
+    it('meets deterministic edge-case requirements', () => {
+      const constant = edgeResults.find(r => r.name === 'constant')
+      const binary = edgeResults.find(r => r.name === 'binary')
+      const identity = edgeResults.find(r => r.name === 'identity')
+      const nearBijective = edgeResults.find(r => r.name === 'near-bijective')
+
       expect(constant, 'Constant result should exist').to.not.be.undefined
-      if (constant !== undefined) {
-        expect(constant.dAlwaysCorrect, 'Constant: d always equals 1').to.be.true
-        expect(constant.trueM).to.equal(1)
-      }
-    })
-
-    it('should handle binary function exactly', function () {
-      this.timeout(5000)
-      const results = validateEdgeCases(10000, 500, 500)
-
-      const binary = results.find(r => r.name === 'binary')
       expect(binary, 'Binary result should exist').to.not.be.undefined
-      if (binary !== undefined) {
-        expect(binary.dAlwaysCorrect, 'Binary: d always equals 2').to.be.true
-        expect(binary.trueM).to.equal(2)
-      }
-    })
-
-    it('should handle identity function with acceptable underestimation', function () {
-      this.timeout(5000)
-      const results = validateEdgeCases(10000, 500, 500)
-
-      const identity = results.find(r => r.name === 'identity')
       expect(identity, 'Identity result should exist').to.not.be.undefined
-      if (identity !== undefined) {
-        // Identity (bijective) will underestimate due to birthday collision effect
-        // ~5% underestimation is acceptable per analysis doc
-        expect(identity.meanEstimate, 'Identity estimate').to.be.at.least(identity.trueM * 0.85)
-      }
-    })
+      expect(nearBijective, 'Near-bijective result should exist').to.not.be.undefined
 
-    it('should document estimation errors across edge cases', function () {
-      this.timeout(5000)
-      const results = validateEdgeCases(10000, 500, 500)
+      const identityResult = identity as EdgeCaseResult
 
-      // Document the errors for each edge case
-      console.log('    Edge case estimation ratios (estimate/true):')
-      for (const result of results) {
-        const ratio = result.meanEstimate / result.trueM
-        console.log(`      ${result.name}: ${ratio.toFixed(2)}x (true=${result.trueM}, est=${result.meanEstimate})`)
+      expect((constant as EdgeCaseResult).dAlwaysCorrect, 'Constant: d = 1').to.be.true
+      expect((binary as EdgeCaseResult).dAlwaysCorrect, 'Binary: d = 2').to.be.true
+      expect(identityResult.meanEstimate, 'Identity estimate')
+        .to.be.at.least(identityResult.trueM * 0.9)
+      expect((nearBijective as EdgeCaseResult).meanEstimate, 'Near-bijective estimate')
+        .to.be.at.least((nearBijective as EdgeCaseResult).trueM * 0.9)
 
-        // All estimates should be positive and bounded
-        expect(result.meanEstimate, `${result.name} estimate`).to.be.at.least(1)
-        expect(result.meanEstimate, `${result.name} estimate`).to.be.at.most(10000)
-      }
+      recordSummary(
+        'Simulation 6',
+        true,
+        'Deterministic codomains retain exact d and bijective maps stay within 10% of truth'
+      )
     })
   })
 
@@ -958,6 +1021,13 @@ describe('Mapped Arbitrary Size Estimation Validation', () => {
     it('should demonstrate that composition estimates are bounded', function () {
       this.timeout(10000)
       const result = validateChainedMaps(10000, 500, 500)
+
+      recordCsv('Simulation 7', 'n=10000,k=500', {
+        directEstimate: result.directEstimate,
+        chainedEstimate: result.chainedEstimate,
+        directError: result.directError,
+        chainedError: result.chainedError
+      })
 
       // The composed function maps to a codomain of size 10
       // With the fraction estimator, small codomains are overestimated
@@ -975,43 +1045,98 @@ describe('Mapped Arbitrary Size Estimation Validation', () => {
       console.log(`    True composed size: ${result.trueComposedSize}`)
       console.log(`    Direct estimate: ${result.directEstimate}`)
       console.log(`    Chained estimate: ${result.chainedEstimate}`)
+
+      recordSummary(
+        'Simulation 7',
+        true,
+        'Composed estimators remain bounded despite saturation effects'
+      )
     })
   })
 
   describe('Simulation 8: Cluster Mapping (Step Functions)', () => {
-    it('should verify cluster mapping estimates are bounded', function () {
-      this.timeout(10000)
-      const params: ClusterMappingParams = {
-        domainSize: 10000,
-        clusterSizes: [10, 100, 1000],
-        sampleSize: 500,
-        numTrials: 500
-      }
-      const results = validateClusterMapping(params)
+    let clusterResults: ClusterResults
+    let biasResult: BiasComparisonResult
+    const clusterParams: ClusterMappingParams = {
+      domainSize: 10000,
+      clusterSizes: [10, 100, 1000],
+      sampleSize: 500,
+      numTrials: 500
+    }
 
-      console.log('    Cluster mapping estimation results:')
-      for (const [key, result] of Object.entries(results)) {
-        // Estimates should be positive and bounded
-        expect(result.meanEstimate, 'Mean estimate').to.be.at.least(1)
-        expect(result.meanEstimate, 'Mean estimate').to.be.at.most(params.domainSize)
-
-        const ratio = result.meanEstimate / result.trueM
-        console.log(`      ${key}: true=${result.trueM}, est=${result.meanEstimate}, ratio=${ratio.toFixed(2)}x`)
+    before(function () {
+      this.timeout(30000)
+      clusterResults = validateClusterMapping(clusterParams)
+      for (const [key, result] of Object.entries(clusterResults)) {
+        recordCsv('Simulation 8', key, {
+          trueM: result.trueM,
+          meanEstimate: result.meanEstimate,
+          relativeError: result.relativeError
+        })
       }
+
+      biasResult = validateUniformVsBiased(10000, 500, 1000, 500)
+      recordCsv('Simulation 8', 'bias-comparison', {
+        uniformEstimate: biasResult.uniformEstimate,
+        biasedEstimate: biasResult.biasedEstimate,
+        uniformError: biasResult.uniformError,
+        biasedError: biasResult.biasedError
+      })
     })
 
-    it('should demonstrate biased sampling degrades accuracy', function () {
-      this.timeout(10000)
-      const result = validateUniformVsBiased(10000, 500, 1000, 500)
+    it('keeps uniform sampling <20% error and shows biased degradation', () => {
+      const failures: string[] = []
+      for (const [key, result] of Object.entries(clusterResults)) {
+        if (result.relativeError >= 0.2) {
+          failures.push(`${key} relative error ${(result.relativeError * 100).toFixed(1)}%`)
+        }
+      }
 
-      // Both should produce positive, bounded estimates
-      expect(result.uniformEstimate, 'Uniform estimate').to.be.at.least(1)
-      expect(result.biasedEstimate, 'Biased estimate').to.be.at.least(1)
-      expect(result.uniformEstimate, 'Uniform estimate').to.be.at.most(10000)
-      expect(result.biasedEstimate, 'Biased estimate').to.be.at.most(10000)
+      const uniformAccurate = failures.length === 0
+      const biasWorse = biasResult.biasedError > biasResult.uniformError
 
-      // The key insight: biased sampling CAN degrade accuracy
-      // Both estimates should exist and be in reasonable range
+      recordSummary(
+        'Simulation 8',
+        uniformAccurate && biasWorse,
+        `Uniform max error ${(Math.max(...Object.values(clusterResults).map(r => r.relativeError)) * 100).toFixed(1)}%; bias error ${(biasResult.biasedError * 100).toFixed(1)}%`
+      )
+
+      expect(
+        uniformAccurate,
+        `Uniform sampling exceeded 20% error:\n${failures.join('\n')}`
+      ).to.be.true
+
+      expect(
+        biasWorse,
+        'Biased sampling should have larger error than uniform sampling'
+      ).to.be.true
     })
   })
+})
+
+after(() => {
+  if (summaryEntries.length > 0) {
+    console.log('\nSimulation Summary')
+    console.log('==================')
+    for (const entry of summaryEntries) {
+      console.log(
+        `${entry.simulation}: ${entry.passed ? 'PASS' : 'FAIL'} – ${entry.details}`
+      )
+    }
+  }
+
+  if (csvRows.length > 0) {
+    const csvPath = path.resolve('test', 'simulations', 'mapped-arbitrary-results.csv')
+    const header = 'simulation,config,metric,value'
+    const lines = csvRows.map(row =>
+      [
+        row.simulation,
+        `"${row.config}"`,
+        row.metric,
+        row.value
+      ].join(',')
+    )
+    writeFileSync(csvPath, [header, ...lines].join('\n'), 'utf8')
+    console.log(`Simulation metrics exported to ${path.relative(process.cwd(), csvPath)}`)
+  }
 })

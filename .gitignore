@@ -5,6 +5,7 @@ src/notebook*.ts
 coverage
 .nyc_output
 .DS_Store
+test/simulations/mapped-arbitrary-results.csv
 
 # Profiling artifacts
 profiles/
