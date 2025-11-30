@@ -722,73 +722,150 @@ holds when $|C_g|$ is computed with respect to the intermediate `arb.map(f)`.
 
 ## Empirical Validation Summary
 
-The recommendations in this document have been empirically validated through Monte Carlo simulations in [PR #468](https://github.com/fluent-check/fluent-check/pull/468). Run the simulations with:
+All recommendations in this document are now enforced by the Monte Carlo suite introduced in [PR #468](https://github.com/fluent-check/fluent-check/pull/468). Run the simulations with:
 
 ```bash
 npm run simulate:mapped-arbitrary
 ```
 
-### Questions and Answers
+> **Current status (run on `pr-468@500f53e`, January 2025):** the suite fails in 4/8 simulations. The failures are informative—they quantify where the estimator breaks down and guide remediation.
 
-**Q1: Is the fraction estimator accurate for moderate codomain ratios?**
+### Latest Findings
 
-**Partially.** The estimator performs well when the true codomain size exceeds the sample size ($m > k$), achieving ~2% relative error for near-bijective functions. However, accuracy degrades significantly for small codomains:
+#### Q1: Is the fraction estimator accurate for moderate codomain ratios?
 
-| Codomain Size (relative to k) | Observed Behavior |
-|-------------------------------|-------------------|
-| **Large ($m > k$)** | ~2% error — suitable for heuristic use |
-| **Moderate ($m \approx k$)** | 2x-8x overestimation |
-| **Small ($m < k$)** | 7x-20x overestimation (codomain saturation) |
+**No.** Once we require the spec’s `<20% error & ≥80% Wilson coverage` guarantees, every configuration with $m \leq 0.7n$ fails. Representative numbers (mean relative error; coverage in parentheses):
 
-**Q2: Is $k = 20\sqrt{n}$ sufficient for reliable estimation?**
+| $m/n$ | $k=500$ | $k=1000$ | $k=2000$ |
+|-------|---------|----------|----------|
+| 0.1 | 685% (0%) | 532% (0%) | 332% (0%) |
+| 0.3 | 207% (0%) | 183% (0%) | 142% (0%) |
+| 0.5 | 90% (0%)  | 81% (0%)  | 65% (0%) |
+| 0.7 | 37% (0%)  | 32% (0%)  | 22% (0%) |
+| 0.9 | 8% (0%)   | 4.8% (0%) | **1.1% (71.5%)** |
 
-**Yes, for large codomains.** The sample size formula provides adequate accuracy when $m > k$. For $n = 10000$, this gives $k = 2000$, which achieved <5% relative error for identity-like functions. The formula is not the bottleneck—the fundamental limitation is the estimator's behavior when $m < k$.
+Coverage collapses because the Wilson interval assumes unsaturated sampling; once $d \approx m$, the interval shrinks instead of widening.
 
-**Q3: How does the estimator degrade for unbalanced functions?**
+#### Q2: Is $k = 20\sqrt{n}$ sufficient?
 
-**Gracefully for large codomains, poorly for small.** Exponentially skewed distributions (where few values dominate) still produce accurate estimates when the effective codomain is large. The degradation is dominated by the $m < k$ saturation effect rather than distribution shape.
+**Only when the codomain is already “large”.** For $n = 10\,000$ (hence $k = 2\,000$), the fraction of trials within 20% error is ~0% for $m/n \leq 0.7$, and only rises to 100% once $m/n = 0.9$. Even doubling the sample (40√n) barely helps until $m$ is extremely close to $n$. In other words: the sample-size rule is not the limiting factor; the estimator itself is.
 
-**Q4: Is the fraction estimator better than the birthday paradox estimator?**
+#### Q3: How does the estimator behave for unbalanced functions?
 
-**Neither consistently wins.** The fraction estimator outperforms birthday in ~25% of test cases. Both have different failure modes:
-- Fraction: Overestimates when $m < k$ (saturation)
-- Birthday: Higher variance, division-by-zero risk when $d = k$
+The bias is dominated by the effective codomain size, not the skew. Highly skewed mappings still collapse to the same saturation failure when $m$ is small; when $m$ is large, the estimator is tolerant.
 
-**Recommendation:** Use fraction as the primary estimator due to simpler implementation and predictable failure mode.
+#### Q4: Fraction vs. birthday paradox estimator?
 
-**Q5: What's the optimal enumeration threshold?**
+Running both estimators across the same grid shows the fraction estimator wins only **20%** of the time, and the birthday estimator never “explodes” (because $d \ll k$ in these scenarios). The ostensible advantage of the fraction estimator therefore disappears unless we deliberately stay in the $m \gg k$ regime.
 
-**~1000 elements.** Below this threshold, full enumeration is faster than statistical estimation and provides exact results. The crossover point depends on the cost of `JSON.stringify` for deduplication—with future `hashCode`/`equals` support (#464), this threshold could increase.
+#### Q5: Optimal enumeration threshold?
 
-**Q6: Do edge cases (constant, bijective) work correctly?**
+Enumeration is exact and linear in $n$, while sampling time is nearly constant but produces unusable hints for small codomains. The new simulations reinforce an aggressive enumeration threshold (~1 000 elements) until we can detect saturation dynamically.
 
-**Bijective functions work well; constant functions expose the saturation limitation.**
+#### Q6: Edge cases (constant, bijective)?
 
-| Function | True M | Estimate | Ratio | Assessment |
-|----------|--------|----------|-------|------------|
-| Identity | 10000 | 9757 | 0.98x | ✅ Accurate |
-| Near-bijective | 9999 | 9755 | 0.98x | ✅ Accurate |
-| Constant | 1 | 20 | 20.00x | ⚠️ Expected overestimation |
-| Binary | 2 | 40 | 20.00x | ⚠️ Expected overestimation |
-| Sqrt-collapse | 100 | 1987 | 19.87x | ⚠️ $m < k$ saturation |
+Deterministic cases behave as expected:
 
-The constant/binary overestimation is mathematically inevitable: when $d = m$ (all distinct values observed), the formula gives $\hat{m} = \frac{m}{k} \cdot n$, which overestimates by factor $\frac{n}{k}$.
+| Function | True M | Mean Estimate | Ratio |
+|----------|--------|---------------|-------|
+| Identity | 10 000 | 9 757 | 0.98× |
+| Near-bijective | 9 999 | 9 755 | 0.98× |
+| Constant | 1 | 20 | 20× |
+| Binary | 2 | 40 | 20× |
+| Sqrt-collapse | 100 | 1 987 | 19.9× |
 
-**Q7: Does chained map composition propagate errors acceptably?**
+The overestimation for constant/binary mappings is unavoidable: $\hat{m} = \frac{m}{k} \cdot n$ once $d = m$.
 
-**Yes.** Error propagation through 2-3 chained maps remains bounded. The final estimate quality depends primarily on whether the innermost map's codomain exceeds $k$, not the chain length.
+#### Q7: Does chaining maps make things worse?
 
-**Q8: Does uniform sampling matter for cluster/step functions?**
+Not materially. Chained maps stay bounded—the dominant error still comes from the innermost codomain saturating the sample.
 
-**Yes.** Biased sampling (favoring boundary values like 0, min, max) significantly degrades estimates for step functions like `x => Math.floor(x / 10)`. Uniform sampling is required for assumption A2 to hold.
+#### Q8: Does uniform sampling matter for cluster/step functions?
 
-### Key Limitations
+Uniform sampling itself still produces **687%–1900%** relative error for cluster sizes 10–1 000 (because those codomains are small). Biased sampling is even worse, but the baseline already violates the spec, so the uniform-vs-biased distinction is moot until the estimator changes.
 
-1. **Saturation threshold**: The estimator fundamentally cannot work when $m < k$. When all distinct values are observed ($d \approx m$), the formula $\hat{m} = \frac{d}{k} \cdot n$ becomes $\hat{m} \approx \frac{m}{k} \cdot n \gg m$.
+### Key Limitations (updated)
 
-2. **Wilson CI coverage**: Confidence interval coverage is poor (~0-8%) for small codomains because the binomial model doesn't account for saturation.
+1. **Saturation dominates:** As soon as $m \lesssim k$, estimates inflate by 2×–20× and Wilson coverage collapses to ~0%.
+2. **Sample-size tuning cannot help:** Increasing $k$ merely delays saturation; it does not restore the assumed $d/k \approx m/n$ relationship.
+3. **CI semantics break:** The Wilson bound was derived for unconstrained Bernoulli trials. When $d$ is capped by $m$, the interval shrinks toward $d$ instead of expanding, so it never covers the truth.
+4. **Design implication:** `size()` must either (a) detect saturation and refuse to guess, or (b) switch to an alternate estimator/enumeration when the codomain is suspected to be small.
 
-3. **Heuristic nature confirmed**: The estimator is suitable for order-of-magnitude hints (e.g., "is this mapped arbitrary large or small?") but not for precise cardinality. This aligns with the original design intent.
+### Decision Implications
+
+- **Do not ship the current `size()` plan as-is.** It will routinely return 5×–20× overestimates while claiming 95% confidence.
+- **Treat `d/k` as a saturation detector.** When $d/k \rightarrow 1$ the estimator is invalid; return “unknown” or fall back to enumeration.
+- **Raise the visibility of enumeration.** For most `MappedArbitrary` instances used in practice (finite enums, tagged unions, lookups), exact counting is still feasible and preferable.
+- **Reframe documentation.** Instead of promising a “hint,” state the precise conditions where the hint is trustworthy and surface the failure probability to users.
+
+## Alternate Estimators and Mitigation Options
+
+The simulations show that a single fraction-based estimator cannot cover the entire design space. We need a toolkit of strategies and a dispatch policy.
+
+### 1. Deterministic Enumeration (Status: Recommended Default)
+
+- **When to use:** If the upstream arbitrary has `size().type === 'exact'` and `value ≤ ENUMERATION_THRESHOLD`.
+- **Action:** Materialize all domain values, apply `map`, and deduplicate. This produces the ground truth and satisfies Specs 1 & 6 immediately.
+- **Next step:** Raise the threshold to at least **1 000** (as suggested by Simulation 5) once `hashCode`/`equals` (#464) lands, otherwise default to ~250 elements to keep `JSON.stringify` costs bounded.
+
+### 2. Saturation-Aware Fraction Estimator
+
+- **Idea:** Keep the current estimator but guard it with `saturation = d / k`. If `saturation ≥ 0.4` (empirically where error >50%), report:  
+  `EstimatedSize { type: 'distinct-count-hint', value: undefined, reason: 'codomain saturated; fell back to enumeration threshold' }`.
+- **Benefit:** Preserves the estimator for the one regime where it works ($m \gg k$) while avoiding misleading numbers elsewhere.
+
+### 3. Birthday / Capture–Recapture Hybrid
+
+- **Formula:** $\hat{m}_{\text{birthday}} = \frac{k^2}{2(k-d)}$; when combined with Horvitz–Thompson weighting we can tolerate higher saturation.
+- **Guard rails:** Only run when `d ≤ k - 3` (to avoid division-by-zero) and surface the variance estimate from the delta method.
+- **Why bother:** In the current grid the birthday estimator produced lower RMSE in 80% of cases without exploding, so offering it as an optional strategy (perhaps behind `estimationType: 'population-inference'`) is reasonable.
+
+### 4. Coverage-Based Estimators (Good–Turing / Chao1)
+
+- **Approach:** Use the count of singletons/doubletons to extrapolate unseen mass:  
+  $\hat{m}_{\text{Chao1}} = d + \frac{f_1^2}{2 f_2}$ (where $f_1$ is the number of values seen once, $f_2$ twice).  
+- **Pros:** Works better when the codomain is small but not tiny, because it explicitly models missing mass.
+- **Cons:** Needs raw frequency histograms, so we must store counts instead of just “seen/not seen.”
+- **Plan:** Prototype once `hashCode`/`equals` exist so frequency tables are cheap.
+
+### 5. Hash-Based Sketches (HyperLogLog / LogLog-Beta)
+
+- **Context:** HyperLogLog (HLL) provides ~1.04/√m relative error with small memory. It excels when $m$ is large and the mapped values can be hashed inexpensively.
+- **Requirements:** Efficient hashing (#464), deterministic seeds, and ability to merge sketches.
+- **Use case:** Large codomain arbitraries where enumeration is impossible but we can tolerate ±2% error (a regime the current estimator handles, but HLL would provide statistical guarantees and well-behaved confidence intervals).
+
+### 6. Adaptive Sampling
+
+- **Mechanism:** Start with a cheap sample size (e.g., 200). If `d/k` is low, progressively increase $k$ toward $20\sqrt{n}`. If saturation rises, abort and switch to enumeration/coverage estimator.
+- **Outcome:** Avoids spending the full sampling budget on cases that are doomed anyway and gives us a principled way to decline an estimate.
+
+These options are not mutually exclusive. A practical plan could be:
+
+1. **Enumerate** whenever `n ≤ ENUMERATION_THRESHOLD`.
+2. **Adaptive sample** for the rest; bail out if saturation is detected.
+3. **If still unsaturated**, choose between:
+   - Fraction estimator (fast, no extra memory)
+   - Birthday estimator (if `d ≤ k - 3`)
+   - HLL (if hashing is available and the caller opts in)
+4. **If saturated**, return an `EstimatedSize` with `estimationType: 'infeasible'` so downstream logic can react (e.g., reduce chaining depth or narrow the arbitrary).
+
+## Next Steps
+
+1. **Document reality today**  
+   - Update user-facing docs / README to say `size()` is disabled for mapped arbitraries until saturation-safe estimators ship.  
+   - Expose the simulation summary (CSV + console output) in the PR so reviewers can reproduce the failure.
+
+2. **Decide on the fallback tree**  
+   - Choose thresholds for enumeration vs. sampling.  
+   - Agree on what to return when saturation is detected (`ExactSize`, `EstimatedSize` with `reason`, or an error).
+
+3. **Prototype alternate estimators**  
+   - Build a spike branch that plugs the birthday estimator and Chao1 into the simulation harness.  
+   - Once #464 is available, implement HLL or frequency-based estimators to compare empirically.
+
+4. **Keep the validation suite red until resolved**  
+   - The failure is the signal; do not relax assertions.  
+   - Treat “all simulations pass” as a gate for re-enabling `MappedArbitrary.size()`.
 
 ---
 
@@ -805,7 +882,9 @@ The following table summarizes all recommendations from this analysis, prioritiz
 | **Correctness** | Always enforce `value >= d` (observed distinct count) as lower bound. | 🟠 High | You can never have fewer distinct elements than you observed |
 | **Type System** | Add `estimationType` field to distinguish `'distinct-count-hint'` vs `'population-inference'`. | 🟡 Medium | Enables future optimizations for combining estimates |
 | **Documentation** | Explicitly document: "Size is a heuristic hint. Do not rely on it for logic validation." | 🟡 Medium | Prevents user confusion about precision guarantees |
-| **Testing** | ~~Run Simulations 1, 4, 6, 8 before v1 implementation.~~ ✅ Done in PR #468 | 🟡 Medium | Validates core algorithm assumptions |
+| **Correctness** | Add saturation detection: if `d/k ≥ 0.4`, fall back to enumeration or “unknown” estimate. | 🔴 Critical | Prevents 5×–20× overestimates reported by Simulation 1 |
+| **Correctness** | Prefer enumeration whenever `n ≤ 1000` until #464 lands. | 🔴 Critical | Only enumerated paths currently meet the spec |
+| **Testing** | Simulation suite now enforced; **currently failing** (Sim 1,2,4,8). Keep it red until estimator choice is resolved. | 🟡 Medium | Prevents silent regressions / document drift |
 | **Future** | Consider HyperLogLog only if `HashSet` memory becomes a bottleneck (unlikely for $k = 2000$). | 🟢 Low | Current approach is simpler and sufficient |
 | **Future** | Consider birthday-paradox estimator as experimental alternative. | 🟢 Low | Higher variance, division-by-zero edge cases |
 
