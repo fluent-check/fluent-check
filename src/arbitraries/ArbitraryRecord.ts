@@ -1,6 +1,7 @@
 import {type ArbitrarySize, type FluentPick} from './types.js'
+import type {HashFunction, EqualsFunction} from './Arbitrary.js'
 import {Arbitrary} from './internal.js'
-import {exactSize, estimatedSize} from './util.js'
+import {exactSize, estimatedSize, FNV_OFFSET_BASIS, mix, stringToHash} from './util.js'
 import * as fc from './index.js'
 
 type RecordSchema = Record<string, Arbitrary<unknown>>
@@ -113,6 +114,46 @@ export class ArbitraryRecord<S extends RecordSchema> extends Arbitrary<UnwrapSch
     }
 
     return true
+  }
+
+  /** Composes property hashes to create record hash */
+  override hashCode(): HashFunction {
+    const propertyHashes = new Map<keyof S, HashFunction>()
+    for (const key of this.keys) {
+      propertyHashes.set(key, this.schema[key].hashCode())
+    }
+    return (record: unknown): number => {
+      const obj = record as Record<string, unknown>
+      let hash = FNV_OFFSET_BASIS
+      // Mix in key count for differentiation
+      hash = mix(hash, this.keys.length)
+      for (const key of this.keys) {
+        // Mix key name hash for order-independence within same key set
+        hash = mix(hash, stringToHash(String(key)))
+        const keyHash = propertyHashes.get(key)
+        if (keyHash !== undefined) {
+          hash = mix(hash, keyHash(obj[key as string]))
+        }
+      }
+      return hash
+    }
+  }
+
+  /** Composes property equality for record comparison */
+  override equals(): EqualsFunction {
+    const propertyEquals = new Map<keyof S, EqualsFunction>()
+    for (const key of this.keys) {
+      propertyEquals.set(key, this.schema[key].equals())
+    }
+    return (a: unknown, b: unknown): boolean => {
+      const objA = a as Record<string, unknown>
+      const objB = b as Record<string, unknown>
+      for (const key of this.keys) {
+        const keyEquals = propertyEquals.get(key)
+        if (keyEquals !== undefined && !keyEquals(objA[key as string], objB[key as string])) return false
+      }
+      return true
+    }
   }
 
   override toString(depth = 0): string {

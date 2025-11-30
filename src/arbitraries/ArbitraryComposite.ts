@@ -1,5 +1,6 @@
 import {Arbitrary} from './internal.js'
 import type {ArbitrarySize, FluentPick} from './types.js'
+import type {HashFunction, EqualsFunction} from './Arbitrary.js'
 import {exactSize, estimatedSize} from './util.js'
 import * as fc from './index.js'
 
@@ -43,6 +44,24 @@ export class ArbitraryComposite<A> extends Arbitrary<A> {
 
   override canGenerate(pick: FluentPick<A>) {
     return this.arbitraries.some(a => a.canGenerate(pick))
+  }
+
+  /**
+   * For unions, uses the first arbitrary's hash function as fallback.
+   * Falls back to base class implementation if no arbitraries.
+   */
+  override hashCode(): HashFunction {
+    if (this.arbitraries.length === 0) return super.hashCode()
+    return this.arbitraries[0].hashCode()
+  }
+
+  /**
+   * For unions, uses the first arbitrary's equals function as fallback.
+   * Falls back to base class implementation if no arbitraries.
+   */
+  override equals(): EqualsFunction {
+    if (this.arbitraries.length === 0) return super.equals()
+    return this.arbitraries[0].equals()
   }
 
   override toString(depth = 0) {

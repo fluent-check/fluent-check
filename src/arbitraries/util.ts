@@ -1,5 +1,61 @@
 import type {ArbitrarySize, ExactSize, EstimatedSize} from './types.js'
 
+// ============================================================================
+// Value Identity Utilities
+// ============================================================================
+
+/**
+ * FNV-1a hash mixing function. Combines an existing hash with a new value.
+ * Uses 32-bit arithmetic for performance.
+ */
+export const mix = (hash: number, value: number): number => {
+  hash ^= value
+  hash = Math.imul(hash, 0x01000193)
+  return hash >>> 0  // Convert to unsigned 32-bit
+}
+
+/** FNV-1a offset basis for 32-bit hash */
+export const FNV_OFFSET_BASIS = 0x811c9dc5
+
+/**
+ * Converts a string to a 32-bit hash using FNV-1a algorithm.
+ */
+export const stringToHash = (s: string): number => {
+  let hash = FNV_OFFSET_BASIS
+  for (let i = 0; i < s.length; i++) {
+    hash = mix(hash, s.charCodeAt(i))
+  }
+  return hash
+}
+
+/**
+ * Converts a double (floating-point) to a 32-bit hash.
+ * Handles special cases: NaN, -0, Infinity.
+ */
+export const doubleToHash = (d: number): number => {
+  // Handle special cases
+  if (Number.isNaN(d)) return 0x7fc00000  // NaN has a specific hash
+  if (d === 0) return 0  // Both +0 and -0 hash to 0 for consistency with Object.is semantics at equals level
+  if (!Number.isFinite(d)) return d > 0 ? 0x7f800000 : 0xff800000  // +/-Infinity
+
+  // For regular numbers, use a combination of integer and fractional parts
+  const intPart = Math.trunc(d) | 0
+  const fracPart = Math.abs(d - intPart)
+
+  // Mix integer part with scaled fractional part
+  let hash = FNV_OFFSET_BASIS
+  hash = mix(hash, intPart)
+  if (fracPart !== 0) {
+    // Scale fractional part to an integer for mixing
+    hash = mix(hash, Math.round(fracPart * 0x7fffffff))
+  }
+  return hash
+}
+
+// ============================================================================
+// Size Utilities
+// ============================================================================
+
 /** Factory function for creating exact size values */
 export const exactSize = (value: number): ExactSize => ({type: 'exact', value})
 

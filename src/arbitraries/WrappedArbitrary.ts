@@ -1,4 +1,5 @@
 import type {FluentPick} from './types.js'
+import type {HashFunction, EqualsFunction} from './Arbitrary.js'
 import {Arbitrary} from './internal.js'
 
 export abstract class WrappedArbitrary<A> extends Arbitrary<A> {
@@ -12,6 +13,16 @@ export abstract class WrappedArbitrary<A> extends Arbitrary<A> {
 
   override canGenerate(pick: FluentPick<A>) {
     return this.baseArbitrary.canGenerate(pick)
+  }
+
+  /** Delegates to base arbitrary's hash function */
+  override hashCode(): HashFunction {
+    return this.baseArbitrary.hashCode()
+  }
+
+  /** Delegates to base arbitrary's equals function */
+  override equals(): EqualsFunction {
+    return this.baseArbitrary.equals()
   }
 
   override toString(depth = 0) {
