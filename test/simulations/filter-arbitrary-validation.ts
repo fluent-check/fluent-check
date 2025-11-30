@@ -627,23 +627,48 @@ describe('Filter Arbitrary Size Estimation Validation', () => {
   })
 
   describe('Simulation 4: Beta vs Beta-Binomial Comparison', () => {
-    it('should verify Beta-Binomial performs better for small n', function () {
-      // This test can be slow due to Beta-Binomial CDF computation
-      // Increased timeout to handle higher trial counts and Beta-Binomial computation
-      this.timeout(120000) // 2 minutes
+    it('should verify Beta-Binomial provides coverage improvement for n < 20', function () {
+      // This test validates the revised threshold (n < 20) from PR #463
+      // High-precision validation (1M trials) showed:
+      // - n=10: 0.2-1.1% coverage improvement, 1.5x cost, no MSE penalty
+      // - n=20: 2.3% coverage improvement (peak), 2x cost
+      // - n>=50: Diminishing returns, worse MSE
+      this.timeout(30000) // 30 seconds is sufficient for n < 20
       const params: BetaBinomialComparisonParams = {
         ...testParams,
-        baseSizes: [10, 50] // Reduced to avoid timeout
+        baseSizes: [10] // Focus on n < 20 where Beta-Binomial is recommended
       }
       const results = compareBetaVsBetaBinomial(params)
 
-      // For n < 100, Beta-Binomial should have better or equal coverage
+      // For n < 20, Beta-Binomial should have equal or better coverage
+      // Note: Coverage improvement is modest (0.2-2.3%), so we use a tolerance
       for (const [key, metrics] of Object.entries(results)) {
-        if (key.includes('n=10') || key.includes('n=50')) {
-          // Allow 5% tolerance for coverage comparison
+        if (key.includes('n=10')) {
+          // Beta-Binomial coverage should be >= Beta coverage (with tolerance for Monte Carlo error)
           expect(metrics.betaBinomialCoverage, `Coverage for ${key}`)
             .to.be.at.least(metrics.betaCoverage - 0.05)
         }
+      }
+    })
+
+    it('should demonstrate trade-off: better coverage but potentially worse MSE', function () {
+      // This test documents the fundamental trade-off identified in PR #463:
+      // Beta-Binomial improves coverage (interval accuracy) but can worsen MSE (point accuracy)
+      this.timeout(30000)
+      const params: BetaBinomialComparisonParams = {
+        ...testParams,
+        baseSizes: [10]
+      }
+      const results = compareBetaVsBetaBinomial(params)
+
+      // We don't assert MSE relationship since it varies by parameter combination
+      // The key finding is that Beta-Binomial is NOT universally better on MSE
+      // This test just ensures the simulation runs and produces valid results
+      for (const [key, metrics] of Object.entries(results)) {
+        expect(metrics.betaMSE, `Beta MSE for ${key}`).to.be.at.least(0)
+        expect(metrics.betaBinomialMSE, `Beta-Binomial MSE for ${key}`).to.be.at.least(0)
+        expect(metrics.betaCoverage, `Beta coverage for ${key}`).to.be.within(0, 1)
+        expect(metrics.betaBinomialCoverage, `Beta-Binomial coverage for ${key}`).to.be.within(0, 1)
       }
     })
   })

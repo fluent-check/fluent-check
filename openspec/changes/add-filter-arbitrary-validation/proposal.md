@@ -36,3 +36,38 @@ These validation simulations serve as "statistical sanity checks" to ensure the 
 - Affected code: `test/simulations/` (new directory)
 - Breaking: None - additive test infrastructure
 - Testing: Validates correctness of statistical methods used in size estimation
+
+---
+
+## Validation Results (PR #463)
+
+### High-Precision Analysis (1,000,000 trials)
+
+The validation simulations revealed important findings that led to revisions in the analysis document.
+
+#### Beta vs Beta-Binomial Threshold Revision
+
+**Original recommendation:** `n < 100`  
+**Revised recommendation:** `n < 20`
+
+| n | Coverage Δ | MSE Δ | Cost |
+|---|-----------|-------|------|
+| 10 | +0.2-1.1% | 0% | 1.5x |
+| 20 | +2.3% (peak) | -6.7% (worse) | 2.0x |
+| 50 | +1.2% | -4.1% (worse) | 6.5x |
+| 100 | **0%** | -2.4% (worse) | 10.5x |
+
+**Key Finding:** Beta-Binomial improves **coverage** (interval accuracy) but worsens **MSE** (point estimation accuracy). The cost/benefit ratio becomes unfavorable beyond n=20.
+
+#### All Core Findings Validated ✅
+
+1. **Median is preferred** - Always inside CI, consistent performance
+2. **Mode can fall outside CI** - Confirmed for extreme proportions
+3. **Prior robustness** - All priors converge as sample size increases
+4. **Incremental updates** - 100% match between batch and incremental computation
+5. **CI Width Formula** - Empirical width matches theoretical (4/√k) for moderate p
+
+#### Documents Updated
+
+- `docs/research/size-estimation/filter-arbitrary-analysis.md` - Revised Beta-Binomial threshold
+- `test/simulations/filter-arbitrary-validation.ts` - Adjusted Simulation 4 assertions

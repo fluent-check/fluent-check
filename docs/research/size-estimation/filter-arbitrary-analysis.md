@@ -247,7 +247,15 @@ For large $n$, the difference is negligible. For small $n$:
 | 100 | [12, 87] | [12, 87] |
 | 1000 | [123, 876] | [123, 876] |
 
-**Rule of thumb:** Use Beta-Binomial when $n < 100$ and exact $n$ is known.
+**Rule of thumb:** Use Beta-Binomial when $n < 20$ and exact $n$ is known.
+
+> **Note:** Initial analysis suggested $n < 100$, but high-precision Monte Carlo validation (1M trials) revealed:
+> - At $n = 100$: **0% coverage improvement**, 10.5x computational cost, worse MSE
+> - At $n = 50$: 1.2% coverage improvement, 6.5x cost, -4% worse MSE
+> - At $n = 20$: 2.3% coverage improvement (peak), 2x cost, -6.7% worse MSE
+> - At $n = 10$: 0.2-1.1% coverage improvement, 1.5x cost, no MSE penalty
+>
+> The threshold $n < 20$ balances coverage improvement with acceptable computational cost. See PR #463 for detailed validation results.
 
 ### Implementation
 
@@ -255,8 +263,9 @@ For large $n$, the difference is negligible. For small $n$:
 size(): ArbitrarySize {
   const baseSize = this.baseArbitrary.size()
   
-  if (baseSize.type === 'exact' && baseSize.value < 100) {
-    // Use Beta-Binomial for small exact domains
+  if (baseSize.type === 'exact' && baseSize.value < 20) {
+    // Use Beta-Binomial for very small exact domains (validated threshold)
+    // Coverage improvement: 0.2-2.3%, Cost: 1.5-2x, acceptable trade-off
     const dist = new BetaBinomialDistribution(
       baseSize.value,
       1 + this.successes,
@@ -268,7 +277,7 @@ size(): ArbitrarySize {
       credibleInterval: [dist.inv(0.025), dist.inv(0.975)]
     }
   } else {
-    // Use Beta for large or estimated domains
+    // Use Beta for larger or estimated domains
     const dist = new BetaDistribution(1 + this.successes, 1 + this.failures)
     const n = baseSize.value
     return {
@@ -289,7 +298,7 @@ size(): ArbitrarySize {
 |-------|---------|-------------|
 | Point estimator | `mode()` | `inv(0.5)` (median) |
 | Interval type | Equal-tailed percentiles | Keep (consistent with median) |
-| Distribution | Always Beta | Beta-Binomial when $n < 100$ and exact |
+| Distribution | Always Beta | Beta-Binomial when $n < 20$ and exact |
 
 ### Implementation Note: Integer Rounding
 
@@ -622,11 +631,14 @@ function compareBetaVsBetaBinomial(params: BetaBinomialComparisonParams): Compar
 ```
 
 **Expected Outcome**:
-- For $n < 100$: Beta-Binomial should have better coverage and similar/lower MSE
-- For $n > 100$: Negligible difference between the two approaches
-- Crossover point around $n \approx 50-100$
+- For $n < 20$: Beta-Binomial should have better coverage (0.2-2.3% improvement)
+- For $n \geq 20$: Diminishing returns; coverage improvement decreases while MSE worsens
+- For $n \geq 100$: No coverage benefit, 10x+ computational cost
 
-**What Would Falsify**: No significant improvement from Beta-Binomial for small $n$ would suggest the added complexity isn't worthwhile.
+**Validated by PR #463**: High-precision validation (1M trials) confirmed:
+- Beta-Binomial improves **coverage** but worsens **MSE** (point estimation accuracy)
+- Threshold revised from $n < 100$ to $n < 20$ based on cost/benefit analysis
+- At $n = 100$: 0% coverage improvement, -2.4% MSE, 10.5x slower
 
 ---
 
@@ -830,7 +842,7 @@ function validateIncrementalUpdates(params: IncrementalParams): ValidationResult
 | 1. Coverage | A4, Model correctness | Coverage rate | 0.93–0.97 for 95% CI |
 | 2. Estimator comparison | Recommendation #1 | MSE, MAE, outside-CI rate | Median ≤ Mode on metrics |
 | 3. Mode-outside-CI | Issue #2 | Outside-CI rate | >5% for extreme $p$, small $k$ |
-| 4. Beta vs Beta-Binomial | Recommendation #3 | Coverage, MSE | BB better for $n < 100$ |
+| 4. Beta vs Beta-Binomial | Recommendation #3 | Coverage, MSE | BB better for $n < 20$ |
 | 5. CI width formula | Planning utility | Empirical/theoretical ratio | 0.7–1.5 for moderate $p$ |
 | 6. Edge cases | Boundary behavior | Correct values | Match analytical expectations |
 | 7. Prior sensitivity | A3 | Convergence | Estimates converge as $k$ → ∞ |
