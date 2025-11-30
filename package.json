@@ -21,7 +21,8 @@
     "prepare": "husky && tsc",
     "coverage": "nyc mocha -reporter=min -r source-map-support",
     "profile:cpu": "./scripts/profile-cpu.sh",
-    "profile:heap": "./scripts/profile-heap.sh"
+    "profile:heap": "./scripts/profile-heap.sh",
+    "simulate:mapped-arbitrary": "mocha test/simulations/mapped-arbitrary-validation.ts --timeout 120000"
   },
   "keywords": [
     "testing",
