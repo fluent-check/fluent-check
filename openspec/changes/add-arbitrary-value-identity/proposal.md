@@ -47,6 +47,8 @@ For primitive arbitraries (integers, booleans), this overhead is particularly wa
 
 ## Open Questions
 
-1. Should `hashCode` return `number` or `bigint`? (number is faster, bigint has better distribution)
-2. Should we cache hash values in `FluentPick`? (adds memory, saves computation on repeated lookups)
-3. Should `MappedArbitrary` attempt to derive identity from base + transform, or always fallback?
+**See [open-questions-resolution.md](./open-questions-resolution.md) for detailed analysis.**
+
+1. ✅ **RESOLVED:** `hashCode` returns `number` (32-bit unsigned integer) - see Decision 2 in design.md
+2. ❓ **DEFERRED:** Hash caching in `FluentPick` - kept as on-demand computation for now; spike recommended if performance issues arise
+3. ✅ **RESOLVED:** `MappedArbitrary` always falls back to base class - see Decision 6 in design.md
