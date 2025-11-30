@@ -5,6 +5,9 @@ export {pre, PreconditionFailure}
 export {prop} from './FluentProperty.js'
 export type {FluentProperty} from './FluentProperty.js'
 export {strategies} from './strategies/presets.js'
+export {props} from './props.js'
+export {templates} from './templates.js'
+export type {CheckableTemplate} from './templates.js'
 export const scenario = () => new FluentCheck()
 export const strategy = () => new FluentStrategyFactory()
 export {
