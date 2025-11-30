@@ -88,3 +88,30 @@ The system SHALL provide a `map(f, shrinkHelper?)` method to transform generated
 - **WHEN** `map()` is called on an `ExactSizeArbitrary<A>`
 - **THEN** the return type SHALL be `ExactSizeArbitrary<B>`
 - **AND** when called on `EstimatedSizeArbitrary<A>`, it SHALL return `EstimatedSizeArbitrary<B>`
+
+### Requirement: Oneof Arbitrary
+
+The system SHALL provide a `oneof(elements)` function that creates an arbitrary generating one of the given elements.
+
+#### Scenario: Generate one of elements
+- **WHEN** `fc.oneof(['a', 'b', 'c'])` is called
+- **THEN** all generated values SHALL be one of 'a', 'b', or 'c'
+
+#### Scenario: Return type precision
+- **WHEN** `fc.oneof(elements)` is called with a non-empty array
+- **THEN** the return type SHALL be `ExactSizeArbitrary<A[number]>`
+- **AND** calling `.size()` on the result SHALL return `ExactSize`
+
+### Requirement: NoArbitrary Type
+
+The system SHALL provide a `NoArbitrary` singleton representing an empty arbitrary.
+
+#### Scenario: Size is exact zero
+- **WHEN** `NoArbitrary.size()` is called
+- **THEN** the return type SHALL be `ExactSize`
+- **AND** the value SHALL be 0
+
+#### Scenario: Type is ExactSizeArbitrary<never>
+- **WHEN** `NoArbitrary` is used
+- **THEN** it SHALL be typed as `ExactSizeArbitrary<never>`
+- **AND** it SHALL be assignable to `ExactSizeArbitrary<T>` for any type `T` (via covariance on `never`)

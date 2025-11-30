@@ -3,8 +3,13 @@ import {Arbitrary} from './internal.js'
 import {exactSize} from './util.js'
 
 export class ArbitraryConstant<A> extends Arbitrary<A> {
-  constructor(public readonly constant: A) {
+  // Protected constructor enforces usage through static create() method
+  protected constructor(public readonly constant: A) {
     super()
+  }
+
+  static create<A>(constant: A): ArbitraryConstant<A> {
+    return new ArbitraryConstant(constant)
   }
 
   override size(): ExactSize { return exactSize(1) }
