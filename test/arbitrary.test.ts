@@ -667,4 +667,185 @@ describe('Arbitrary tests', () => {
       ).to.have.property('satisfiable', false)
     })
   })
+
+  describe('Value Identity Functions', () => {
+    describe('hashCode', () => {
+      it('returns consistent values for equal inputs (integer)', () => {
+        const hash = fc.integer(0, 100).hashCode()
+        expect(hash(42)).to.equal(hash(42))
+        expect(hash(0)).to.equal(hash(0))
+        expect(hash(-1)).to.equal(hash(-1))
+      })
+
+      it('returns consistent values for equal inputs (real)', () => {
+        const hash = fc.real(0, 100).hashCode()
+        expect(hash(3.14)).to.equal(hash(3.14))
+        expect(hash(0.0)).to.equal(hash(0.0))
+      })
+
+      it('returns consistent values for equal inputs (boolean)', () => {
+        const hash = fc.boolean().hashCode()
+        expect(hash(true)).to.equal(hash(true))
+        expect(hash(false)).to.equal(hash(false))
+        expect(hash(true)).to.not.equal(hash(false))
+      })
+
+      it('returns consistent values for equal inputs (array)', () => {
+        const hash = fc.array(fc.integer(0, 10)).hashCode()
+        expect(hash([1, 2, 3])).to.equal(hash([1, 2, 3]))
+        expect(hash([])).to.equal(hash([]))
+      })
+
+      it('different arrays produce different hashes', () => {
+        const hash = fc.array(fc.integer(0, 10)).hashCode()
+        expect(hash([1, 2])).to.not.equal(hash([2, 1]))
+        expect(hash([1, 2, 3])).to.not.equal(hash([1, 2]))
+      })
+
+      it('returns consistent values for equal inputs (tuple)', () => {
+        const hash = fc.tuple(fc.integer(0, 10), fc.boolean()).hashCode()
+        expect(hash([5, true])).to.equal(hash([5, true]))
+        expect(hash([0, false])).to.equal(hash([0, false]))
+      })
+
+      it('returns consistent values for equal inputs (record)', () => {
+        const hash = fc.record({a: fc.integer(0, 10), b: fc.boolean()}).hashCode()
+        expect(hash({a: 5, b: true})).to.equal(hash({a: 5, b: true}))
+      })
+
+      it('returns 32-bit integers', () => {
+        const hash = fc.integer().hashCode()
+        const value = hash(12345)
+        expect(value).to.be.a('number')
+        expect(Number.isInteger(value)).to.be.true
+        expect(value >>> 0).to.equal(value) // Unsigned 32-bit check
+      })
+    })
+
+    describe('equals', () => {
+      it('is reflexive for all types', () => {
+        expect(fc.integer().equals()(42, 42)).to.be.true
+        expect(fc.real().equals()(3.14, 3.14)).to.be.true
+        expect(fc.boolean().equals()(true, true)).to.be.true
+        expect(fc.array(fc.integer()).equals()([1, 2], [1, 2])).to.be.true
+      })
+
+      it('is symmetric', () => {
+        const eq = fc.integer().equals()
+        expect(eq(1, 2)).to.equal(eq(2, 1))
+        expect(eq(5, 5)).to.equal(eq(5, 5))
+      })
+
+      it('handles special floating-point values with Object.is semantics', () => {
+        const eq = fc.real().equals()
+        expect(eq(NaN, NaN)).to.be.true  // Object.is(NaN, NaN) === true
+        expect(eq(0, -0)).to.be.false     // Object.is(0, -0) === false
+        expect(eq(Infinity, Infinity)).to.be.true
+        expect(eq(-Infinity, -Infinity)).to.be.true
+      })
+
+      it('compares arrays element-by-element', () => {
+        const eq = fc.array(fc.integer()).equals()
+        expect(eq([1, 2, 3], [1, 2, 3])).to.be.true
+        expect(eq([1, 2, 3], [1, 2])).to.be.false
+        expect(eq([1, 2], [1, 2, 3])).to.be.false
+        expect(eq([1, 2, 3], [1, 3, 2])).to.be.false
+      })
+
+      it('compares tuples element-by-element', () => {
+        const eq = fc.tuple(fc.integer(), fc.string()).equals()
+        expect(eq([1, 'a'], [1, 'a'])).to.be.true
+        expect(eq([1, 'a'], [1, 'b'])).to.be.false
+        expect(eq([1, 'a'], [2, 'a'])).to.be.false
+      })
+
+      it('compares records property-by-property', () => {
+        const eq = fc.record({x: fc.integer(), y: fc.integer()}).equals()
+        expect(eq({x: 1, y: 2}, {x: 1, y: 2})).to.be.true
+        expect(eq({x: 1, y: 2}, {x: 1, y: 3})).to.be.false
+      })
+    })
+
+    describe('sampleUnique uses identity functions', () => {
+      it('correctly deduplicates integers', () => {
+        const samples = fc.integer(0, 5).sampleUnique(100)
+        expect(samples.length).to.equal(6) // Only 6 unique values possible
+      })
+
+      it('correctly deduplicates arrays', () => {
+        const arb = fc.array(fc.integer(0, 1), 2, 2)
+        const samples = arb.sampleUnique(100)
+        // [0,0], [0,1], [1,0], [1,1] = 4 unique arrays
+        expect(samples.length).to.equal(4)
+      })
+
+      it('correctly deduplicates booleans', () => {
+        const samples = fc.boolean().sampleUnique(100)
+        expect(samples.length).to.equal(2) // Only true and false
+      })
+
+      it('correctly deduplicates tuples', () => {
+        const arb = fc.tuple(fc.integer(0, 1), fc.boolean())
+        const samples = arb.sampleUnique(100)
+        expect(samples.length).to.equal(4) // 2 * 2 = 4 combinations
+      })
+    })
+
+    describe('fallback behavior', () => {
+      it('MappedArbitrary falls back to base class for complex objects', () => {
+        const arb = fc.integer(0, 10).map(n => ({value: n, nested: {x: n}}))
+        const hash = arb.hashCode()
+        const eq = arb.equals()
+
+        expect(hash({value: 5, nested: {x: 5}})).to.equal(hash({value: 5, nested: {x: 5}}))
+        expect(eq({value: 5, nested: {x: 5}}, {value: 5, nested: {x: 5}})).to.be.true
+        expect(eq({value: 5, nested: {x: 5}}, {value: 5, nested: {x: 6}})).to.be.false
+      })
+
+      it('ChainedArbitrary uses fallback', () => {
+        const arb = fc.integer(1, 3).chain(n => fc.array(fc.constant(n), n, n))
+        const hash = arb.hashCode()
+        const eq = arb.equals()
+
+        expect(hash([1])).to.equal(hash([1]))
+        expect(eq([2, 2], [2, 2])).to.be.true
+      })
+
+      it('FilteredArbitrary delegates to base', () => {
+        const arb = fc.integer(0, 100).filter(n => n % 2 === 0)
+        const hash = arb.hashCode()
+        const eq = arb.equals()
+
+        // Should use integer's efficient hash/equals
+        expect(hash(42)).to.equal(hash(42))
+        expect(eq(42, 42)).to.be.true
+        expect(eq(42, 44)).to.be.false
+      })
+    })
+
+    describe('edge cases', () => {
+      it('handles NaN in real numbers', () => {
+        const hash = fc.real().hashCode()
+        expect(hash(NaN)).to.equal(hash(NaN)) // Consistent hash
+      })
+
+      it('handles empty arrays', () => {
+        const hash = fc.array(fc.integer()).hashCode()
+        const eq = fc.array(fc.integer()).equals()
+
+        expect(hash([])).to.equal(hash([]))
+        expect(eq([], [])).to.be.true
+      })
+
+      it('handles nested structures', () => {
+        const arb = fc.array(fc.array(fc.integer(0, 5)))
+        const hash = arb.hashCode()
+        const eq = arb.equals()
+
+        expect(hash([[1, 2], [3, 4]])).to.equal(hash([[1, 2], [3, 4]]))
+        expect(eq([[1, 2], [3, 4]], [[1, 2], [3, 4]])).to.be.true
+        expect(eq([[1, 2], [3, 4]], [[1, 2], [3, 5]])).to.be.false
+      })
+    })
+  })
 })
