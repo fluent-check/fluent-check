@@ -629,11 +629,7 @@ describe('Filter Arbitrary Size Estimation Validation', () => {
   describe('Simulation 4: Beta vs Beta-Binomial Comparison', () => {
     it('should verify Beta-Binomial performs better for small n', function () {
       // This test can be slow due to Beta-Binomial CDF computation
-<<<<<<< HEAD
       // Increased timeout to handle higher trial counts and Beta-Binomial computation
-=======
-      // Increased timeout to handle higher trial counts
->>>>>>> 2ab1a2a (fix: increase timeout for Beta-Binomial comparison simulation)
       this.timeout(120000) // 2 minutes
       const params: BetaBinomialComparisonParams = {
         ...testParams,
