@@ -44,7 +44,7 @@ jobs:
       run: npm run coverage > coverage.txt
     
     - name: Archive code coverage results
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v5
       with:
         name: code-coverage-report-${{ matrix.node-version }}
         path: coverage.txt
