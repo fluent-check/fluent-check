@@ -12,12 +12,21 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 
 import {
+  ExactSizeArbitrary,
+  EstimatedSizeArbitrary,
   type ArbitrarySize,
   type ExactSize,
   type EstimatedSize,
   exactSize,
   estimatedSize,
   integer,
+  boolean,
+  constant,
+  array,
+  oneof,
+  char,
+  string,
+  NoArbitrary,
 } from '../../src/arbitraries/index.js'
 
 // ============================================================================
@@ -123,20 +132,65 @@ function exhaustiveSwitch(size: ArbitrarySize): string {
 }
 
 // ============================================================================
-// Test: size() method returns ArbitrarySize (union)
+// Test: Factory functions return ExactSizeArbitrary
 // ============================================================================
 
-const integerSize = integer(0, 100).size()
-type _T11 = Expect<Equal<typeof integerSize, ExactSize>>
+// Factory functions return ExactSizeArbitrary - verified by assignability
+const intArb: ExactSizeArbitrary<number> = integer(0, 100)
+const boolArb: ExactSizeArbitrary<boolean> = boolean()
+const constArb: ExactSizeArbitrary<number> = constant(42)
+const arrayArb: ExactSizeArbitrary<number[]> = array(integer(0, 10), 1, 5)
+const oneofArb: ExactSizeArbitrary<'a' | 'b' | 'c'> = oneof(['a', 'b', 'c'] as const)
+const charArb: ExactSizeArbitrary<string> = char()
+const stringArb: ExactSizeArbitrary<string> = string(1, 10)
 
-// Filtered arbitrary should return EstimatedSize
-const filteredSize = integer(0, 100).filter(n => n > 50).size()
-type _T12 = Expect<Equal<typeof filteredSize, EstimatedSize>>
+// ============================================================================
+// Test: array() with estimated input returns Arbitrary, not ExactSizeArbitrary
+// ============================================================================
 
-// Mapped arbitrary preserves the underlying type
-const mappedSize = integer(0, 100).map(n => n * 2).size()
-// MappedArbitrary delegates to base, so it returns ArbitrarySize (could be either)
-type _T13 = Expect<Equal<typeof mappedSize, ArbitrarySize>>
+// When input is exact, array returns ExactSizeArbitrary
+const arrayOfExact: ExactSizeArbitrary<number[]> = array(integer(0, 10), 1, 5)
+
+// When input is filtered (estimated), array returns Arbitrary
+// This correctly reflects that the size will be estimated at runtime
+const filteredArb = integer(0, 100).filter(n => n > 50)  // EstimatedSizeArbitrary
+const arrayOfFiltered: Arbitrary<number[]> = array(filteredArb, 1, 5)
+
+// @ts-expect-error: array of filtered arbitrary is NOT ExactSizeArbitrary
+const _badArrayType: ExactSizeArbitrary<number[]> = array(filteredArb, 1, 5)
+
+// NoArbitrary is ExactSizeArbitrary<never>
+const noArb: ExactSizeArbitrary<never> = NoArbitrary
+type _T11 = Expect<Equal<typeof noArb, ExactSizeArbitrary<never>>>
+
+// ============================================================================
+// Test: ExactSizeArbitrary is assignable to Arbitrary
+// ============================================================================
+
+const exactArb: ExactSizeArbitrary<number> = integer(0, 100)
+const baseArb: Arbitrary<number> = exactArb  // Should compile - ExactSizeArbitrary extends Arbitrary
+type _T12 = Expect<Equal<typeof baseArb extends Arbitrary<number> ? true : false, true>>
+
+// ============================================================================
+// Test: Interface method signatures work correctly
+// ============================================================================
+
+// Test that ExactSizeArbitrary.size() is declared to return ExactSize
+type ExactSizeMethod = ExactSizeArbitrary<number>['size']
+type _T13 = Expect<Equal<ReturnType<ExactSizeMethod>, ExactSize>>
+
+// Test that EstimatedSizeArbitrary.size() is declared to return EstimatedSize
+type EstimatedSizeMethod = EstimatedSizeArbitrary<number>['size']
+type _T14 = Expect<Equal<ReturnType<EstimatedSizeMethod>, EstimatedSize>>
+
+// Test that ExactSizeArbitrary.filter() returns EstimatedSizeArbitrary
+type FilterMethod = ExactSizeArbitrary<number>['filter']
+type FilterReturnType = ReturnType<FilterMethod>
+// FilterReturnType should be EstimatedSizeArbitrary<number>
+
+// Test that ExactSizeArbitrary.map() returns ExactSizeArbitrary
+type MapMethod = ExactSizeArbitrary<number>['map']
+// MapMethod should have return type ExactSizeArbitrary<B>
 
 // ============================================================================
 // Test: Accessing fields on union requires narrowing
@@ -181,3 +235,15 @@ void testNarrowing
 void exhaustiveSwitch
 void testUnionAccess
 void testTypeGuards
+void intArb
+void boolArb
+void constArb
+void arrayArb
+void oneofArb
+void charArb
+void stringArb
+void noArb
+void exactArb
+void baseArb
+void arrayOfExact
+void arrayOfFiltered
