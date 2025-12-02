@@ -12,7 +12,7 @@ describe('Precondition tests', () => {
       })
       .check()
 
-    expect(result.satisfiable).to.equal(true)
+    result.assertSatisfiable()
   })
 
   it('Basic precondition - test skips when precondition is false', () => {
@@ -55,7 +55,7 @@ describe('Precondition tests', () => {
       })
       .check()
 
-    expect(result.satisfiable).to.equal(true)
+    result.assertSatisfiable()
     expect(afterPreExecuted).to.equal(true)
   })
 
@@ -71,7 +71,7 @@ describe('Precondition tests', () => {
       })
       .check()
 
-    expect(result.satisfiable).to.equal(true)
+    result.assertSatisfiable()
   })
 
   it('Multiple preconditions - first failing skips the test', () => {
@@ -100,7 +100,7 @@ describe('Precondition tests', () => {
       })
       .check()
 
-    expect(result.satisfiable).to.equal(true)
+    result.assertSatisfiable()
     // Some cases with b=0 should have been skipped
     expect(result.skipped).to.be.greaterThan(0)
   })
@@ -117,7 +117,7 @@ describe('Precondition tests', () => {
       })
       .check()
 
-    expect(result.satisfiable).to.equal(true)
+    result.assertSatisfiable()
     expect(result.skipped).to.be.greaterThan(0)
   })
 
@@ -138,6 +138,6 @@ describe('Precondition tests', () => {
       })
       .check()
 
-    expect(result.satisfiable).to.equal(true)
+    result.assertSatisfiable()
   })
 })

@@ -82,13 +82,13 @@ export class BetaDistribution extends Distribution {
 export class BetaBinomialDistribution extends IntegerDistribution {
   constructor(public trials: number, public alpha: number, public beta: number) { super() }
 
-  pdf(x: number): number { return Math.exp(this.logPdf(x)) }
+  pdf(x: number): number { return Math.exp(this.#logPdf(x)) }
   supportMin(): number { return 0 }
   supportMax(): number { return this.trials }
 
-  mean(): number { return this.trials * this.alpha / (this.alpha + this.beta) }
+  override mean(): number { return this.trials * this.alpha / (this.alpha + this.beta) }
 
-  mode(): number {
+  override mode(): number {
     if (this.alpha <= 1.0 || this.beta <= 1.0) {
       return this.beta >= this.alpha ? 0 : this.trials
     }
@@ -99,22 +99,22 @@ export class BetaBinomialDistribution extends IntegerDistribution {
   // TODO: implement efficient calculation of CDF (currently O(trials))
   // cdf(k: number): number
 
-  private logPdf(x: number) {
-    return this.combinationln(this.trials, x) +
-      this.betaln(x + this.alpha, this.trials - x + this.beta) -
-      this.betaln(this.alpha, this.beta)
+  #logPdf(x: number) {
+    return this.#combinationln(this.trials, x) +
+      this.#betaln(x + this.alpha, this.trials - x + this.beta) -
+      this.#betaln(this.alpha, this.beta)
   }
 
   // Helper functions since jstat's API changed
-  private combinationln(n: number, k: number): number {
-    return this.factorialln(n) - this.factorialln(k) - this.factorialln(n - k)
+  #combinationln(n: number, k: number): number {
+    return this.#factorialln(n) - this.#factorialln(k) - this.#factorialln(n - k)
   }
 
-  private betaln(a: number, b: number): number {
+  #betaln(a: number, b: number): number {
     return jstat.gammaln(a) + jstat.gammaln(b) - jstat.gammaln(a + b)
   }
 
-  private factorialln(n: number): number {
+  #factorialln(n: number): number {
     return jstat.gammaln(n + 1)
   }
 }

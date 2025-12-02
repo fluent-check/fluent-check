@@ -1,6 +1,6 @@
 import * as util from './util.js'
 import {constant, array} from './index.js'
-import {Arbitrary, ArbitraryInteger, NoArbitrary} from './internal.js'
+import {type Arbitrary, ArbitraryInteger, NoArbitrary} from './internal.js'
 import type {HexChar} from './types.js'
 
 const charArb = (min = 0x20, max = 0x7e): Arbitrary<string> =>
@@ -30,9 +30,14 @@ export const unicode = (encoding = 'utf-8'): Arbitrary<string> =>
     new ArbitraryInteger(0x0000, 0x10ffff).map(v => String.fromCodePoint(util.printableCharactersMapper(v))) :
     new ArbitraryInteger(0x0000, 0x10f7ff).map(v => String.fromCodePoint(util.utf8Mapper(v)))
 
-export const base64String = (unscaledMin = 4, unscaledMax = 16): Arbitrary<string> =>
-  string(unscaledMin + 3 - (unscaledMin + 3) % 4, unscaledMax - unscaledMax % 4, base64())
-    .map((s) => [s, s.slice(1), `${s}==`, `${s}=`][s.length % 4])
+export const base64String = (unscaledMin = 4, unscaledMax = 16): Arbitrary<string> => {
+  const options = [undefined, (s: string) => s.slice(1), (s: string) => `${s}==`, (s: string) => `${s}=`]
+  return string(unscaledMin + 3 - (unscaledMin + 3) % 4, unscaledMax - unscaledMax % 4, base64())
+    .map((s) => {
+      const option = options[s.length % 4]
+      return option !== undefined ? option(s) : s
+    })
+}
 
 export const string = (min = 2, max = 10, charArb = char()): Arbitrary<string> =>
   min === 0 && max === 0 ? constant('') : array(charArb, min, max).map(a => a.join(''))

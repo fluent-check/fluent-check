@@ -1,4 +1,4 @@
-import {Arbitrary, FluentPick} from '../arbitraries/index.js'
+import type {Arbitrary, FluentPick} from '../arbitraries/index.js'
 
 export type FluentStrategyArbitrary<A> = {
   pickNum: number

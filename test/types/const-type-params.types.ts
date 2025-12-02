@@ -11,7 +11,7 @@
 
 /* eslint-disable @typescript-eslint/no-unused-vars */
 
-import {oneof, set, tuple, integer, boolean, Arbitrary} from '../../src/arbitraries/index.js'
+import {oneof, set, tuple, integer, boolean, type Arbitrary} from '../../src/arbitraries/index.js'
 import {Expect, Equal, Extends} from './test-utils.types.js'
 
 // ============================================================================

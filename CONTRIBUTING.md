@@ -112,6 +112,46 @@ For test coverage:
 npm run coverage
 ```
 
+## Performance Profiling
+
+FluentCheck includes profiling tools to identify performance bottlenecks.
+
+### Quick Start
+
+```bash
+# CPU profiling with flame graph
+npm run profile:cpu
+
+# Memory/heap profiling
+npm run profile:heap
+```
+
+### When to Profile
+
+- After significant changes to arbitraries or strategies
+- When users report performance issues
+- Before major releases
+- When adding new recursive or iterative algorithms
+
+### Profile Outputs
+
+Profiles are generated in the `profiles/` directory (git-ignored):
+- `flamegraph_*/flamegraph.html` - Interactive CPU flame graph
+- `cpu_profile_*.txt` - Processed V8 CPU profile
+- `heap_profile_*.heapprofile` - Heap allocations (load in Chrome DevTools)
+- `gc_trace_*.log` - Garbage collection events
+
+### Reading Flame Graphs
+
+1. **Width = time**: Wider bars indicate more CPU time
+2. **Stack = call hierarchy**: Bottom is the caller, top is the callee
+3. **Click to zoom**: Focus on specific call stacks
+4. **Look for wide JavaScript bars**: These are optimization opportunities
+
+For detailed documentation, see:
+- [scripts/README.md](scripts/README.md) - Profiling script documentation
+- [docs/performance/baseline-report.md](docs/performance/baseline-report.md) - Performance baseline
+
 ## Documentation Guidelines
 
 - Keep documentation clear, concise, and provide examples

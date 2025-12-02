@@ -1,4 +1,5 @@
-import {ExactSize, FluentPick} from './types.js'
+import type {ExactSize, FluentPick} from './types.js'
+import type {HashFunction, EqualsFunction} from './Arbitrary.js'
 import {Arbitrary, NoArbitrary} from './internal.js'
 import {exactSize} from './util.js'
 import * as fc from './index.js'
@@ -50,5 +51,17 @@ export class ArbitraryInteger extends Arbitrary<number> {
     return pick.value >= this.min && pick.value <= this.max
   }
 
-  override toString(depth = 0) { return ' '.repeat(depth * 2) + `Integer Arbitrary: min = ${this.min} max = ${this.max}` }
+  /** Efficient integer hash - uses identity (truncated to 32-bit) */
+  override hashCode(): HashFunction {
+    return (v: unknown): number => (v as number) | 0
+  }
+
+  /** Efficient integer equality - uses strict equality */
+  override equals(): EqualsFunction {
+    return (a: unknown, b: unknown): boolean => a === b
+  }
+
+  override toString(depth = 0) {
+    return ' '.repeat(2 * depth) + `Integer Arbitrary: min = ${this.min} max = ${this.max}`
+  }
 }

@@ -4,6 +4,10 @@ export {expect} from './FluentReporter.js'
 export {pre, PreconditionFailure}
 export {prop} from './FluentProperty.js'
 export type {FluentProperty} from './FluentProperty.js'
+export {strategies} from './strategies/presets.js'
+export {props} from './props.js'
+export {templates} from './templates.js'
+export type {CheckableTemplate} from './templates.js'
 export const scenario = () => new FluentCheck()
 export const strategy = () => new FluentStrategyFactory()
 export {
@@ -24,6 +28,7 @@ export {
   set,
   tuple,
   oneof,
+  record,
   date,
   time,
   datetime,
@@ -41,5 +46,7 @@ export {
   nonEmptyArray,
   pair,
   nullable,
-  optional
+  optional,
+  ArbitrarySize,
+  type Arbitrary
 } from './arbitraries/index.js'

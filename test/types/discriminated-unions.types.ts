@@ -12,9 +12,9 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 
 import {
-  ArbitrarySize,
-  ExactSize,
-  EstimatedSize,
+  type ArbitrarySize,
+  type ExactSize,
+  type EstimatedSize,
   exactSize,
   estimatedSize,
   integer,

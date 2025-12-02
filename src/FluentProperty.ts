@@ -1,6 +1,6 @@
-import {Arbitrary} from './arbitraries/index.js'
-import {FluentCheck, FluentResult} from './FluentCheck.js'
-import {FluentStrategyFactory} from './strategies/FluentStrategyFactory.js'
+import {type Arbitrary} from './arbitraries/index.js'
+import {FluentCheck, type FluentResult} from './FluentCheck.js'
+import {type FluentStrategyFactory} from './strategies/FluentStrategyFactory.js'
 
 /**
  * A fluent property test builder that provides a simplified API for property-based testing.
@@ -74,31 +74,43 @@ export interface FluentProperty<Args extends unknown[]> {
  * Internal implementation of FluentProperty.
  */
 class FluentPropertyImpl<Args extends unknown[]> implements FluentProperty<Args> {
+  readonly #arbitraries: Arbitrary<unknown>[]
+  readonly #predicate: (...args: Args) => boolean
+  readonly #strategyFactory?: FluentStrategyFactory
+
   constructor(
-    private readonly arbitraries: Arbitrary<unknown>[],
-    private readonly predicate: (...args: Args) => boolean,
-    private readonly strategyFactory?: FluentStrategyFactory
-  ) {}
+    arbitraries: Arbitrary<unknown>[],
+    predicate: (...args: Args) => boolean,
+    strategyFactory?: FluentStrategyFactory
+  ) {
+    this.#arbitraries = arbitraries
+    this.#predicate = predicate
+    if (strategyFactory !== undefined) {
+      this.#strategyFactory = strategyFactory
+    }
+  }
 
   check(): FluentResult<Record<string, unknown>> {
     let checker = new FluentCheck()
 
-    if (this.strategyFactory !== undefined) {
-      checker = checker.config(this.strategyFactory)
+    if (this.#strategyFactory !== undefined) {
+      checker = checker.config(this.#strategyFactory)
     }
 
     // Build the chain with positional argument names
     let chain: FluentCheck<Record<string, unknown>, Record<string, unknown>> =
       checker as FluentCheck<Record<string, unknown>, Record<string, unknown>>
 
-    for (let i = 0; i < this.arbitraries.length; i++) {
-      chain = chain.forall(`arg${i}`, this.arbitraries[i])
+    for (let i = 0; i < this.#arbitraries.length; i++) {
+      const arbitrary = this.#arbitraries[i]
+      if (arbitrary === undefined) continue
+      chain = chain.forall(`arg${i}`, arbitrary)
     }
 
     // Create the predicate wrapper that extracts positional arguments
     const wrappedPredicate = (args: Record<string, unknown>): boolean => {
-      const positionalArgs = this.arbitraries.map((_, i) => args[`arg${i}`]) as Args
-      return this.predicate(...positionalArgs)
+      const positionalArgs = this.#arbitraries.map((_, i) => args[`arg${i}`]) as Args
+      return this.#predicate(...positionalArgs)
     }
 
     return chain.then(wrappedPredicate).check()
@@ -109,7 +121,7 @@ class FluentPropertyImpl<Args extends unknown[]> implements FluentProperty<Args>
     if (!result.satisfiable) {
       const prefix = message !== undefined && message !== '' ? `${message}: ` : ''
       // Extract positional arguments for cleaner error message
-      const args = this.arbitraries.map((_, i) => result.example[`arg${i}`])
+      const args = this.#arbitraries.map((_, i) => result.example[`arg${i}`])
       const argsStr = args.length === 1
         ? JSON.stringify(args[0])
         : `(${args.map(a => JSON.stringify(a)).join(', ')})`
@@ -119,7 +131,7 @@ class FluentPropertyImpl<Args extends unknown[]> implements FluentProperty<Args>
   }
 
   config(strategyFactory: FluentStrategyFactory): FluentProperty<Args> {
-    return new FluentPropertyImpl(this.arbitraries, this.predicate, strategyFactory)
+    return new FluentPropertyImpl(this.#arbitraries, this.#predicate, strategyFactory)
   }
 }
 

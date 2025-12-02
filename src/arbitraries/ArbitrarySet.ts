@@ -1,6 +1,7 @@
-import {FluentPick, ExactSize} from './types.js'
+import type {FluentPick, ExactSize} from './types.js'
+import type {HashFunction, EqualsFunction} from './Arbitrary.js'
 import {Arbitrary} from './internal.js'
-import {exactSize} from './util.js'
+import {exactSize, FNV_OFFSET_BASIS, mix} from './util.js'
 import {factorial} from '../statistics.js'
 import * as fc from './index.js'
 
@@ -25,8 +26,13 @@ export class ArbitrarySet<A> extends Arbitrary<A[]> {
     const size = Math.floor(generator() * (this.max - this.min + 1)) + this.min
     const pick = new Set<A>()
 
-    while (pick.size !== size)
-      pick.add(this.elements[Math.floor(generator() * this.elements.length)])
+    while (pick.size !== size) {
+      const index = Math.floor(generator() * this.elements.length)
+      const element = this.elements[index]
+      if (element !== undefined) {
+        pick.add(element)
+      }
+    }
 
     const value = Array.from(pick).toSorted()
 
@@ -50,12 +56,64 @@ export class ArbitrarySet<A> extends Arbitrary<A[]> {
 
   override cornerCases(): FluentPick<A[]>[] {
     const min: A[] = []
-    for (let i = 0; i < this.min; i++) min.push(this.elements[i])
+    for (let i = 0; i < this.min; i++) {
+      const element = this.elements[i]
+      if (element !== undefined) {
+        min.push(element)
+      }
+    }
 
     const max: A[] = []
-    for (let i = 0; i < this.max; i++) max.push(this.elements[i])
+    for (let i = 0; i < this.max; i++) {
+      const element = this.elements[i]
+      if (element !== undefined) {
+        max.push(element)
+      }
+    }
 
     return [{value: min, original: min}, {value: max, original: max}]
+  }
+
+  /** Order-independent set hash - XORs element hashes */
+  override hashCode(): HashFunction {
+    // For sets, use XOR which is commutative (order-independent)
+    // Since elements is A[] (not Arbitrary<A>), we use the default hash from base class
+    // which handles primitives and objects via stringify
+    return (arr: unknown): number => {
+      const a = arr as A[]
+      let hash = FNV_OFFSET_BASIS
+      hash = mix(hash, a.length)
+      // Use XOR for order-independence, with element index as secondary factor
+      let elemHash = 0
+      for (const elem of a) {
+        // Simple hash for elements - works for primitives which sets typically contain
+        let elemVal = 0
+        if (typeof elem === 'number') {
+          elemVal = elem | 0
+        } else if (typeof elem === 'string' && elem.length > 0) {
+          elemVal = elem.charCodeAt(0)
+        } else if (typeof elem === 'boolean') {
+          elemVal = elem ? 1 : 0
+        }
+        elemHash ^= elemVal
+      }
+      hash = mix(hash, elemHash)
+      return hash
+    }
+  }
+
+  /** Order-independent set equality - compares sorted arrays */
+  override equals(): EqualsFunction {
+    return (a: unknown, b: unknown): boolean => {
+      const arrA = a as A[]
+      const arrB = b as A[]
+      if (arrA.length !== arrB.length) return false
+      // Sets are already sorted in pick(), so direct comparison works
+      for (let i = 0; i < arrA.length; i++) {
+        if (arrA[i] !== arrB[i]) return false
+      }
+      return true
+    }
   }
 
   override toString(depth = 0) {

@@ -1,6 +1,6 @@
-import {Arbitrary, FluentPick, FluentRandomGenerator} from '../arbitraries/index.js'
-import {FluentResult} from '../FluentCheck.js'
-import {StrategyArbitraries} from './FluentStrategyTypes.js'
+import {type Arbitrary, type FluentPick, FluentRandomGenerator} from '../arbitraries/index.js'
+import type {FluentResult} from '../FluentCheck.js'
+import {type StrategyArbitraries} from './FluentStrategyTypes.js'
 
 export type FluentConfig = { sampleSize?: number, shrinkSize?: number }
 

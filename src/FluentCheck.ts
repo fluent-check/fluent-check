@@ -1,5 +1,5 @@
-import {Arbitrary, FluentPick, FluentRandomGenerator} from './arbitraries/index.js'
-import {FluentStrategy} from './strategies/FluentStrategy.js'
+import {type Arbitrary, type FluentPick, FluentRandomGenerator} from './arbitraries/index.js'
+import {type FluentStrategy} from './strategies/FluentStrategy.js'
 import {FluentStrategyFactory} from './strategies/FluentStrategyFactory.js'
 
 type WrapFluentPick<T> = { [P in keyof T]: FluentPick<T[P]> }
@@ -14,7 +14,7 @@ type ValueResult<V> = Record<string, V>
 export class PreconditionFailure extends Error {
   readonly __brand = 'PreconditionFailure'
 
-  constructor(public readonly message: string = '') {
+  constructor(public override readonly message: string = '') {
     super(message)
     this.name = 'PreconditionFailure'
   }
@@ -143,7 +143,7 @@ export class FluentResult<Rec extends {} = {}> {
       const expectedValue = expected[key]
       const actualValue = this.example[key]
 
-      if (!this.deepEqual(expectedValue, actualValue)) {
+      if (!this.#deepEqual(expectedValue, actualValue)) {
         mismatches.push(`${String(key)}: expected ${JSON.stringify(expectedValue)}, got ${JSON.stringify(actualValue)}`)
       }
     }
@@ -158,14 +158,14 @@ export class FluentResult<Rec extends {} = {}> {
   /**
    * Deep equality comparison for values.
    */
-  private deepEqual(a: unknown, b: unknown): boolean {
+  #deepEqual(a: unknown, b: unknown): boolean {
     if (a === b) return true
     if (a === null || b === null) return false
     if (typeof a !== 'object' || typeof b !== 'object') return false
 
     if (Array.isArray(a) && Array.isArray(b)) {
       if (a.length !== b.length) return false
-      return a.every((val, i) => this.deepEqual(val, b[i]))
+      return a.every((val, i) => this.#deepEqual(val, b[i]))
     }
 
     if (Array.isArray(a) !== Array.isArray(b)) return false
@@ -176,7 +176,7 @@ export class FluentResult<Rec extends {} = {}> {
 
     return keysA.every(key =>
       Object.prototype.hasOwnProperty.call(b, key) &&
-      this.deepEqual((a as Record<string, unknown>)[key], (b as Record<string, unknown>)[key])
+      this.#deepEqual((a as Record<string, unknown>)[key], (b as Record<string, unknown>)[key])
     )
   }
 }
@@ -266,7 +266,12 @@ export class FluentCheck<Rec extends ParentRec, ParentRec extends {}> {
 
   static unwrapFluentPick<T>(testCase: PickResult<T>): ValueResult<T> {
     const result: Record<string, T> = {}
-    for (const k in testCase) result[k] = testCase[k].value
+    for (const k in testCase) {
+      const pick = testCase[k]
+      if (pick !== undefined) {
+        result[k] = pick.value
+      }
+    }
     return result
   }
 
@@ -278,7 +283,7 @@ export class FluentCheck<Rec extends ParentRec, ParentRec extends {}> {
 
 class FluentCheckWhen<Rec extends ParentRec, ParentRec extends {}> extends FluentCheck<Rec, ParentRec> {
   constructor(
-    protected readonly parent: FluentCheck<ParentRec, any>,
+    protected override readonly parent: FluentCheck<ParentRec, any>,
     public readonly f: (givens: Rec) => void,
     strategy: FluentStrategy) {
 
@@ -292,7 +297,7 @@ abstract class FluentCheckGiven<K extends string, V, Rec extends ParentRec & Rec
   extends FluentCheck<Rec, ParentRec> {
 
   constructor(
-    protected readonly parent: FluentCheck<ParentRec, any>,
+    protected override readonly parent: FluentCheck<ParentRec, any>,
     public readonly name: K,
     strategy: FluentStrategy) {
 
@@ -316,8 +321,8 @@ class FluentCheckGivenMutable<K extends string, V, Rec extends ParentRec & Recor
   extends FluentCheckGiven<K, V, Rec, ParentRec> {
 
   constructor(
-    protected readonly parent: FluentCheck<ParentRec, any>,
-    public readonly name: K,
+    protected override readonly parent: FluentCheck<ParentRec, any>,
+    public override readonly name: K,
     public readonly factory: (args: ParentRec) => V,
     strategy: FluentStrategy) {
 
@@ -329,8 +334,8 @@ class FluentCheckGivenConstant<K extends string, V, Rec extends ParentRec & Reco
   extends FluentCheckGiven<K, V, Rec, ParentRec> {
 
   constructor(
-    protected readonly parent: FluentCheck<ParentRec, any>,
-    public readonly name: K,
+    protected override readonly parent: FluentCheck<ParentRec, any>,
+    public override readonly name: K,
     public readonly value: V,
     strategy: FluentStrategy) {
 
@@ -347,7 +352,7 @@ abstract class FluentCheckQuantifier<K extends string, A, Rec extends ParentRec 
   extends FluentCheck<Rec, ParentRec> {
 
   constructor(
-    protected readonly parent: FluentCheck<ParentRec, any>,
+    protected override readonly parent: FluentCheck<ParentRec, any>,
     public readonly name: K,
     public readonly a: Arbitrary<A>,
     strategy: FluentStrategy) {
@@ -399,7 +404,7 @@ class FluentCheckAssert<Rec extends ParentRec, ParentRec extends {}> extends Flu
   preliminaries: FluentCheck<unknown, any>[]
 
   constructor(
-    protected readonly parent: FluentCheck<ParentRec, any>,
+    protected override readonly parent: FluentCheck<ParentRec, any>,
     public readonly assertion: (args: Rec) => boolean,
     strategy: FluentStrategy) {
 
@@ -413,7 +418,7 @@ class FluentCheckAssert<Rec extends ParentRec, ParentRec extends {}> extends Flu
     return this.then(assertion)
   }
 
-  private runPreliminaries<T>(testCase: ValueResult<T>): Rec {
+  #runPreliminaries<T>(testCase: ValueResult<T>): Rec {
     const data: Record<string, unknown> = {}
 
     this.preliminaries.forEach(node => {
@@ -428,7 +433,7 @@ class FluentCheckAssert<Rec extends ParentRec, ParentRec extends {}> extends Flu
     callback: (arg: WrapFluentPick<Rec>) => FluentResult): FluentResult {
     const unwrappedTestCase = FluentCheck.unwrapFluentPick(testCase)
     try {
-      const passed = this.assertion({...unwrappedTestCase, ...this.runPreliminaries(unwrappedTestCase)} as Rec)
+      const passed = this.assertion({...unwrappedTestCase, ...this.#runPreliminaries(unwrappedTestCase)} as Rec)
       if (passed) {
         return callback(testCase)
       } else {
@@ -449,7 +454,7 @@ class FluentCheckAssert<Rec extends ParentRec, ParentRec extends {}> extends Flu
 
 class FluentCheckGenerator<Rec extends ParentRec, ParentRec extends {}> extends FluentCheck<Rec, ParentRec> {
   constructor(
-    protected readonly parent: FluentCheck<ParentRec, any>,
+    protected override readonly parent: FluentCheck<ParentRec, any>,
     readonly rngBuilder: (seed: number) => () => number,
     strategy: FluentStrategy,
     readonly seed?: number
