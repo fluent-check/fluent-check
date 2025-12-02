@@ -116,7 +116,10 @@ export const samplingLaws = {
     const sampleValues = new Set(samples.map(s => JSON.stringify(s.value)))
     const missingCorners = corners.filter(c => !sampleValues.has(JSON.stringify(c.value)))
     if (missingCorners.length > 0) {
-      return fail(law, 'Corner case not in biased sample', missingCorners[0].value)
+      const firstMissing = missingCorners[0]
+      if (firstMissing !== undefined) {
+        return fail(law, 'Corner case not in biased sample', firstMissing.value)
+      }
     }
     return pass(law)
   },

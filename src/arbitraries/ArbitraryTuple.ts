@@ -1,6 +1,7 @@
 import type {ArbitrarySize, FluentPick} from './types.js'
+import type {HashFunction, EqualsFunction} from './Arbitrary.js'
 import {Arbitrary} from './internal.js'
-import {exactSize, estimatedSize} from './util.js'
+import {exactSize, estimatedSize, FNV_OFFSET_BASIS, mix} from './util.js'
 import * as fc from './index.js'
 
 type UnwrapArbitrary<T> = { [P in keyof T]: T[P] extends Arbitrary<infer E> ? E : never }
@@ -57,7 +58,7 @@ export class ArbitraryTuple<U extends Arbitrary<any>[], A = UnwrapArbitrary<U>> 
         selected === i ?
           arbitrary.shrink({value: value[i], original: original[i]}) :
           fc.constant(value[i])
-      )))) as Arbitrary<A>
+      )))) as unknown as Arbitrary<A>
   }
 
   override canGenerate(pick: FluentPick<A>): boolean {
@@ -76,6 +77,37 @@ export class ArbitraryTuple<U extends Arbitrary<any>[], A = UnwrapArbitrary<U>> 
     }
 
     return true
+  }
+
+  /** Composes element hashes to create tuple hash */
+  override hashCode(): HashFunction {
+    const elementHashes = this.arbitraries.map(a => a.hashCode())
+    return (tuple: unknown): number => {
+      const arr = tuple as unknown[]
+      let hash = FNV_OFFSET_BASIS
+      for (let i = 0; i < arr.length; i++) {
+        const hashFn = elementHashes[i]
+        if (hashFn === undefined) continue
+        hash = mix(hash, hashFn(arr[i]))
+      }
+      return hash
+    }
+  }
+
+  /** Composes element equality for tuple comparison */
+  override equals(): EqualsFunction {
+    const elementEquals = this.arbitraries.map(a => a.equals())
+    return (a: unknown, b: unknown): boolean => {
+      const arrA = a as unknown[]
+      const arrB = b as unknown[]
+      if (arrA.length !== arrB.length) return false
+      for (let i = 0; i < arrA.length; i++) {
+        const eqFn = elementEquals[i]
+        if (eqFn === undefined) continue
+        if (!eqFn(arrA[i], arrB[i])) return false
+      }
+      return true
+    }
   }
 
   override toString(depth = 0) {

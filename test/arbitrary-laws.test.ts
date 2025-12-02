@@ -21,7 +21,7 @@ const {expect} = chai
 interface ArbitraryEntry<T = unknown> {
   name: string
   arb: () => fc.Arbitrary<T>
-  predicate?: (t: T) => boolean
+  predicate?: (t: unknown) => boolean
 }
 
 /**
@@ -30,14 +30,14 @@ interface ArbitraryEntry<T = unknown> {
 const arbitraryRegistry: ArbitraryEntry[] = [
   // Primitive arbitraries
   {name: 'integer()', arb: () => fc.integer()},
-  {name: 'integer(0, 100)', arb: () => fc.integer(0, 100), predicate: (n: number) => n > 50},
-  {name: 'integer(-10, 10)', arb: () => fc.integer(-10, 10), predicate: (n: number) => n !== 0},
-  {name: 'real(0, 1)', arb: () => fc.real(0, 1), predicate: (n: number) => n > 0.5},
+  {name: 'integer(0, 100)', arb: () => fc.integer(0, 100), predicate: ((n: number) => n > 50) as (t: unknown) => boolean},
+  {name: 'integer(-10, 10)', arb: () => fc.integer(-10, 10), predicate: ((n: number) => n !== 0) as (t: unknown) => boolean},
+  {name: 'real(0, 1)', arb: () => fc.real(0, 1), predicate: ((n: number) => n > 0.5) as (t: unknown) => boolean},
   {name: 'boolean()', arb: () => fc.boolean()},
   {name: 'nat()', arb: () => fc.nat(0, 100)},
 
   // String arbitraries
-  {name: 'string(1, 10)', arb: () => fc.string(1, 10), predicate: (s: string) => s.length > 1},
+  {name: 'string(1, 10)', arb: () => fc.string(1, 10), predicate: ((s: string) => s.length > 1) as (t: unknown) => boolean},
   {name: 'char(a, z)', arb: () => fc.char('a', 'z')},
   {name: 'ascii()', arb: () => fc.ascii()},
 
@@ -45,7 +45,7 @@ const arbitraryRegistry: ArbitraryEntry[] = [
   {
     name: 'array(integer, 1, 5)',
     arb: () => fc.array(fc.integer(0, 10), 1, 5),
-    predicate: (arr: number[]) => arr.length > 1
+    predicate: ((arr: number[]) => arr.length > 1) as (t: unknown) => boolean
   },
   {name: 'set([a,b,c], 1, 3)', arb: () => fc.set(['a', 'b', 'c'] as const, 1, 3)},
   {name: 'tuple(int, bool)', arb: () => fc.tuple(fc.integer(0, 10), fc.boolean())},
@@ -60,7 +60,7 @@ const arbitraryRegistry: ArbitraryEntry[] = [
 
   // Preset arbitraries
   {name: 'positiveInt()', arb: () => fc.positiveInt()},
-  {name: 'byte()', arb: () => fc.byte(), predicate: (n: number) => n < 128},
+  {name: 'byte()', arb: () => fc.byte(), predicate: ((n: number) => n < 128) as (t: unknown) => boolean},
   {name: 'nonEmptyString(5)', arb: () => fc.nonEmptyString(5)},
   {name: 'nonEmptyArray(int)', arb: () => fc.nonEmptyArray(fc.integer(0, 10), 5)},
   {name: 'pair(int)', arb: () => fc.pair(fc.integer(0, 10))},
@@ -157,7 +157,7 @@ describe('Arbitrary Laws', () => {
           const arbitrary = arb()
           const pick = arbitrary.sample(1)[0]
           if (pick !== undefined) {
-            const result = shrinkingLaws.shrinkTermination(arbitrary, pick)
+            const result = shrinkingLaws.shrinkTermination(arbitrary as fc.Arbitrary<unknown>, pick)
             expect(result.passed, result.message).to.be.true
           }
         })
@@ -205,7 +205,7 @@ describe('Arbitrary Laws', () => {
       it('includes shrinking laws when pick is available', () => {
         const arb = fc.integer(0, 100)
         const pick = arb.sample(1)[0]
-        const results = arbitraryLaws.check(arb, {pick})
+        const results = arbitraryLaws.check(arb, pick !== undefined ? {pick} : {})
         const shrinkLaws = results.filter(r => r.law.startsWith('shrinkingLaws'))
         expect(shrinkLaws.length).to.be.greaterThan(0)
       })

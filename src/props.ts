@@ -44,7 +44,10 @@ export function sorted<T>(arr: readonly T[], comparator?: (a: T, b: T) => number
   const cmp = comparator ?? ((a: T, b: T) => (a < b ? -1 : a > b ? 1 : 0))
 
   for (let i = 1; i < arr.length; i++) {
-    if (cmp(arr[i - 1], arr[i]) > 0) return false
+    const prev = arr[i - 1]
+    const curr = arr[i]
+    if (prev === undefined || curr === undefined) continue
+    if (cmp(prev, curr) > 0) return false
   }
   return true
 }

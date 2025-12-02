@@ -1,5 +1,6 @@
 import {BetaDistribution} from '../statistics.js'
 import type {EstimatedSize, FluentPick} from './types.js'
+import type {HashFunction, EqualsFunction} from './Arbitrary.js'
 import {type Arbitrary, NoArbitrary, WrappedArbitrary} from './internal.js'
 import {estimatedSize, lowerCredibleInterval, upperCredibleInterval} from './util.js'
 
@@ -49,6 +50,16 @@ export class FilteredArbitrary<A> extends WrappedArbitrary<A> {
 
   override canGenerate(pick: FluentPick<A>) {
     return this.baseArbitrary.canGenerate(pick) && this.f(pick.value)
+  }
+
+  /** Delegates to base arbitrary's hash function */
+  override hashCode(): HashFunction {
+    return this.baseArbitrary.hashCode()
+  }
+
+  /** Delegates to base arbitrary's equals function */
+  override equals(): EqualsFunction {
+    return this.baseArbitrary.equals()
   }
 
   override toString(depth = 0) {

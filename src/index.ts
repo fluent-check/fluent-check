@@ -47,5 +47,6 @@ export {
   pair,
   nullable,
   optional,
-  ArbitrarySize
+  ArbitrarySize,
+  type Arbitrary
 } from './arbitraries/index.js'
