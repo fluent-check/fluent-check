@@ -29,14 +29,15 @@ function processItems(items: (string | undefined)[]): string[] {
   return result
 }
 
-// ✅ Clean - use NonNullable at type level, filter with type guard
+// ✅ Clean - TypeScript 5.5 automatically infers NonNullable from filter predicate
 function processItems(items: (string | undefined)[]): NonNullable<typeof items[number]>[] {
-  return items.filter((item): item is NonNullable<typeof items[number]> => item !== undefined)
+  // TypeScript 5.5+ automatically infers type predicate - no explicit type guard needed!
+  return items.filter(item => item !== undefined)
 }
 
-// ✅ Or use Exclude for clarity
+// ✅ Or use explicit type guard when TypeScript cannot infer (rare cases)
 type DefinedString = Exclude<string | undefined, undefined>
-function processItems(items: (string | undefined)[]): DefinedString[] {
+function processItemsExplicit(items: (string | undefined)[]): DefinedString[] {
   return items.filter((item): item is DefinedString => item !== undefined)
 }
 ```
@@ -77,6 +78,7 @@ function processSchema(schema: Schema) {
 
 ```typescript
 // Create custom utility types for common patterns
+// These are defined in src/arbitraries/types.ts
 type Defined<T> = Exclude<T, undefined>
 type Validated<T extends Record<string, unknown>> = Required<T>
 type NonEmptyArray<T> = [T, ...T[]]  // Ensures at least one element
@@ -85,6 +87,27 @@ type NonEmptyArray<T> = [T, ...T[]]  // Ensures at least one element
 type ValidatedSchema = Validated<{ name?: string; age?: number }>
 // Result: { name: string; age: number }
 ```
+
+### TypeScript 5.5 Automatic Type Predicate Inference
+
+**Important:** TypeScript 5.5+ automatically infers type predicates for common filter patterns:
+
+```typescript
+// TypeScript 5.5+ automatically infers NonNullable<T>[] from filter
+const filtered = items.filter(item => item !== undefined)
+// Type: NonNullable<typeof items[number]>[] - no explicit type guard needed!
+
+// TypeScript 5.5+ automatically infers Exclude<T, null>[] from filter
+const noNulls = items.filter(item => item !== null)
+// Type: Exclude<typeof items[number], null>[]
+
+// Only use explicit type guards when TypeScript cannot infer the predicate
+const explicit = items.filter((item): item is NonNullable<typeof items[number]> => 
+  item !== undefined
+)
+```
+
+**Best Practice:** Prefer inferred type predicates over explicit type guards when TypeScript can infer them. This reduces code noise while maintaining type safety.
 
 ## 2. Mapped Types for Validated Structures (PREFERRED)
 

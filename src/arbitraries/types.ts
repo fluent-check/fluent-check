@@ -54,3 +54,51 @@ export type HttpProtocol = 'http' | 'https'
 
 /** HTTP URL pattern */
 export type HttpUrl = `${HttpProtocol}://${string}`
+
+// Utility types for strict mode type safety
+
+/**
+ * Excludes `undefined` from a type.
+ *
+ * Alias for `Exclude<T, undefined>` for clarity when only excluding undefined (not null).
+ *
+ * @example
+ * ```typescript
+ * type DefinedString = Defined<string | undefined>  // string
+ * ```
+ */
+export type Defined<T> = Exclude<T, undefined>
+
+/**
+ * Transforms a record type to have all properties required.
+ *
+ * Use after validating that all properties in a record structure are present.
+ *
+ * @example
+ * ```typescript
+ * interface Schema {
+ *   name?: string
+ *   age?: number
+ * }
+ *
+ * function validateSchema(schema: Schema): Validated<Schema> {
+ *   if (schema.name === undefined || schema.age === undefined) {
+ *     throw new Error('Missing required fields')
+ *   }
+ *   return schema as Validated<Schema>  // { name: string; age: number }
+ * }
+ * ```
+ */
+export type Validated<T extends Record<string, unknown>> = Required<T>
+
+/**
+ * Represents a non-empty array with at least one element.
+ *
+ * @example
+ * ```typescript
+ * function processNonEmpty<T>(arr: NonEmptyArray<T>): T {
+ *   return arr[0]  // TypeScript knows arr[0] exists
+ * }
+ * ```
+ */
+export type NonEmptyArray<T> = [T, ...T[]]

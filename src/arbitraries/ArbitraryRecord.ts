@@ -15,6 +15,15 @@ export class ArbitraryRecord<S extends RecordSchema> extends Arbitrary<UnwrapSch
     this.#keys = Object.keys(schema) as (keyof S)[]
   }
 
+  /**
+   * Gets an arbitrary for a key that is guaranteed to exist (validated at construction).
+   * Returns NonNullable type since keys in #keys are validated.
+   */
+  private getArbitrary<K extends keyof S>(key: K): NonNullable<S[K]> {
+    // Type assertion safe because key is in #keys which are validated at construction
+    return this.schema[key] as NonNullable<S[K]>
+  }
+
   override size(): ArbitrarySize {
     if (this.#keys.length === 0) return exactSize(1)
 
@@ -22,8 +31,7 @@ export class ArbitraryRecord<S extends RecordSchema> extends Arbitrary<UnwrapSch
     let isEstimated = false
 
     for (const key of this.#keys) {
-      const arbitrary = this.schema[key]
-      if (arbitrary === undefined) continue
+      const arbitrary = this.getArbitrary(key)
       const size = arbitrary.size()
       if (size.type === 'estimated') isEstimated = true
       value *= size.value
@@ -37,8 +45,7 @@ export class ArbitraryRecord<S extends RecordSchema> extends Arbitrary<UnwrapSch
     const original: Record<string, unknown> = {}
 
     for (const key of this.#keys) {
-      const arbitrary = this.schema[key]
-      if (arbitrary === undefined) return undefined
+      const arbitrary = this.getArbitrary(key)
       const pick = arbitrary.pick(generator)
       if (pick === undefined) return undefined
       value[key as string] = pick.value
@@ -54,10 +61,10 @@ export class ArbitraryRecord<S extends RecordSchema> extends Arbitrary<UnwrapSch
     }
 
     const cornerCasesPerKey = this.#keys.map(key => {
-      const arbitrary = this.schema[key]
+      const arbitrary = this.getArbitrary(key)
       return {
         key,
-        cases: arbitrary !== undefined ? arbitrary.cornerCases() : []
+        cases: arbitrary.cornerCases()
       }
     })
 
@@ -91,8 +98,7 @@ export class ArbitraryRecord<S extends RecordSchema> extends Arbitrary<UnwrapSch
       const newSchema: Record<string, Arbitrary<unknown>> = {}
 
       for (const key of this.#keys) {
-        const arbitrary = this.schema[key]
-        if (arbitrary === undefined) continue
+        const arbitrary = this.getArbitrary(key)
         if (key === selectedKey) {
           newSchema[key as string] = arbitrary.shrink({
             value: value[key as string],
@@ -114,8 +120,7 @@ export class ArbitraryRecord<S extends RecordSchema> extends Arbitrary<UnwrapSch
     const original = (pick.original ?? value) as Record<string, unknown>
 
     for (const key of this.#keys) {
-      const arbitrary = this.schema[key]
-      if (arbitrary === undefined) return false
+      const arbitrary = this.getArbitrary(key)
       if (!arbitrary.canGenerate({
         value: value[key as string],
         original: original[key as string]
@@ -131,8 +136,7 @@ export class ArbitraryRecord<S extends RecordSchema> extends Arbitrary<UnwrapSch
   override hashCode(): HashFunction {
     const propertyHashes = new Map<keyof S, HashFunction>()
     for (const key of this.#keys) {
-      const arbitrary = this.schema[key]
-      if (arbitrary === undefined) continue
+      const arbitrary = this.getArbitrary(key)
       propertyHashes.set(key, arbitrary.hashCode())
     }
     return (record: unknown): number => {
@@ -156,8 +160,7 @@ export class ArbitraryRecord<S extends RecordSchema> extends Arbitrary<UnwrapSch
   override equals(): EqualsFunction {
     const propertyEquals = new Map<keyof S, EqualsFunction>()
     for (const key of this.#keys) {
-      const arbitrary = this.schema[key]
-      if (arbitrary === undefined) continue
+      const arbitrary = this.getArbitrary(key)
       propertyEquals.set(key, arbitrary.equals())
     }
     return (a: unknown, b: unknown): boolean => {
@@ -174,8 +177,8 @@ export class ArbitraryRecord<S extends RecordSchema> extends Arbitrary<UnwrapSch
   override toString(depth = 0): string {
     const indent = ' '.repeat(2 * depth)
     const entries = this.#keys.map(key => {
-      const arbitrary = this.schema[key]
-      return `${indent}  ${String(key)}:\n${arbitrary !== undefined ? arbitrary.toString(depth + 2) : 'undefined'}`
+      const arbitrary = this.getArbitrary(key)
+      return `${indent}  ${String(key)}:\n${arbitrary.toString(depth + 2)}`
     }).join('\n')
     return `${indent}Record Arbitrary:\n${entries}`
   }
