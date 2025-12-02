@@ -2,7 +2,7 @@ import eslint from '@eslint/js'
 import tseslint from 'typescript-eslint'
 import globals from 'globals'
 
-export default tseslint.config(
+export default [
   eslint.configs.recommended,
   ...tseslint.configs.recommended,
   {
@@ -50,6 +50,9 @@ export default tseslint.config(
       '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
       '@typescript-eslint/consistent-type-imports': ['warn', { prefer: 'type-imports', fixStyle: 'inline-type-imports' }],
       '@typescript-eslint/no-unnecessary-type-assertion': 'warn',
+      // Prefer native private fields (#field) over TypeScript private keyword for runtime privacy
+      // Note: No built-in ESLint rule exists to enforce this, but we prefer #field syntax
+      // for true runtime privacy. Use TypeScript `private` only when subclass access is needed.
 
       // Level 0 rules: disabled
       'no-console': 'off',
@@ -72,5 +75,5 @@ export default tseslint.config(
   },
   {
     ignores: ['dist/**', 'node_modules/**', 'coverage/**'],
-  }
-)
+  },
+]

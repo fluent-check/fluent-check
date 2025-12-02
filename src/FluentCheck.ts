@@ -143,7 +143,7 @@ export class FluentResult<Rec extends {} = {}> {
       const expectedValue = expected[key]
       const actualValue = this.example[key]
 
-      if (!this.deepEqual(expectedValue, actualValue)) {
+      if (!this.#deepEqual(expectedValue, actualValue)) {
         mismatches.push(`${String(key)}: expected ${JSON.stringify(expectedValue)}, got ${JSON.stringify(actualValue)}`)
       }
     }
@@ -158,14 +158,14 @@ export class FluentResult<Rec extends {} = {}> {
   /**
    * Deep equality comparison for values.
    */
-  private deepEqual(a: unknown, b: unknown): boolean {
+  #deepEqual(a: unknown, b: unknown): boolean {
     if (a === b) return true
     if (a === null || b === null) return false
     if (typeof a !== 'object' || typeof b !== 'object') return false
 
     if (Array.isArray(a) && Array.isArray(b)) {
       if (a.length !== b.length) return false
-      return a.every((val, i) => this.deepEqual(val, b[i]))
+      return a.every((val, i) => this.#deepEqual(val, b[i]))
     }
 
     if (Array.isArray(a) !== Array.isArray(b)) return false
@@ -176,7 +176,7 @@ export class FluentResult<Rec extends {} = {}> {
 
     return keysA.every(key =>
       Object.prototype.hasOwnProperty.call(b, key) &&
-      this.deepEqual((a as Record<string, unknown>)[key], (b as Record<string, unknown>)[key])
+      this.#deepEqual((a as Record<string, unknown>)[key], (b as Record<string, unknown>)[key])
     )
   }
 }
@@ -413,7 +413,7 @@ class FluentCheckAssert<Rec extends ParentRec, ParentRec extends {}> extends Flu
     return this.then(assertion)
   }
 
-  private runPreliminaries<T>(testCase: ValueResult<T>): Rec {
+  #runPreliminaries<T>(testCase: ValueResult<T>): Rec {
     const data: Record<string, unknown> = {}
 
     this.preliminaries.forEach(node => {
@@ -428,7 +428,7 @@ class FluentCheckAssert<Rec extends ParentRec, ParentRec extends {}> extends Flu
     callback: (arg: WrapFluentPick<Rec>) => FluentResult): FluentResult {
     const unwrappedTestCase = FluentCheck.unwrapFluentPick(testCase)
     try {
-      const passed = this.assertion({...unwrappedTestCase, ...this.runPreliminaries(unwrappedTestCase)} as Rec)
+      const passed = this.assertion({...unwrappedTestCase, ...this.#runPreliminaries(unwrappedTestCase)} as Rec)
       if (passed) {
         return callback(testCase)
       } else {

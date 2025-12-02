@@ -6,7 +6,7 @@ export class FluentStrategyFactory {
   /**
    * Strategy mixin composition
    */
-  private strategy: new (config: FluentConfig) => FluentStrategy = FluentStrategy
+  #strategy: new (config: FluentConfig) => FluentStrategy = FluentStrategy
 
   /**
    * Strategy configuration
@@ -25,7 +25,7 @@ export class FluentStrategyFactory {
    * Enables sampling without replacement, which avoids testing duplicate test cases.
    */
   withoutReplacement() {
-    this.strategy = Dedupable(this.strategy)
+    this.#strategy = Dedupable(this.#strategy)
     return this
   }
 
@@ -33,7 +33,7 @@ export class FluentStrategyFactory {
    * Sampling considers corner cases.
    */
   withBias() {
-    this.strategy = Biased(this.strategy)
+    this.#strategy = Biased(this.#strategy)
     return this
   }
 
@@ -41,7 +41,7 @@ export class FluentStrategyFactory {
    * Caches the generated samples to avoid being constantly generating new samples.
    */
   usingCache() {
-    this.strategy = Cached(this.strategy)
+    this.#strategy = Cached(this.#strategy)
     return this
   }
 
@@ -49,7 +49,7 @@ export class FluentStrategyFactory {
    * Randomly generates test cases.
    */
   withRandomSampling() {
-    this.strategy = Random(this.strategy)
+    this.#strategy = Random(this.#strategy)
     return this
   }
 
@@ -58,7 +58,7 @@ export class FluentStrategyFactory {
    */
   withShrinking(shrinkSize = 500) {
     this.configuration = {...this.configuration, shrinkSize}
-    this.strategy = Shrinkable(this.strategy)
+    this.#strategy = Shrinkable(this.#strategy)
     return this
   }
 
@@ -67,7 +67,7 @@ export class FluentStrategyFactory {
    */
   defaultStrategy() {
     this.configuration = {...this.configuration, shrinkSize: 500}
-    this.strategy = Shrinkable(Cached(Biased(Dedupable(Random(this.strategy)))))
+    this.#strategy = Shrinkable(Cached(Biased(Dedupable(Random(this.#strategy)))))
     return this
   }
 
@@ -75,7 +75,7 @@ export class FluentStrategyFactory {
    * Builds and returns the FluentStrategy with a specified configuration.
    */
   build(): FluentStrategy {
-    return new this.strategy(this.configuration)
+    return new this.#strategy(this.configuration)
   }
 
 }
