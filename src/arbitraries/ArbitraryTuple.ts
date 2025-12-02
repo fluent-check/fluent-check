@@ -65,7 +65,13 @@ export class ArbitraryTuple<U extends Arbitrary<any>[], A = UnwrapArbitrary<U>> 
     const original = pick.original as unknown[]
     for (const i in value) {
       const index = Number(i)
-      if (!this.arbitraries[index].canGenerate({value: value[index], original: original[index]}))
+      const arbitrary = this.arbitraries[index]
+      const val = value[index]
+      if (arbitrary === undefined || val === undefined) {
+        return false
+      }
+      const orig = original[index]
+      if (!arbitrary.canGenerate({value: val, original: orig}))
         return false
     }
 

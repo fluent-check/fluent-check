@@ -14,7 +14,7 @@ type ValueResult<V> = Record<string, V>
 export class PreconditionFailure extends Error {
   readonly __brand = 'PreconditionFailure'
 
-  constructor(public readonly message: string = '') {
+  constructor(public override readonly message: string = '') {
     super(message)
     this.name = 'PreconditionFailure'
   }
@@ -266,7 +266,12 @@ export class FluentCheck<Rec extends ParentRec, ParentRec extends {}> {
 
   static unwrapFluentPick<T>(testCase: PickResult<T>): ValueResult<T> {
     const result: Record<string, T> = {}
-    for (const k in testCase) result[k] = testCase[k].value
+    for (const k in testCase) {
+      const pick = testCase[k]
+      if (pick !== undefined) {
+        result[k] = pick.value
+      }
+    }
     return result
   }
 
@@ -278,7 +283,7 @@ export class FluentCheck<Rec extends ParentRec, ParentRec extends {}> {
 
 class FluentCheckWhen<Rec extends ParentRec, ParentRec extends {}> extends FluentCheck<Rec, ParentRec> {
   constructor(
-    protected readonly parent: FluentCheck<ParentRec, any>,
+    protected override readonly parent: FluentCheck<ParentRec, any>,
     public readonly f: (givens: Rec) => void,
     strategy: FluentStrategy) {
 
@@ -292,7 +297,7 @@ abstract class FluentCheckGiven<K extends string, V, Rec extends ParentRec & Rec
   extends FluentCheck<Rec, ParentRec> {
 
   constructor(
-    protected readonly parent: FluentCheck<ParentRec, any>,
+    protected override readonly parent: FluentCheck<ParentRec, any>,
     public readonly name: K,
     strategy: FluentStrategy) {
 
@@ -316,8 +321,8 @@ class FluentCheckGivenMutable<K extends string, V, Rec extends ParentRec & Recor
   extends FluentCheckGiven<K, V, Rec, ParentRec> {
 
   constructor(
-    protected readonly parent: FluentCheck<ParentRec, any>,
-    public readonly name: K,
+    protected override readonly parent: FluentCheck<ParentRec, any>,
+    public override readonly name: K,
     public readonly factory: (args: ParentRec) => V,
     strategy: FluentStrategy) {
 
@@ -329,8 +334,8 @@ class FluentCheckGivenConstant<K extends string, V, Rec extends ParentRec & Reco
   extends FluentCheckGiven<K, V, Rec, ParentRec> {
 
   constructor(
-    protected readonly parent: FluentCheck<ParentRec, any>,
-    public readonly name: K,
+    protected override readonly parent: FluentCheck<ParentRec, any>,
+    public override readonly name: K,
     public readonly value: V,
     strategy: FluentStrategy) {
 
@@ -347,7 +352,7 @@ abstract class FluentCheckQuantifier<K extends string, A, Rec extends ParentRec 
   extends FluentCheck<Rec, ParentRec> {
 
   constructor(
-    protected readonly parent: FluentCheck<ParentRec, any>,
+    protected override readonly parent: FluentCheck<ParentRec, any>,
     public readonly name: K,
     public readonly a: Arbitrary<A>,
     strategy: FluentStrategy) {
@@ -399,7 +404,7 @@ class FluentCheckAssert<Rec extends ParentRec, ParentRec extends {}> extends Flu
   preliminaries: FluentCheck<unknown, any>[]
 
   constructor(
-    protected readonly parent: FluentCheck<ParentRec, any>,
+    protected override readonly parent: FluentCheck<ParentRec, any>,
     public readonly assertion: (args: Rec) => boolean,
     strategy: FluentStrategy) {
 
@@ -449,7 +454,7 @@ class FluentCheckAssert<Rec extends ParentRec, ParentRec extends {}> extends Flu
 
 class FluentCheckGenerator<Rec extends ParentRec, ParentRec extends {}> extends FluentCheck<Rec, ParentRec> {
   constructor(
-    protected readonly parent: FluentCheck<ParentRec, any>,
+    protected override readonly parent: FluentCheck<ParentRec, any>,
     readonly rngBuilder: (seed: number) => () => number,
     strategy: FluentStrategy,
     readonly seed?: number

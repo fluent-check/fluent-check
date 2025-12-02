@@ -6,7 +6,7 @@ import {estimatedSize, lowerCredibleInterval, upperCredibleInterval} from './uti
 export class FilteredArbitrary<A> extends WrappedArbitrary<A> {
   sizeEstimation: BetaDistribution
 
-  constructor(readonly baseArbitrary: Arbitrary<A>, public readonly f: (a: A) => boolean) {
+  constructor(override readonly baseArbitrary: Arbitrary<A>, public readonly f: (a: A) => boolean) {
     super(baseArbitrary)
     this.sizeEstimation = new BetaDistribution(2, 1) // use 1,1 for .mean instead of .mode in point estimation
   }
