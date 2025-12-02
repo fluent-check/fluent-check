@@ -21,7 +21,9 @@ export class ArbitraryRecord<S extends RecordSchema> extends Arbitrary<UnwrapSch
     let isEstimated = false
 
     for (const key of this.#keys) {
-      const size = this.schema[key].size()
+      const arbitrary = this.schema[key]
+      if (arbitrary === undefined) continue
+      const size = arbitrary.size()
       if (size.type === 'estimated') isEstimated = true
       value *= size.value
     }
@@ -34,7 +36,9 @@ export class ArbitraryRecord<S extends RecordSchema> extends Arbitrary<UnwrapSch
     const original: Record<string, unknown> = {}
 
     for (const key of this.#keys) {
-      const pick = this.schema[key].pick(generator)
+      const arbitrary = this.schema[key]
+      if (arbitrary === undefined) return undefined
+      const pick = arbitrary.pick(generator)
       if (pick === undefined) return undefined
       value[key as string] = pick.value
       original[key as string] = pick.original
@@ -48,10 +52,13 @@ export class ArbitraryRecord<S extends RecordSchema> extends Arbitrary<UnwrapSch
       return [{value: {} as UnwrapSchema<S>, original: {}}]
     }
 
-    const cornerCasesPerKey = this.#keys.map(key => ({
-      key,
-      cases: this.schema[key].cornerCases()
-    }))
+    const cornerCasesPerKey = this.#keys.map(key => {
+      const arbitrary = this.schema[key]
+      return {
+        key,
+        cases: arbitrary !== undefined ? arbitrary.cornerCases() : []
+      }
+    })
 
     // Generate cartesian product of all corner cases
     let combinations: FluentPick<UnwrapSchema<S>>[] = [{
@@ -83,8 +90,10 @@ export class ArbitraryRecord<S extends RecordSchema> extends Arbitrary<UnwrapSch
       const newSchema: Record<string, Arbitrary<unknown>> = {}
 
       for (const key of this.#keys) {
+        const arbitrary = this.schema[key]
+        if (arbitrary === undefined) continue
         if (key === selectedKey) {
-          newSchema[key as string] = this.schema[key].shrink({
+          newSchema[key as string] = arbitrary.shrink({
             value: value[key as string],
             original: original[key as string]
           })
@@ -104,7 +113,9 @@ export class ArbitraryRecord<S extends RecordSchema> extends Arbitrary<UnwrapSch
     const original = (pick.original ?? value) as Record<string, unknown>
 
     for (const key of this.#keys) {
-      if (!this.schema[key].canGenerate({
+      const arbitrary = this.schema[key]
+      if (arbitrary === undefined) return false
+      if (!arbitrary.canGenerate({
         value: value[key as string],
         original: original[key as string]
       })) {
@@ -117,9 +128,10 @@ export class ArbitraryRecord<S extends RecordSchema> extends Arbitrary<UnwrapSch
 
   override toString(depth = 0): string {
     const indent = ' '.repeat(2 * depth)
-    const entries = this.#keys.map(key =>
-      `${indent}  ${String(key)}:\n${this.schema[key].toString(depth + 2)}`
-    ).join('\n')
+    const entries = this.#keys.map(key => {
+      const arbitrary = this.schema[key]
+      return `${indent}  ${String(key)}:\n${arbitrary !== undefined ? arbitrary.toString(depth + 2) : 'undefined'}`
+    }).join('\n')
     return `${indent}Record Arbitrary:\n${entries}`
   }
 }

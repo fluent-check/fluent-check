@@ -25,8 +25,13 @@ export class ArbitrarySet<A> extends Arbitrary<A[]> {
     const size = Math.floor(generator() * (this.max - this.min + 1)) + this.min
     const pick = new Set<A>()
 
-    while (pick.size !== size)
-      pick.add(this.elements[Math.floor(generator() * this.elements.length)])
+    while (pick.size !== size) {
+      const index = Math.floor(generator() * this.elements.length)
+      const element = this.elements[index]
+      if (element !== undefined) {
+        pick.add(element)
+      }
+    }
 
     const value = Array.from(pick).toSorted()
 
@@ -50,10 +55,20 @@ export class ArbitrarySet<A> extends Arbitrary<A[]> {
 
   override cornerCases(): FluentPick<A[]>[] {
     const min: A[] = []
-    for (let i = 0; i < this.min; i++) min.push(this.elements[i])
+    for (let i = 0; i < this.min; i++) {
+      const element = this.elements[i]
+      if (element !== undefined) {
+        min.push(element)
+      }
+    }
 
     const max: A[] = []
-    for (let i = 0; i < this.max; i++) max.push(this.elements[i])
+    for (let i = 0; i < this.max; i++) {
+      const element = this.elements[i]
+      if (element !== undefined) {
+        max.push(element)
+      }
+    }
 
     return [{value: min, original: min}, {value: max, original: max}]
   }

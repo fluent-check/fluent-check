@@ -29,7 +29,20 @@ export class ArbitraryComposite<A> extends Arbitrary<A> {
     )
     const lastWeight = weights.at(-1)
     const picked = Math.floor(generator() * (lastWeight ?? 0))
-    return this.arbitraries[weights.findIndex(s => s > picked)].pick(generator)
+    const index = weights.findIndex(s => s > picked)
+    if (index === -1 || this.arbitraries[index] === undefined) {
+      // Fallback to last arbitrary if no match found
+      const lastArbitrary = this.arbitraries[this.arbitraries.length - 1]
+      if (lastArbitrary === undefined) {
+        throw new Error('Cannot pick from empty composite arbitrary')
+      }
+      return lastArbitrary.pick(generator)
+    }
+    const selectedArbitrary = this.arbitraries[index]
+    if (selectedArbitrary === undefined) {
+      throw new Error('Invalid index in composite arbitrary')
+    }
+    return selectedArbitrary.pick(generator)
   }
 
   override cornerCases(): FluentPick<A>[] {
