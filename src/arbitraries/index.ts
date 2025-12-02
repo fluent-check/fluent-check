@@ -19,6 +19,14 @@ export {char, hex, base64, ascii, unicode, string} from './string.js'
 export {date, time, datetime, duration, timeToMilliseconds} from './datetime.js'
 export {regex, patterns, shrinkRegexString} from './regex.js'
 export {
+  type LawResult,
+  type LawCheckOptions,
+  samplingLaws,
+  shrinkingLaws,
+  compositionLaws,
+  arbitraryLaws
+} from './laws.js'
+export {
   positiveInt,
   negativeInt,
   nonZeroInt,
@@ -56,12 +64,22 @@ export const set = <const A extends readonly unknown[]>(elements: A, min = 0, ma
 }
 
 export const oneof = <const A extends readonly unknown[]>(elements: A): Arbitrary<A[number]> =>
-  elements.length === 0 ? NoArbitrary : integer(0, elements.length - 1).map(i => elements[i])
+  elements.length === 0 ? NoArbitrary : integer(0, elements.length - 1).map(i => {
+    const element = elements[i]
+    if (element === undefined) {
+      throw new Error(`Index ${i} out of bounds for oneof elements array`)
+    }
+    return element
+  })
 
 export const union = <A>(...arbitraries: Arbitrary<A>[]): Arbitrary<A> => {
   const filtered = arbitraries.filter(a => a !== NoArbitrary)
   if (filtered.length === 0) return NoArbitrary
-  if (filtered.length === 1) return filtered[0]
+  if (filtered.length === 1) {
+    const first = filtered[0]
+    if (first === undefined) return NoArbitrary
+    return first
+  }
   return new ArbitraryComposite(filtered)
 }
 
