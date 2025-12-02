@@ -1,5 +1,7 @@
 # Change: Adopt Clean Patterns for Strict Mode Type Safety
 
+> **GitHub Issue:** [#476](https://github.com/fluent-check/fluent-check/issues/476)
+
 ## Why
 After enabling full TypeScript strict mode (`noUncheckedIndexedAccess: true`), the codebase was updated with defensive `if (x === undefined)` checks throughout. While these maintain type safety, they make the code noisy and harder to read, and add unnecessary runtime overhead. We should establish and adopt cleaner patterns that maintain strict type safety while improving code clarity and maintainability across the entire codebase.
 
