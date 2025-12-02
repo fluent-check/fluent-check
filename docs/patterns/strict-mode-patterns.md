@@ -78,7 +78,6 @@ function processSchema(schema: Schema) {
 
 ```typescript
 // Create custom utility types for common patterns
-// These are defined in src/arbitraries/types.ts
 type Defined<T> = Exclude<T, undefined>
 type Validated<T extends Record<string, unknown>> = Required<T>
 type NonEmptyArray<T> = [T, ...T[]]  // Ensures at least one element
