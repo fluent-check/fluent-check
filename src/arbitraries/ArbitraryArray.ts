@@ -49,10 +49,11 @@ export class ArbitraryArray<A> extends Arbitrary<A[]> {
   }
 
   override cornerCases(): FluentPick<A[]>[] {
+    // flatMap always produces defined values, so no filter needed
     return this.arbitrary.cornerCases().flatMap(cc => [
       {value: Array(this.min).fill(cc.value), original: Array(this.min).fill(cc.original)},
       {value: Array(this.max).fill(cc.value), original: Array(this.max).fill(cc.original)}
-    ]).filter(v => v !== undefined) as FluentPick<A[]>[]
+    ])
   }
 
   /** Composes element hash with length to create array hash */

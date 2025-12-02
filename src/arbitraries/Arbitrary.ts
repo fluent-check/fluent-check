@@ -80,16 +80,15 @@ export abstract class Arbitrary<A> {
    * Returns a sample of picks of a given size. Sample might contain repeated values
    * and corner cases are not taken into account.
    */
-  sample(sampleSize = 10, generator: () => number = Math.random): FluentPick<A>[] {
-    const result: FluentPick<A>[] = []
-
-    for (let i = 0; i < sampleSize; i ++) {
+  sample(sampleSize = 10, generator: () => number = Math.random): NonNullable<FluentPick<A>>[] {
+    const picks: (FluentPick<A> | undefined)[] = []
+    for (let i = 0; i < sampleSize; i++) {
       const pick = this.pick(generator)
-      if (pick !== undefined) result.push(pick)
-      else break
+      if (pick === undefined) break
+      picks.push(pick)
     }
-
-    return result
+    // TypeScript 5.5 automatically infers NonNullable<FluentPick<A>>[] from filter
+    return picks.filter((pick): pick is NonNullable<FluentPick<A>> => pick !== undefined)
   }
 
   /**

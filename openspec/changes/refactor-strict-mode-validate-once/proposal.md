@@ -88,7 +88,73 @@ Validate bounds/validity upfront (at function start or construction), then lever
    }
    ```
 
-3. **Repeated validation patterns** - Throughout codebase, same validation happens multiple times
+3. **`src/arbitraries/ArbitraryComposite.ts:66-82`** - Redundant undefined checks after length validation:
+   ```typescript
+   override hashCode(): HashFunction {
+     if (this.arbitraries.length === 0) return super.hashCode()
+     const first = this.arbitraries[0]
+     if (first === undefined) return super.hashCode()  // Redundant check
+     return first.hashCode()
+   }
+   ```
+   **Problem:** Length check guarantees `arbitraries[0]` exists, but type system doesn't know
+   **Solution:** Use non-null assertion after length validation (TypeScript 5.5+ control flow narrowing):
+   ```typescript
+   override hashCode(): HashFunction {
+     if (this.arbitraries.length === 0) return super.hashCode()
+     // After length check, TypeScript 5.5 narrows indexed access
+     // Use ! only when type inference cannot handle it
+     return this.arbitraries[0]!.hashCode()
+   }
+   ```
+
+4. **`src/arbitraries/ArbitrarySet.ts:25-35`** - Repeated bounds checks in loop:
+   ```typescript
+   while (pick.size !== size) {
+     const index = Math.floor(generator() * this.elements.length)
+     const element = this.elements[index]
+     if (element !== undefined) {  // Check every iteration
+       pick.add(element)
+     }
+   }
+   ```
+   **Problem:** Bounds check happens every iteration
+   **Solution:** Validate bounds upfront, use TypeScript 5.5 control flow narrowing:
+   ```typescript
+   if (this.elements.length === 0) {
+     throw new Error('Cannot pick from empty set')
+   }
+   while (pick.size !== size) {
+     const index = Math.floor(generator() * this.elements.length)
+     // After bounds validation, TypeScript 5.5 narrows type
+     pick.add(this.elements[index]!) // Safe: validated bounds above
+   }
+   ```
+
+5. **`src/strategies/FluentStrategy.ts:45-54`** - Accessing `arbitraries[arbitraryName]` without validation:
+   ```typescript
+   configArbitrary<K extends string>(arbitraryName: K, partial: FluentResult | undefined, depth: number) {
+     this.arbitraries[arbitraryName].pickNum = 0  // Could be undefined
+     this.arbitraries[arbitraryName].collection = []
+     // ...
+   }
+   ```
+   **Problem:** `arbitraries[arbitraryName]` could be undefined, but we assume it exists
+   **Solution:** Validate once at start, then use non-null assertion or type-level solution:
+   ```typescript
+   configArbitrary<K extends string>(arbitraryName: K, partial: FluentResult | undefined, depth: number) {
+     const arbitrary = this.arbitraries[arbitraryName]
+     if (arbitrary === undefined) {
+       throw new Error(`Arbitrary '${arbitraryName}' not found`)
+     }
+     // After validation, use validated reference
+     arbitrary.pickNum = 0
+     arbitrary.collection = []
+     // ...
+   }
+   ```
+
+6. **Repeated validation patterns** - Throughout codebase, same validation happens multiple times
 
 ### Impact on ESLint Configuration
 

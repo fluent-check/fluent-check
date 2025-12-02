@@ -74,6 +74,30 @@ Use TypeScript utility types to express constraints at the type level, allowing 
 
 4. **Function return types** - Many functions return `T | undefined` when they could return `NonNullable<T>` after validation
 
+5. **`src/FluentCheck.ts:267-275`** - `unwrapFluentPick()` filters undefined but doesn't express type-level safety:
+   ```typescript
+   static unwrapFluentPick<T>(testCase: PickResult<T>): ValueResult<T> {
+     const result: Record<string, T> = {}
+     for (const k in testCase) {
+       const pick = testCase[k]
+       if (pick !== undefined) {  // Runtime check
+         result[k] = pick.value
+       }
+     }
+     return result
+   }
+   ```
+   **Type-Level Opportunity:** Use `filter()` with `NonNullable` to express type-level filtering:
+   ```typescript
+   static unwrapFluentPick<T>(testCase: PickResult<T>): ValueResult<T> {
+     // TypeScript 5.5 auto-infers NonNullable from filter
+     const entries = Object.entries(testCase)
+       .filter(([, pick]) => pick !== undefined) as [string, NonNullable<FluentPick<T>>][]
+     return Object.fromEntries(entries.map(([k, pick]) => [k, pick.value])) as ValueResult<T>
+   }
+   ```
+   **Note:** This example is also relevant to `refactor-strict-mode-array-methods` for using array methods over manual iteration.
+
 ### Impact on ESLint Configuration
 
 **Current ESLint Rules:**

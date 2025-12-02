@@ -67,12 +67,30 @@ Replace `for...in` loops and manual iteration with declarative array methods tha
    **Problem:** `for...in` on object, could use `Object.entries()` or `Object.keys()`
    **Solution:** Use `Object.entries()` for key-value iteration
 
-3. **`src/FluentCheck.ts:269`** - `for...in` loop:
+3. **`src/FluentCheck.ts:267-275`** - `unwrapFluentPick()` with `for...in` and undefined check:
    ```typescript
-   for (const k in testCase) result[k] = testCase[k].value
+   static unwrapFluentPick<T>(testCase: PickResult<T>): ValueResult<T> {
+     const result: Record<string, T> = {}
+     for (const k in testCase) {
+       const pick = testCase[k]
+       if (pick !== undefined) {  // Runtime check
+         result[k] = pick.value
+       }
+     }
+     return result
+   }
    ```
-   **Problem:** `for...in` on object, could use `Object.entries()`
-   **Solution:** Use `Object.entries()` for cleaner iteration
+   **Problem:** `for...in` loop with manual undefined check
+   **Solution:** Use `Object.entries()` with `filter()` and NonNullable:
+   ```typescript
+   static unwrapFluentPick<T>(testCase: PickResult<T>): ValueResult<T> {
+     // TypeScript 5.5 auto-infers NonNullable from filter
+     const entries = Object.entries(testCase)
+       .filter(([, pick]) => pick !== undefined) as [string, NonNullable<FluentPick<T>>][]
+     return Object.fromEntries(entries.map(([k, pick]) => [k, pick.value])) as ValueResult<T>
+   }
+   ```
+   **Type-Level Benefit:** Filtering with NonNullable ensures type system knows all values are defined
 
 4. **Array filtering patterns** - Manual loops with undefined checks instead of `filter()`
 

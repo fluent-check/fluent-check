@@ -60,7 +60,29 @@ Use mapped types and conditional types to transform optional types to required t
    ```
    **Solution:** Use mapped type to express validated state, store validated schema
 
-3. **Record Types** - Any `Record<K, T | undefined>` that is validated should use mapped types
+3. **`src/strategies/FluentStrategyTypes.ts:10`** - `StrategyArbitraries` type could be strengthened:
+   ```typescript
+   export type StrategyArbitraries = Record<string, FluentStrategyArbitrary<any> | any>
+   ```
+   **Analysis:** This type is built dynamically via `addArbitrary()`, so mapped types may not apply directly. However, if we validate that specific keys exist, we could use `Required<Pick<StrategyArbitraries, K>>` for validated key sets.
+
+4. **Record Types** - Any `Record<K, T | undefined>` that is validated should use mapped types
+
+5. **`src/FluentCheck.ts:6-7`** - Type aliases for result types:
+   ```typescript
+   type PickResult<V> = Record<string, FluentPick<V>>
+   type ValueResult<V> = Record<string, V>
+   ```
+   **Analysis:** These are already correctly typed (`Record<string, T>` doesn't include undefined). However, when building these from validated data (e.g., after `addExample()`), the types are already correct. No mapped type transformation needed here.
+
+6. **`src/strategies/FluentStrategyMixins.ts:13-18`** - Accessing `arbitraries[arbitraryName]` after validation:
+   ```typescript
+   override hasInput<K extends string>(arbitraryName: K): boolean {
+     return this.arbitraries[arbitraryName] !== undefined &&
+       this.arbitraries[arbitraryName].pickNum < this.arbitraries[arbitraryName].collection.length
+   }
+   ```
+   **Analysis:** This checks for undefined, but if we validate that the arbitrary exists (e.g., via `addArbitrary()`), we could use a helper type or mapped type to express validated state. However, since `StrategyArbitraries` is built dynamically, a mapped type transformation may not be the best fit. Consider using a helper method that returns `NonNullable<StrategyArbitraries[K]>` after validation, similar to the `ArbitraryRecord.getArbitrary()` pattern.
 
 ### Impact on ESLint Configuration
 

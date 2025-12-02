@@ -309,6 +309,114 @@ class ArbitraryRecord<S extends RecordSchema> {
 - No scattered undefined checks
 - Compile-time guarantees
 
+## 6. Utility Types for Array Filtering
+
+### Example: Arbitrary.sample() Method
+
+**Before:**
+```typescript
+sample(sampleSize = 10, generator: () => number = Math.random): FluentPick<A>[] {
+  const result: FluentPick<A>[] = []
+
+  for (let i = 0; i < sampleSize; i ++) {
+    const pick = this.pick(generator)
+    if (pick !== undefined) result.push(pick)  // Runtime check
+    else break
+  }
+
+  return result
+}
+```
+
+**After:**
+```typescript
+sample(sampleSize = 10, generator: () => number = Math.random): NonNullable<FluentPick<A>>[] {
+  const picks: (FluentPick<A> | undefined)[] = []
+  for (let i = 0; i < sampleSize; i++) {
+    const pick = this.pick(generator)
+    if (pick === undefined) break
+    picks.push(pick)
+  }
+  // TypeScript 5.5 automatically infers NonNullable<FluentPick<A>>[] from filter
+  return picks.filter((pick): pick is NonNullable<FluentPick<A>> => pick !== undefined)
+}
+```
+
+**Benefits:**
+- Return type accurately reflects that undefined values are filtered out
+- TypeScript 5.5 can infer the type predicate automatically
+- Zero runtime overhead - type-level only
+- Consumers know the array contains no undefined values
+
+### Example: ArbitraryArray.cornerCases()
+
+**Before:**
+```typescript
+override cornerCases(): FluentPick<A[]>[] {
+  return this.arbitrary.cornerCases().flatMap(cc => [
+    {value: Array(this.min).fill(cc.value), original: Array(this.min).fill(cc.original)},
+    {value: Array(this.max).fill(cc.value), original: Array(this.max).fill(cc.original)}
+  ]).filter(v => v !== undefined) as FluentPick<A[]>[]  // Type assertion needed
+}
+```
+
+**After:**
+```typescript
+override cornerCases(): NonNullable<FluentPick<A[]>>[] {
+  // TypeScript 5.5 automatically infers NonNullable from filter predicate
+  return this.arbitrary.cornerCases().flatMap(cc => [
+    {value: Array(this.min).fill(cc.value), original: Array(this.min).fill(cc.original)},
+    {value: Array(this.max).fill(cc.value), original: Array(this.max).fill(cc.original)}
+  ]).filter((v): v is NonNullable<FluentPick<A[]>> => v !== undefined)
+}
+```
+
+**Benefits:**
+- Proper type narrowing instead of type assertion
+- Type-safe filtering with explicit type guard
+- Return type accurately reflects filtered result
+
+## 7. Utility Types for Validated Object Structures
+
+### Example: ArbitraryRecord Schema Access
+
+**Before:**
+```typescript
+override size(): ArbitrarySize {
+  // ...
+  for (const key of this.#keys) {
+    const arbitrary = this.schema[key]  // Type: Arbitrary<unknown> | undefined
+    if (arbitrary === undefined) continue  // Runtime check needed
+    const size = arbitrary.size()
+    // ...
+  }
+}
+```
+
+**After:**
+```typescript
+// Helper method that returns NonNullable type for validated keys
+private getArbitrary<K extends keyof S>(key: K): NonNullable<S[K]> {
+  // Type assertion safe because key is in #keys which are validated at construction
+  return this.schema[key] as NonNullable<S[K]>
+}
+
+override size(): ArbitrarySize {
+  // ...
+  for (const key of this.#keys) {
+    const arbitrary = this.getArbitrary(key)  // Type: NonNullable<S[K]>
+    const size = arbitrary.size()  // No undefined check needed
+    // ...
+  }
+}
+```
+
+**Benefits:**
+- Eliminates repeated undefined checks throughout the class
+- Type system enforces that validated keys return non-nullable values
+- Single source of truth for validated schema access
+- Zero runtime overhead - type-level transformation
+
 ## Summary
 
 Key refactoring principles (in priority order):
@@ -321,3 +429,5 @@ Key refactoring principles (in priority order):
 6. **Nullish coalescing** - Use `??` for defaults
 
 **Remember:** Type-level solutions have zero runtime overhead. Always prefer them over runtime checks.
+
+**TypeScript 5.5 Note:** TypeScript 5.5+ automatically infers type predicates for `filter(item => item !== undefined)`, so explicit type guards are only needed when TypeScript cannot infer the predicate.
