@@ -212,7 +212,7 @@ override canGenerate(pick: FluentPick<A>): boolean {
 }
 ```
 
-## 2. Use Non-Null Assertions After Validation
+## 5. Use Non-Null Assertions After Validation
 
 When you've validated bounds, use `!` operator:
 
@@ -231,7 +231,7 @@ if (index >= 0 && index < this.elements.length) {
 }
 ```
 
-## 3. Use Nullish Coalescing with Defaults
+## 6. Use Nullish Coalescing with Defaults
 
 For optional values with sensible defaults:
 
@@ -251,7 +251,7 @@ if (part === '') {
 const count = parseInt(part, 10)
 ```
 
-## 4. Use `at()` for Safe Array Access
+## 7. Use `at()` for Safe Array Access
 
 The `at()` method is designed for this:
 
@@ -264,7 +264,7 @@ const picked = Math.floor(generator() * (lastWeight ?? 0))
 const picked = Math.floor(generator() * (weights.at(-1) ?? 0))
 ```
 
-## 5. Early Returns Reduce Nesting
+## 8. Early Returns Reduce Nesting
 
 Structure code to return early:
 
@@ -286,28 +286,7 @@ for (const key of validKeys) {
 }
 ```
 
-## 6. Type Guard Helpers (When Runtime Validation Required)
-
-Use assertion functions when runtime validation is necessary (e.g., user input, external data):
-
-```typescript
-// Helper function with assertion - use when validation must happen at runtime
-function assertDefined<T>(value: T | undefined, message: string): asserts value is T {
-  if (value === undefined) {
-    throw new Error(message)
-  }
-}
-
-// Usage - only when type-level solution not possible
-const arbitrary = this.arbitraries[index]
-assertDefined(arbitrary, `Invalid index ${index}`)
-// Now TypeScript knows arbitrary is defined
-return arbitrary.pick(generator)
-```
-
-**Note:** Prefer type-level solutions (utility types, mapped types) over assertion functions when the structure is known at compile time.
-
-## 7. Use `for...of` with `entries()` Instead of `for...in`
+## 9. Use `for...of` with `entries()` Instead of `for...in`
 
 ```typescript
 // ❌ Noisy - for...in with Number conversion
@@ -325,9 +304,9 @@ for (let i = 0; i < value.length; i++) {
 }
 ```
 
-## 8. Record Access with Known Keys
+## 10. Method Wrappers for Validated Access (PREFERRED)
 
-When you control the keys (like in `ArbitraryRecord`), validate once:
+When you control the keys and validate at construction, create a type-safe accessor method:
 
 ```typescript
 // ❌ Noisy - check every access
@@ -337,26 +316,81 @@ for (const key of this.#keys) {
   // ...
 }
 
-// ✅ Clean - validate schema at construction, then use assertions
-constructor(public readonly schema: S) {
-  super()
-  this.#keys = Object.keys(schema) as (keyof S)[]
-  // Validate all keys exist
-  for (const key of this.#keys) {
-    if (schema[key] === undefined) {
-      throw new Error(`Schema missing key: ${String(key)}`)
+// ❌ Better but repetitive - direct assertions
+for (const key of this.#keys) {
+  const arbitrary = this.schema[key]! // Safe: validated in constructor
+  // ... but repeated everywhere
+}
+
+// ✅ Best - method wrapper with proper typing (src/arbitraries/ArbitraryRecord.ts:22-25)
+class ArbitraryRecord<S extends RecordSchema> {
+  readonly #keys: (keyof S)[]
+
+  constructor(public readonly schema: S) {
+    super()
+    this.#keys = Object.keys(schema) as (keyof S)[]
+    // Validate all keys exist
+    for (const key of this.#keys) {
+      if (schema[key] === undefined) {
+        throw new Error(`Schema missing key: ${String(key)}`)
+      }
+    }
+  }
+
+  /**
+   * Gets an arbitrary for a key that is guaranteed to exist.
+   * Returns NonNullable type since keys in #keys are validated at construction.
+   */
+  private getArbitrary<K extends keyof S>(key: K): NonNullable<S[K]> {
+    return this.schema[key] as NonNullable<S[K]>
+  }
+
+  // Usage throughout class - no ! assertions needed
+  size(): ArbitrarySize {
+    for (const key of this.#keys) {
+      const arbitrary = this.getArbitrary(key) // Type-safe, no assertion
+      const size = arbitrary.size()
+      // ...
     }
   }
 }
+```
 
-// Later, safe to use ! since we validated
-for (const key of this.#keys) {
-  const arbitrary = this.schema[key]! // Safe: validated in constructor
-  // ...
+**Benefits:**
+- Single source of truth for type assertion logic
+- Type system enforces NonNullable return type
+- No scattered `!` operators throughout code
+- Self-documenting with JSDoc comment explaining safety
+
+## 11. Property Existence Checking with `in` Operator
+
+For union types with optional properties, use `in` operator to narrow types:
+
+```typescript
+// ❌ Noisy - checking undefined repeatedly
+function getHours(time: {hours?: number} | {hour?: number}) {
+  const hours = time.hours
+  if (hours !== undefined) return hours
+  const hour = time.hour
+  if (hour !== undefined) return hour
+  return 0
+}
+
+// ✅ Clean - use `in` operator with nullish coalescing (src/arbitraries/datetime.ts:91)
+function getHours(time: {hours?: number} | {hour?: number}) {
+  return 'hours' in time ? (time.hours ?? 0)
+       : 'hour' in time ? (time.hour ?? 0)
+       : 0
 }
 ```
 
-## 9. Optional Chaining for Nested Access
+**Benefits:**
+- `in` operator narrows union types automatically
+- Combine with `??` for default values
+- Single expression instead of multiple if statements
+- Type-safe property access after narrowing
+
+## 12. Optional Chaining for Nested Access
 
 ```typescript
 // ❌ Noisy
@@ -371,7 +405,7 @@ const dotArbitrary = getCharClassMap()['.'] ?? parseCustomCharClass('.')
 charClasses.push(createCharClass(dotArbitrary, quantifier))
 ```
 
-## 10. Extract Validation Logic
+## 13. Extract Validation Logic
 
 Move validation to the top of functions:
 
@@ -411,18 +445,30 @@ override pick(generator: () => number) {
 
 ## Summary
 
-Key principles (in priority order):
+The 13 patterns are organized by priority:
 
-1. **Type-level solutions first** - Use `NonNullable<T>`, `Required<T>`, `Exclude<T, undefined>`, mapped types, and conditional types to express constraints at the type level. Zero runtime overhead.
+**Type-Level Solutions (Patterns 1-3):**
+1. **Type-Level Utility Types** - Use `NonNullable<T>`, `Required<T>`, `Exclude<T, undefined>` for zero runtime overhead
+2. **Mapped Types for Validated Structures** - Transform types to reflect validation state
+3. **Assertion Functions for Type Narrowing** - Use `asserts x is T` when runtime validation is required
 
-2. **Assertion functions for runtime validation** - Use `asserts x is T` when validation must happen at runtime (user input, external data). Validate once, type narrows automatically.
+**Array and Collection Patterns (Patterns 4-9):**
+4. **Array Methods** - `every()`, `some()`, `filter()`, `slice()` handle undefined naturally
+5. **Non-Null Assertions After Validation** - Use `!` operator after validating bounds
+6. **Nullish Coalescing with Defaults** - Use `??` for optional values with sensible defaults
+7. **Use `at()` for Safe Array Access** - Designed for safe negative indexing
+8. **Early Returns Reduce Nesting** - Structure code to return early and filter upfront
+9. **Use `for...of` with `entries()`** - Avoid `for...in` with Number conversion
 
-3. **Validate once, assert safely** - When runtime validation is necessary, check bounds/validity upfront, then use `!` operator or assertion functions.
+**Object and Record Patterns (Patterns 10-13):**
+10. **Method Wrappers for Validated Access** - Create type-safe accessor methods with NonNullable returns
+11. **Property Existence with `in` Operator** - Narrow union types and combine with `??` for defaults
+12. **Optional Chaining for Nested Access** - Use `?.` and `??` for nested structures
+13. **Extract Validation Logic** - Move validation to the top of functions
 
-4. **Use array methods** - `every()`, `some()`, `filter()`, `slice()` handle undefined naturally and work well with type guards.
-
-5. **Nullish coalescing** - Use `??` for defaults instead of explicit undefined checks.
-
-6. **Known bounds** - When you control the data structure, validate at construction and use type-level transformations to express the validated state.
+**Key Principles:**
+- **Type-level solutions first** - Zero runtime overhead, compile-time guarantees
+- **Validate once, assert safely** - Check bounds/validity upfront, then use type assertions
+- **Prefer built-in methods** - Array methods and operators designed for these patterns
 
 **Remember:** Type-level solutions eliminate runtime checks entirely. Only use runtime validation when type-level solutions are not feasible.

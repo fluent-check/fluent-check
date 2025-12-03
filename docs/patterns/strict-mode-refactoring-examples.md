@@ -278,10 +278,13 @@ type ValidatedSchema<T extends Record<string, Arbitrary<unknown> | undefined>> =
 }
 
 class ArbitraryRecord<S extends RecordSchema> {
+  readonly #keys: (keyof S)[]
   readonly #validatedSchema: ValidatedSchema<S>
 
   constructor(public readonly schema: S) {
     super()
+    this.#keys = Object.keys(schema) as (keyof S)[]
+
     // Validate once at construction
     for (const key in schema) {
       if (schema[key] === undefined) {
@@ -309,9 +312,9 @@ class ArbitraryRecord<S extends RecordSchema> {
 - No scattered undefined checks
 - Compile-time guarantees
 
-## 6. Utility Types for Array Filtering
+## Example 7: Utility Types for Array Filtering
 
-### Example: Arbitrary.sample() Method
+### Arbitrary.sample() Method
 
 **Before:**
 ```typescript
@@ -348,7 +351,7 @@ sample(sampleSize = 10, generator: () => number = Math.random): NonNullable<Flue
 - Zero runtime overhead - type-level only
 - Consumers know the array contains no undefined values
 
-### Example: ArbitraryArray.cornerCases()
+### ArbitraryArray.cornerCases()
 
 **Before:**
 ```typescript
@@ -376,9 +379,9 @@ override cornerCases(): NonNullable<FluentPick<A[]>>[] {
 - Type-safe filtering with explicit type guard
 - Return type accurately reflects filtered result
 
-## 7. Utility Types for Validated Object Structures
+## Example 8: Utility Types for Validated Object Structures
 
-### Example: ArbitraryRecord Schema Access
+### ArbitraryRecord Schema Access
 
 **Before:**
 ```typescript
@@ -417,6 +420,85 @@ override size(): ArbitrarySize {
 - Single source of truth for validated schema access
 - Zero runtime overhead - type-level transformation
 
+## Example 9: Assertion Function for Preconditions
+
+Real-world example from src/FluentCheck.ts:45-48 showing assertion functions in practice.
+
+**Pattern:**
+```typescript
+// Define custom error for failed preconditions
+class PreconditionFailure extends Error {
+  constructor(message?: string) {
+    super(message ?? 'Precondition failed')
+    this.name = 'PreconditionFailure'
+  }
+}
+
+// Assertion function for property tests
+export function pre(condition: boolean, message?: string): asserts condition {
+  if (!condition) {
+    throw new PreconditionFailure(message)
+  }
+}
+
+// Usage in property tests
+test('division property', () => {
+  fc.check((a: number, b: number) => {
+    pre(b !== 0, 'Divisor cannot be zero')  // Type narrows automatically
+    const result = a / b
+    return result * b === a
+  })
+})
+```
+
+**Benefits:**
+- Custom error types for better error handling
+- Type narrowing happens automatically after assertion
+- Reusable across entire test suite
+- Clear semantics for precondition checking
+
+## Example 10: Property Existence with `in` Operator
+
+Real-world example from src/arbitraries/datetime.ts:91-94 for handling union types.
+
+**Before (Multiple undefined checks):**
+```typescript
+type TimeSpec = {hours?: number} | {hour?: number} | {h?: number}
+
+function timeToMilliseconds(time: TimeSpec): number {
+  const hours = time.hours
+  if (hours !== undefined) return hours * 3600000
+
+  const hour = time.hour
+  if (hour !== undefined) return hour * 3600000
+
+  const h = time.h
+  if (h !== undefined) return h * 3600000
+
+  return 0
+}
+```
+
+**After (Using `in` operator with nullish coalescing):**
+```typescript
+type TimeSpec = {hours?: number} | {hour?: number} | {h?: number}
+
+function timeToMilliseconds(time: TimeSpec): number {
+  const h = 'hours' in time ? (time.hours ?? 0)
+         : 'hour' in time ? (time.hour ?? 0)
+         : 'h' in time ? (time.h ?? 0)
+         : 0
+
+  return h * 3600000
+}
+```
+
+**Benefits:**
+- `in` operator narrows union types automatically
+- Single expression vs multiple if statements
+- Combines property existence check with default value handling
+- More functional, declarative style
+
 ## Summary
 
 Key refactoring principles (in priority order):
@@ -424,10 +506,22 @@ Key refactoring principles (in priority order):
 1. **Type-level solutions first** - Use utility types, mapped types to eliminate runtime checks
 2. **Assertion functions** - Use `asserts` for runtime validation that must happen
 3. **Validate once, assert safely** - Check bounds/validity upfront, use `!` after
-4. **Use array methods** - `every()`, `slice()`, `filter()` handle undefined naturally  
+4. **Use array methods** - `every()`, `slice()`, `filter()` handle undefined naturally
 5. **Early validation** - Fail fast at function start
 6. **Nullish coalescing** - Use `??` for defaults
+7. **Property existence** - Use `in` operator to narrow union types
 
 **Remember:** Type-level solutions have zero runtime overhead. Always prefer them over runtime checks.
 
 **TypeScript 5.5 Note:** TypeScript 5.5+ automatically infers type predicates for `filter(item => item !== undefined)`, so explicit type guards are only needed when TypeScript cannot infer the predicate.
+
+## Real Codebase Examples
+
+The patterns documented here are used throughout the fluent-check codebase:
+
+- **Method Wrappers:** `src/arbitraries/ArbitraryRecord.ts:22-25` - `getArbitrary()` method
+- **Type Guard Filtering:** `src/arbitraries/Arbitrary.ts:83-91` - `sample()` method
+- **Assertion Functions:** `src/FluentCheck.ts:45-48` - `pre()` function
+- **Property Existence:** `src/arbitraries/datetime.ts:91-94` - `timeToMilliseconds()`
+- **Nullish Coalescing:** `src/arbitraries/ArbitraryComposite.ts:28-32` - weighted selection
+- **Array Methods:** `src/arbitraries/ArbitraryArray.ts:48` - validation with `.every()`
