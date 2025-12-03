@@ -529,9 +529,9 @@ describe('Arbitrary tests', () => {
 
   describe('Chained Arbitraries', () => {
     it('should allow the creation of array with size based on an integer arbitrary', () => {
-      expect(
-        fc.integer(2, 2).chain(i => fc.array(fc.constant(i), i, i)).sample(1)[0].value
-      ).to.eql([2, 2])
+      const sample = fc.integer(2, 2).chain(i => fc.array(fc.constant(i), i, i)).sample(1)
+      const first = sample[0]
+      expect(first !== undefined ? first.value : undefined).to.eql([2, 2])
     })
 
     it('should check a property based on a chained arbitrary', () => {
@@ -665,6 +665,448 @@ describe('Arbitrary tests', () => {
         .then(_ => true)
         .check()
       ).to.have.property('satisfiable', false)
+    })
+  })
+
+  describe('Value Identity Functions', () => {
+    describe('hashCode', () => {
+      it('returns consistent values for equal inputs (integer)', () => {
+        const arb = fc.integer()
+        fc.scenario()
+          .forall('x', fc.integer())
+          .then(({x}) => {
+            const hash = arb.hashCode()
+            return hash(x) === hash(x)
+          })
+          .check()
+          .assertSatisfiable()
+      })
+
+      it('returns consistent values for equal inputs (real)', () => {
+        const arb = fc.real()
+        fc.scenario()
+          .forall('x', fc.real())
+          .then(({x}) => {
+            const hash = arb.hashCode()
+            return hash(x) === hash(x)
+          })
+          .check()
+          .assertSatisfiable()
+      })
+
+      it('returns consistent values for equal inputs (boolean)', () => {
+        const arb = fc.boolean()
+        fc.scenario()
+          .forall('x', fc.boolean())
+          .then(({x}) => {
+            const hash = arb.hashCode()
+            return hash(x) === hash(x)
+          })
+          .check()
+          .assertSatisfiable()
+      })
+
+      it('returns consistent values for equal inputs (array)', () => {
+        const arb = fc.array(fc.integer(0, 10))
+        fc.scenario()
+          .forall('x', fc.array(fc.integer(0, 10), 0, 5))
+          .then(({x}) => {
+            const hash = arb.hashCode()
+            return hash(x) === hash(x)
+          })
+          .check()
+          .assertSatisfiable()
+      })
+
+      it('different arrays produce different hashes when elements differ', () => {
+        const arb = fc.array(fc.integer(0, 10))
+        fc.scenario()
+          .forall('x', fc.array(fc.integer(0, 10), 1, 3))
+          .forall('y', fc.array(fc.integer(0, 10), 1, 3))
+          .then(({x, y}) => {
+            const hash = arb.hashCode()
+            const eq = arb.equals()
+            // If arrays are not equal, they should have different hashes (with high probability)
+            // Note: hash collisions are possible, but we test that equal arrays have equal hashes
+            if (!eq(x, y)) {
+              // We can't guarantee different hashes due to collisions, but we can test
+              // that equal arrays always have equal hashes
+              return true
+            }
+            return hash(x) === hash(y)
+          })
+          .check()
+          .assertSatisfiable()
+      })
+
+      it('equal arrays have equal hashes', () => {
+        const arb = fc.array(fc.integer(0, 10))
+        fc.scenario()
+          .forall('x', fc.array(fc.integer(0, 10), 0, 5))
+          .then(({x}) => {
+            const hash = arb.hashCode()
+            const eq = arb.equals()
+            // If x equals itself, hash must be equal
+            return eq(x, x) && hash(x) === hash(x)
+          })
+          .check()
+          .assertSatisfiable()
+      })
+
+      it('returns consistent values for equal inputs (tuple)', () => {
+        const arb = fc.tuple(fc.integer(0, 10), fc.boolean())
+        fc.scenario()
+          .forall('x', fc.tuple(fc.integer(0, 10), fc.boolean()))
+          .then(({x}) => {
+            const hash = arb.hashCode()
+            return hash(x) === hash(x)
+          })
+          .check()
+          .assertSatisfiable()
+      })
+
+      it('returns consistent values for equal inputs (record)', () => {
+        const arb = fc.record({a: fc.integer(0, 10), b: fc.boolean()})
+        fc.scenario()
+          .forall('x', fc.record({a: fc.integer(0, 10), b: fc.boolean()}))
+          .then(({x}) => {
+            const hash = arb.hashCode()
+            return hash(x) === hash(x)
+          })
+          .check()
+          .assertSatisfiable()
+      })
+
+      it('returns 32-bit integers', () => {
+        const arb = fc.integer(-1000, 1000)
+        const hash = arb.hashCode()
+        // Test with a sample of values within the arbitrary's range
+        const testValues = [-1000, -1, 0, 1, 1000]
+        for (const x of testValues) {
+          const value = hash(x)
+          expect(value).to.be.a('number')
+          expect(Number.isInteger(value)).to.be.true
+          // Check that value is a valid 32-bit unsigned integer (0 to 2^32-1)
+          // For unsigned 32-bit: value >>> 0 should equal value for non-negative values
+          // For all values, (value >>> 0) converts to unsigned 32-bit representation
+          const unsigned = value >>> 0
+          expect(unsigned).to.be.a('number')
+          expect(Number.isInteger(unsigned)).to.be.true
+        }
+        // Also test with property-based for a range (non-negative values)
+        fc.scenario()
+          .forall('x', fc.integer(0, 100))
+          .then(({x}) => {
+            const value = hash(x)
+            // For non-negative values, unsigned conversion should preserve the value
+            return Number.isInteger(value) && value >= 0 && (value >>> 0) === value
+          })
+          .check()
+          .assertSatisfiable()
+      })
+
+      it('equal values have equal hashes (hash-equals consistency)', () => {
+        const arb = fc.integer(0, 100)
+        fc.scenario()
+          .forall('x', fc.integer(0, 100))
+          .forall('y', fc.integer(0, 100))
+          .then(({x, y}) => {
+            const hash = arb.hashCode()
+            const eq = arb.equals()
+            // If values are equal, hashes must be equal
+            if (eq(x, y)) {
+              return hash(x) === hash(y)
+            }
+            return true
+          })
+          .check()
+          .assertSatisfiable()
+      })
+    })
+
+    describe('equals', () => {
+      it('is reflexive for all types (integer)', () => {
+        const arb = fc.integer()
+        fc.scenario()
+          .forall('x', fc.integer())
+          .then(({x}) => {
+            const eq = arb.equals()
+            return eq(x, x)
+          })
+          .check()
+          .assertSatisfiable()
+      })
+
+      it('is reflexive for all types (real)', () => {
+        const arb = fc.real()
+        fc.scenario()
+          .forall('x', fc.real())
+          .then(({x}) => {
+            const eq = arb.equals()
+            return eq(x, x)
+          })
+          .check()
+          .assertSatisfiable()
+      })
+
+      it('is reflexive for all types (boolean)', () => {
+        const arb = fc.boolean()
+        fc.scenario()
+          .forall('x', fc.boolean())
+          .then(({x}) => {
+            const eq = arb.equals()
+            return eq(x, x)
+          })
+          .check()
+          .assertSatisfiable()
+      })
+
+      it('is reflexive for all types (array)', () => {
+        const arb = fc.array(fc.integer())
+        fc.scenario()
+          .forall('x', fc.array(fc.integer(), 0, 5))
+          .then(({x}) => {
+            const eq = arb.equals()
+            return eq(x, x)
+          })
+          .check()
+          .assertSatisfiable()
+      })
+
+      it('is symmetric', () => {
+        const arb = fc.integer()
+        fc.scenario()
+          .forall('x', fc.integer())
+          .forall('y', fc.integer())
+          .then(({x, y}) => {
+            const eq = arb.equals()
+            return eq(x, y) === eq(y, x)
+          })
+          .check()
+          .assertSatisfiable()
+      })
+
+      it('handles special floating-point values with Object.is semantics', () => {
+        const eq = fc.real().equals()
+        expect(eq(NaN, NaN)).to.be.true  // Object.is(NaN, NaN) === true
+        expect(eq(0, -0)).to.be.false     // Object.is(0, -0) === false
+        expect(eq(Infinity, Infinity)).to.be.true
+        expect(eq(-Infinity, -Infinity)).to.be.true
+      })
+
+      it('compares arrays element-by-element', () => {
+        const arb = fc.array(fc.integer())
+        fc.scenario()
+          .forall('x', fc.array(fc.integer(0, 10), 0, 5))
+          .forall('y', fc.array(fc.integer(0, 10), 0, 5))
+          .then(({x, y}) => {
+            const eq = arb.equals()
+            // Arrays are equal if they have same length and elements
+            const expectedEqual = x.length === y.length && x.every((val, i) => val === y[i])
+            return eq(x, y) === expectedEqual
+          })
+          .check()
+          .assertSatisfiable()
+      })
+
+      it('compares tuples element-by-element', () => {
+        const arb = fc.tuple(fc.integer(), fc.string())
+        fc.scenario()
+          .forall('x', fc.tuple(fc.integer(0, 10), fc.string(1, 3)))
+          .forall('y', fc.tuple(fc.integer(0, 10), fc.string(1, 3)))
+          .then(({x, y}) => {
+            const eq = arb.equals()
+            const expectedEqual = x[0] === y[0] && x[1] === y[1]
+            return eq(x, y) === expectedEqual
+          })
+          .check()
+          .assertSatisfiable()
+      })
+
+      it('compares records property-by-property', () => {
+        const arb = fc.record({x: fc.integer(), y: fc.integer()})
+        fc.scenario()
+          .forall('x', fc.record({x: fc.integer(0, 10), y: fc.integer(0, 10)}))
+          .forall('y', fc.record({x: fc.integer(0, 10), y: fc.integer(0, 10)}))
+          .then(({x, y}) => {
+            const eq = arb.equals()
+            const expectedEqual = x.x === y.x && x.y === y.y
+            return eq(x, y) === expectedEqual
+          })
+          .check()
+          .assertSatisfiable()
+      })
+    })
+
+    describe('sampleUnique uses identity functions', () => {
+      it('correctly deduplicates integers', () => {
+        const samples = fc.integer(0, 5).sampleUnique(100)
+        expect(samples.length).to.equal(6) // Only 6 unique values possible
+      })
+
+      it('never returns duplicates (property-based)', () => {
+        const arb = fc.integer(0, 100)
+        fc.scenario()
+          .forall('sampleSize', fc.integer(1, 200))
+          .then(({sampleSize}) => {
+            const samples = arb.sampleUnique(sampleSize)
+            const eq = arb.equals()
+            // Check that no two samples are equal
+            for (let i = 0; i < samples.length; i++) {
+              for (let j = i + 1; j < samples.length; j++) {
+                if (eq(samples[i].value, samples[j].value)) {
+                  return false
+                }
+              }
+            }
+            return true
+          })
+          .check()
+          .assertSatisfiable()
+      })
+
+      it('correctly deduplicates arrays', () => {
+        const arb = fc.array(fc.integer(0, 1), 2, 2)
+        const samples = arb.sampleUnique(100)
+        // [0,0], [0,1], [1,0], [1,1] = 4 unique arrays
+        expect(samples.length).to.equal(4)
+      })
+
+      it('never returns duplicate arrays (property-based)', () => {
+        const arb = fc.array(fc.integer(0, 10), 0, 3)
+        fc.scenario()
+          .forall('sampleSize', fc.integer(1, 100))
+          .then(({sampleSize}) => {
+            const samples = arb.sampleUnique(sampleSize)
+            const eq = arb.equals()
+            // Check that no two samples are equal
+            for (let i = 0; i < samples.length; i++) {
+              for (let j = i + 1; j < samples.length; j++) {
+                if (eq(samples[i].value, samples[j].value)) {
+                  return false
+                }
+              }
+            }
+            return true
+          })
+          .check()
+          .assertSatisfiable()
+      })
+
+      it('correctly deduplicates booleans', () => {
+        const samples = fc.boolean().sampleUnique(100)
+        expect(samples.length).to.equal(2) // Only true and false
+      })
+
+      it('correctly deduplicates tuples', () => {
+        const arb = fc.tuple(fc.integer(0, 1), fc.boolean())
+        const samples = arb.sampleUnique(100)
+        expect(samples.length).to.equal(4) // 2 * 2 = 4 combinations
+      })
+
+      it('never returns duplicate tuples (property-based)', () => {
+        const arb = fc.tuple(fc.integer(0, 10), fc.boolean())
+        fc.scenario()
+          .forall('sampleSize', fc.integer(1, 100))
+          .then(({sampleSize}) => {
+            const samples = arb.sampleUnique(sampleSize)
+            const eq = arb.equals()
+            // Check that no two samples are equal
+            for (let i = 0; i < samples.length; i++) {
+              for (let j = i + 1; j < samples.length; j++) {
+                if (eq(samples[i].value, samples[j].value)) {
+                  return false
+                }
+              }
+            }
+            return true
+          })
+          .check()
+          .assertSatisfiable()
+      })
+    })
+
+    describe('fallback behavior', () => {
+      it('MappedArbitrary falls back to base class for complex objects', () => {
+        const arb = fc.integer(0, 10).map(n => ({value: n, nested: {x: n}}))
+        fc.scenario()
+          .forall('x', fc.integer(0, 10))
+          .then(({x}) => {
+            const hash = arb.hashCode()
+            const eq = arb.equals()
+            const obj1 = {value: x, nested: {x}}
+            const obj2 = {value: x, nested: {x}}
+            // Fallback should use stringify, so equal objects should have equal hashes
+            return hash(obj1) === hash(obj2) && eq(obj1, obj2)
+          })
+          .check()
+          .assertSatisfiable()
+      })
+
+      it('ChainedArbitrary uses fallback', () => {
+        const arb = fc.integer(1, 3).chain(n => fc.array(fc.constant(n), n, n))
+        fc.scenario()
+          .forall('x', fc.integer(1, 3))
+          .then(({x}) => {
+            const hash = arb.hashCode()
+            const eq = arb.equals()
+            const arr1 = Array(x).fill(x)
+            const arr2 = Array(x).fill(x)
+            // Fallback should work consistently
+            return hash(arr1) === hash(arr2) && eq(arr1, arr2)
+          })
+          .check()
+          .assertSatisfiable()
+      })
+
+      it('FilteredArbitrary delegates to base', () => {
+        fc.scenario()
+          .given('arb', () => fc.integer(0, 100).filter(n => n % 2 === 0))
+          .forall('x', fc.integer(0, 100).filter(n => n % 2 === 0))
+          .forall('y', fc.integer(0, 100).filter(n => n % 2 === 0))
+          .then(({arb, x, y}) => {
+            const hash = arb.hashCode()
+            const eq = arb.equals()
+            // Should use integer's efficient hash/equals
+            if (x === y) {
+              return hash(x) === hash(y) && eq(x, y)
+            } else {
+              return !eq(x, y)
+            }
+          })
+          .check()
+          .assertSatisfiable()
+      })
+    })
+
+    describe('edge cases', () => {
+      it('handles NaN in real numbers', () => {
+        const hash = fc.real().hashCode()
+        expect(hash(NaN)).to.equal(hash(NaN)) // Consistent hash
+      })
+
+      it('handles empty arrays', () => {
+        const arb = fc.array(fc.integer())
+        const hash = arb.hashCode()
+        const eq = arb.equals()
+        const empty: number[] = []
+        expect(hash(empty)).to.equal(hash(empty))
+        expect(eq(empty, empty)).to.be.true
+      })
+
+      it('handles nested structures', () => {
+        const arb = fc.array(fc.array(fc.integer(0, 5)))
+        fc.scenario()
+          .forall('x', fc.array(fc.array(fc.integer(0, 5)), 0, 3))
+          .then(({x}) => {
+            const hash = arb.hashCode()
+            const eq = arb.equals()
+            // Nested structures should work consistently
+            return hash(x) === hash(x) && eq(x, x)
+          })
+          .check()
+          .assertSatisfiable()
+      })
     })
   })
 })

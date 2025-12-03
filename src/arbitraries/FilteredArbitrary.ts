@@ -1,12 +1,13 @@
 import {BetaDistribution} from '../statistics.js'
 import type {EstimatedSize, FluentPick} from './types.js'
+import type {HashFunction, EqualsFunction} from './Arbitrary.js'
 import {type Arbitrary, NoArbitrary, WrappedArbitrary} from './internal.js'
 import {estimatedSize, lowerCredibleInterval, upperCredibleInterval} from './util.js'
 
 export class FilteredArbitrary<A> extends WrappedArbitrary<A> {
   sizeEstimation: BetaDistribution
 
-  constructor(readonly baseArbitrary: Arbitrary<A>, public readonly f: (a: A) => boolean) {
+  constructor(override readonly baseArbitrary: Arbitrary<A>, public readonly f: (a: A) => boolean) {
     super(baseArbitrary)
     this.sizeEstimation = new BetaDistribution(2, 1) // use 1,1 for .mean instead of .mode in point estimation
   }
@@ -49,6 +50,16 @@ export class FilteredArbitrary<A> extends WrappedArbitrary<A> {
 
   override canGenerate(pick: FluentPick<A>) {
     return this.baseArbitrary.canGenerate(pick) && this.f(pick.value)
+  }
+
+  /** Delegates to base arbitrary's hash function */
+  override hashCode(): HashFunction {
+    return this.baseArbitrary.hashCode()
+  }
+
+  /** Delegates to base arbitrary's equals function */
+  override equals(): EqualsFunction {
+    return this.baseArbitrary.equals()
   }
 
   override toString(depth = 0) {

@@ -1,6 +1,7 @@
 import {type ArbitrarySize, type FluentPick} from './types.js'
+import type {HashFunction, EqualsFunction} from './Arbitrary.js'
 import {Arbitrary} from './internal.js'
-import {exactSize, estimatedSize} from './util.js'
+import {exactSize, estimatedSize, FNV_OFFSET_BASIS, mix, stringToHash} from './util.js'
 import * as fc from './index.js'
 
 type RecordSchema = Record<string, Arbitrary<unknown>>
@@ -14,6 +15,15 @@ export class ArbitraryRecord<S extends RecordSchema> extends Arbitrary<UnwrapSch
     this.#keys = Object.keys(schema) as (keyof S)[]
   }
 
+  /**
+   * Gets an arbitrary for a key that is guaranteed to exist (validated at construction).
+   * Returns NonNullable type since keys in #keys are validated.
+   */
+  private getArbitrary<K extends keyof S>(key: K): NonNullable<S[K]> {
+    // Type assertion safe because key is in #keys which are validated at construction
+    return this.schema[key] as NonNullable<S[K]>
+  }
+
   override size(): ArbitrarySize {
     if (this.#keys.length === 0) return exactSize(1)
 
@@ -21,7 +31,8 @@ export class ArbitraryRecord<S extends RecordSchema> extends Arbitrary<UnwrapSch
     let isEstimated = false
 
     for (const key of this.#keys) {
-      const size = this.schema[key].size()
+      const arbitrary = this.getArbitrary(key)
+      const size = arbitrary.size()
       if (size.type === 'estimated') isEstimated = true
       value *= size.value
     }
@@ -34,7 +45,8 @@ export class ArbitraryRecord<S extends RecordSchema> extends Arbitrary<UnwrapSch
     const original: Record<string, unknown> = {}
 
     for (const key of this.#keys) {
-      const pick = this.schema[key].pick(generator)
+      const arbitrary = this.getArbitrary(key)
+      const pick = arbitrary.pick(generator)
       if (pick === undefined) return undefined
       value[key as string] = pick.value
       original[key as string] = pick.original
@@ -48,10 +60,13 @@ export class ArbitraryRecord<S extends RecordSchema> extends Arbitrary<UnwrapSch
       return [{value: {} as UnwrapSchema<S>, original: {}}]
     }
 
-    const cornerCasesPerKey = this.#keys.map(key => ({
-      key,
-      cases: this.schema[key].cornerCases()
-    }))
+    const cornerCasesPerKey = this.#keys.map(key => {
+      const arbitrary = this.getArbitrary(key)
+      return {
+        key,
+        cases: arbitrary.cornerCases()
+      }
+    })
 
     // Generate cartesian product of all corner cases
     let combinations: FluentPick<UnwrapSchema<S>>[] = [{
@@ -83,8 +98,9 @@ export class ArbitraryRecord<S extends RecordSchema> extends Arbitrary<UnwrapSch
       const newSchema: Record<string, Arbitrary<unknown>> = {}
 
       for (const key of this.#keys) {
+        const arbitrary = this.getArbitrary(key)
         if (key === selectedKey) {
-          newSchema[key as string] = this.schema[key].shrink({
+          newSchema[key as string] = arbitrary.shrink({
             value: value[key as string],
             original: original[key as string]
           })
@@ -104,7 +120,8 @@ export class ArbitraryRecord<S extends RecordSchema> extends Arbitrary<UnwrapSch
     const original = (pick.original ?? value) as Record<string, unknown>
 
     for (const key of this.#keys) {
-      if (!this.schema[key].canGenerate({
+      const arbitrary = this.getArbitrary(key)
+      if (!arbitrary.canGenerate({
         value: value[key as string],
         original: original[key as string]
       })) {
@@ -115,11 +132,54 @@ export class ArbitraryRecord<S extends RecordSchema> extends Arbitrary<UnwrapSch
     return true
   }
 
+  /** Composes property hashes to create record hash */
+  override hashCode(): HashFunction {
+    const propertyHashes = new Map<keyof S, HashFunction>()
+    for (const key of this.#keys) {
+      const arbitrary = this.getArbitrary(key)
+      propertyHashes.set(key, arbitrary.hashCode())
+    }
+    return (record: unknown): number => {
+      const obj = record as Record<string, unknown>
+      let hash = FNV_OFFSET_BASIS
+      // Mix in key count for differentiation
+      hash = mix(hash, this.#keys.length)
+      for (const key of this.#keys) {
+        // Mix key name hash for order-independence within same key set
+        hash = mix(hash, stringToHash(String(key)))
+        const keyHash = propertyHashes.get(key)
+        if (keyHash !== undefined) {
+          hash = mix(hash, keyHash(obj[key as string]))
+        }
+      }
+      return hash
+    }
+  }
+
+  /** Composes property equality for record comparison */
+  override equals(): EqualsFunction {
+    const propertyEquals = new Map<keyof S, EqualsFunction>()
+    for (const key of this.#keys) {
+      const arbitrary = this.getArbitrary(key)
+      propertyEquals.set(key, arbitrary.equals())
+    }
+    return (a: unknown, b: unknown): boolean => {
+      const objA = a as Record<string, unknown>
+      const objB = b as Record<string, unknown>
+      for (const key of this.#keys) {
+        const keyEquals = propertyEquals.get(key)
+        if (keyEquals !== undefined && !keyEquals(objA[key as string], objB[key as string])) return false
+      }
+      return true
+    }
+  }
+
   override toString(depth = 0): string {
     const indent = ' '.repeat(2 * depth)
-    const entries = this.#keys.map(key =>
-      `${indent}  ${String(key)}:\n${this.schema[key].toString(depth + 2)}`
-    ).join('\n')
+    const entries = this.#keys.map(key => {
+      const arbitrary = this.getArbitrary(key)
+      return `${indent}  ${String(key)}:\n${arbitrary.toString(depth + 2)}`
+    }).join('\n')
     return `${indent}Record Arbitrary:\n${entries}`
   }
 }

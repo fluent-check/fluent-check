@@ -4,7 +4,7 @@
  * These tests verify that result.example preserves type information
  * after calling .check().
  *
- * Run with: npx tsc --noEmit
+ * Run with: npm run test:types
  *
  * If any type assertion fails, TypeScript will produce a compile error.
  */
@@ -13,24 +13,7 @@
 
 import {FluentCheck, type FluentResult} from '../../src/FluentCheck.js'
 import * as fc from '../../src/arbitraries/index.js'
-
-// ============================================================================
-// Type assertion utilities (standard type-testing pattern)
-// ============================================================================
-
-/**
- * Requires T to be `true`. If T is `false`, this causes a compile error.
- */
-type Expect<T extends true> = T
-
-/**
- * Returns `true` if X and Y are exactly equal types, `false` otherwise.
- * Uses the distributive conditional type trick for exact equality.
- */
-type Equal<X, Y> =
-  (<T>() => T extends X ? 1 : 2) extends (<T>() => T extends Y ? 1 : 2)
-    ? true
-    : false
+import {Expect, Equal} from './test-utils.types.js'
 
 // ============================================================================
 // Test: FluentResult generic type parameter

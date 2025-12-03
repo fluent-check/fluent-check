@@ -85,7 +85,9 @@ class FluentPropertyImpl<Args extends unknown[]> implements FluentProperty<Args>
   ) {
     this.#arbitraries = arbitraries
     this.#predicate = predicate
-    this.#strategyFactory = strategyFactory
+    if (strategyFactory !== undefined) {
+      this.#strategyFactory = strategyFactory
+    }
   }
 
   check(): FluentResult<Record<string, unknown>> {
@@ -100,7 +102,9 @@ class FluentPropertyImpl<Args extends unknown[]> implements FluentProperty<Args>
       checker as FluentCheck<Record<string, unknown>, Record<string, unknown>>
 
     for (let i = 0; i < this.#arbitraries.length; i++) {
-      chain = chain.forall(`arg${i}`, this.#arbitraries[i])
+      const arbitrary = this.#arbitraries[i]
+      if (arbitrary === undefined) continue
+      chain = chain.forall(`arg${i}`, arbitrary)
     }
 
     // Create the predicate wrapper that extracts positional arguments

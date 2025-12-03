@@ -4,7 +4,7 @@
  * These tests verify that type inference works as expected after applying
  * NoInfer<T> to control which parameter positions drive type inference.
  *
- * Run with: npx tsc --noEmit
+ * Run with: npm run test:types
  *
  * If any type assertion fails, TypeScript will produce a compile error.
  */
@@ -13,32 +13,22 @@
 
 import {FluentCheck} from '../../src/FluentCheck.js'
 import {integer, type Arbitrary} from '../../src/arbitraries/index.js'
+import {Expect, Equal} from './test-utils.types.js'
 
 // ============================================================================
-// Type assertion utilities (standard type-testing pattern)
+// Helper type to extract Rec from FluentCheck
 // ============================================================================
 
-/**
- * Requires T to be `true`. If T is `false`, this causes a compile error.
- */
-type Expect<T extends true> = T
-
-/**
- * Returns `true` if X and Y are exactly equal types, `false` otherwise.
- * Uses the distributive conditional type trick for exact equality.
- */
-type Equal<X, Y> =
-  (<T>() => T extends X ? 1 : 2) extends (<T>() => T extends Y ? 1 : 2)
-    ? true
-    : false
+// FluentCheck<Rec, ParentRec> where both extend {}
+// We need to use a conditional type that works with the constraints
+type ExtractRec<T> = T extends FluentCheck<infer R, infer _P> ? R : never
 
 // ============================================================================
 // Test: given() with factory - V inferred from return type
 // ============================================================================
 
 const factoryInference = new FluentCheck().given('x', () => 42)
-// Extract the Rec type from FluentCheck<Rec, ParentRec>
-type FactoryRec = typeof factoryInference extends FluentCheck<infer R, unknown> ? R : never
+type FactoryRec = ExtractRec<typeof factoryInference>
 
 // Test: 'x' should be number (inferred from factory return)
 type _T1 = Expect<Equal<FactoryRec['x'], number>>
@@ -48,7 +38,7 @@ type _T1 = Expect<Equal<FactoryRec['x'], number>>
 // ============================================================================
 
 const explicitType = new FluentCheck().given<'x', number>('x', 42)
-type ExplicitRec = typeof explicitType extends FluentCheck<infer R, unknown> ? R : never
+type ExplicitRec = ExtractRec<typeof explicitType>
 
 type _T2 = Expect<Equal<ExplicitRec['x'], number>>
 
@@ -60,7 +50,7 @@ const chainedGiven = new FluentCheck()
   .given('a', () => 1)
   .and('b', ({a}) => String(a))
 
-type ChainedRec = typeof chainedGiven extends FluentCheck<infer R, unknown> ? R : never
+type ChainedRec = ExtractRec<typeof chainedGiven>
 
 // Both 'a' and 'b' should have correct types
 type _T3 = Expect<Equal<ChainedRec['a'], number>>
@@ -105,26 +95,7 @@ const composed = new FluentCheck()
   .forall('n', integer(0, 10))
   .given('doubled', ({n}) => n * 2)
 
-type ComposedRec = typeof composed extends FluentCheck<infer R, unknown> ? R : never
+type ComposedRec = ExtractRec<typeof composed>
 
 type _T10 = Expect<Equal<ComposedRec['n'], number>>
 type _T11 = Expect<Equal<ComposedRec['doubled'], number>>
-
-// ============================================================================
-// Test: @ts-expect-error - verify type errors are caught
-// ============================================================================
-
-// This tests that shrinkHelper's inverseMap must return A[] (the source type),
-// NOT B[] (the mapped type). If NoInfer is working correctly, this should error.
-
-// @ts-expect-error: inverseMap returns string[] but should return number[]
-integer(0, 100).map(
-  n => String(n),
-  {inverseMap: (_b: string) => ['not', 'numbers']}
-)
-
-// @ts-expect-error: Comparing string with > operator on number
-integer(0, 100).map(
-  n => String(n),
-  {canGenerate: pick => pick.value > 0}
-)

@@ -4,7 +4,7 @@
  * These tests verify that literal types are correctly inferred when using
  * const type parameters, without requiring callers to use `as const` assertions.
  *
- * Run with: npx tsc --noEmit
+ * Run with: npm run test:types
  *
  * If any type assertion fails, TypeScript will produce a compile error.
  */
@@ -12,29 +12,7 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 
 import {oneof, set, tuple, integer, boolean, type Arbitrary} from '../../src/arbitraries/index.js'
-
-// ============================================================================
-// Type assertion utilities (standard type-testing pattern)
-// ============================================================================
-
-/**
- * Requires T to be `true`. If T is `false`, this causes a compile error.
- */
-type Expect<T extends true> = T
-
-/**
- * Returns `true` if X and Y are exactly equal types, `false` otherwise.
- * Uses the distributive conditional type trick for exact equality.
- */
-type Equal<X, Y> =
-  (<T>() => T extends X ? 1 : 2) extends (<T>() => T extends Y ? 1 : 2)
-    ? true
-    : false
-
-/**
- * Returns `true` if T extends U, `false` otherwise.
- */
-type Extends<T, U> = T extends U ? true : false
+import {Expect, Equal, Extends} from './test-utils.types.js'
 
 // ============================================================================
 // Test: oneof() infers literal union types

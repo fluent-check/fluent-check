@@ -1,5 +1,6 @@
 import {Arbitrary} from './internal.js'
 import type {ArbitrarySize, FluentPick} from './types.js'
+import type {HashFunction, EqualsFunction} from './Arbitrary.js'
 import {exactSize, estimatedSize} from './util.js'
 import * as fc from './index.js'
 
@@ -29,7 +30,20 @@ export class ArbitraryComposite<A> extends Arbitrary<A> {
     )
     const lastWeight = weights.at(-1)
     const picked = Math.floor(generator() * (lastWeight ?? 0))
-    return this.arbitraries[weights.findIndex(s => s > picked)].pick(generator)
+    const index = weights.findIndex(s => s > picked)
+    if (index === -1 || this.arbitraries[index] === undefined) {
+      // Fallback to last arbitrary if no match found
+      const lastArbitrary = this.arbitraries[this.arbitraries.length - 1]
+      if (lastArbitrary === undefined) {
+        throw new Error('Cannot pick from empty composite arbitrary')
+      }
+      return lastArbitrary.pick(generator)
+    }
+    const selectedArbitrary = this.arbitraries[index]
+    if (selectedArbitrary === undefined) {
+      throw new Error('Invalid index in composite arbitrary')
+    }
+    return selectedArbitrary.pick(generator)
   }
 
   override cornerCases(): FluentPick<A>[] {
@@ -43,6 +57,28 @@ export class ArbitraryComposite<A> extends Arbitrary<A> {
 
   override canGenerate(pick: FluentPick<A>) {
     return this.arbitraries.some(a => a.canGenerate(pick))
+  }
+
+  /**
+   * For unions, uses the first arbitrary's hash function as fallback.
+   * Falls back to base class implementation if no arbitraries.
+   */
+  override hashCode(): HashFunction {
+    if (this.arbitraries.length === 0) return super.hashCode()
+    const first = this.arbitraries[0]
+    if (first === undefined) return super.hashCode()
+    return first.hashCode()
+  }
+
+  /**
+   * For unions, uses the first arbitrary's equals function as fallback.
+   * Falls back to base class implementation if no arbitraries.
+   */
+  override equals(): EqualsFunction {
+    if (this.arbitraries.length === 0) return super.equals()
+    const first = this.arbitraries[0]
+    if (first === undefined) return super.equals()
+    return first.equals()
   }
 
   override toString(depth = 0) {

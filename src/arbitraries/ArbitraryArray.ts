@@ -1,5 +1,6 @@
 import type {FluentPick} from './types.js'
-import {mapArbitrarySize, exactSize} from './util.js'
+import type {HashFunction, EqualsFunction} from './Arbitrary.js'
+import {mapArbitrarySize, exactSize, FNV_OFFSET_BASIS, mix} from './util.js'
 import {Arbitrary} from './internal.js'
 import * as fc from './index.js'
 
@@ -48,10 +49,39 @@ export class ArbitraryArray<A> extends Arbitrary<A[]> {
   }
 
   override cornerCases(): FluentPick<A[]>[] {
+    // flatMap always produces defined values, so no filter needed
     return this.arbitrary.cornerCases().flatMap(cc => [
       {value: Array(this.min).fill(cc.value), original: Array(this.min).fill(cc.original)},
       {value: Array(this.max).fill(cc.value), original: Array(this.max).fill(cc.original)}
-    ]).filter(v => v !== undefined) as FluentPick<A[]>[]
+    ])
+  }
+
+  /** Composes element hash with length to create array hash */
+  override hashCode(): HashFunction {
+    const elementHash = this.arbitrary.hashCode()
+    return (arr: unknown): number => {
+      const a = arr as A[]
+      let hash = FNV_OFFSET_BASIS
+      hash = mix(hash, a.length)
+      for (const elem of a) {
+        hash = mix(hash, elementHash(elem))
+      }
+      return hash
+    }
+  }
+
+  /** Composes element equality for array comparison */
+  override equals(): EqualsFunction {
+    const elementEquals = this.arbitrary.equals()
+    return (a: unknown, b: unknown): boolean => {
+      const arrA = a as A[]
+      const arrB = b as A[]
+      if (arrA.length !== arrB.length) return false
+      for (let i = 0; i < arrA.length; i++) {
+        if (!elementEquals(arrA[i], arrB[i])) return false
+      }
+      return true
+    }
   }
 
   override toString(depth = 0): string {
