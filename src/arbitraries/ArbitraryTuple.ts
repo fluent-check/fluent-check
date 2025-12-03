@@ -1,6 +1,7 @@
 import type {ArbitrarySize, FluentPick} from './types.js'
+import type {HashFunction, EqualsFunction} from './Arbitrary.js'
 import {Arbitrary} from './internal.js'
-import {exactSize, estimatedSize} from './util.js'
+import {exactSize, estimatedSize, FNV_OFFSET_BASIS, mix} from './util.js'
 import * as fc from './index.js'
 
 type UnwrapArbitrary<T> = { [P in keyof T]: T[P] extends Arbitrary<infer E> ? E : never }
@@ -63,13 +64,45 @@ export class ArbitraryTuple<U extends Arbitrary<any>[], A = UnwrapArbitrary<U>> 
   override canGenerate(pick: FluentPick<A>): boolean {
     const value = pick.value as unknown[]
     const original = pick.original as unknown[]
-    for (const i in value) {
-      const index = Number(i)
-      if (!this.arbitraries[index].canGenerate({value: value[index], original: original[index]}))
-        return false
-    }
 
-    return true
+    return this.arbitraries.every((arbitrary, i) => {
+      const val = value[i]
+      const orig = original[i]
+      return (val !== undefined && arbitrary?.canGenerate({value: val, original: orig})) ?? false
+    })
+  }
+
+  /** Composes element hashes to create tuple hash */
+  override hashCode(): HashFunction {
+    const elementHashes = this.arbitraries.map(a => a.hashCode())
+    return (tuple: unknown): number => {
+      const arr = tuple as unknown[]
+      let hash = FNV_OFFSET_BASIS
+      for (const [i, hashFn] of elementHashes.entries()) {
+        if (hashFn === undefined) continue
+        const element = arr[i]
+        if (element !== undefined) {
+          hash = mix(hash, hashFn(element))
+        }
+      }
+      return hash
+    }
+  }
+
+  /** Composes element equality for tuple comparison */
+  override equals(): EqualsFunction {
+    const elementEquals = this.arbitraries.map(a => a.equals())
+    return (a: unknown, b: unknown): boolean => {
+      const arrA = a as unknown[]
+      const arrB = b as unknown[]
+      if (arrA.length !== arrB.length) return false
+      return elementEquals.every((eqFn, i) => {
+        if (eqFn === undefined) return true
+        const valA = arrA[i]
+        const valB = arrB[i]
+        return valA !== undefined && valB !== undefined && eqFn(valA, valB)
+      })
+    }
   }
 
   override toString(depth = 0) {

@@ -86,9 +86,9 @@ export class BetaBinomialDistribution extends IntegerDistribution {
   supportMin(): number { return 0 }
   supportMax(): number { return this.trials }
 
-  mean(): number { return this.trials * this.alpha / (this.alpha + this.beta) }
+  override mean(): number { return this.trials * this.alpha / (this.alpha + this.beta) }
 
-  mode(): number {
+  override mode(): number {
     if (this.alpha <= 1.0 || this.beta <= 1.0) {
       return this.beta >= this.alpha ? 0 : this.trials
     }

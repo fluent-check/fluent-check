@@ -173,12 +173,18 @@ function parseQuantifier(pattern: string, startIndex: number): QuantifierResult 
 
       if (rangeParts.length === 1) {
         // {n}
-        const count = parseInt(rangeParts[0], 10)
+        const part = rangeParts[0]
+        if (part === undefined) {
+          return {min: 1, max: 1, nextIndex: closeBrace + 1}
+        }
+        const count = parseInt(part, 10)
         return {min: count, max: count, nextIndex: closeBrace + 1}
       } else if (rangeParts.length === 2) {
         // {n,m}
-        const min = rangeParts[0] !== '' ? parseInt(rangeParts[0], 10) : 0
-        const max = rangeParts[1] !== '' ? parseInt(rangeParts[1], 10) : Number.POSITIVE_INFINITY
+        const minPart = rangeParts[0]
+        const maxPart = rangeParts[1]
+        const min = minPart !== undefined && minPart !== '' ? parseInt(minPart, 10) : 0
+        const max = maxPart !== undefined && maxPart !== '' ? parseInt(maxPart, 10) : Number.POSITIVE_INFINITY
         return {min, max, nextIndex: closeBrace + 1}
       }
 
@@ -208,13 +214,18 @@ function parseCustomCharClass(charClass: string): Arbitrary<string> {
   let i = startIndex
 
   while (i < content.length) {
+    const currentChar = content[i]
+    if (currentChar === undefined) break
     if (i + 2 < content.length && content[i + 1] === '-') {
       // Range like a-z
-      generators.push(char(content[i], content[i + 2]))
+      const endChar = content[i + 2]
+      if (endChar !== undefined) {
+        generators.push(char(currentChar, endChar))
+      }
       i += 3
     } else {
       // Single character
-      generators.push(constant(content[i]))
+      generators.push(constant(currentChar))
       i++
     }
   }
@@ -287,10 +298,13 @@ function parseRegexPattern(pattern: string | RegExp): RegexCharClass[] {
         i = quantifier.nextIndex
       } else {
         // Literal escaped character
-        charClasses.push(createCharClass(
-          constant(patternStr[i + 1]),
-          {min: 1, max: 1, nextIndex: 0}
-        ))
+        const escapedChar = patternStr[i + 1]
+        if (escapedChar !== undefined) {
+          charClasses.push(createCharClass(
+            constant(escapedChar),
+            {min: 1, max: 1, nextIndex: 0}
+          ))
+        }
         i += 2
       }
     } else if (currentChar === '[') {
@@ -313,7 +327,10 @@ function parseRegexPattern(pattern: string | RegExp): RegexCharClass[] {
       // Any character
       const quantifier = parseQuantifier(patternStr, i + 1)
       const charClassMap = getCharClassMap()
-      charClasses.push(createCharClass(charClassMap['.'], quantifier))
+      const dotArbitrary = charClassMap['.']
+      if (dotArbitrary !== undefined) {
+        charClasses.push(createCharClass(dotArbitrary, quantifier))
+      }
       i = quantifier.nextIndex
     } else if (currentChar === '|') {
       // For simple implementation, we'll treat | as an OR and make it a special case
@@ -323,10 +340,12 @@ function parseRegexPattern(pattern: string | RegExp): RegexCharClass[] {
       i++
     } else {
       // Literal character
-      charClasses.push(createCharClass(
-        constant(currentChar),
-        {min: 1, max: 1, nextIndex: 0}
-      ))
+      if (currentChar !== undefined) {
+        charClasses.push(createCharClass(
+          constant(currentChar),
+          {min: 1, max: 1, nextIndex: 0}
+        ))
+      }
       i++
     }
   }
@@ -569,6 +588,7 @@ function shrinkByRepetition(s: string, matcher: (s: string) => boolean): string[
   if (repeats !== null) {
     for (const repeat of repeats) {
       const char = repeat[0]
+      if (char === undefined) continue
       const count = repeat.length
 
       // Try reducing the repetition while maintaining validity
@@ -592,6 +612,7 @@ function shrinkBySimplification(s: string, matcher: (s: string) => boolean): str
 
   for (let i = 0; i < s.length; i++) {
     const char = s[i]
+    if (char === undefined) continue
     const simplifications = getSimplerChars(char)
 
     for (const simpler of simplifications) {

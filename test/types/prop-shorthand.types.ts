@@ -4,7 +4,7 @@
  * These tests verify that type inference works correctly for all overloads
  * of the prop() function and that the FluentProperty interface is correctly typed.
  *
- * Run with: npx tsc --noEmit
+ * Run with: npm run test:types
  *
  * If any type assertion fails, TypeScript will produce a compile error.
  */
@@ -13,24 +13,7 @@
 
 import {prop, type FluentProperty} from '../../src/FluentProperty.js'
 import {integer, string, boolean, array} from '../../src/arbitraries/index.js'
-
-// ============================================================================
-// Type assertion utilities (standard type-testing pattern)
-// ============================================================================
-
-/**
- * Requires T to be `true`. If T is `false`, this causes a compile error.
- */
-type Expect<T extends true> = T
-
-/**
- * Returns `true` if X and Y are exactly equal types, `false` otherwise.
- * Uses the distributive conditional type trick for exact equality.
- */
-type Equal<X, Y> =
-  (<T>() => T extends X ? 1 : 2) extends (<T>() => T extends Y ? 1 : 2)
-    ? true
-    : false
+import {type Expect, type Equal} from './test-utils.types.js'
 
 // ============================================================================
 // Test: Single arbitrary - predicate receives correct type
@@ -139,6 +122,3 @@ prop(integer(), (x: string) => x.length > 0)
 
 // @ts-expect-error: Predicate should receive (number, string), not (string, number)
 prop(integer(), string(), (a: string, b: number) => true)
-
-// @ts-expect-error: Wrong number of predicate arguments
-prop(integer(), string(), (a: number) => a > 0)

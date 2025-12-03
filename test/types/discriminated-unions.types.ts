@@ -4,7 +4,7 @@
  * These tests verify that TypeScript correctly narrows types based on the
  * 'type' discriminant and that each variant has the expected shape.
  *
- * Run with: npx tsc --noEmit
+ * Run with: npm run test:types
  *
  * If any type assertion fails, TypeScript will produce a compile error.
  */
@@ -19,29 +19,7 @@ import {
   estimatedSize,
   integer,
 } from '../../src/arbitraries/index.js'
-
-// ============================================================================
-// Type assertion utilities (standard type-testing pattern)
-// ============================================================================
-
-/**
- * Requires T to be `true`. If T is `false`, this causes a compile error.
- */
-type Expect<T extends true> = T
-
-/**
- * Returns `true` if X and Y are exactly equal types, `false` otherwise.
- * Uses the distributive conditional type trick for exact equality.
- */
-type Equal<X, Y> =
-  (<T>() => T extends X ? 1 : 2) extends (<T>() => T extends Y ? 1 : 2)
-    ? true
-    : false
-
-/**
- * Returns `true` if T has property K, `false` otherwise.
- */
-type HasProperty<T, K extends string> = K extends keyof T ? true : false
+import {type Expect, type Equal, type HasProperty} from './test-utils.types.js'
 
 // ============================================================================
 // Test: ExactSize type shape
@@ -123,19 +101,22 @@ function exhaustiveSwitch(size: ArbitrarySize): string {
 }
 
 // ============================================================================
-// Test: size() method returns ArbitrarySize (union)
+// Test: size() method returns ArbitrarySize
 // ============================================================================
 
+// Note: Factory functions like integer() return Arbitrary<number>, not the
+// concrete class. So size() returns ArbitrarySize (the abstract return type),
+// not the specific ExactSize/EstimatedSize that the implementation returns.
+
 const integerSize = integer(0, 100).size()
-type _T11 = Expect<Equal<typeof integerSize, ExactSize>>
+type _T11 = Expect<Equal<typeof integerSize, ArbitrarySize>>
 
-// Filtered arbitrary should return EstimatedSize
+// Filtered arbitrary also returns Arbitrary<A>, so size() is ArbitrarySize
 const filteredSize = integer(0, 100).filter(n => n > 50).size()
-type _T12 = Expect<Equal<typeof filteredSize, EstimatedSize>>
+type _T12 = Expect<Equal<typeof filteredSize, ArbitrarySize>>
 
-// Mapped arbitrary preserves the underlying type
+// Mapped arbitrary preserves the abstract type
 const mappedSize = integer(0, 100).map(n => n * 2).size()
-// MappedArbitrary delegates to base, so it returns ArbitrarySize (could be either)
 type _T13 = Expect<Equal<typeof mappedSize, ArbitrarySize>>
 
 // ============================================================================

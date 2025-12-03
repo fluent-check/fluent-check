@@ -8,7 +8,7 @@ export class MappedArbitrary<A, B> extends Arbitrary<B> {
     public readonly shrinkHelper?: XOR<{inverseMap: (b: B) => A[]},{canGenerate: (pick: FluentPick<B>) => boolean}>
   ) {
     super()
-    this.canGenerate = this.shrinkHelper !== undefined && this.shrinkHelper.canGenerate !== undefined ?
+    this.canGenerate = this.shrinkHelper?.canGenerate !== undefined ?
       this.shrinkHelper.canGenerate : this.canGenerate
   }
 
@@ -38,7 +38,7 @@ export class MappedArbitrary<A, B> extends Arbitrary<B> {
   }
 
   override canGenerate(pick: FluentPick<B>) {
-    const inverseValues = this.shrinkHelper !== undefined && this.shrinkHelper.inverseMap !== undefined ?
+    const inverseValues = this.shrinkHelper?.inverseMap !== undefined ?
       this.shrinkHelper.inverseMap(pick.value) : [pick.original]
     return inverseValues.some(value => this.baseArbitrary.canGenerate({value, original: pick.original}))
   }
