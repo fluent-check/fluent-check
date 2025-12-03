@@ -292,9 +292,10 @@ function parseRegexPattern(pattern: string | RegExp): RegexCharClass[] {
     if (currentChar === '\\' && i + 1 < patternStr.length) {
       const escapeSeq = patternStr.substr(i, 2)
       const charClassMap = getCharClassMap()
-      if (charClassMap[escapeSeq] !== undefined) {
+      const charClass = charClassMap[escapeSeq]
+      if (charClass !== undefined) {
         const quantifier = parseQuantifier(patternStr, i + 2)
-        charClasses.push(createCharClass(charClassMap[escapeSeq], quantifier))
+        charClasses.push(createCharClass(charClass, quantifier))
         i = quantifier.nextIndex
       } else {
         // Literal escaped character

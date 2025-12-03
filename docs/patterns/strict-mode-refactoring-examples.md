@@ -102,6 +102,150 @@ override pick(generator: () => number) {
 - Uses non-null assertion after validation (safe)
 - Clearer control flow
 
+## Example 2a: Using `at()` for Safe Array Access
+
+**Before (Noisy):**
+```typescript
+override hashCode(): HashFunction {
+  if (this.arbitraries.length === 0) return super.hashCode()
+  const first = this.arbitraries[0]
+  if (first === undefined) return super.hashCode()
+  return first.hashCode()
+}
+
+override equals(): EqualsFunction {
+  if (this.arbitraries.length === 0) return super.equals()
+  const first = this.arbitraries[0]
+  if (first === undefined) return super.equals()
+  return first.equals()
+}
+```
+
+**After (Clean):**
+```typescript
+override hashCode(): HashFunction {
+  const first = this.arbitraries.at(0)
+  return first?.hashCode() ?? super.hashCode()
+}
+
+override equals(): EqualsFunction {
+  const first = this.arbitraries.at(0)
+  return first?.equals() ?? super.equals()
+}
+```
+
+**Benefits:**
+- `at()` returns `T | undefined` naturally, works perfectly with optional chaining
+- Eliminates redundant length checks
+- More concise and readable
+- Works with negative indices: `arr.at(-1)` for last element
+
+## Example 2b: Using `filter()` with TypeScript 5.5 Inferred Type Predicates
+
+**Before (Noisy):**
+```typescript
+static unwrapFluentPick<T>(testCase: PickResult<T>): ValueResult<T> {
+  const result: Record<string, T> = {}
+  for (const [k, pick] of Object.entries(testCase)) {
+    if (pick !== undefined) {
+      result[k] = pick.value
+    }
+  }
+  return result
+}
+
+sample(sampleSize = 10, generator: () => number = Math.random): NonNullable<FluentPick<A>>[] {
+  const picks: (FluentPick<A> | undefined)[] = []
+  for (let i = 0; i < sampleSize; i++) {
+    const pick = this.pick(generator)
+    if (pick === undefined) break
+    picks.push(pick)
+  }
+  // Explicit type guard needed
+  return picks.filter((pick): pick is NonNullable<FluentPick<A>> => pick !== undefined)
+}
+```
+
+**After (Clean - TypeScript 5.5+):**
+```typescript
+static unwrapFluentPick<T>(testCase: PickResult<T>): ValueResult<T> {
+  // TypeScript 5.5 automatically infers NonNullable from filter predicate
+  const entries = Object.entries(testCase)
+    .filter(([, pick]) => pick !== undefined)
+    .map(([k, pick]) => [k, pick.value] as [string, T])
+  return Object.fromEntries(entries) as ValueResult<T>
+}
+
+sample(sampleSize = 10, generator: () => number = Math.random): NonNullable<FluentPick<A>>[] {
+  const picks: (FluentPick<A> | undefined)[] = []
+  for (let i = 0; i < sampleSize; i++) {
+    const pick = this.pick(generator)
+    if (pick === undefined) break
+    picks.push(pick)
+  }
+  // TypeScript 5.5 automatically infers NonNullable<FluentPick<A>>[] - no explicit type guard needed!
+  return picks.filter((pick) => pick !== undefined)
+}
+```
+
+**Benefits:**
+- TypeScript 5.5+ automatically infers `NonNullable<T>[]` from `filter(item => item !== undefined)`
+- No need for explicit `(item): item is NonNullable<T>` type guards
+- Cleaner, more readable code
+- Same type safety with less boilerplate
+
+## Example 2c: Using `slice()` for Bounds-Safe Array Access
+
+**Before (Noisy):**
+```typescript
+function getFirstN<T>(arr: T[], n: number): T[] {
+  if (n <= 0) return []
+  if (n >= arr.length) return arr
+  const result: T[] = []
+  for (let i = 0; i < n; i++) {
+    const item = arr[i]
+    if (item !== undefined) {
+      result.push(item)
+    }
+  }
+  return result
+}
+
+function getLastN<T>(arr: T[], n: number): T[] {
+  if (n <= 0) return []
+  if (n >= arr.length) return arr
+  const result: T[] = []
+  const start = arr.length - n
+  for (let i = start; i < arr.length; i++) {
+    const item = arr[i]
+    if (item !== undefined) {
+      result.push(item)
+    }
+  }
+  return result
+}
+```
+
+**After (Clean):**
+```typescript
+function getFirstN<T>(arr: T[], n: number): T[] {
+  // slice() automatically handles bounds - returns empty array if n <= 0, all elements if n >= length
+  return arr.slice(0, n)
+}
+
+function getLastN<T>(arr: T[], n: number): T[] {
+  // slice() with negative start index automatically handles bounds
+  return arr.slice(-n)
+}
+```
+
+**Benefits:**
+- `slice()` automatically handles out-of-bounds indices
+- Returns empty array for invalid ranges
+- Works with negative indices: `arr.slice(-n)` gets last n elements
+- Eliminates manual bounds checking and undefined checks
+- More concise and idiomatic
+
 ## Example 3: ArbitrarySet.pick() and cornerCases()
 
 **Before (Noisy):**
@@ -600,3 +744,6 @@ The patterns documented here are used throughout the fluent-check codebase:
 - **Property Existence:** `src/arbitraries/datetime.ts:91-94` - `timeToMilliseconds()`
 - **Nullish Coalescing:** `src/arbitraries/ArbitraryComposite.ts:28-32` - weighted selection
 - **Array Methods:** `src/arbitraries/ArbitraryArray.ts:48` - validation with `.every()`
+- **at() Method:** `src/arbitraries/ArbitraryComposite.ts:66-71` - safe first element access
+- **filter() with Inferred Predicates:** `src/FluentCheck.ts:267-275` - TypeScript 5.5 automatic type inference
+- **slice() Usage:** Throughout codebase for bounds-safe subarray access

@@ -265,13 +265,11 @@ export class FluentCheck<Rec extends ParentRec, ParentRec extends {}> {
   }
 
   static unwrapFluentPick<T>(testCase: PickResult<T>): ValueResult<T> {
-    const result: Record<string, T> = {}
-    for (const [k, pick] of Object.entries(testCase)) {
-      if (pick !== undefined) {
-        result[k] = pick.value
-      }
-    }
-    return result
+    // TypeScript 5.5 automatically infers NonNullable from filter predicate
+    const entries = Object.entries(testCase)
+      .filter(([, pick]) => pick !== undefined)
+      .map(([k, pick]) => [k, pick.value] as [string, T])
+    return Object.fromEntries(entries) as ValueResult<T>
   }
 
   setRandomGenerator(prng: FluentRandomGenerator) {

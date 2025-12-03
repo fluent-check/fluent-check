@@ -183,12 +183,14 @@ function processItem(item: string | undefined) {
 
 ## 4. Use Array Methods That Handle Undefined Naturally
 
-### Pattern: `every()`, `some()`, `find()`, `filter()`
+Array methods like `every()`, `some()`, `filter()`, `slice()`, and `at()` handle undefined naturally and are more idiomatic than manual loops with explicit checks.
 
-These methods naturally handle undefined and are more idiomatic:
+### Pattern: `every()` and `some()` for Validation
+
+Use `every()` when checking all elements, `some()` when checking if any element matches:
 
 ```typescript
-// ❌ Noisy
+// ❌ Noisy - for...in with Number conversion and manual checks
 for (const i in value) {
   const index = Number(i)
   const arbitrary = this.arbitraries[index]
@@ -211,6 +213,95 @@ override canGenerate(pick: FluentPick<A>): boolean {
   })
 }
 ```
+
+### Pattern: `filter()` with TypeScript 5.5 Inferred Type Predicates
+
+**TypeScript 5.5+ automatically infers type predicates from filter predicates** - no explicit type guard needed!
+
+```typescript
+// ❌ Noisy - manual loop with undefined checks
+static unwrapFluentPick<T>(testCase: PickResult<T>): ValueResult<T> {
+  const result: Record<string, T> = {}
+  for (const [k, pick] of Object.entries(testCase)) {
+    if (pick !== undefined) {
+      result[k] = pick.value
+    }
+  }
+  return result
+}
+
+// ✅ Clean - TypeScript 5.5 automatically infers NonNullable from filter
+static unwrapFluentPick<T>(testCase: PickResult<T>): ValueResult<T> {
+  // TypeScript 5.5 automatically infers NonNullable from filter predicate
+  const entries = Object.entries(testCase)
+    .filter(([, pick]) => pick !== undefined)
+    .map(([k, pick]) => [k, pick.value] as [string, T])
+  return Object.fromEntries(entries) as ValueResult<T>
+}
+
+// ✅ TypeScript 5.5 automatically infers NonNullable<T>[] - no explicit type guard needed!
+const picks: (FluentPick<A> | undefined)[] = []
+// ... populate picks ...
+return picks.filter((pick) => pick !== undefined)  // Type: NonNullable<FluentPick<A>>[]
+```
+
+**Key Benefits:**
+- `filter(item => item !== undefined)` automatically returns `NonNullable<T>[]`
+- `filter(item => item !== null)` automatically returns `Exclude<T, null>[]`
+- No need for explicit `(item): item is NonNullable<T>` type guards in most cases
+- Only use explicit type guards when TypeScript cannot infer the predicate
+
+### Pattern: `slice()` for Bounds-Safe Array Access
+
+Use `slice()` when you need a subarray - it automatically handles out-of-bounds indices:
+
+```typescript
+// ❌ Noisy - manual bounds checking
+function getFirstN<T>(arr: T[], n: number): T[] {
+  if (n <= 0) return []
+  if (n >= arr.length) return arr
+  const result: T[] = []
+  for (let i = 0; i < n; i++) {
+    const item = arr[i]
+    if (item !== undefined) {
+      result.push(item)
+    }
+  }
+  return result
+}
+
+// ✅ Clean - slice() handles bounds automatically
+function getFirstN<T>(arr: T[], n: number): T[] {
+  return arr.slice(0, n)  // Returns empty array if n <= 0, all elements if n >= length
+}
+```
+
+### Pattern: `at()` with Nullish Coalescing
+
+Use `at()` for safe indexed access, especially with negative indices:
+
+```typescript
+// ❌ Noisy - manual index calculation and undefined check
+const lastWeight = weights[weights.length - 1]
+const picked = Math.floor(generator() * (lastWeight ?? 0))
+
+// ✅ Clean - at() returns T | undefined naturally, works with ??
+const picked = Math.floor(generator() * (weights.at(-1) ?? 0))
+
+// ✅ Clean - accessing first element
+const first = this.arbitraries.at(0)
+return first?.hashCode() ?? super.hashCode()
+
+// ✅ Clean - accessing last element in function arguments
+const predicate = args.at(-1) as (...args: unknown[]) => boolean
+const arbitraries = args.slice(0, -1) as Arbitrary<unknown>[]
+```
+
+**When to use each method:**
+- `every()` / `some()` - Validation/checking operations on all/some elements
+- `filter()` - Removing undefined/null values (TypeScript 5.5 infers types automatically!)
+- `slice()` - Getting subarrays with automatic bounds handling
+- `at()` - Safe indexed access, especially with negative indices or when bounds are unknown
 
 ## 5. Use Non-Null Assertions After Validation
 
@@ -251,18 +342,9 @@ if (part === '') {
 const count = parseInt(part, 10)
 ```
 
-## 7. Use `at()` for Safe Array Access
+## 7. Use `at()` for Safe Array Access (See Section 4)
 
-The `at()` method is designed for this:
-
-```typescript
-// ❌ Noisy
-const lastWeight = weights.at(-1)
-const picked = Math.floor(generator() * (lastWeight ?? 0))
-
-// ✅ Clean - at() already returns T | undefined, use ?? directly
-const picked = Math.floor(generator() * (weights.at(-1) ?? 0))
-```
+The `at()` method is designed for safe indexed access. See Section 4 for comprehensive examples.
 
 ## 8. Early Returns Reduce Nesting
 

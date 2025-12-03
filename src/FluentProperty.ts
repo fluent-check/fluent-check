@@ -236,7 +236,7 @@ export function prop<A, B, C, D, E>(
 
 // Implementation
 export function prop(...args: unknown[]): FluentProperty<unknown[]> {
-  const predicate = args[args.length - 1] as (...args: unknown[]) => boolean
+  const predicate = args.at(-1) as (...args: unknown[]) => boolean
   const arbitraries = args.slice(0, -1) as Arbitrary<unknown>[]
   return new FluentPropertyImpl(arbitraries, predicate)
 }
