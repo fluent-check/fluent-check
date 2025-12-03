@@ -266,8 +266,7 @@ export class FluentCheck<Rec extends ParentRec, ParentRec extends {}> {
 
   static unwrapFluentPick<T>(testCase: PickResult<T>): ValueResult<T> {
     const result: Record<string, T> = {}
-    for (const k in testCase) {
-      const pick = testCase[k]
+    for (const [k, pick] of Object.entries(testCase)) {
       if (pick !== undefined) {
         result[k] = pick.value
       }

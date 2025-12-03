@@ -64,19 +64,12 @@ export class ArbitraryTuple<U extends Arbitrary<any>[], A = UnwrapArbitrary<U>> 
   override canGenerate(pick: FluentPick<A>): boolean {
     const value = pick.value as unknown[]
     const original = pick.original as unknown[]
-    for (const i in value) {
-      const index = Number(i)
-      const arbitrary = this.arbitraries[index]
-      const val = value[index]
-      if (arbitrary === undefined || val === undefined) {
-        return false
-      }
-      const orig = original[index]
-      if (!arbitrary.canGenerate({value: val, original: orig}))
-        return false
-    }
 
-    return true
+    return this.arbitraries.every((arbitrary, i) => {
+      const val = value[i]
+      const orig = original[i]
+      return val !== undefined && arbitrary !== undefined && arbitrary.canGenerate({value: val, original: orig})
+    })
   }
 
   /** Composes element hashes to create tuple hash */
@@ -85,10 +78,12 @@ export class ArbitraryTuple<U extends Arbitrary<any>[], A = UnwrapArbitrary<U>> 
     return (tuple: unknown): number => {
       const arr = tuple as unknown[]
       let hash = FNV_OFFSET_BASIS
-      for (let i = 0; i < arr.length; i++) {
-        const hashFn = elementHashes[i]
+      for (const [i, hashFn] of elementHashes.entries()) {
         if (hashFn === undefined) continue
-        hash = mix(hash, hashFn(arr[i]))
+        const element = arr[i]
+        if (element !== undefined) {
+          hash = mix(hash, hashFn(element))
+        }
       }
       return hash
     }
@@ -101,12 +96,12 @@ export class ArbitraryTuple<U extends Arbitrary<any>[], A = UnwrapArbitrary<U>> 
       const arrA = a as unknown[]
       const arrB = b as unknown[]
       if (arrA.length !== arrB.length) return false
-      for (let i = 0; i < arrA.length; i++) {
-        const eqFn = elementEquals[i]
-        if (eqFn === undefined) continue
-        if (!eqFn(arrA[i], arrB[i])) return false
-      }
-      return true
+      return elementEquals.every((eqFn, i) => {
+        if (eqFn === undefined) return true
+        const valA = arrA[i]
+        const valB = arrB[i]
+        return valA !== undefined && valB !== undefined && eqFn(valA, valB)
+      })
     }
   }
 
