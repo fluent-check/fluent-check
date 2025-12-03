@@ -499,6 +499,80 @@ function timeToMilliseconds(time: TimeSpec): number {
 - Combines property existence check with default value handling
 - More functional, declarative style
 
+## Example 11: Optional Chaining for Nested Access
+
+**Before (Nested if checks):**
+```typescript
+function getUserName(data: {user?: {profile?: {name?: string}}}) {
+  if (data !== undefined && data.user !== undefined) {
+    if (data.user.profile !== undefined) {
+      if (data.user.profile.name !== undefined) {
+        return data.user.profile.name
+      }
+    }
+  }
+  return 'Anonymous'
+}
+
+// Or with &&:
+function getUserName(data: {user?: {profile?: {name?: string}}}) {
+  if (data && data.user && data.user.profile && data.user.profile.name) {
+    return data.user.profile.name
+  }
+  return 'Anonymous'
+}
+```
+
+**After (Optional chaining):**
+```typescript
+function getUserName(data: {user?: {profile?: {name?: string}}}) {
+  return data?.user?.profile?.name ?? 'Anonymous'
+}
+```
+
+**Benefits:**
+- Eliminates nested if checks
+- More concise and readable
+- Type-safe property access
+- Naturally handles undefined at any level
+
+### Optional Method Calls
+
+**Before:**
+```typescript
+function initializeConfig(config?: {onInit?: () => void}) {
+  if (config !== undefined && config.onInit !== undefined) {
+    config.onInit()
+  }
+}
+```
+
+**After:**
+```typescript
+function initializeConfig(config?: {onInit?: () => void}) {
+  config?.onInit?.()
+}
+```
+
+### When NOT to Use Optional Chaining
+
+**Correct pattern - array index and map lookups:**
+```typescript
+// ✅ Correct - checking if array element exists is intentional
+const element = this.elements[index]
+if (element !== undefined) {
+  pick.add(element)
+}
+
+// ✅ Correct - checking if key exists in map is intentional
+const charClass = charClassMap[escapeSeq]
+if (charClass !== undefined) {
+  charClasses.push(createCharClass(charClass, quantifier))
+}
+```
+
+These patterns communicate intent: "only process if element/key exists". Array index access already returns `undefined` for out-of-bounds, and map lookups checking key existence before using the value is the right pattern.
+
 ## Summary
 
 Key refactoring principles (in priority order):
@@ -510,6 +584,7 @@ Key refactoring principles (in priority order):
 5. **Early validation** - Fail fast at function start
 6. **Nullish coalescing** - Use `??` for defaults
 7. **Property existence** - Use `in` operator to narrow union types
+8. **Optional chaining** - Use `?.` for nested property access, `?.()` for optional method calls
 
 **Remember:** Type-level solutions have zero runtime overhead. Always prefer them over runtime checks.
 

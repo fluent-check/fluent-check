@@ -109,7 +109,7 @@ export abstract class Arbitrary<A> {
     const has = (value: A): boolean => {
       const h = hash(value)
       const bucket = buckets.get(h)
-      return bucket !== undefined && bucket.some(p => eq(p.value, value))
+      return bucket?.some(p => eq(p.value, value)) ?? false
     }
 
     const add = (pick: FluentPick<A>): boolean => {

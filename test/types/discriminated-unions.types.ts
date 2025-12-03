@@ -19,7 +19,7 @@ import {
   estimatedSize,
   integer,
 } from '../../src/arbitraries/index.js'
-import {Expect, Equal, HasProperty} from './test-utils.types.js'
+import {type Expect, type Equal, type HasProperty} from './test-utils.types.js'
 
 // ============================================================================
 // Test: ExactSize type shape

@@ -13,7 +13,7 @@
 
 import {FluentCheck} from '../../src/FluentCheck.js'
 import {integer, type Arbitrary} from '../../src/arbitraries/index.js'
-import {Expect, Equal} from './test-utils.types.js'
+import {type Expect, type Equal} from './test-utils.types.js'
 
 // ============================================================================
 // Helper type to extract Rec from FluentCheck

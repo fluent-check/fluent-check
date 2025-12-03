@@ -12,7 +12,7 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 
 import {oneof, set, tuple, integer, boolean, type Arbitrary} from '../../src/arbitraries/index.js'
-import {Expect, Equal, Extends} from './test-utils.types.js'
+import {type Expect, type Equal, type Extends} from './test-utils.types.js'
 
 // ============================================================================
 // Test: oneof() infers literal union types

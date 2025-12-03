@@ -58,7 +58,7 @@ export class ArbitraryTuple<U extends Arbitrary<any>[], A = UnwrapArbitrary<U>> 
         selected === i ?
           arbitrary.shrink({value: value[i], original: original[i]}) :
           fc.constant(value[i])
-      )))) as unknown as Arbitrary<A>
+      )))) as Arbitrary<A>
   }
 
   override canGenerate(pick: FluentPick<A>): boolean {
@@ -68,7 +68,7 @@ export class ArbitraryTuple<U extends Arbitrary<any>[], A = UnwrapArbitrary<U>> 
     return this.arbitraries.every((arbitrary, i) => {
       const val = value[i]
       const orig = original[i]
-      return val !== undefined && arbitrary !== undefined && arbitrary.canGenerate({value: val, original: orig})
+      return (val !== undefined && arbitrary?.canGenerate({value: val, original: orig})) ?? false
     })
   }
 
