@@ -14,7 +14,7 @@ class NoArbitraryClass extends Arbitrary<any> {
   override filter(_: (a: any) => boolean) { return NoArbitrary }
   unique() { return NoArbitrary }
   override canGenerate(_: FluentPick<any>) { return false }
-  override chain<B>(_: (a: any) => Arbitrary<B>) { return NoArbitrary as unknown as Arbitrary<B> }
+  override chain<B>(_: (a: any) => Arbitrary<B>) { return NoArbitrary as Arbitrary<B> }
   override hashCode(): HashFunction<any> { return () => 0 }
   override equals(): EqualsFunction<any> { return () => true }
   override toString(depth = 0) { return ' '.repeat(depth * 2) + 'No Arbitrary' }

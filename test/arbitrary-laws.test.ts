@@ -30,14 +30,26 @@ interface ArbitraryEntry<T = unknown> {
 const arbitraryRegistry: ArbitraryEntry[] = [
   // Primitive arbitraries
   {name: 'integer()', arb: () => fc.integer()},
-  {name: 'integer(0, 100)', arb: () => fc.integer(0, 100), predicate: ((n: number) => n > 50) as (t: unknown) => boolean},
-  {name: 'integer(-10, 10)', arb: () => fc.integer(-10, 10), predicate: ((n: number) => n !== 0) as (t: unknown) => boolean},
+  {
+    name: 'integer(0, 100)',
+    arb: () => fc.integer(0, 100),
+    predicate: ((n: number) => n > 50) as (t: unknown) => boolean
+  },
+  {
+    name: 'integer(-10, 10)',
+    arb: () => fc.integer(-10, 10),
+    predicate: ((n: number) => n !== 0) as (t: unknown) => boolean
+  },
   {name: 'real(0, 1)', arb: () => fc.real(0, 1), predicate: ((n: number) => n > 0.5) as (t: unknown) => boolean},
   {name: 'boolean()', arb: () => fc.boolean()},
   {name: 'nat()', arb: () => fc.nat(0, 100)},
 
   // String arbitraries
-  {name: 'string(1, 10)', arb: () => fc.string(1, 10), predicate: ((s: string) => s.length > 1) as (t: unknown) => boolean},
+  {
+    name: 'string(1, 10)',
+    arb: () => fc.string(1, 10),
+    predicate: ((s: string) => s.length > 1) as (t: unknown) => boolean
+  },
   {name: 'char(a, z)', arb: () => fc.char('a', 'z')},
   {name: 'ascii()', arb: () => fc.ascii()},
 
@@ -172,7 +184,7 @@ describe('Arbitrary Laws', () => {
       arbitrariesWithPredicates.forEach(({name, arb, predicate}) => {
         it(`${name} - filtered values satisfy predicate`, () => {
           if (predicate === undefined) return
-          const result = compositionLaws.filterRespectsPredicate(arb() as fc.Arbitrary<unknown>, predicate)
+          const result = compositionLaws.filterRespectsPredicate(arb(), predicate)
           expect(result.passed, result.message).to.be.true
         })
       })

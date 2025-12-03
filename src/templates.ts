@@ -63,7 +63,9 @@ export interface CheckableTemplate {
  */
 class CheckableTemplateImpl implements CheckableTemplate {
   constructor(
-    private readonly buildScenario: (strategy?: FluentStrategyFactory) => FluentCheck<Record<string, unknown>, Record<string, unknown>>,
+    private readonly buildScenario: (
+      strategy?: FluentStrategyFactory
+    ) => FluentCheck<any, any>,
     private readonly strategyFactory?: FluentStrategyFactory
   ) {}
 
@@ -128,7 +130,7 @@ export function roundtrip<A, B>(
     }
     return scenario
       .forall('x', arb)
-      .then(({ x }) => roundtrips(x, encode, decode, equals)) as unknown as FluentCheck<Record<string, unknown>, Record<string, unknown>>
+      .then(({x}) => roundtrips(x, encode, decode, equals))
   })
 }
 
@@ -170,7 +172,7 @@ export function idempotent<T>(
     }
     return scenario
       .forall('x', arb)
-      .then(({ x }) => isIdempotent(x, fn, equals)) as unknown as FluentCheck<Record<string, unknown>, Record<string, unknown>>
+      .then(({x}) => isIdempotent(x, fn, equals))
   })
 }
 
@@ -210,7 +212,7 @@ export function commutative<T, R>(
     return scenario
       .forall('a', arb)
       .forall('b', arb)
-      .then(({ a, b }) => commutes(a, b, fn, equals)) as unknown as FluentCheck<Record<string, unknown>, Record<string, unknown>>
+      .then(({a, b}) => commutes(a, b, fn, equals))
   })
 }
 
@@ -254,7 +256,7 @@ export function associative<T>(
       .forall('a', arb)
       .forall('b', arb)
       .forall('c', arb)
-      .then(({ a, b, c }) => associates(a, b, c, fn, equals)) as unknown as FluentCheck<Record<string, unknown>, Record<string, unknown>>
+      .then(({a, b, c}) => associates(a, b, c, fn, equals))
   })
 }
 
@@ -302,7 +304,7 @@ export function identity<T>(
     }
     return scenario
       .forall('a', arb)
-      .then(({ a }) => hasIdentity(a, fn, identityValue, equals)) as unknown as FluentCheck<Record<string, unknown>, Record<string, unknown>>
+      .then(({a}) => hasIdentity(a, fn, identityValue, equals))
   })
 }
 

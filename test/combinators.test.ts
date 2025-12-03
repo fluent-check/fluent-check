@@ -15,7 +15,7 @@ describe('Property Helpers (fc.props)', () => {
       it('should work in scenario', () => {
         fc.scenario()
           .forall('data', fc.array(fc.integer(-100, 100), 0, 5))
-          .then(({ data }) => fc.props.roundtrips(data, JSON.stringify, JSON.parse))
+          .then(({data}) => fc.props.roundtrips(data, JSON.stringify, JSON.parse))
           .check()
           .assertSatisfiable()
       })
@@ -24,7 +24,7 @@ describe('Property Helpers (fc.props)', () => {
         fc.scenario()
           .config(fc.strategies.minimal)
           .forall('n', fc.integer(0, 100))
-          .then(({ n }) => fc.props.roundtrips(n, (x: number) => x.toString(), (s: string) => parseInt(s, 10)))
+          .then(({n}) => fc.props.roundtrips(n, (x: number) => x.toString(), (s: string) => parseInt(s, 10)))
           .check()
           .assertSatisfiable()
       })
@@ -40,7 +40,7 @@ describe('Property Helpers (fc.props)', () => {
         fc.scenario()
           .config(fc.strategies.fast)
           .forall('n', fc.integer(-100, 100))
-          .then(({ n }) => fc.props.isIdempotent(n, Math.abs))
+          .then(({n}) => fc.props.isIdempotent(n, Math.abs))
           .check()
           .assertSatisfiable()
       })
@@ -60,7 +60,7 @@ describe('Property Helpers (fc.props)', () => {
           .config(fc.strategies.fast)
           .forall('a', fc.integer(-100, 100))
           .forall('b', fc.integer(-100, 100))
-          .then(({ a, b }) => fc.props.commutes(a, b, (x, y) => x + y))
+          .then(({a, b}) => fc.props.commutes(a, b, (x, y) => x + y))
           .check()
           .assertSatisfiable()
       })
@@ -81,7 +81,7 @@ describe('Property Helpers (fc.props)', () => {
           .forall('a', fc.integer(-100, 100))
           .forall('b', fc.integer(-100, 100))
           .forall('c', fc.integer(-100, 100))
-          .then(({ a, b, c }) => fc.props.associates(a, b, c, (x, y) => x + y))
+          .then(({a, b, c}) => fc.props.associates(a, b, c, (x, y) => x + y))
           .check()
           .assertSatisfiable()
       })
@@ -100,7 +100,7 @@ describe('Property Helpers (fc.props)', () => {
         fc.scenario()
           .config(fc.strategies.fast)
           .forall('n', fc.integer(-100, 100))
-          .then(({ n }) => fc.props.hasIdentity(n, (a, b) => a + b, 0))
+          .then(({n}) => fc.props.hasIdentity(n, (a, b) => a + b, 0))
           .check()
           .assertSatisfiable()
       })
@@ -113,7 +113,7 @@ describe('Property Helpers (fc.props)', () => {
           .forall('a', fc.integer(-100, 100))
           .forall('b', fc.integer(-100, 100))
           .forall('c', fc.integer(-100, 100))
-          .then(({ a, b, c }) =>
+          .then(({a, b, c}) =>
             fc.props.commutes(a, b, (x, y) => x + y) &&
             fc.props.associates(a, b, c, (x, y) => x + y) &&
             fc.props.hasIdentity(a, (x, y) => x + y, 0)
@@ -123,7 +123,6 @@ describe('Property Helpers (fc.props)', () => {
       })
     })
   })
-
 
   describe('sorted', () => {
     it('should return true for an empty array', () => {
@@ -168,7 +167,7 @@ describe('Property Helpers (fc.props)', () => {
     it('should work in scenario .then() clause', () => {
       fc.scenario()
         .forall('arr', fc.array(fc.integer(-100, 100)))
-        .then(({ arr }) => fc.props.sorted([...arr].sort((a, b) => a - b)))
+        .then(({arr}) => fc.props.sorted([...arr].sort((a, b) => a - b)))
         .check()
         .assertSatisfiable()
     })
@@ -194,8 +193,8 @@ describe('Property Helpers (fc.props)', () => {
     it('should work in scenario .then() clause', () => {
       fc.scenario()
         .forall('arr', fc.array(fc.integer()))
-        .given('uniqueArr', ({ arr }) => [...new Set(arr)])
-        .then(({ uniqueArr }) => fc.props.unique(uniqueArr))
+        .given('uniqueArr', ({arr}) => [...new Set(arr)])
+        .then(({uniqueArr}) => fc.props.unique(uniqueArr))
         .check()
         .assertSatisfiable()
     })
@@ -214,7 +213,7 @@ describe('Property Helpers (fc.props)', () => {
     it('should work in scenario with precondition', () => {
       fc.scenario()
         .forall('arr', fc.array(fc.integer(), 1, 10))
-        .then(({ arr }) => fc.props.nonEmpty(arr))
+        .then(({arr}) => fc.props.nonEmpty(arr))
         .check()
         .assertSatisfiable()
     })
@@ -245,8 +244,8 @@ describe('Property Helpers (fc.props)', () => {
         .forall('arr', fc.array(fc.integer(-100, 100)))
         .forall('min', fc.integer(-10, 0))
         .forall('max', fc.integer(0, 10))
-        .given('filtered', ({ arr, min, max }) => arr.filter(n => fc.props.inRange(n, min, max)))
-        .then(({ filtered, min, max }) => 
+        .given('filtered', ({arr, min, max}) => arr.filter(n => fc.props.inRange(n, min, max)))
+        .then(({filtered, min, max}) =>
           filtered.every(n => fc.props.inRange(n, min, max))
         )
         .check()
@@ -275,7 +274,7 @@ describe('Property Helpers (fc.props)', () => {
     it('should work in scenario', () => {
       fc.scenario()
         .forall('email', fc.patterns.email())
-        .then(({ email }) => fc.props.matches(email, /@/))
+        .then(({email}) => fc.props.matches(email, /@/))
         .check()
         .assertSatisfiable()
     })
@@ -285,7 +284,7 @@ describe('Property Helpers (fc.props)', () => {
     it('should work with fc.pre() for filtering', () => {
       const result = fc.scenario()
         .forall('arr', fc.array(fc.integer()))
-        .then(({ arr }) => {
+        .then(({arr}) => {
           fc.pre(fc.props.nonEmpty(arr), 'array must be non-empty')
           return arr.length > 0
         })

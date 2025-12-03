@@ -13,7 +13,7 @@
 
 import {prop, type FluentProperty} from '../../src/FluentProperty.js'
 import {integer, string, boolean, array} from '../../src/arbitraries/index.js'
-import {Expect, Equal} from './test-utils.types.js'
+import {type Expect, type Equal} from './test-utils.types.js'
 
 // ============================================================================
 // Test: Single arbitrary - predicate receives correct type

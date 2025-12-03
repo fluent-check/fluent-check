@@ -392,15 +392,86 @@ function getHours(time: {hours?: number} | {hour?: number}) {
 
 ## 12. Optional Chaining for Nested Access
 
+Use `?.` for safe nested property access and `??` for defaults:
+
+### Pattern: Optional Property Access (`?.`)
+
 ```typescript
-// ❌ Noisy
+// ❌ Noisy - nested if checks
+if (user !== undefined && user.profile !== undefined) {
+  return user.profile.name
+}
+return 'Anonymous'
+
+// ✅ Clean - use optional chaining with nullish coalescing
+return user?.profile?.name ?? 'Anonymous'
+```
+
+### Pattern: Optional Method Calls (`?.()`)
+
+```typescript
+// ❌ Noisy - check before call
+if (config !== undefined && config.onInit !== undefined) {
+  config.onInit()
+}
+
+// ✅ Clean - use optional chaining for method calls
+config?.onInit?.()
+```
+
+### Pattern: Optional Indexing (`?.[]`)
+
+```typescript
+// ❌ Noisy - nested checks for dynamic property access
+if (obj !== undefined && obj[key] !== undefined) {
+  return obj[key].value
+}
+
+// ✅ Clean - use optional chaining for dynamic access
+return obj?.[key]?.value
+```
+
+### When NOT to Use Optional Chaining
+
+**Don't use for array index access or map lookups where the check is intentional:**
+
+```typescript
+// ✅ Correct - checking if array element exists is intentional
+const element = this.elements[index]
+if (element !== undefined) {
+  pick.add(element)
+}
+
+// ✅ Correct - checking if key exists in map is intentional
+const charClass = charClassMap[escapeSeq]
+if (charClass !== undefined) {
+  charClasses.push(createCharClass(charClass, quantifier))
+}
+```
+
+**These patterns are correct because:**
+- Array index access already returns `undefined` for out-of-bounds
+- Map/record lookups checking key existence before using value is the right pattern
+- The `if` check communicates intent: "only process if element exists"
+
+**Use optional chaining for:**
+- Nested object property access (`obj?.prop?.nested`)
+- Optional method calls (`obj?.method?.()`)
+- Dynamic property access on optional objects (`obj?.[key]`)
+
+### Combining with Nullish Coalescing
+
+```typescript
+// Pattern: Optional access with fallback
 const charClassMap = getCharClassMap()
 const dotArbitrary = charClassMap['.']
 if (dotArbitrary !== undefined) {
   charClasses.push(createCharClass(dotArbitrary, quantifier))
+} else {
+  charClasses.push(createCharClass(parseCustomCharClass('.'), quantifier))
 }
 
-// ✅ Clean - use optional chaining or nullish coalescing
+// ✅ Clean - combine optional access with ?? for default
 const dotArbitrary = getCharClassMap()['.'] ?? parseCustomCharClass('.')
 charClasses.push(createCharClass(dotArbitrary, quantifier))
 ```

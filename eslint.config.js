@@ -28,6 +28,14 @@ export default [
         allowNumber: false,
         allowNullableObject: false,
       }],
+      '@typescript-eslint/prefer-optional-chain': 'error',
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector: 'TSAsExpression > TSAsExpression[typeAnnotation.type="TSUnknownKeyword"]',
+          message: 'Avoid "as unknown as" type assertions. Use proper type system patterns instead.',
+        },
+      ],
 
       // Level 1 rules: warnings
       'array-bracket-spacing': 'warn',

@@ -13,7 +13,7 @@
 
 import {FluentCheck, type FluentResult} from '../../src/FluentCheck.js'
 import * as fc from '../../src/arbitraries/index.js'
-import {Expect, Equal} from './test-utils.types.js'
+import {type Expect, type Equal} from './test-utils.types.js'
 
 // ============================================================================
 // Test: FluentResult generic type parameter
