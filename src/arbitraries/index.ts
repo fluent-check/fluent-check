@@ -13,6 +13,7 @@ import {
 } from './internal.js'
 
 export * from './types.js'
+import type {NonEmptyArray} from './types.js'
 export {Arbitrary, type HashFunction, type EqualsFunction} from './internal.js'
 export {exactSize, estimatedSize, mix, stringToHash, doubleToHash, FNV_OFFSET_BASIS} from './util.js'
 export {char, hex, base64, ascii, unicode, string} from './string.js'
@@ -80,7 +81,8 @@ export const union = <A>(...arbitraries: Arbitrary<A>[]): Arbitrary<A> => {
     if (first === undefined) return NoArbitrary
     return first
   }
-  return new ArbitraryComposite(filtered)
+  // Safe: filtered.length >= 2, so it's a NonEmptyArray
+  return new ArbitraryComposite(filtered as NonEmptyArray<Arbitrary<A>>)
 }
 
 export const boolean = (): Arbitrary<boolean> => new ArbitraryBoolean()

@@ -10,8 +10,9 @@ type MixinStrategy = MixinConstructor<FluentStrategy>
 export function Random<TBase extends MixinStrategy>(Base: TBase) {
   return class extends Base implements FluentStrategyInterface {
     override hasInput<K extends string>(arbitraryName: K): boolean {
-      return this.arbitraries[arbitraryName] !== undefined &&
-        this.arbitraries[arbitraryName].pickNum < this.arbitraries[arbitraryName].collection.length
+      const arbitrary = this.arbitraries[arbitraryName]
+      return arbitrary !== undefined &&
+        arbitrary.pickNum < arbitrary.collection.length
     }
 
     override getInput<K extends string, A>(arbitraryName: K): FluentPick<A> {

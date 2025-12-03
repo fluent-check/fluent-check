@@ -87,8 +87,8 @@ export abstract class Arbitrary<A> {
       if (pick === undefined) break
       picks.push(pick)
     }
-    // TypeScript 5.5 automatically infers NonNullable<FluentPick<A>>[] from filter
-    return picks.filter((pick): pick is NonNullable<FluentPick<A>> => pick !== undefined)
+    // TypeScript 5.5 automatically infers NonNullable<FluentPick<A>>[] from filter - no explicit type guard needed!
+    return picks.filter((pick) => pick !== undefined)
   }
 
   /**
