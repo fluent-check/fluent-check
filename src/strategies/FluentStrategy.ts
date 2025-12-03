@@ -23,6 +23,21 @@ export class FluentStrategy implements FluentStrategyInterface {
   public randomGenerator = new FluentRandomGenerator()
 
   /**
+   * Helper for accessing the internal arbitrary state by name.
+   *
+   * The fluent API guarantees by construction that any arbitrary referenced
+   * through quantifiers has been registered via `addArbitrary`, so this
+   * method intentionally does not perform runtime validation.
+   *
+   * Public visibility is required so that mixin-generated subclasses can
+   * safely use it without triggering protected/anonymous class constraints
+   * in the TypeScript type system.
+   */
+  getArbitraryState<K extends string>(arbitraryName: K) {
+    return this.arbitraries[arbitraryName]!
+  }
+
+  /**
    * Default constructor. Receives the FluentCheck configuration, which is used for test case generation purposes.
    */
   constructor(public readonly configuration: FluentConfig) {
@@ -43,15 +58,15 @@ export class FluentStrategy implements FluentStrategyInterface {
    * Configures the information relative a specific arbitrary.
    */
   configArbitrary<K extends string>(arbitraryName: K, partial: FluentResult | undefined, depth: number) {
-    this.arbitraries[arbitraryName].pickNum = 0
-    this.arbitraries[arbitraryName].collection = []
+    const state = this.getArbitraryState(arbitraryName)
+    state.pickNum = 0
+    state.collection = []
 
-    if (depth === 0)
-      this.arbitraries[arbitraryName].collection = this.arbitraries[arbitraryName].cache !== undefined ?
-        this.arbitraries[arbitraryName].cache :
-        this.buildArbitraryCollection(this.arbitraries[arbitraryName].arbitrary)
-    else if (partial !== undefined)
+    if (depth === 0) {
+      state.collection = state.cache ?? this.buildArbitraryCollection(state.arbitrary)
+    } else if (partial !== undefined) {
       this.shrink(arbitraryName, partial)
+    }
   }
 
   /**

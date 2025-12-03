@@ -28,6 +28,7 @@ export default [
         allowNumber: false,
         allowNullableObject: false,
       }],
+      '@typescript-eslint/prefer-nullish-coalescing': 'warn',
       '@typescript-eslint/prefer-optional-chain': 'error',
       'no-restricted-syntax': [
         'error',

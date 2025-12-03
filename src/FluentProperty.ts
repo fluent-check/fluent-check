@@ -74,12 +74,12 @@ export interface FluentProperty<Args extends unknown[]> {
  * Internal implementation of FluentProperty.
  */
 class FluentPropertyImpl<Args extends unknown[]> implements FluentProperty<Args> {
-  readonly #arbitraries: Arbitrary<unknown>[]
+  readonly #arbitraries: { [I in keyof Args]: Arbitrary<Args[I]> }
   readonly #predicate: (...args: Args) => boolean
   readonly #strategyFactory?: FluentStrategyFactory
 
   constructor(
-    arbitraries: Arbitrary<unknown>[],
+    arbitraries: { [I in keyof Args]: Arbitrary<Args[I]> },
     predicate: (...args: Args) => boolean,
     strategyFactory?: FluentStrategyFactory
   ) {
@@ -90,16 +90,16 @@ class FluentPropertyImpl<Args extends unknown[]> implements FluentProperty<Args>
     }
   }
 
-  check(): FluentResult<Record<string, unknown>> {
-    let checker = new FluentCheck()
+	  check(): FluentResult<Record<string, unknown>> {
+	    let checker = new FluentCheck()
 
     if (this.#strategyFactory !== undefined) {
       checker = checker.config(this.#strategyFactory)
     }
 
     // Build the chain with positional argument names
-    let chain: FluentCheck<Record<string, unknown>, Record<string, unknown>> =
-      checker as FluentCheck<Record<string, unknown>, Record<string, unknown>>
+	    let chain: FluentCheck<Record<string, unknown>, Record<string, unknown>> =
+	      checker as FluentCheck<Record<string, unknown>, Record<string, unknown>>
 
     for (let i = 0; i < this.#arbitraries.length; i++) {
       const arbitrary = this.#arbitraries[i]
@@ -108,10 +108,10 @@ class FluentPropertyImpl<Args extends unknown[]> implements FluentProperty<Args>
     }
 
     // Create the predicate wrapper that extracts positional arguments
-    const wrappedPredicate = (args: Record<string, unknown>): boolean => {
-      const positionalArgs = this.#arbitraries.map((_, i) => args[`arg${i}`]) as Args
-      return this.#predicate(...positionalArgs)
-    }
+	    const wrappedPredicate = (args: Record<string, unknown>): boolean => {
+	      const positionalArgs = this.#arbitraries.map((_, i) => args[`arg${i}`]) as Args
+	      return this.#predicate(...positionalArgs)
+	    }
 
     return chain.then(wrappedPredicate).check()
   }
@@ -235,8 +235,10 @@ export function prop<A, B, C, D, E>(
 ): FluentProperty<[A, B, C, D, E]>
 
 // Implementation
-export function prop(...args: unknown[]): FluentProperty<unknown[]> {
-  const predicate = args.at(-1) as (...args: unknown[]) => boolean
-  const arbitraries = args.slice(0, -1) as Arbitrary<unknown>[]
-  return new FluentPropertyImpl(arbitraries, predicate)
+export function prop<Args extends unknown[]>(
+  ...args: [...{ [I in keyof Args]: Arbitrary<Args[I]> }, (...args: Args) => boolean]
+): FluentProperty<Args> {
+  const predicate = args[args.length - 1] as (...a: Args) => boolean
+  const arbitraries = args.slice(0, -1) as { [I in keyof Args]: Arbitrary<Args[I]> }
+  return new FluentPropertyImpl<Args>(arbitraries, predicate)
 }

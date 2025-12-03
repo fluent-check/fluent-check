@@ -3,25 +3,31 @@ import type {HashFunction, EqualsFunction} from './Arbitrary.js'
 import {Arbitrary} from './internal.js'
 import {exactSize, estimatedSize, FNV_OFFSET_BASIS, mix, stringToHash} from './util.js'
 import * as fc from './index.js'
+import {assertSchemaValid} from '../util/assertions.js'
 
-type RecordSchema = Record<string, Arbitrary<unknown>>
-type UnwrapSchema<S extends RecordSchema> = { [K in keyof S]: S[K] extends Arbitrary<infer T> ? T : never }
+type RecordSchema = Record<string, Arbitrary<unknown> | undefined>
+type ValidatedSchema<S extends RecordSchema> = { [K in keyof S]-?: NonNullable<S[K]> }
+type UnwrapSchema<S extends RecordSchema> =
+  { [K in keyof S]: ValidatedSchema<S>[K] extends Arbitrary<infer T> ? T : never }
 
 export class ArbitraryRecord<S extends RecordSchema> extends Arbitrary<UnwrapSchema<S>> {
   readonly #keys: (keyof S)[]
+  readonly #schema: ValidatedSchema<S>
 
-  constructor(public readonly schema: S) {
+  constructor(schema: S) {
     super()
     this.#keys = Object.keys(schema) as (keyof S)[]
+    // Validate once at construction: all schema entries for known keys must be defined
+    assertSchemaValid(schema, this.#keys)
+    this.#schema = schema
   }
 
   /**
    * Gets an arbitrary for a key that is guaranteed to exist (validated at construction).
    * Returns NonNullable type since keys in #keys are validated.
    */
-  private getArbitrary<K extends keyof S>(key: K): NonNullable<S[K]> {
-    // Type assertion safe because key is in #keys which are validated at construction
-    return this.schema[key] as NonNullable<S[K]>
+  private getArbitrary<K extends keyof S>(key: K): ValidatedSchema<S>[K] {
+    return this.#schema[key]
   }
 
   override size(): ArbitrarySize {

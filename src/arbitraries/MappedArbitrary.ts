@@ -8,8 +8,8 @@ export class MappedArbitrary<A, B> extends Arbitrary<B> {
     public readonly shrinkHelper?: XOR<{inverseMap: (b: B) => A[]},{canGenerate: (pick: FluentPick<B>) => boolean}>
   ) {
     super()
-    this.canGenerate = this.shrinkHelper?.canGenerate !== undefined ?
-      this.shrinkHelper.canGenerate : this.canGenerate
+    const canGenerate = this.shrinkHelper?.canGenerate
+    this.canGenerate = canGenerate ?? this.canGenerate
   }
 
   mapFluentPick(p: FluentPick<A>): FluentPick<B> {

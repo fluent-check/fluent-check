@@ -268,8 +268,8 @@ export class FluentCheck<Rec extends ParentRec, ParentRec extends {}> {
     // TypeScript 5.5 automatically infers NonNullable from filter predicate
     const entries = Object.entries(testCase)
       .filter(([, pick]) => pick !== undefined)
-      .map(([k, pick]) => [k, pick.value] as [string, T])
-    return Object.fromEntries(entries) as ValueResult<T>
+      .map(([k, pick]) => [k, pick.value] as const)
+    return Object.fromEntries(entries)
   }
 
   setRandomGenerator(prng: FluentRandomGenerator) {

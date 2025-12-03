@@ -3,6 +3,7 @@ import type {ArbitrarySize, FluentPick, NonEmptyArray} from './types.js'
 import type {HashFunction, EqualsFunction} from './Arbitrary.js'
 import {exactSize, estimatedSize} from './util.js'
 import * as fc from './index.js'
+import {assertInBounds} from '../util/assertions.js'
 
 export class ArbitraryComposite<A> extends Arbitrary<A> {
   constructor(public readonly arbitraries: NonEmptyArray<Arbitrary<A>>) {
@@ -27,7 +28,11 @@ export class ArbitraryComposite<A> extends Arbitrary<A> {
   }
 
   override pick(generator: () => number) {
-    // Safe: NonEmptyArray guarantees length > 0
+    // Fail fast: composite arbitraries must have at least one component
+    if (this.arbitraries.length === 0) {
+      throw new Error('Cannot pick from empty composite arbitrary')
+    }
+
     const weights = this.arbitraries.reduce(
       (acc, a) => { acc.push((acc.at(-1) ?? 0) + a.size().value); return acc },
       new Array<number>()
@@ -36,15 +41,13 @@ export class ArbitraryComposite<A> extends Arbitrary<A> {
     const picked = Math.floor(generator() * lastWeight)
     const index = weights.findIndex(s => s > picked)
 
-    // Safe: NonEmptyArray guarantees length > 0, findIndex returns valid index or -1
     const selectedIndex = index >= 0 ? index : this.arbitraries.length - 1
-    // Safe: NonEmptyArray guarantees selectedIndex is in valid range
-    // Use at() for safe access - we know it's valid but TypeScript needs help
-    const selected = this.arbitraries.at(selectedIndex)
-    if (selected === undefined) {
-      // This should never happen with NonEmptyArray, but TypeScript requires the check
-      throw new Error('Invalid index in composite arbitrary')
-    }
+    assertInBounds(
+      selectedIndex,
+      this.arbitraries.length,
+      'Composite arbitrary index out of bounds after weight selection'
+    )
+    const selected = this.arbitraries[selectedIndex]!
     return selected.pick(generator)
   }
 

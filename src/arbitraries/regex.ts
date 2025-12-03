@@ -173,18 +173,19 @@ function parseQuantifier(pattern: string, startIndex: number): QuantifierResult 
 
       if (rangeParts.length === 1) {
         // {n}
-        const part = rangeParts[0]
-        if (part === undefined) {
+        const part = rangeParts[0] ?? ''
+        if (part === '') {
           return {min: 1, max: 1, nextIndex: closeBrace + 1}
         }
         const count = parseInt(part, 10)
         return {min: count, max: count, nextIndex: closeBrace + 1}
       } else if (rangeParts.length === 2) {
         // {n,m}
-        const minPart = rangeParts[0]
-        const maxPart = rangeParts[1]
-        const min = minPart !== undefined && minPart !== '' ? parseInt(minPart, 10) : 0
-        const max = maxPart !== undefined && maxPart !== '' ? parseInt(maxPart, 10) : Number.POSITIVE_INFINITY
+        const [minPart, maxPart] = rangeParts
+        const hasMin = minPart !== undefined && minPart !== ''
+        const hasMax = maxPart !== undefined && maxPart !== ''
+        const min = hasMin ? parseInt(minPart, 10) : 0
+        const max = hasMax ? parseInt(maxPart, 10) : Number.POSITIVE_INFINITY
         return {min, max, nextIndex: closeBrace + 1}
       }
 

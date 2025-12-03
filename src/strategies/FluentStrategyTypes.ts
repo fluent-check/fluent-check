@@ -7,4 +7,4 @@ export type FluentStrategyArbitrary<A> = {
   collection?: FluentPick<A>[]
 }
 
-export type StrategyArbitraries = Record<string, FluentStrategyArbitrary<any> | any>
+export type StrategyArbitraries = Record<string, FluentStrategyArbitrary<unknown>>

@@ -10,13 +10,17 @@ type MixinStrategy = MixinConstructor<FluentStrategy>
 export function Random<TBase extends MixinStrategy>(Base: TBase) {
   return class extends Base implements FluentStrategyInterface {
     override hasInput<K extends string>(arbitraryName: K): boolean {
-      const arbitrary = this.arbitraries[arbitraryName]
-      return arbitrary !== undefined &&
-        arbitrary.pickNum < arbitrary.collection.length
+      const arbitrary = this.getArbitraryState(arbitraryName)
+      const collection = arbitrary.collection ?? []
+      return arbitrary.pickNum < collection.length
     }
 
     override getInput<K extends string, A>(arbitraryName: K): FluentPick<A> {
-      return this.arbitraries[arbitraryName].collection[this.arbitraries[arbitraryName].pickNum++]
+      const arbitrary = this.getArbitraryState(arbitraryName)
+      const collection = arbitrary.collection ?? []
+      const next = collection[arbitrary.pickNum]
+      arbitrary.pickNum += 1
+      return next as FluentPick<A>
     }
 
     override handleResult() {}
@@ -26,9 +30,10 @@ export function Random<TBase extends MixinStrategy>(Base: TBase) {
 export function Shrinkable<TBase extends MixinStrategy>(Base: TBase) {
   return class extends Base {
     override shrink<K extends string>(arbitraryName: K, partial: FluentResult<Record<string, unknown>>) {
-      const shrinkedArbitrary = this.arbitraries[arbitraryName].arbitrary.shrink(partial.example[arbitraryName])
-      this.arbitraries[arbitraryName].collection = this.buildArbitraryCollection(shrinkedArbitrary,
-        this.configuration.shrinkSize)
+      const arbitraryState = this.getArbitraryState(arbitraryName)
+      const baseArbitrary = arbitraryState.arbitrary
+      const shrinkedArbitrary = baseArbitrary.shrink(partial.example[arbitraryName] as FluentPick<unknown>)
+      arbitraryState.collection = this.buildArbitraryCollection(shrinkedArbitrary, this.configuration.shrinkSize)
     }
   }
 }
@@ -44,7 +49,8 @@ export function Dedupable<TBase extends MixinStrategy>(Base: TBase) {
 export function Cached<TBase extends MixinStrategy>(Base: TBase) {
   return class extends Base {
     override setArbitraryCache<K extends string>(arbitraryName: K) {
-      this.arbitraries[arbitraryName].cache = this.buildArbitraryCollection(this.arbitraries[arbitraryName].arbitrary)
+      const arbitraryState = this.getArbitraryState(arbitraryName)
+      arbitraryState.cache = this.buildArbitraryCollection(arbitraryState.arbitrary)
     }
   }
 }
