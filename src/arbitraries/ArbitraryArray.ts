@@ -77,10 +77,7 @@ export class ArbitraryArray<A> extends Arbitrary<A[]> {
       const arrA = a as A[]
       const arrB = b as A[]
       if (arrA.length !== arrB.length) return false
-      for (let i = 0; i < arrA.length; i++) {
-        if (!elementEquals(arrA[i], arrB[i])) return false
-      }
-      return true
+      return arrA.every((value, i) => elementEquals(value, arrB[i]))
     }
   }
 

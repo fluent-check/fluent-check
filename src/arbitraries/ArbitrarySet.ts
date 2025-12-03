@@ -28,10 +28,8 @@ export class ArbitrarySet<A> extends Arbitrary<A[]> {
 
     while (pick.size !== size) {
       const index = Math.floor(generator() * this.elements.length)
-      const element = this.elements[index]
-      if (element !== undefined) {
-        pick.add(element)
-      }
+      if (index < 0 || index >= this.elements.length) continue
+      pick.add(this.elements.at(index)!)
     }
 
     const value = Array.from(pick).toSorted()
@@ -55,22 +53,8 @@ export class ArbitrarySet<A> extends Arbitrary<A[]> {
   }
 
   override cornerCases(): FluentPick<A[]>[] {
-    const min: A[] = []
-    for (let i = 0; i < this.min; i++) {
-      const element = this.elements[i]
-      if (element !== undefined) {
-        min.push(element)
-      }
-    }
-
-    const max: A[] = []
-    for (let i = 0; i < this.max; i++) {
-      const element = this.elements[i]
-      if (element !== undefined) {
-        max.push(element)
-      }
-    }
-
+    const min = this.elements.slice(0, this.min)
+    const max = this.elements.slice(0, this.max)
     return [{value: min, original: min}, {value: max, original: max}]
   }
 
@@ -109,10 +93,7 @@ export class ArbitrarySet<A> extends Arbitrary<A[]> {
       const arrB = b as A[]
       if (arrA.length !== arrB.length) return false
       // Sets are already sorted in pick(), so direct comparison works
-      for (let i = 0; i < arrA.length; i++) {
-        if (arrA[i] !== arrB[i]) return false
-      }
-      return true
+      return arrA.every((value, i) => value === arrB[i])
     }
   }
 
