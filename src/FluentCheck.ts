@@ -6,6 +6,21 @@ type WrapFluentPick<T> = { [P in keyof T]: FluentPick<T[P]> }
 type PickResult<V> = Record<string, FluentPick<V>>
 type ValueResult<V> = Record<string, V>
 
+// Utility types
+type Prettify<T> = { [K in keyof T]: T[K] } & {}
+
+// Only enforce freshness when Rec has "narrow" (non-broad) keys.
+type HasLiteralKeys<Rec> =
+  string extends keyof Rec ? false :
+  number extends keyof Rec ? false :
+  symbol extends keyof Rec ? false :
+  true
+
+type FreshName<Rec, K extends string> =
+  HasLiteralKeys<Rec> extends true
+    ? (K extends keyof Rec ? `Error: '${K}' is already bound in this scenario` : K)
+    : K
+
 /**
  * Error thrown when a precondition fails in a property test.
  * This signals that the current test case should be skipped,
@@ -214,22 +229,28 @@ export class FluentCheck<Rec extends ParentRec, ParentRec extends {}> {
    * ```
    */
   given<K extends string, V>(
-    name: K, v: NoInfer<V> | ((args: Rec) => V)
-  ): FluentCheckGiven<K, V, Rec & Record<K, V>, Rec> {
-    return v instanceof Function ?
-      new FluentCheckGivenMutable(this, name, v, this.strategy) :
-      new FluentCheckGivenConstant<K, V, Rec & Record<K, V>, Rec>(this, name, v, this.strategy)
+    name: FreshName<Rec, K>, v: NoInfer<V> | ((args: Rec) => V)
+  ): FluentCheckGiven<FreshName<Rec, K>, V, Prettify<Rec & Record<FreshName<Rec, K>, V>>, Rec> {
+    return v instanceof Function
+      ? new FluentCheckGivenMutable(this, name, v, this.strategy)
+      : new FluentCheckGivenConstant(this, name, v, this.strategy)
   }
 
   when(f: (givens: Rec) => void): FluentCheckWhen<Rec, ParentRec> {
     return new FluentCheckWhen(this, f, this.strategy)
   }
 
-  forall<K extends string, A>(name: K, a: Arbitrary<A>): FluentCheck<Rec & Record<K, A>, Rec> {
+  forall<K extends string, A>(
+    name: FreshName<Rec, K>,
+    a: Arbitrary<A>
+  ): FluentCheck<Prettify<Rec & Record<FreshName<Rec, K>, A>>, Rec> {
     return new FluentCheckUniversal(this, name, a, this.strategy)
   }
 
-  exists<K extends string, A>(name: K, a: Arbitrary<A>): FluentCheck<Rec & Record<K, A>, Rec> {
+  exists<K extends string, A>(
+    name: FreshName<Rec, K>,
+    a: Arbitrary<A>
+  ): FluentCheck<Prettify<Rec & Record<FreshName<Rec, K>, A>>, Rec> {
     return new FluentCheckExistential(this, name, a, this.strategy)
   }
 
@@ -309,7 +330,7 @@ abstract class FluentCheckGiven<K extends string, V, Rec extends ParentRec & Rec
    * is the primary inference source for `V`. Uses `NoInfer<V>` on the constant
    * position.
    */
-  and<NK extends string, V>(name: NK, f: ((args: Rec) => V) | NoInfer<V>) {
+  and<K extends string, V>(name: FreshName<Rec, K>, f: ((args: Rec) => V) | NoInfer<V>) {
     return super.given(name, f)
   }
 }

@@ -21,8 +21,14 @@
 export type Expect<T extends true> = T
 
 /**
- * Returns `true` if X and Y are exactly equal types, `false` otherwise.
- * Uses the distributive conditional type trick for exact equality.
+ * Internal helper: normalizes object types by materializing their properties.
+ * This helps treat intersection types and mapped types (like Prettify<T>)
+ * as equal when they are structurally identical.
+ */
+type Clean<T> = { [K in keyof T]: T[K] }
+
+/**
+ * Returns `true` if X and Y are exactly equal types (after cleaning), `false` otherwise.
  *
  * @example
  * type _T1 = Equal<number, number>     // true
@@ -31,8 +37,10 @@ export type Expect<T extends true> = T
  * type _T4 = Equal<any, unknown>       // false
  */
 export type Equal<X, Y> =
-  (<T>() => T extends X ? 1 : 2) extends (<T>() => T extends Y ? 1 : 2)
-    ? true
+  (<T>() => T extends Clean<X> ? 1 : 2) extends (<T>() => T extends Clean<Y> ? 1 : 2)
+    ? (<T>() => T extends Clean<Y> ? 1 : 2) extends (<T>() => T extends Clean<X> ? 1 : 2)
+      ? true
+      : false
     : false
 
 /**
