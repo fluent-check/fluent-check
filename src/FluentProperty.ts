@@ -106,13 +106,10 @@ class FluentPropertyImpl<const Args extends unknown[]> implements FluentProperty
     }
 
     // Build the chain with positional argument names
-    let chain = checker
-
-    for (let i = 0; i < this.#arbitraries.length; i++) {
-      const arbitrary = this.#arbitraries[i]
-      if (arbitrary === undefined) continue
-      chain = chain.forall(`arg${i}`, arbitrary)
-    }
+    const chain = this.#arbitraries.reduce((current, arbitrary, index) => {
+      if (arbitrary === undefined) return current
+      return current.forall(`arg${index}`, arbitrary)
+    }, checker)
 
     // Create the predicate wrapper that extracts positional arguments
     const wrappedPredicate = (args: Record<string, unknown>): boolean => {
