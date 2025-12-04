@@ -243,16 +243,8 @@ export class FluentCheck<
     name: FreshName<Rec, K>, v: NoInfer<V> | ((args: Rec) => V)
   ): FluentCheckGiven<FreshName<Rec, K>, V, Prettify<Rec & Record<FreshName<Rec, K>, V>>, Rec> {
     return v instanceof Function
-      ? new FluentCheckGivenMutable(
-        this,
-        name,
-        v
-      )
-      : new FluentCheckGivenConstant(
-        this,
-        name,
-        v
-      )
+      ? new FluentCheckGivenMutable(this, name, v)
+      : new FluentCheckGivenConstant(this, name, v)
   }
 
   when(f: (givens: Rec) => void): FluentCheckWhen<Rec, ParentRec> {
@@ -263,22 +255,14 @@ export class FluentCheck<
     name: FreshName<Rec, K>,
     a: Arbitrary<A>
   ): FluentCheck<Prettify<Rec & Record<FreshName<Rec, K>, A>>, Rec> {
-    return new FluentCheckUniversal(
-      this,
-      name,
-      a
-    )
+    return new FluentCheckUniversal(this, name, a)
   }
 
   exists<const K extends string, A>(
     name: FreshName<Rec, K>,
     a: Arbitrary<A>
   ): FluentCheck<Prettify<Rec & Record<FreshName<Rec, K>, A>>, Rec> {
-    return new FluentCheckExistential(
-      this,
-      name,
-      a
-    )
+    return new FluentCheckExistential(this, name, a)
   }
 
   then(f: (arg: Rec) => boolean): FluentCheckAssert<Rec, ParentRec> {
