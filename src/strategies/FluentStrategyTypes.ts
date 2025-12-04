@@ -7,4 +7,15 @@ export type FluentStrategyArbitrary<A> = {
   collection?: FluentPick<A>[]
 }
 
-export type StrategyArbitraries = Record<string, FluentStrategyArbitrary<unknown>>
+/**
+ * Internal map from arbitrary name to its state, parameterized by the
+ * record type so we preserve the `name -> value type`
+ * relationship at the type level.
+ *
+ * The default `StrategyArbitraries` alias (`StrategyArbitraries<>`)
+ * is equivalent to an existential
+ * `Record<string, FluentStrategyArbitrary<unknown>>`.
+ */
+export type StrategyArbitraries<Rec extends Record<string, unknown> = Record<string, unknown>> = {
+  [K in keyof Rec & string]: FluentStrategyArbitrary<Rec[K]>
+}
