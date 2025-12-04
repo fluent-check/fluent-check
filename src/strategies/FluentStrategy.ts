@@ -14,7 +14,7 @@ export interface FluentStrategyInterface<Rec extends Record<string, unknown> = R
 }
 
 export class FluentStrategy<Rec extends Record<string, unknown> = Record<string, unknown>>
-  implements FluentStrategyInterface<Rec> {
+implements FluentStrategyInterface<Rec> {
 
   /**
    * Record of all the arbitraries used for composing a given test case.
@@ -38,7 +38,7 @@ export class FluentStrategy<Rec extends Record<string, unknown> = Record<string,
    * in the TypeScript type system.
    */
   getArbitraryState<K extends keyof Rec & string>(arbitraryName: K): FluentStrategyArbitrary<Rec[K]> {
-    return this.arbitraries[arbitraryName]!
+    return this.arbitraries[arbitraryName]
   }
 
   /**

@@ -47,7 +47,10 @@ export class ArbitraryComposite<A> extends Arbitrary<A> {
       this.arbitraries.length,
       'Composite arbitrary index out of bounds after weight selection'
     )
-    const selected = this.arbitraries[selectedIndex]!
+    const selected = this.arbitraries[selectedIndex]
+    if (selected === undefined) {
+      throw new Error('Composite arbitrary selection failed: no arbitrary found for computed index')
+    }
     return selected.pick(generator)
   }
 
