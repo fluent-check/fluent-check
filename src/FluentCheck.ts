@@ -22,7 +22,7 @@ type FreshName<Rec, K extends string> =
     : K
 
 type ExecutionConfig = {
-  strategyFactory?: FluentStrategyFactory<Record<string, unknown>>
+  strategyFactory?: FluentStrategyFactory
   rngBuilder?: (seed: number) => () => number
   seed?: number | undefined
 }
@@ -35,7 +35,7 @@ type ExecutionConfig = {
 export class PreconditionFailure extends Error {
   readonly __brand = 'PreconditionFailure'
 
-  constructor(public override readonly message: string = '') {
+  constructor(public override readonly message = '') {
     super(message)
     this.name = 'PreconditionFailure'
   }
@@ -74,7 +74,7 @@ export class FluentResult<Rec extends {} = {}> {
     public readonly satisfiable = false,
     public example: Rec = {} as Rec,
     public readonly seed?: number,
-    public skipped: number = 0) { }
+    public skipped = 0) { }
 
   addExample<A>(name: string, value: FluentPick<A>) {
     (this.example as PickResult<A>)[name] = value
@@ -83,7 +83,7 @@ export class FluentResult<Rec extends {} = {}> {
   /**
    * Increment the skip counter when a precondition fails.
    */
-  addSkipped(count: number = 1) {
+  addSkipped(count = 1) {
     this.skipped += count
   }
 
@@ -206,15 +206,15 @@ export class FluentCheck<
   Rec extends ParentRec,
   ParentRec extends {} = {}
 > {
-  public strategy!: FluentStrategy<Record<string, unknown>>
-  private strategyFactory?: FluentStrategyFactory<Record<string, unknown>>
+  public strategy!: FluentStrategy
+  private strategyFactory?: FluentStrategyFactory
 
   constructor(
     protected readonly parent: FluentCheck<ParentRec, any> | undefined = undefined
   ) {}
 
   config(strategy: FluentStrategyFactory<Rec>) {
-    this.strategyFactory = strategy as FluentStrategyFactory<Record<string, unknown>>
+    this.strategyFactory = strategy as FluentStrategyFactory
     return this
   }
 
@@ -288,16 +288,12 @@ export class FluentCheck<
 
     const {strategyFactory, rngBuilder, seed} = root.#resolveExecutionConfig(path)
 
-    const factory: FluentStrategyFactory<Record<string, unknown>> =
-      strategyFactory ?? new FluentStrategyFactory<Record<string, unknown>>().defaultStrategy()
-
+    const factory = strategyFactory ?? new FluentStrategyFactory().defaultStrategy()
     const strategy = factory.build()
-    const rng = rngBuilder !== undefined
-      ? seed !== undefined
-        ? new FluentRandomGenerator(rngBuilder, seed)
-        : new FluentRandomGenerator(rngBuilder)
+
+    strategy.randomGenerator = rngBuilder !== undefined
+      ? new FluentRandomGenerator(rngBuilder, seed)
       : new FluentRandomGenerator()
-    strategy.randomGenerator = rng
 
     // Attach strategy and register quantifiers
     for (const node of path) {

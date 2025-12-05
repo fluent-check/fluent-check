@@ -67,7 +67,7 @@ export const datetime = (
  * @returns An arbitrary that generates duration objects { hours, minutes, seconds, milliseconds }
  */
 export const duration = (
-  maxHours: number = 24
+  maxHours = 24
 ): Arbitrary<{ hours: number; minutes: number; seconds: number; milliseconds: number }> => {
   if (maxHours < 0) return NoArbitrary
 
