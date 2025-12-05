@@ -2,18 +2,19 @@ import {type Arbitrary, type FluentPick, FluentRandomGenerator} from '../arbitra
 import type {FluentResult} from '../FluentCheck.js'
 import {
   type FluentStrategyArbitrary,
-  type StrategyArbitraries
+  type StrategyArbitraries,
+  type StrategyBindings
 } from './FluentStrategyTypes.js'
 
 export type FluentConfig = { sampleSize?: number, shrinkSize?: number }
 
-export interface FluentStrategyInterface<Rec extends Record<string, unknown> = Record<string, unknown>> {
+export interface FluentStrategyInterface<Rec extends StrategyBindings = StrategyBindings> {
   hasInput: <K extends keyof Rec & string>(arbitraryName: K) => boolean
   getInput: <K extends keyof Rec & string>(arbitraryName: K) => FluentPick<Rec[K]>
   handleResult: () => void
 }
 
-export class FluentStrategy<Rec extends Record<string, unknown> = Record<string, unknown>>
+export class FluentStrategy<Rec extends StrategyBindings = StrategyBindings>
 implements FluentStrategyInterface<Rec> {
 
   /**

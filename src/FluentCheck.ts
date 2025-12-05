@@ -288,7 +288,9 @@ export class FluentCheck<
 
     const {strategyFactory, rngBuilder, seed} = root.#resolveExecutionConfig(path)
 
-    const factory = strategyFactory ?? new FluentStrategyFactory().defaultStrategy()
+    const factory: FluentStrategyFactory<Rec> =
+      (strategyFactory as FluentStrategyFactory<Rec> | undefined) ??
+      new FluentStrategyFactory<Rec>().defaultStrategy()
     const strategy = factory.build()
 
     strategy.randomGenerator = rngBuilder !== undefined

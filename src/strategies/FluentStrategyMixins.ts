@@ -1,14 +1,15 @@
 import type {Arbitrary, FluentPick} from '../arbitraries/index.js'
 import type {FluentResult} from '../FluentCheck.js'
 import {type FluentStrategy, type FluentStrategyInterface} from './FluentStrategy.js'
+import type {StrategyBindings} from './FluentStrategyTypes.js'
 
 // Define a constructor type for use with mixins
 type MixinConstructor<T = {}> = new (...args: any[]) => T
 
-// Define a base type for the strategy constructor, parameterized by record type
-type MixinStrategy<Rec extends Record<string, unknown>> = MixinConstructor<FluentStrategy<Rec>>
+// Define a base type for the strategy constructor, parameterized by bindings record type
+type MixinStrategy<Rec extends StrategyBindings> = MixinConstructor<FluentStrategy<Rec>>
 
-export function Random<Rec extends Record<string, unknown>, TBase extends MixinStrategy<Rec>>(Base: TBase) {
+export function Random<Rec extends StrategyBindings, TBase extends MixinStrategy<Rec>>(Base: TBase) {
   return class extends Base implements FluentStrategyInterface<Rec> {
     override hasInput<K extends keyof Rec & string>(arbitraryName: K): boolean {
       const arbitrary = this.getArbitraryState(arbitraryName)
@@ -28,7 +29,7 @@ export function Random<Rec extends Record<string, unknown>, TBase extends MixinS
   }
 }
 
-export function Shrinkable<Rec extends Record<string, unknown>, TBase extends MixinStrategy<Rec>>(Base: TBase) {
+export function Shrinkable<Rec extends StrategyBindings, TBase extends MixinStrategy<Rec>>(Base: TBase) {
   return class extends Base {
     override shrink<K extends keyof Rec & string>(
       arbitraryName: K,
@@ -39,12 +40,15 @@ export function Shrinkable<Rec extends Record<string, unknown>, TBase extends Mi
       const shrinkedArbitrary = baseArbitrary.shrink(
         partial.example[arbitraryName] as FluentPick<Rec[K]>
       )
-      arbitraryState.collection = this.buildArbitraryCollection(shrinkedArbitrary, this.configuration.shrinkSize)
+      arbitraryState.collection = this.buildArbitraryCollection(
+        shrinkedArbitrary,
+        this.configuration.shrinkSize
+      )
     }
   }
 }
 
-export function Dedupable<Rec extends Record<string, unknown>, TBase extends MixinStrategy<Rec>>(Base: TBase) {
+export function Dedupable<Rec extends StrategyBindings, TBase extends MixinStrategy<Rec>>(Base: TBase) {
   return class extends Base {
     override isDedupable() {
       return true
@@ -52,7 +56,7 @@ export function Dedupable<Rec extends Record<string, unknown>, TBase extends Mix
   }
 }
 
-export function Cached<Rec extends Record<string, unknown>, TBase extends MixinStrategy<Rec>>(Base: TBase) {
+export function Cached<Rec extends StrategyBindings, TBase extends MixinStrategy<Rec>>(Base: TBase) {
   return class extends Base {
     override setArbitraryCache<K extends keyof Rec & string>(arbitraryName: K) {
       const arbitraryState = this.getArbitraryState(arbitraryName)
@@ -61,7 +65,7 @@ export function Cached<Rec extends Record<string, unknown>, TBase extends MixinS
   }
 }
 
-export function Biased<Rec extends Record<string, unknown>, TBase extends MixinStrategy<Rec>>(Base: TBase) {
+export function Biased<Rec extends StrategyBindings, TBase extends MixinStrategy<Rec>>(Base: TBase) {
   return class extends Base {
     override buildArbitraryCollection<A>(
       arbitrary: Arbitrary<A>,
@@ -73,3 +77,4 @@ export function Biased<Rec extends Record<string, unknown>, TBase extends MixinS
     }
   }
 }
+

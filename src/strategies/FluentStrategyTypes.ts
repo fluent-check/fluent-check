@@ -8,14 +8,19 @@ export type FluentStrategyArbitrary<A> = {
 }
 
 /**
- * Internal map from arbitrary name to its state, parameterized by the
- * record type so we preserve the `name -> value type`
- * relationship at the type level.
+ * Bindings map for strategy arbitraries.
  *
- * The default `StrategyArbitraries` alias (`StrategyArbitraries<>`)
- * is equivalent to an existential
- * `Record<string, FluentStrategyArbitrary<unknown>>`.
+ * Represents the subset of the fluent record whose values are backed
+ * by arbitraries. At execution time we can safely over-approximate this
+ * as the full record type `Rec` used by the scenario.
  */
-export type StrategyArbitraries<Rec extends Record<string, unknown> = Record<string, unknown>> = {
+export type StrategyBindings = Record<string, unknown>
+
+/**
+ * Internal map from arbitrary name to its state, parameterized by the
+ * bindings record so we preserve the `name -> value type` relationship
+ * at the type level.
+ */
+export type StrategyArbitraries<Rec extends StrategyBindings = StrategyBindings> = {
   [K in keyof Rec & string]: FluentStrategyArbitrary<Rec[K]>
 }
