@@ -200,26 +200,41 @@ This allows users to:
 
 ## Strategy Integration with FluentCheck
 
-Strategies are integrated directly into the FluentCheck main class:
+Strategies are configured at the **scenario level**, but the concrete
+`FluentStrategy` instance is created lazily when the scenario is executed
+via `.check()` or `.assert()`.
+
+Conceptually:
+
+- During chaining (`scenario()`, `config()`, `withGenerator()`, `forall`,
+  `exists`, `given`, `when`, `then`), FluentCheck builds a description of
+  the scenario:
+  - Which arbitraries are bound to which names.
+  - Which derived values and side effects run before assertions.
+  - Which strategy factory and RNG configuration should be used.
+- When `.check()` is called:
+  - FluentCheck walks the chain from root to leaf.
+  - Resolves the **last** configured `FluentStrategyFactory` and
+    RNG settings (`withGenerator`).
+  - Builds a single `FluentStrategy` instance from that factory.
+  - Registers all quantifiers’ arbitraries in the strategy.
+  - Uses the strategy to drive sampling and shrinking.
+
+At the API level you still configure strategies the same way:
 
 ```typescript
 export class FluentCheck<Rec extends ParentRec, ParentRec extends {}> {
-  constructor(
-    public strategy: FluentStrategy = new FluentStrategyFactory().defaultStrategy().build(),
-    protected readonly parent: FluentCheck<ParentRec, any> | undefined = undefined) {
+  config(strategy: FluentStrategyFactory): this {
+    // store the factory to be used at check-time
+    // (actual FluentStrategy instance is built lazily in .check())
     // ...
-  }
-
-  config(strategy: FluentStrategyFactory) {
-    this.strategy = strategy.build()
     return this
   }
-  
-  // ...
 }
 ```
 
-This allows strategies to be configured at the scenario level.
+The important difference is that strategy instantiation now happens once,
+right before execution, rather than when the scenario is constructed.
 
 ## Strategy Presets
 
