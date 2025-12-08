@@ -62,7 +62,7 @@ const multiForallResult = new FluentCheck()
   .check()
 
 type MultiForallResultType = typeof multiForallResult
-type _T7 = Expect<Equal<MultiForallResultType, FluentResult<{a: number} & {b: string}>>>
+type _T7 = Expect<Equal<MultiForallResultType, FluentResult<{a: number, b: string}>>>
 type _T8 = Expect<Equal<typeof multiForallResult.example.a, number>>
 type _T9 = Expect<Equal<typeof multiForallResult.example.b, string>>
 

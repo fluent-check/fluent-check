@@ -10,10 +10,9 @@ const charArb = (min = 0x20, max = 0x7e): Arbitrary<string> =>
 
 export const char = (start?: string, end?: string): Arbitrary<string> => {
   if (start === undefined) return charArb()
-  else {
-    const s = start.charCodeAt(0)
-    return end !== undefined ? charArb(s, end.charCodeAt(0)) : charArb(s, s)
-  }
+  const startCode = start.charCodeAt(0)
+  const endCode = end?.charCodeAt(0) ?? startCode
+  return charArb(startCode, endCode)
 }
 
 export const ascii = (): Arbitrary<string> =>
@@ -34,8 +33,8 @@ export const base64String = (unscaledMin = 4, unscaledMax = 16): Arbitrary<strin
   const options = [undefined, (s: string) => s.slice(1), (s: string) => `${s}==`, (s: string) => `${s}=`]
   return string(unscaledMin + 3 - (unscaledMin + 3) % 4, unscaledMax - unscaledMax % 4, base64())
     .map((s) => {
-      const option = options[s.length % 4]
-      return option !== undefined ? option(s) : s
+      const transform = options[s.length % 4] ?? ((value: string) => value)
+      return transform(s)
     })
 }
 

@@ -98,8 +98,10 @@ export const tuple = <const U extends readonly Arbitrary<any>[]>(...arbitraries:
   return new ArbitraryTuple([...arbitraries]) as Arbitrary<UnwrapFluentPick<U>>
 }
 
-type RecordSchema = Record<string, Arbitrary<unknown>>
-type UnwrapSchema<S extends RecordSchema> = { [K in keyof S]: S[K] extends Arbitrary<infer T> ? T : never }
+type RecordSchema = Record<string, Arbitrary<unknown> | undefined>
+type ValidatedSchema<S extends RecordSchema> = { [K in keyof S]-?: NonNullable<S[K]> }
+type UnwrapSchema<S extends RecordSchema> =
+  { [K in keyof S]: ValidatedSchema<S>[K] extends Arbitrary<infer T> ? T : never }
 
 export const record = <S extends RecordSchema>(schema: S): Arbitrary<UnwrapSchema<S>> => {
   if (Object.values(schema).some(a => a === NoArbitrary)) return NoArbitrary

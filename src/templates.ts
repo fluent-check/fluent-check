@@ -60,17 +60,19 @@ export interface CheckableTemplate {
 
 /**
  * Internal implementation of CheckableTemplate.
+ *
+ * @typeParam Rec - The record type used by the underlying FluentCheck scenario.
  */
-class CheckableTemplateImpl implements CheckableTemplate {
+class CheckableTemplateImpl<Rec extends Record<string, unknown>> implements CheckableTemplate {
   constructor(
     private readonly buildScenario: (
       strategy?: FluentStrategyFactory
-    ) => FluentCheck<any, any>,
+    ) => FluentCheck<Rec, any>,
     private readonly strategyFactory?: FluentStrategyFactory
   ) {}
 
   check(): FluentResult<Record<string, unknown>> {
-    return this.buildScenario(this.strategyFactory).check()
+    return this.buildScenario(this.strategyFactory).check() as FluentResult<Record<string, unknown>>
   }
 
   assert(message?: string): void {
@@ -84,7 +86,7 @@ class CheckableTemplateImpl implements CheckableTemplate {
   }
 
   config(strategyFactory: FluentStrategyFactory): CheckableTemplate {
-    return new CheckableTemplateImpl(this.buildScenario, strategyFactory)
+    return new CheckableTemplateImpl<Rec>(this.buildScenario, strategyFactory)
   }
 }
 
@@ -123,7 +125,7 @@ export function roundtrip<A, B>(
   decode: (b: B) => A,
   equals?: (a: A, b: A) => boolean
 ): CheckableTemplate {
-  return new CheckableTemplateImpl((strategy) => {
+  return new CheckableTemplateImpl<{ x: A }>((strategy) => {
     let scenario = new FluentCheck()
     if (strategy !== undefined) {
       scenario = scenario.config(strategy)
@@ -165,7 +167,7 @@ export function idempotent<T>(
   fn: (x: T) => T,
   equals?: (a: T, b: T) => boolean
 ): CheckableTemplate {
-  return new CheckableTemplateImpl((strategy) => {
+  return new CheckableTemplateImpl<{ x: T }>((strategy) => {
     let scenario = new FluentCheck()
     if (strategy !== undefined) {
       scenario = scenario.config(strategy)
@@ -204,7 +206,7 @@ export function commutative<T, R>(
   fn: (a: T, b: T) => R,
   equals?: (a: R, b: R) => boolean
 ): CheckableTemplate {
-  return new CheckableTemplateImpl((strategy) => {
+  return new CheckableTemplateImpl<{ a: T, b: T }>((strategy) => {
     let scenario = new FluentCheck()
     if (strategy !== undefined) {
       scenario = scenario.config(strategy)
@@ -247,7 +249,7 @@ export function associative<T>(
   fn: (a: T, b: T) => T,
   equals?: (a: T, b: T) => boolean
 ): CheckableTemplate {
-  return new CheckableTemplateImpl((strategy) => {
+  return new CheckableTemplateImpl<{ a: T, b: T, c: T }>((strategy) => {
     let scenario = new FluentCheck()
     if (strategy !== undefined) {
       scenario = scenario.config(strategy)
@@ -297,7 +299,7 @@ export function identity<T>(
   identityValue: T,
   equals?: (a: T, b: T) => boolean
 ): CheckableTemplate {
-  return new CheckableTemplateImpl((strategy) => {
+  return new CheckableTemplateImpl<{ a: T }>((strategy) => {
     let scenario = new FluentCheck()
     if (strategy !== undefined) {
       scenario = scenario.config(strategy)

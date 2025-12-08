@@ -7,7 +7,7 @@ export function expect<Rec extends {}>(result: FluentResult<Rec>): void | never 
 }
 
 export class FluentReporter extends Error {
-  constructor(result: FluentResult<{}>) {
+  constructor(result: FluentResult) {
     super()
     this.name = 'Property not satisfiable'
 

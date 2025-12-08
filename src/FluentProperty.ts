@@ -2,6 +2,14 @@ import {type Arbitrary} from './arbitraries/index.js'
 import {FluentCheck, type FluentResult} from './FluentCheck.js'
 import {type FluentStrategyFactory} from './strategies/FluentStrategyFactory.js'
 
+type TupleIndices<Args extends readonly unknown[]> = Exclude<keyof Args, keyof []>
+
+type PropRecord<Args extends readonly unknown[]> = {
+  [I in TupleIndices<Args> as `arg${Extract<I, number>}`]: Args[I]
+}
+
+export type PropExample<Args extends readonly unknown[]> = PropRecord<Args>
+
 /**
  * A fluent property test builder that provides a simplified API for property-based testing.
  *
@@ -21,7 +29,7 @@ import {type FluentStrategyFactory} from './strategies/FluentStrategyFactory.js'
  *   .assert();
  * ```
  */
-export interface FluentProperty<Args extends unknown[]> {
+export interface FluentProperty<Args extends readonly unknown[]> {
   /**
    * Check the property and return a result without throwing.
    *
@@ -35,7 +43,7 @@ export interface FluentProperty<Args extends unknown[]> {
    * }
    * ```
    */
-  check(): FluentResult<Record<string, unknown>>
+  check(): FluentResult<PropRecord<Args>>
 
   /**
    * Check the property and throw an error if it fails.
@@ -73,13 +81,13 @@ export interface FluentProperty<Args extends unknown[]> {
 /**
  * Internal implementation of FluentProperty.
  */
-class FluentPropertyImpl<Args extends unknown[]> implements FluentProperty<Args> {
-  readonly #arbitraries: Arbitrary<unknown>[]
+class FluentPropertyImpl<const Args extends unknown[]> implements FluentProperty<Args> {
+  readonly #arbitraries: { [I in keyof Args]: Arbitrary<Args[I]> }
   readonly #predicate: (...args: Args) => boolean
   readonly #strategyFactory?: FluentStrategyFactory
 
   constructor(
-    arbitraries: Arbitrary<unknown>[],
+    arbitraries: { [I in keyof Args]: Arbitrary<Args[I]> },
     predicate: (...args: Args) => boolean,
     strategyFactory?: FluentStrategyFactory
   ) {
@@ -90,7 +98,7 @@ class FluentPropertyImpl<Args extends unknown[]> implements FluentProperty<Args>
     }
   }
 
-  check(): FluentResult<Record<string, unknown>> {
+  check(): FluentResult<PropRecord<Args>> {
     let checker = new FluentCheck()
 
     if (this.#strategyFactory !== undefined) {
@@ -98,14 +106,10 @@ class FluentPropertyImpl<Args extends unknown[]> implements FluentProperty<Args>
     }
 
     // Build the chain with positional argument names
-    let chain: FluentCheck<Record<string, unknown>, Record<string, unknown>> =
-      checker as FluentCheck<Record<string, unknown>, Record<string, unknown>>
-
-    for (let i = 0; i < this.#arbitraries.length; i++) {
-      const arbitrary = this.#arbitraries[i]
-      if (arbitrary === undefined) continue
-      chain = chain.forall(`arg${i}`, arbitrary)
-    }
+    const chain = this.#arbitraries.reduce((current, arbitrary, index) => {
+      if (arbitrary === undefined) return current
+      return current.forall(`arg${index}`, arbitrary)
+    }, checker)
 
     // Create the predicate wrapper that extracts positional arguments
     const wrappedPredicate = (args: Record<string, unknown>): boolean => {
@@ -113,7 +117,7 @@ class FluentPropertyImpl<Args extends unknown[]> implements FluentProperty<Args>
       return this.#predicate(...positionalArgs)
     }
 
-    return chain.then(wrappedPredicate).check()
+    return chain.then(wrappedPredicate).check() as FluentResult<PropRecord<Args>>
   }
 
   assert(message?: string): void {
@@ -121,7 +125,8 @@ class FluentPropertyImpl<Args extends unknown[]> implements FluentProperty<Args>
     if (!result.satisfiable) {
       const prefix = message !== undefined && message !== '' ? `${message}: ` : ''
       // Extract positional arguments for cleaner error message
-      const args = this.#arbitraries.map((_, i) => result.example[`arg${i}`])
+      const example = result.example as Record<string, unknown>
+      const args = this.#arbitraries.map((_, i) => example[`arg${i}`])
       const argsStr = args.length === 1
         ? JSON.stringify(args[0])
         : `(${args.map(a => JSON.stringify(a)).join(', ')})`
@@ -235,8 +240,10 @@ export function prop<A, B, C, D, E>(
 ): FluentProperty<[A, B, C, D, E]>
 
 // Implementation
-export function prop(...args: unknown[]): FluentProperty<unknown[]> {
-  const predicate = args.at(-1) as (...args: unknown[]) => boolean
-  const arbitraries = args.slice(0, -1) as Arbitrary<unknown>[]
-  return new FluentPropertyImpl(arbitraries, predicate)
+export function prop<Args extends unknown[]>(
+  ...args: [...{ [I in keyof Args]: Arbitrary<Args[I]> }, (...args: Args) => boolean]
+): FluentProperty<Args> {
+  const predicate = args[args.length - 1] as (...a: Args) => boolean
+  const arbitraries = args.slice(0, -1) as { [I in keyof Args]: Arbitrary<Args[I]> }
+  return new FluentPropertyImpl<Args>(arbitraries, predicate)
 }

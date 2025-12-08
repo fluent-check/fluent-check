@@ -3,6 +3,7 @@ import type {ArbitrarySize, FluentPick, NonEmptyArray} from './types.js'
 import type {HashFunction, EqualsFunction} from './Arbitrary.js'
 import {exactSize, estimatedSize} from './util.js'
 import * as fc from './index.js'
+import {assertInBounds} from '../util/assertions.js'
 
 /**
  * Represents a union (OR) of multiple arbitraries that all generate the same type.
@@ -39,6 +40,11 @@ export class ArbitraryComposite<A> extends Arbitrary<A> {
   }
 
   override pick(generator: () => number) {
+    // Fail fast: composite arbitraries must have at least one component
+    if (this.arbitraries.length === 0) {
+      throw new Error('Cannot pick from empty composite arbitrary')
+    }
+
     const weights = this.arbitraries.reduce(
       (acc, a) => { acc.push((acc.at(-1) ?? 0) + a.size().value); return acc },
       new Array<number>()
@@ -48,10 +54,14 @@ export class ArbitraryComposite<A> extends Arbitrary<A> {
     const index = weights.findIndex(s => s > picked)
 
     const selectedIndex = index >= 0 ? index : this.arbitraries.length - 1
-    const selected = this.arbitraries.at(selectedIndex)
+    assertInBounds(
+      selectedIndex,
+      this.arbitraries.length,
+      'Composite arbitrary index out of bounds after weight selection'
+    )
+    const selected = this.arbitraries[selectedIndex]
     if (selected === undefined) {
-      // This should never happen with NonEmptyArray, but TypeScript requires the check
-      throw new Error('Invalid index in composite arbitrary')
+      throw new Error('Composite arbitrary selection failed: no arbitrary found for computed index')
     }
     return selected.pick(generator)
   }

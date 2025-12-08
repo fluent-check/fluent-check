@@ -45,7 +45,15 @@ export class FilteredArbitrary<A> extends WrappedArbitrary<A> {
 
   override shrink(initialValue: FluentPick<A>) {
     if (!this.f(initialValue.value)) return NoArbitrary
-    return this.baseArbitrary.shrink(initialValue).filter(v => this.f(v))
+    const shrunkBase = this.baseArbitrary.shrink(initialValue)
+
+    // If the shrunk base arbitrary has corner cases and none of them satisfy
+    // the predicate, treat it as empty instead of returning a filtered
+    // arbitrary with non-zero size but no valid samples.
+    const corners = shrunkBase.cornerCases()
+    if (corners.length > 0 && !corners.some(c => this.f(c.value))) return NoArbitrary
+
+    return shrunkBase.filter(v => this.f(v))
   }
 
   override canGenerate(pick: FluentPick<A>) {

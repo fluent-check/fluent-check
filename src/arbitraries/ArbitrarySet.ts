@@ -26,6 +26,11 @@ export class ArbitrarySet<A> extends Arbitrary<A[]> {
     const size = Math.floor(generator() * (this.max - this.min + 1)) + this.min
     const pick = new Set<A>()
 
+    // Fail fast when a non-empty set is requested but there are no source elements
+    if (size > 0 && this.elements.length === 0) {
+      throw new Error('Cannot pick non-empty set from empty elements')
+    }
+
     while (pick.size !== size) {
       const index = Math.floor(generator() * this.elements.length)
       if (index < 0 || index >= this.elements.length) continue
