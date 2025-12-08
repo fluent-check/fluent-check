@@ -1,5 +1,7 @@
 # Change: Extract Explorer Interface for Search Space Navigation
 
+> **GitHub Issue:** [#502](https://github.com/fluent-check/fluent-check/issues/502)
+
 ## Why
 
 The execution loop is currently embedded in `FluentCheckQuantifier.run()` as nested loops. This hardcodes one traversal strategy and makes it impossible to implement alternative approaches like tuple sampling without boolean flags and `if/else` branching.

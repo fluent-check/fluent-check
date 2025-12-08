@@ -1,5 +1,7 @@
 # Change: Extract Scenario AST from FluentCheck
 
+> **GitHub Issue:** [#504](https://github.com/fluent-check/fluent-check/issues/504)
+
 ## Why
 
 The current `FluentCheck` class conflates two concerns: building test scenarios (the fluent API) and executing them. This makes it difficult to implement alternative execution strategies. By extracting the scenario as a pure data structure (AST), we enable:

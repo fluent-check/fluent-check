@@ -1,5 +1,7 @@
 # Change: Extract Sampler Interface from FluentStrategy
 
+> **GitHub Issue:** [#503](https://github.com/fluent-check/fluent-check/issues/503)
+
 ## Why
 
 The current `FluentStrategy` mixins (`Random`, `Biased`, `Cached`, `Dedupable`) all deal with one concern: **how to sample values from arbitraries**. This is conflated with execution control (`hasInput`/`getInput`) and shrinking (`shrink`).

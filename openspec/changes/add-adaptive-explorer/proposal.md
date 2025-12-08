@@ -1,5 +1,7 @@
 # Change: Add Adaptive Explorer for Automatic Strategy Selection
 
+> **GitHub Issue:** [#507](https://github.com/fluent-check/fluent-check/issues/507)
+
 ## Why
 
 Users shouldn't need to understand execution strategies to get good performance. An adaptive explorer can analyze the scenario structure and automatically choose the best traversal approach:

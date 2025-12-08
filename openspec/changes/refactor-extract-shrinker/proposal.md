@@ -1,5 +1,7 @@
 # Change: Extract Shrinker Interface for Counterexample Minimization
 
+> **GitHub Issue:** [#505](https://github.com/fluent-check/fluent-check/issues/505)
+
 ## Why
 
 Shrinking logic is currently embedded in `FluentStrategy` via the `Shrinkable` mixin and `configArbitrary()` with depth tracking. This tangles shrinking with exploration and makes it impossible to implement alternative shrinking strategies (like tuple shrinking, binary search, or delta debugging).

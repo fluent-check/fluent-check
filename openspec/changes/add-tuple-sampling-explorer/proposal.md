@@ -1,5 +1,7 @@
 # Change: Add Tuple Sampling Explorer for Holistic Execution
 
+> **GitHub Issue:** [#506](https://github.com/fluent-check/fluent-check/issues/506)
+
 ## Why
 
 The current nested loop execution creates O(sampleSize^n) test evaluations for n quantifiers. For properties with many forall quantifiers, this leads to combinatorial explosion:
