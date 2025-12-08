@@ -4,6 +4,18 @@ import type {HashFunction, EqualsFunction} from './Arbitrary.js'
 import {exactSize, estimatedSize} from './util.js'
 import * as fc from './index.js'
 
+/**
+ * Represents a union (OR) of multiple arbitraries that all generate the same type.
+ * 
+ * Unlike {@link ArbitraryTuple}, which creates a product (AND) by combining values
+ * from different arbitraries into a tuple, ArbitraryComposite selects one arbitrary
+ * from the collection (weighted by size) and delegates generation to it.
+ * 
+ * - Size: Sum of all constituent arbitraries' sizes
+ * - Pick: Selects one arbitrary (weighted by size) and delegates to it
+ * - canGenerate: Returns true if ANY of the arbitraries can generate the value
+ * 
+ */
 export class ArbitraryComposite<A> extends Arbitrary<A> {
   constructor(public readonly arbitraries: NonEmptyArray<Arbitrary<A>>) {
     super()
@@ -27,7 +39,6 @@ export class ArbitraryComposite<A> extends Arbitrary<A> {
   }
 
   override pick(generator: () => number) {
-    // Safe: NonEmptyArray guarantees length > 0
     const weights = this.arbitraries.reduce(
       (acc, a) => { acc.push((acc.at(-1) ?? 0) + a.size().value); return acc },
       new Array<number>()
@@ -36,10 +47,7 @@ export class ArbitraryComposite<A> extends Arbitrary<A> {
     const picked = Math.floor(generator() * lastWeight)
     const index = weights.findIndex(s => s > picked)
 
-    // Safe: NonEmptyArray guarantees length > 0, findIndex returns valid index or -1
     const selectedIndex = index >= 0 ? index : this.arbitraries.length - 1
-    // Safe: NonEmptyArray guarantees selectedIndex is in valid range
-    // Use at() for safe access - we know it's valid but TypeScript needs help
     const selected = this.arbitraries.at(selectedIndex)
     if (selected === undefined) {
       // This should never happen with NonEmptyArray, but TypeScript requires the check
@@ -56,7 +64,6 @@ export class ArbitraryComposite<A> extends Arbitrary<A> {
     const filtered = this.arbitraries.filter(a => a.canGenerate(initial))
     if (filtered.length === 0) return fc.empty()
     const arbitraries = filtered.map(a => a.shrink(initial))
-    // fc.union() handles NoArbitrary filtering and empty arrays correctly
     return fc.union(...arbitraries)
   }
 
@@ -66,20 +73,16 @@ export class ArbitraryComposite<A> extends Arbitrary<A> {
 
   /**
    * For unions, uses the first arbitrary's hash function.
-   * Safe: NonEmptyArray guarantees at least one element.
    */
   override hashCode(): HashFunction {
-    // Safe: NonEmptyArray guarantees first element exists - destructuring preserves type
     const [first] = this.arbitraries
     return first.hashCode()
   }
 
   /**
    * For unions, uses the first arbitrary's equals function.
-   * Safe: NonEmptyArray guarantees at least one element.
    */
   override equals(): EqualsFunction {
-    // Safe: NonEmptyArray guarantees first element exists - destructuring preserves type
     const [first] = this.arbitraries
     return first.equals()
   }
