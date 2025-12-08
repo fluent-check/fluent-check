@@ -1,21 +1,26 @@
 import {type Arbitrary, type FluentPick, FluentRandomGenerator} from '../arbitraries/index.js'
 import type {FluentResult} from '../FluentCheck.js'
-import {type StrategyArbitraries} from './FluentStrategyTypes.js'
+import {
+  type FluentStrategyArbitrary,
+  type StrategyArbitraries,
+  type StrategyBindings
+} from './FluentStrategyTypes.js'
 
 export type FluentConfig = { sampleSize?: number, shrinkSize?: number }
 
-export interface FluentStrategyInterface {
-  hasInput: <K extends string>(arbitraryName: K) => boolean
-  getInput: <K extends string, A>(arbitraryName: K) => FluentPick<A>
+export interface FluentStrategyInterface<Rec extends StrategyBindings = StrategyBindings> {
+  hasInput: <K extends keyof Rec & string>(arbitraryName: K) => boolean
+  getInput: <K extends keyof Rec & string>(arbitraryName: K) => FluentPick<Rec[K]>
   handleResult: () => void
 }
 
-export class FluentStrategy implements FluentStrategyInterface {
+export class FluentStrategy<Rec extends StrategyBindings = StrategyBindings>
+implements FluentStrategyInterface<Rec> {
 
   /**
    * Record of all the arbitraries used for composing a given test case.
    */
-  public arbitraries: StrategyArbitraries = {}
+  public arbitraries: StrategyArbitraries<Rec> = {} as StrategyArbitraries<Rec>
 
   /**
    * Information concerning the random value generation
@@ -33,8 +38,8 @@ export class FluentStrategy implements FluentStrategyInterface {
    * safely use it without triggering protected/anonymous class constraints
    * in the TypeScript type system.
    */
-  getArbitraryState<K extends string>(arbitraryName: K) {
-    return this.arbitraries[arbitraryName]!
+  getArbitraryState<K extends keyof Rec & string>(arbitraryName: K): FluentStrategyArbitrary<Rec[K]> {
+    return this.arbitraries[arbitraryName]
   }
 
   /**
@@ -49,7 +54,7 @@ export class FluentStrategy implements FluentStrategyInterface {
   /**
    * Adds an arbitrary to the arbitraries record
    */
-  addArbitrary<K extends string, A>(arbitraryName: K, a: Arbitrary<A>) {
+  addArbitrary<K extends keyof Rec & string>(arbitraryName: K, a: Arbitrary<Rec[K]>) {
     this.arbitraries[arbitraryName] = {arbitrary: a, pickNum: 0, collection: []}
     this.setArbitraryCache(arbitraryName)
   }
@@ -57,7 +62,7 @@ export class FluentStrategy implements FluentStrategyInterface {
   /**
    * Configures the information relative a specific arbitrary.
    */
-  configArbitrary<K extends string>(arbitraryName: K, partial: FluentResult | undefined, depth: number) {
+  configArbitrary<K extends keyof Rec & string>(arbitraryName: K, partial: FluentResult | undefined, depth: number) {
     const state = this.getArbitraryState(arbitraryName)
     state.pickNum = 0
     state.collection = []
@@ -79,7 +84,7 @@ export class FluentStrategy implements FluentStrategyInterface {
   /**
    * Hook that acts as point of extension of the addArbitrary function and that enables the strategy to be cached.
    */
-  setArbitraryCache<K extends string>(_arbitraryName: K) {}
+  setArbitraryCache<K extends keyof Rec & string>(_arbitraryName: K) {}
 
   /**
    * Generates a once a collection of inputs for a given arbitrary
@@ -92,7 +97,7 @@ export class FluentStrategy implements FluentStrategyInterface {
   /**
    * Hook that acts as point of extension of the configArbitrary function and that enables an arbitrary to be shrinked.
    */
-  shrink<K extends string>(_name: K, _partial: FluentResult | undefined) {}
+  shrink<K extends keyof Rec & string>(_name: K, _partial: FluentResult | undefined) {}
 
   /**
    * Determines whether there are more inputs to be used for test case generation purposes. This function can use
@@ -100,7 +105,7 @@ export class FluentStrategy implements FluentStrategyInterface {
    *
    * Returns true if there are still more inputs to be used; otherwise it returns false.
    */
-  hasInput<K extends string>(_arbitraryName: K): boolean {
+  hasInput<K extends keyof Rec & string>(_arbitraryName: K): boolean {
     throw new Error('Method <hasInput> not implemented.', {
       cause: 'FluentStrategy.hasInput is abstract - subclasses must implement this method'
     })
@@ -109,7 +114,7 @@ export class FluentStrategy implements FluentStrategyInterface {
   /**
    * Retrieves a new input from the arbitraries record.
    */
-  getInput<K extends string, A>(_arbitraryName: K): FluentPick<A> {
+  getInput<K extends keyof Rec & string>(_arbitraryName: K): FluentPick<Rec[K]> {
     throw new Error('Method <getInput > not implemented.', {
       cause: 'FluentStrategy.getInput is abstract - subclasses must implement this method'
     })

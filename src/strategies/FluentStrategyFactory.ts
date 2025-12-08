@@ -1,12 +1,13 @@
 import {FluentStrategy, type FluentConfig} from './FluentStrategy.js'
 import {Biased, Cached, Dedupable, Random, Shrinkable} from './FluentStrategyMixins.js'
+import type {StrategyBindings} from './FluentStrategyTypes.js'
 
-export class FluentStrategyFactory {
+export class FluentStrategyFactory<Rec extends StrategyBindings = StrategyBindings> {
 
   /**
    * Strategy mixin composition
    */
-  #strategy: new (config: FluentConfig) => FluentStrategy = FluentStrategy
+  #strategy: new (config: FluentConfig) => FluentStrategy<Rec> = FluentStrategy<Rec>
 
   /**
    * Strategy configuration
@@ -74,7 +75,7 @@ export class FluentStrategyFactory {
   /**
    * Builds and returns the FluentStrategy with a specified configuration.
    */
-  build(): FluentStrategy {
+  build(): FluentStrategy<Rec> {
     return new this.#strategy(this.configuration)
   }
 

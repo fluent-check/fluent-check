@@ -11,7 +11,7 @@
 
 /* eslint-disable @typescript-eslint/no-unused-vars */
 
-import {prop, type FluentProperty} from '../../src/FluentProperty.js'
+import {prop, type FluentProperty, type PropExample} from '../../src/FluentProperty.js'
 import {integer, string, boolean, array} from '../../src/arbitraries/index.js'
 import {type Expect, type Equal} from './test-utils.types.js'
 
@@ -97,7 +97,7 @@ type _T7 = Expect<Equal<typeof chainedConfig, FluentProperty<[number, string]>>>
 import {type FluentResult} from '../../src/FluentCheck.js'
 
 const checkResult = prop(integer(), x => x >= 0).check()
-type _T8 = Expect<Equal<typeof checkResult, FluentResult<Record<string, unknown>>>>
+type _T8 = Expect<Equal<typeof checkResult, FluentResult<PropExample<[number]>>>>
 
 // ============================================================================
 // Test: assert() returns void
