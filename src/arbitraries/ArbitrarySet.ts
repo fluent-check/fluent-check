@@ -33,9 +33,6 @@ export class ArbitrarySet<A> extends Arbitrary<A[]> {
 
     while (pick.size !== size) {
       const index = Math.floor(generator() * this.elements.length)
-      if (index < 0 || index >= this.elements.length) continue
-      // Safe: bounds validated in the condition above
-      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
       pick.add(this.elements[index]!)
     }
 
