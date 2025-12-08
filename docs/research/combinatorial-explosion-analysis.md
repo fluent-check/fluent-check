@@ -23,7 +23,71 @@ Total Search Space = s₁ × s₂ × ... × sₙ
 
 ### Current Implementation Behavior
 
-Looking at `FluentCheckQuantifier.run()` in `src/FluentCheck.ts:361-385`:
+**Recent Change:** The implementation now builds the strategy at `.check()` time with full scenario visibility. This is a key step toward enabling holistic optimizations.
+
+**Strategy Construction** (`src/FluentCheck.ts:283-326`):
+
+```typescript
+check(
+  child: (testCase: WrapFluentPick<any>) => FluentResult<Record<string, unknown>> = () => new FluentResult(true)
+): FluentResult<Rec> {
+  const path = this.pathFromRoot()
+  const root = path[0] as FluentCheck<any, any>
+
+  const {strategyFactory, rngBuilder, seed} = root.#resolveExecutionConfig(path)
+
+  const factory: FluentStrategyFactory<Rec> =
+    (strategyFactory as FluentStrategyFactory<Rec> | undefined) ??
+    new FluentStrategyFactory<Rec>().defaultStrategy()
+  const strategy = factory.build()
+
+  strategy.randomGenerator = rngBuilder !== undefined
+    ? new FluentRandomGenerator(rngBuilder, seed)
+    : new FluentRandomGenerator()
+
+  // Attach strategy and register quantifiers AFTER strategy is built
+  for (const node of path) {
+    node.strategy = strategy
+    if (node instanceof FluentCheckQuantifier) {
+      node.registerArbitrary()  // Deferred registration!
+    }
+  }
+
+  strategy.randomGenerator.initialize()
+
+  // Build callback chain from leaf to root
+  let callback = child
+  for (let i = path.length - 1; i > 0; i -= 1) {
+    const node = path[i] as FluentCheck<any, any>
+    const prev = callback
+    callback = (testCase) => node.run(testCase as any, prev)
+  }
+
+  const r = root.run({} as any, callback)
+  return new FluentResult<Rec>(...)
+}
+```
+
+**Key architectural change:** Quantifiers no longer register their arbitraries in the constructor. Instead, `registerArbitrary()` is called during `check()` after the full path is known:
+
+```typescript
+// FluentCheckQuantifier (src/FluentCheck.ts:437-483)
+abstract class FluentCheckQuantifier<K, A, Rec, ParentRec> extends FluentCheck<Rec, ParentRec> {
+  constructor(parent, public readonly name: K, public readonly a: Arbitrary<A>) {
+    super(parent)
+    // Note: NO strategy.addArbitrary() here anymore!
+  }
+
+  registerArbitrary() {
+    this.strategy.addArbitrary(this.name, this.a as Arbitrary<Rec[K]>)
+  }
+  // ...
+}
+```
+
+This means the strategy now has access to all quantifiers via `pathFromRoot()` before execution begins, enabling future holistic optimizations.
+
+**However**, the quantifier execution still uses nested loops (`src/FluentCheck.ts:452-476`):
 
 ```typescript
 protected override run(
@@ -38,8 +102,8 @@ protected override run(
   let totalSkipped = accumulatedSkips
 
   while (this.strategy.hasInput(this.name)) {
-    testCase[this.name] = this.strategy.getInput(this.name)
-    const result = callback(testCase)  // Recursively calls next quantifier
+    testCase[this.name] = this.strategy.getInput(this.name) as FluentPick<Rec[K]>
+    const result = callback(testCase)
     totalSkipped += result.skipped
     if (result.satisfiable === this.breakValue) {
       result.addExample(this.name, testCase[this.name])
@@ -53,7 +117,7 @@ protected override run(
 }
 ```
 
-**Key observation:** Each `forall` creates a nested loop. For 10 `forall` statements:
+**Current behavior:** Each `forall` still creates a nested loop. For 10 `forall` statements:
 - Outer loop: 1000 samples (default `sampleSize`)
 - For each sample, inner loop: 1000 samples
 - For each of those, next inner loop: 1000 samples
@@ -61,7 +125,7 @@ protected override run(
 
 **Actual test executions:** 1000¹⁰ = 10³⁰ (if fully nested)
 
-The strategy pre-builds each arbitrary's sample collection once at depth 0 (see `configArbitrary` in `FluentStrategy.ts:45-55`), so the nested loops reuse the same samples. This means the full 10³⁰ iterations DO occur unless the test terminates early (property fails, timeout, etc.).
+The strategy pre-builds each arbitrary's sample collection once at depth 0 (see `configArbitrary` in `FluentStrategy.ts:65-75`), so the nested loops reuse the same samples. This means the full 10³⁰ iterations DO occur unless the test terminates early (property fails, timeout, etc.).
 
 ## Shrinking Amplifies the Problem
 
@@ -272,27 +336,36 @@ fc.scenario()
 
 ### 0. Holistic Strategy Approach (Recommended)
 
-The current architecture treats each quantifier independently - each `forall` adds its arbitrary to the strategy via `addArbitrary()`, and the strategy manages them as separate entities. This creates the nested loop problem because each quantifier iterates through its full sample set for every iteration of outer quantifiers.
+The nested loop problem occurs because each quantifier iterates through its full sample set for every iteration of outer quantifiers.
 
-**Core Insight:** Instead of building strategy behavior incrementally as quantifiers are added, we could defer strategy configuration until `.check()` is called, at which point we have complete knowledge of the scenario structure.
+**Core Insight:** Instead of building strategy behavior incrementally as quantifiers are added, defer strategy configuration until `.check()` is called, at which point we have complete knowledge of the scenario structure.
 
-#### Current Flow (Per-Arbitrary)
+#### ✅ IMPLEMENTED: Deferred Registration
 
-```
-forall('a', arbA)  →  strategy.addArbitrary('a', arbA)  →  builds 1000 samples for 'a'
-forall('b', arbB)  →  strategy.addArbitrary('b', arbB)  →  builds 1000 samples for 'b'
-forall('c', arbC)  →  strategy.addArbitrary('c', arbC)  →  builds 1000 samples for 'c'
-.check()           →  nested loops: 1000 × 1000 × 1000 = 1 billion iterations
-```
-
-#### Proposed Flow (Holistic)
+The first step is already implemented. Quantifiers no longer register arbitraries in their constructor:
 
 ```
-forall('a', arbA)  →  registers quantifier info (arbitrary, type, name)
-forall('b', arbB)  →  registers quantifier info
-forall('c', arbC)  →  registers quantifier info
-.check()           →  strategy.plan(quantifiers)  →  builds optimal execution plan
-                   →  executes plan with budget-aware sampling
+forall('a', arbA)  →  stores (name, arbitrary) only - NO strategy interaction
+forall('b', arbB)  →  stores (name, arbitrary) only
+forall('c', arbC)  →  stores (name, arbitrary) only
+.check()           →  pathFromRoot() collects all nodes
+                   →  strategy.build()
+                   →  for each quantifier: registerArbitrary()
+                   →  execution begins
+```
+
+This architectural change means the strategy now has access to all quantifiers before any samples are generated.
+
+#### 🔲 NEXT: Holistic Planning
+
+The next step is to add a planning phase that uses this visibility:
+
+```
+.check()           →  pathFromRoot() collects all nodes
+                   →  strategy.build()
+                   →  strategy.planExecution(quantifiers)  ← NEW
+                   →  for each quantifier: registerArbitrary()
+                   →  execution with budget-aware sampling
 ```
 
 #### Key Design Elements
@@ -639,13 +712,15 @@ if (estimateSearchSpace(quantifiers) > 1_000_000) {
 
 ### Primary: Holistic Strategy
 
-1. **Phase 1 - Scenario Descriptor:** Implement `buildScenarioDescriptor()` in `FluentCheck` to extract full scenario structure at `.check()` time. This is low-risk and provides foundation for all optimizations.
+1. **✅ Phase 0 - Deferred Registration:** Strategy is now built at `.check()` time with full path visibility. Quantifiers register arbitraries after the strategy is constructed, not in their constructor. **(COMPLETED)**
 
-2. **Phase 2 - Budget Planning:** Add `planExecution(scenario)` to `FluentStrategy` that calculates optimal sample distribution based on quantifier count and types.
+2. **🔲 Phase 1 - Scenario Descriptor:** Add `buildScenarioDescriptor()` to extract quantifier metadata (names, types, sizes) from the path. This enables informed planning decisions.
 
-3. **Phase 3 - Tuple Sampling:** For pure `forall` scenarios with 3+ quantifiers, switch from nested loops to direct tuple sampling. This eliminates the exponential blowup entirely.
+3. **🔲 Phase 2 - Budget Planning:** Add `planExecution(scenario)` to `FluentStrategy` that calculates optimal sample distribution based on quantifier count and types.
 
-4. **Phase 4 - Holistic Shrinking:** Coordinate shrinking across all quantifiers as a unit rather than sequentially per-arbitrary.
+4. **🔲 Phase 3 - Tuple Sampling:** For pure `forall` scenarios with 3+ quantifiers, switch from nested loops to direct tuple sampling. This eliminates the exponential blowup entirely.
+
+5. **🔲 Phase 4 - Holistic Shrinking:** Coordinate shrinking across all quantifiers as a unit rather than sequentially per-arbitrary.
 
 ### Fallback: Incremental Improvements
 
@@ -657,27 +732,428 @@ If holistic approach is too invasive:
 
 ### Implementation Priority
 
-| Priority | Change | Effort | Impact |
-|----------|--------|--------|--------|
-| P0 | Scenario descriptor | Low | Enables all other changes |
-| P1 | Tuple sampling for pure forall | Medium | Eliminates exponential blowup |
-| P1 | Adaptive sample sizes | Low | Quick mitigation |
-| P2 | Budget-based planning | Medium | Intelligent distribution |
-| P2 | Search space warnings | Low | User awareness |
-| P3 | Holistic shrinking | High | Optimal counterexamples |
+| Priority | Change | Status | Effort | Impact |
+|----------|--------|--------|--------|--------|
+| P0 | Deferred registration | ✅ Done | Low | Enables all other changes |
+| P0 | Scenario descriptor | 🔲 Next | Low | Enables planning |
+| P1 | Tuple sampling for pure forall | 🔲 | Medium | Eliminates exponential blowup |
+| P1 | Adaptive sample sizes | 🔲 | Low | Quick mitigation |
+| P2 | Budget-based planning | 🔲 | Medium | Intelligent distribution |
+| P2 | Search space warnings | 🔲 | Low | User awareness |
+| P3 | Holistic shrinking | 🔲 | High | Optimal counterexamples |
 
 ## Conclusion
 
-The combinatorial explosion is a fundamental mathematical property of multiple quantifiers. The current per-arbitrary strategy architecture doesn't account for this, leading to:
+The combinatorial explosion is a fundamental mathematical property of multiple quantifiers. The current per-arbitrary execution model doesn't account for this, leading to:
 - Extremely long test runs
 - Memory pressure from large unions
 - Timeout issues
 - Poor user experience
 
 The **holistic strategy approach** addresses this at the architectural level by:
-1. Deferring strategy planning until full scenario is known
-2. Treating test budget as a finite resource to distribute
-3. Converting nested loops to tuple sampling where semantically valid
-4. Coordinating shrinking across all quantifiers
+1. ✅ Deferring strategy construction until full scenario is known (DONE)
+2. 🔲 Treating test budget as a finite resource to distribute
+3. 🔲 Converting nested loops to tuple sampling where semantically valid
+4. 🔲 Coordinating shrinking across all quantifiers
 
-This is more effective than incremental fixes because it solves the root cause (lack of global awareness) rather than patching symptoms (limiting depths/sizes).
+**Progress:** The foundational architectural change (Phase 0) is complete. The strategy is now built at `.check()` time with full visibility into the scenario structure via `pathFromRoot()`. This enables all subsequent optimizations without further architectural changes.
+
+**Next step:** Refactor the architecture to properly separate concerns as described in the Appendix below.
+
+---
+
+## Appendix: Domain-Driven Architecture for Property Checking
+
+The current `FluentStrategy` conflates three distinct concerns: sampling, exploration, and shrinking. A cleaner architecture separates these into independent, composable components.
+
+### Domain Analysis
+
+Property-based testing has these core domain concepts:
+
+1. **Scenario** - A logical statement with quantifiers and predicates ("for all x, for all y, P(x,y) holds")
+2. **Search Space** - The domain of possible values (defined by arbitraries)
+3. **Exploration** - Navigating the search space to find counterexamples
+4. **Shrinking** - Given a counterexample, finding a smaller one in a reduced search space
+5. **Sampling** - How to pick concrete values from a search space
+
+These are genuinely different concerns that are currently entangled in `FluentStrategy`.
+
+### Target Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                         User API                                │
+│  fc.scenario().forall('x', ...).then(...).check()              │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                      Scenario (AST)                             │
+│  Pure data: quantifiers, predicates, filters                    │
+│  No behavior, just structure                                    │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                     PropertyChecker                             │
+│  Orchestrates: exploration → shrinking → result                 │
+│  Configured with: Explorer, Shrinker, Sampler                   │
+└─────────────────────────────────────────────────────────────────┘
+           │                    │                    │
+           ▼                    ▼                    ▼
+┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐
+│    Explorer     │  │    Shrinker     │  │    Sampler      │
+│                 │  │                 │  │                 │
+│ How to traverse │  │ How to minimize │  │ How to pick     │
+│ the scenario    │  │ counterexamples │  │ from arbitrary  │
+└─────────────────┘  └─────────────────┘  └─────────────────┘
+```
+
+### 1. Scenario (Pure AST)
+
+The fluent chain becomes a builder that produces immutable, pure data:
+
+```typescript
+// Immutable, pure data - no behavior
+type ScenarioNode =
+  | { type: 'forall'; name: string; arbitrary: Arbitrary<unknown> }
+  | { type: 'exists'; name: string; arbitrary: Arbitrary<unknown> }
+  | { type: 'given'; predicate: (ctx: Context) => boolean }
+  | { type: 'then'; predicate: (ctx: Context) => boolean }
+
+interface Scenario<Rec extends Record<string, unknown>> {
+  readonly nodes: readonly ScenarioNode[]
+
+  // Derived queries (no mutation)
+  readonly quantifiers: readonly QuantifierNode[]
+  readonly hasExistential: boolean
+  readonly searchSpaceSize: number
+}
+```
+
+`FluentCheck` becomes a **builder** that produces a `Scenario`:
+
+```typescript
+class FluentCheck<Rec> {
+  // Fluent API builds the AST
+  forall<K, A>(name: K, arb: Arbitrary<A>): FluentCheck<Rec & {[k in K]: A}>
+  exists<K, A>(name: K, arb: Arbitrary<A>): FluentCheck<Rec & {[k in K]: A}>
+  given(pred: (r: Rec) => boolean): FluentCheck<Rec>
+  then(pred: (r: Rec) => boolean): FluentCheck<Rec>
+
+  // Terminal: builds scenario and delegates to checker
+  check(): FluentResult<Rec> {
+    const scenario = this.buildScenario()
+    const checker = this.resolveChecker()
+    return checker.check(scenario)
+  }
+
+  // Configuration
+  config(checker: PropertyChecker<Rec>): FluentCheck<Rec>
+}
+```
+
+### 2. Sampler (Value Generation)
+
+This is what the current "strategy mixins" actually do - they control **how values are picked**:
+
+```typescript
+interface Sampler {
+  // Core: generate samples from an arbitrary
+  sample<A>(arbitrary: Arbitrary<A>, count: number): FluentPick<A>[]
+
+  // Variations
+  sampleUnique<A>(arbitrary: Arbitrary<A>, count: number): FluentPick<A>[]
+  sampleWithBias<A>(arbitrary: Arbitrary<A>, count: number): FluentPick<A>[]
+}
+
+// Implementations compose via decoration, not mixins
+class RandomSampler implements Sampler { ... }
+class BiasedSampler implements Sampler { ... }       // wraps another sampler
+class CachedSampler implements Sampler { ... }       // wraps another sampler
+class DedupingSampler implements Sampler { ... }     // wraps another sampler
+
+// Example composition
+const sampler = new CachedSampler(
+  new DedupingSampler(
+    new BiasedSampler(
+      new RandomSampler(rng)
+    )
+  )
+)
+```
+
+### 3. Explorer (Search Space Navigation)
+
+This is the **new** concept - how we traverse the scenario:
+
+```typescript
+interface Explorer<Rec> {
+  /**
+   * Explore a scenario looking for counterexamples.
+   * Returns either success (all tests passed) or a counterexample.
+   */
+  explore(
+    scenario: Scenario<Rec>,
+    property: (testCase: Rec) => boolean,
+    sampler: Sampler,
+    budget: ExplorationBudget
+  ): ExplorationResult<Rec>
+}
+
+interface ExplorationBudget {
+  maxTests: number        // Total property evaluations allowed
+  maxTime?: number        // Optional time limit
+}
+
+type ExplorationResult<Rec> =
+  | { outcome: 'passed'; testsRun: number }
+  | { outcome: 'failed'; counterexample: Rec; testsRun: number }
+  | { outcome: 'exhausted'; testsRun: number }  // Ran out of budget
+```
+
+Different explorers implement different traversal strategies:
+
+```typescript
+// Current behavior: nested loops
+class NestedLoopExplorer<Rec> implements Explorer<Rec> {
+  explore(scenario, property, sampler, budget) {
+    // For each quantifier, iterate through samples
+    // Nested loops: O(samples^n) - current behavior
+  }
+}
+
+// New: tuple sampling for pure-forall scenarios
+class TupleSamplingExplorer<Rec> implements Explorer<Rec> {
+  explore(scenario, property, sampler, budget) {
+    // Combine all quantifiers into tuple, sample once
+    // Flat iteration: O(budget) - solves exponential blowup
+  }
+}
+
+// Future: smart explorer that picks strategy based on scenario
+class AdaptiveExplorer<Rec> implements Explorer<Rec> {
+  explore(scenario, property, sampler, budget) {
+    if (scenario.hasExistential) {
+      return new NestedLoopExplorer().explore(...)
+    } else if (scenario.quantifiers.length > 3) {
+      return new TupleSamplingExplorer().explore(...)
+    } else {
+      return new NestedLoopExplorer().explore(...)
+    }
+  }
+}
+```
+
+### 4. Shrinker (Counterexample Minimization)
+
+Completely separate concern - given a counterexample, make it smaller:
+
+```typescript
+interface Shrinker<Rec> {
+  /**
+   * Shrink a counterexample to find a smaller one that still fails.
+   */
+  shrink(
+    counterexample: Rec,
+    scenario: Scenario<Rec>,
+    property: (testCase: Rec) => boolean,
+    sampler: Sampler,
+    budget: ShrinkBudget
+  ): ShrinkResult<Rec>
+}
+
+interface ShrinkBudget {
+  maxAttempts: number     // How many shrink candidates to try
+  maxRounds: number       // How many shrink iterations
+}
+
+interface ShrinkResult<Rec> {
+  shrunk: Rec             // The minimized counterexample
+  attempts: number        // How many candidates were tested
+  rounds: number          // How many shrink iterations occurred
+}
+```
+
+Different shrinkers:
+
+```typescript
+// Current behavior: shrink each arbitrary independently
+class PerArbitraryShrinker<Rec> implements Shrinker<Rec> {
+  shrink(counterexample, scenario, property, sampler, budget) {
+    // For each quantifier, try shrinking its value
+    // Re-run property to verify it still fails
+  }
+}
+
+// New: shrink the tuple as a whole
+class TupleShrinker<Rec> implements Shrinker<Rec> {
+  shrink(counterexample, scenario, property, sampler, budget) {
+    // Create tuple from counterexample
+    // Use ArbitraryTuple.shrink()
+    // Sample from shrunk tuple
+  }
+}
+
+// Future: binary search shrinking, delta debugging, etc.
+class BinarySearchShrinker<Rec> implements Shrinker<Rec> { ... }
+```
+
+### 5. PropertyChecker (Orchestrator)
+
+This is what the user configures. It composes the other components:
+
+```typescript
+interface PropertyChecker<Rec> {
+  check(scenario: Scenario<Rec>): FluentResult<Rec>
+}
+
+class DefaultPropertyChecker<Rec> implements PropertyChecker<Rec> {
+  constructor(
+    private explorer: Explorer<Rec>,
+    private shrinker: Shrinker<Rec>,
+    private sampler: Sampler,
+    private config: CheckerConfig
+  ) {}
+
+  check(scenario: Scenario<Rec>): FluentResult<Rec> {
+    // 1. Explore to find counterexample
+    const exploration = this.explorer.explore(
+      scenario,
+      this.evaluateProperty.bind(this),
+      this.sampler,
+      { maxTests: this.config.sampleSize }
+    )
+
+    if (exploration.outcome === 'passed') {
+      return FluentResult.success()
+    }
+
+    // 2. Shrink the counterexample
+    const shrunk = this.shrinker.shrink(
+      exploration.counterexample,
+      scenario,
+      this.evaluateProperty.bind(this),
+      this.sampler,
+      { maxAttempts: this.config.shrinkSize, maxRounds: 10 }
+    )
+
+    return FluentResult.failure(shrunk.shrunk)
+  }
+}
+```
+
+### 6. CheckerFactory (Configuration API)
+
+Replaces `FluentStrategyFactory` with cleaner separation:
+
+```typescript
+class CheckerFactory<Rec> {
+  private samplerBuilder: () => Sampler = () => new RandomSampler()
+  private explorerBuilder: () => Explorer<Rec> = () => new NestedLoopExplorer()
+  private shrinkerBuilder: () => Shrinker<Rec> = () => new PerArbitraryShrinker()
+  private config: CheckerConfig = { sampleSize: 1000, shrinkSize: 500 }
+
+  // Sampler configuration
+  withBias(): this { /* wrap sampler */ }
+  withDeduplication(): this { /* wrap sampler */ }
+  withCaching(): this { /* wrap sampler */ }
+
+  // Explorer configuration
+  withNestedExploration(): this { this.explorerBuilder = () => new NestedLoopExplorer() }
+  withTupleExploration(): this { this.explorerBuilder = () => new TupleSamplingExplorer() }
+  withAdaptiveExploration(): this { this.explorerBuilder = () => new AdaptiveExplorer() }
+
+  // Shrinker configuration
+  withPerArbitraryShrinking(): this { ... }
+  withTupleShrinking(): this { ... }
+  withoutShrinking(): this { ... }
+
+  // Budget configuration
+  withSampleSize(n: number): this { ... }
+  withShrinkSize(n: number): this { ... }
+
+  build(): PropertyChecker<Rec> {
+    return new DefaultPropertyChecker(
+      this.explorerBuilder(),
+      this.shrinkerBuilder(),
+      this.samplerBuilder(),
+      this.config
+    )
+  }
+}
+```
+
+### 7. Presets
+
+```typescript
+export const checkers = {
+  // Current default behavior
+  get default(): CheckerFactory {
+    return new CheckerFactory()
+      .withBias()
+      .withDeduplication()
+      .withCaching()
+      .withNestedExploration()
+      .withPerArbitraryShrinking()
+  },
+
+  // Fast: minimal features
+  get fast(): CheckerFactory {
+    return new CheckerFactory()
+      .withNestedExploration()
+      .withoutShrinking()
+  },
+
+  // Holistic: avoids exponential blowup
+  get holistic(): CheckerFactory {
+    return new CheckerFactory()
+      .withBias()
+      .withDeduplication()
+      .withTupleExploration()      // Key difference
+      .withTupleShrinking()        // Key difference
+  },
+
+  // Adaptive: picks best approach per scenario
+  get smart(): CheckerFactory {
+    return new CheckerFactory()
+      .withBias()
+      .withDeduplication()
+      .withCaching()
+      .withAdaptiveExploration()   // Chooses at runtime
+      .withPerArbitraryShrinking()
+  }
+}
+```
+
+### Architecture Comparison
+
+| Component | Responsibility | Current Location | Proposed Location |
+|-----------|---------------|------------------|-------------------|
+| Scenario | AST of the property | `FluentCheck` chain (mixed with behavior) | `Scenario` (pure data) |
+| Sampler | Pick values from arbitrary | `FluentStrategy` mixins | `Sampler` interface |
+| Explorer | Navigate search space | `FluentCheckQuantifier.run()` | `Explorer` interface |
+| Shrinker | Minimize counterexamples | `FluentStrategy.shrink()` + `configArbitrary()` | `Shrinker` interface |
+| Orchestrator | Compose everything | `FluentCheck.check()` | `PropertyChecker` interface |
+| Configuration | User-facing API | `FluentStrategyFactory` | `CheckerFactory` |
+
+### Benefits of This Design
+
+1. **Single Responsibility** - Each component does one thing well
+2. **Open/Closed** - Add new explorers/shrinkers without modifying existing code
+3. **Composable** - Mix and match components independently
+4. **Testable** - Each component can be unit tested in isolation
+5. **No Type Tags** - No boolean flags or `if/else` branching based on strategy type
+6. **Domain Alignment** - Code structure mirrors domain concepts
+
+### Migration Path
+
+1. **Phase 1**: Extract `Scenario` as pure data from `FluentCheck` chain
+2. **Phase 2**: Extract `Sampler` interface from current mixin behavior
+3. **Phase 3**: Extract `Explorer` interface, implement `NestedLoopExplorer` (current behavior)
+4. **Phase 4**: Extract `Shrinker` interface from current shrinking logic
+5. **Phase 5**: Implement `PropertyChecker` orchestrator
+6. **Phase 6**: Add `TupleSamplingExplorer` and `TupleShrinker` for holistic mode
+7. **Phase 7**: Add `AdaptiveExplorer` for automatic strategy selection
+
+Each phase can be done incrementally with full backward compatibility.
