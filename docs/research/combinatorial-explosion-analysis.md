@@ -548,11 +548,17 @@ interface HolisticConfig {
 **Phase 2 - Shrinking:** Switch to bounded nested verification:
 
 ```typescript
+// Type representing a counterexample with FluentPick objects (not raw values)
+// This is needed because Arbitrary.shrink() requires FluentPick with both value and original
+type PickResult<Rec> = {
+  [K in keyof Rec]: FluentPick<Rec[K]>
+}
+
 function shrinkWithSemantics(
-  counterexample: TestCase,
+  counterexample: PickResult<any>,  // FluentPicks, not raw values
   scenario: ScenarioDescriptor,
   config: HolisticConfig
-): TestCase {
+): PickResult<any> {
   const n = scenario.quantifierCount
   // Key: distribute shrink budget across quantifiers
   const samplesPerQuantifier = Math.floor(Math.pow(config.shrinkBudget, 1/n))
@@ -564,14 +570,20 @@ function shrinkWithSemantics(
 
     // Try shrinking each quantifier (outermost first for better minimization)
     for (const q of scenario.quantifiers) {
+      // shrink() expects a FluentPick and returns an Arbitrary of shrunk FluentPicks
       const shrunkArb = q.arbitrary.shrink(current[q.name])
 
       for (const candidate of shrunkArb.sample(samplesPerQuantifier)) {
-        const testCase = {...current, [q.name]: candidate.value}
+        // candidate is a FluentPick, update the entire pick (not just .value)
+        const testCase = {...current, [q.name]: candidate}
 
         // Verify failure still occurs with inner quantifiers
-        if (failsForSomeInner(testCase, scenario, q, samplesPerQuantifier)) {
-          current[q.name] = candidate
+        // Extract raw values for property evaluation
+        const rawTestCase = Object.fromEntries(
+          Object.entries(testCase).map(([k, v]) => [k, (v as FluentPick<any>).value])
+        )
+        if (failsForSomeInner(rawTestCase, scenario, q, samplesPerQuantifier)) {
+          current[q.name] = candidate  // Update with the FluentPick
           improved = true
           break
         }

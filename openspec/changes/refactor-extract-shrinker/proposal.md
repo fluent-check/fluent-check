@@ -15,12 +15,40 @@ Extracting a `Shrinker` interface:
 ## What Changes
 
 - **NEW**: `Shrinker<Rec>` interface with `shrink(counterexample, scenario, property, sampler, budget)` method
+  - **IMPORTANT**: The `counterexample` parameter is `PickResult<Rec>` (record of `FluentPick` objects), not raw values
+  - This provides access to both `value` and `original` needed for `Arbitrary.shrink()` calls
 - **NEW**: `ShrinkBudget` type for controlling shrink iterations
 - **NEW**: `ShrinkResult<Rec>` type for shrinking outcomes
+  - Returns the minimized `PickResult<Rec>`, maintaining `FluentPick` structure
 - **NEW**: `PerArbitraryShrinker` implementing current behavior
 - **NEW**: `NoOpShrinker` for when shrinking is disabled
 - **MODIFIED**: Shrinking logic moves from `Shrinkable` mixin to Shrinker implementations
 - **MODIFIED**: `FluentStrategyFactory.withShrinking()` configures a Shrinker
+
+### Type Definitions
+
+```typescript
+// Result of picking values from all quantifiers in a scenario
+type PickResult<Rec> = {
+  [K in keyof Rec]: FluentPick<Rec[K]>
+}
+
+interface Shrinker<Rec> {
+  shrink(
+    counterexample: PickResult<Rec>,  // FluentPicks, not raw values
+    scenario: Scenario<Rec>,
+    property: (testCase: Rec) => boolean,
+    sampler: Sampler<Rec>,
+    budget: ShrinkBudget
+  ): ShrinkResult<Rec>
+}
+
+type ShrinkResult<Rec> = {
+  minimized: PickResult<Rec>  // FluentPicks, not raw values
+  attempts: number
+  rounds: number
+}
+```
 
 ## Impact
 

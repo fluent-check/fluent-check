@@ -17,9 +17,35 @@ Extracting an `Explorer` interface:
 - **NEW**: `Explorer<Rec>` interface with `explore(scenario, property, sampler, budget)` method
 - **NEW**: `ExplorationBudget` type for controlling test limits
 - **NEW**: `ExplorationResult<Rec>` discriminated union for outcomes
+  - **IMPORTANT**: The `counterexample` field returns `PickResult<Rec>` (record of `FluentPick` objects), not raw values
+  - This ensures shrinking has access to both `value` and `original` for each quantifier
 - **NEW**: `NestedLoopExplorer` implementing current behavior
 - **MODIFIED**: `FluentCheck.check()` delegates to an Explorer
 - **MODIFIED**: Execution logic moves from `FluentCheckQuantifier.run()` to Explorer
+
+### Type Definitions
+
+```typescript
+// Result of picking values from all quantifiers in a scenario
+type PickResult<Rec> = {
+  [K in keyof Rec]: FluentPick<Rec[K]>
+}
+
+// Exploration outcome
+type ExplorationResult<Rec> =
+  | { outcome: 'passed'; testsRun: number }
+  | { outcome: 'failed'; counterexample: PickResult<Rec>; testsRun: number }
+  | { outcome: 'exhausted'; testsRun: number }
+
+interface Explorer<Rec> {
+  explore(
+    scenario: Scenario<Rec>,
+    property: (testCase: Rec) => boolean,
+    sampler: Sampler<Rec>,
+    budget: ExplorationBudget
+  ): ExplorationResult<Rec>
+}
+```
 
 ## Impact
 
