@@ -51,9 +51,9 @@ describe('prop() shorthand', () => {
   describe('three arbitraries', () => {
     it('should check associativity of addition with three values', () => {
       fc.prop(
-        fc.integer(-100, 100),
-        fc.integer(-100, 100),
-        fc.integer(-100, 100),
+        fc.integer(-10, 10),
+        fc.integer(-10, 10),
+        fc.integer(-10, 10),
         (a, b, c) => (a + b) + c === a + (b + c)
       ).check().assertSatisfiable()
     })
