@@ -1,12 +1,7 @@
 import type {FluentPick} from '../arbitraries/index.js'
-import type {
-  Scenario,
-  ScenarioNode,
-  QuantifierNode,
-  GivenNode,
-  WhenNode,
-  ThenNode
-} from '../Scenario.js'
+import type {Scenario, ScenarioNode, GivenNode, WhenNode, ThenNode} from '../Scenario.js'
+import {createExecutableScenario} from '../ExecutableScenario.js'
+import type {ExecutableScenario, ExecutableQuantifier} from '../ExecutableScenario.js'
 import type {Sampler} from './Sampler.js'
 
 /**
@@ -88,17 +83,8 @@ export interface ExplorationExhausted {
  * @typeParam Rec - The record type of bound variables in the scenario
  */
 export interface Explorer<Rec extends {}> {
-  /**
-   * Explores the search space defined by the scenario.
-   *
-   * @param scenario - The scenario AST defining quantifiers and predicates
-   * @param property - The property function to evaluate
-   * @param sampler - The sampler for generating values
-   * @param budget - Exploration limits
-   * @returns The result of exploration
-   */
   explore(
-    scenario: Scenario<Rec>,
+    scenario: ExecutableScenario<Rec> | Scenario<Rec>,
     property: (testCase: Rec) => boolean,
     sampler: Sampler,
     budget: ExplorationBudget
@@ -120,14 +106,16 @@ export class NestedLoopExplorer<Rec extends {}> implements Explorer<Rec> {
    * Explores the search space using nested iteration.
    */
   explore(
-    scenario: Scenario<Rec>,
+    scenario: ExecutableScenario<Rec> | Scenario<Rec>,
     property: (testCase: Rec) => boolean,
     sampler: Sampler,
     budget: ExplorationBudget
   ): ExplorationResult<Rec> {
+    const executableScenario = this.#toExecutableScenario(scenario)
+
     // Extract quantifiers and all nodes from scenario
-    const quantifiers = scenario.quantifiers
-    const allNodes = scenario.nodes
+    const quantifiers = executableScenario.quantifiers
+    const allNodes = executableScenario.nodes
 
     // Generate samples for each quantifier upfront
     const samples = this.#generateSamples(quantifiers, sampler, budget.maxTests)
@@ -138,7 +126,7 @@ export class NestedLoopExplorer<Rec extends {}> implements Explorer<Rec> {
     const startTime = Date.now()
 
     // Determine if we're in forall-only mode
-    const hasExistential = scenario.hasExistential
+    const hasExistential = executableScenario.hasExistential
 
     // Recursive exploration function
     // Returns:
@@ -347,7 +335,7 @@ export class NestedLoopExplorer<Rec extends {}> implements Explorer<Rec> {
   #checkAllForThisExists(
     quantifierIndex: number,
     testCase: TestCase<Rec>,
-    quantifiers: readonly QuantifierNode[],
+    quantifiers: readonly ExecutableQuantifier[],
     samples: Map<string, FluentPick<unknown>[]>,
     allNodes: readonly ScenarioNode<Rec>[],
     property: (testCase: Rec) => boolean,
@@ -444,7 +432,7 @@ export class NestedLoopExplorer<Rec extends {}> implements Explorer<Rec> {
    * Generate samples for each quantifier.
    */
   #generateSamples(
-    quantifiers: readonly QuantifierNode[],
+    quantifiers: readonly ExecutableQuantifier[],
     sampler: Sampler,
     maxTests: number
   ): Map<string, FluentPick<unknown>[]> {
@@ -454,10 +442,18 @@ export class NestedLoopExplorer<Rec extends {}> implements Explorer<Rec> {
       // Calculate how many samples to generate for each quantifier
       // For nested loops, we want enough samples but not too many
       const sampleCount = Math.min(maxTests, Math.ceil(Math.sqrt(maxTests) * 2))
-      samples.set(q.name, sampler.sample(q.arbitrary, sampleCount))
+      samples.set(q.name, q.sample(sampler, sampleCount))
     }
 
     return samples
+  }
+
+  #toExecutableScenario(scenario: ExecutableScenario<Rec> | Scenario<Rec>): ExecutableScenario<Rec> {
+    const q = scenario.quantifiers[0] as ExecutableQuantifier | undefined
+    if (q && typeof q.sample === 'function' && typeof q.shrink === 'function') {
+      return scenario as ExecutableScenario<Rec>
+    }
+    return createExecutableScenario(scenario as Scenario<Rec>)
   }
 
   /**

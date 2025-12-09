@@ -39,6 +39,11 @@ export {
   type TestCase
 } from './strategies/Explorer.js'
 export {
+  createExecutableScenario,
+  type ExecutableScenario,
+  type ExecutableQuantifier
+} from './ExecutableScenario.js'
+export {
   PerArbitraryShrinker,
   NoOpShrinker,
   createPerArbitraryShrinker,

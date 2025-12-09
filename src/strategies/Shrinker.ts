@@ -1,6 +1,5 @@
 import type {FluentPick} from '../arbitraries/index.js'
-import {ArbitraryConstant} from '../arbitraries/ArbitraryConstant.js'
-import type {Scenario, QuantifierNode} from '../Scenario.js'
+import type {ExecutableScenario, ExecutableQuantifier} from '../ExecutableScenario.js'
 import type {Sampler} from './Sampler.js'
 import type {Explorer, ExplorationBudget} from './Explorer.js'
 
@@ -27,25 +26,18 @@ export type PickResult<Rec extends {}> = {
   [K in keyof Rec]: FluentPick<Rec[K]>
 }
 
-/**
- * Constant arbitrary that preserves the full pick metadata (value, original, base markers).
- */
-class ConstantPickArbitrary<A> extends ArbitraryConstant<A> {
-  constructor(private readonly pickValue: FluentPick<A>) {
-    super(pickValue.value)
-  }
-
-  override pick(): FluentPick<A> {
-    // Return a shallow copy to avoid accidental mutation
-    return {...this.pickValue}
-  }
-
-  override cornerCases() {
-    return [this.pick()]
-  }
-
-  override canGenerate(pick: FluentPick<A>) {
-    return pick.value === this.pickValue.value
+function createConstantExecutableQuantifier<A>(
+  source: ExecutableQuantifier<A>,
+  pick: FluentPick<A>
+): ExecutableQuantifier<A> {
+  const constantSample = (_sampler: Sampler, _count: number) => [pick]
+  return {
+    name: source.name,
+    type: source.type,
+    sample: constantSample,
+    sampleWithBias: constantSample,
+    shrink: () => [],
+    isShrunken: () => false
   }
 }
 
@@ -98,7 +90,7 @@ export interface Shrinker<Rec extends {}> {
    */
   shrink(
     counterexample: PickResult<Rec>,
-    scenario: Scenario<Rec>,
+    scenario: ExecutableScenario<Rec>,
     explorer: Explorer<Rec>,
     property: (testCase: Rec) => boolean,
     sampler: Sampler,
@@ -119,7 +111,7 @@ export interface Shrinker<Rec extends {}> {
    */
   shrinkWitness(
     witness: PickResult<Rec>,
-    scenario: Scenario<Rec>,
+    scenario: ExecutableScenario<Rec>,
     explorer: Explorer<Rec>,
     property: (testCase: Rec) => boolean,
     sampler: Sampler,
@@ -138,7 +130,7 @@ export interface Shrinker<Rec extends {}> {
 export class PerArbitraryShrinker<Rec extends {}> implements Shrinker<Rec> {
   shrink(
     counterexample: PickResult<Rec>,
-    scenario: Scenario<Rec>,
+    scenario: ExecutableScenario<Rec>,
     explorer: Explorer<Rec>,
     property: (testCase: Rec) => boolean,
     sampler: Sampler,
@@ -198,9 +190,9 @@ export class PerArbitraryShrinker<Rec extends {}> implements Shrinker<Rec> {
    * Uses the Explorer to re-verify that the shrunk value still causes a failure.
    */
   #shrinkQuantifierForCounterexample(
-    quantifier: QuantifierNode,
+    quantifier: ExecutableQuantifier,
     current: PickResult<Rec>,
-    scenario: Scenario<Rec>,
+    scenario: ExecutableScenario<Rec>,
     explorer: Explorer<Rec>,
     property: (testCase: Rec) => boolean,
     sampler: Sampler,
@@ -213,9 +205,12 @@ export class PerArbitraryShrinker<Rec extends {}> implements Shrinker<Rec> {
       return { shrunk: false, value: current, attempts: 0 }
     }
 
-    // Get shrink candidates from the arbitrary
-    const shrunkenArbitrary = quantifier.arbitrary.shrink(currentPick)
-    const candidates = sampler.sample(shrunkenArbitrary, Math.min(remainingBudget, 100))
+    // Get shrink candidates using the compiled quantifier operations
+    const candidates = quantifier.shrink(
+      currentPick as FluentPick<unknown>,
+      sampler,
+      Math.min(remainingBudget, 100)
+    )
 
     let attempts = 0
 
@@ -227,7 +222,7 @@ export class PerArbitraryShrinker<Rec extends {}> implements Shrinker<Rec> {
       const testCase = {...current, [name]: candidate}
 
       // Only accept candidates that the arbitrary considers strictly shrunken
-      if (!quantifier.arbitrary.isShrunken(candidate as FluentPick<unknown>, currentPick as FluentPick<unknown>)) {
+      if (!quantifier.isShrunken(candidate as FluentPick<unknown>, currentPick as FluentPick<unknown>)) {
         continue
       }
 
@@ -256,7 +251,7 @@ export class PerArbitraryShrinker<Rec extends {}> implements Shrinker<Rec> {
 
   shrinkWitness(
     witness: PickResult<Rec>,
-    scenario: Scenario<Rec>,
+    scenario: ExecutableScenario<Rec>,
     explorer: Explorer<Rec>,
     property: (testCase: Rec) => boolean,
     sampler: Sampler,
@@ -315,9 +310,9 @@ export class PerArbitraryShrinker<Rec extends {}> implements Shrinker<Rec> {
    * Uses the Explorer to re-verify that the shrunk value still satisfies all foralls.
    */
   #shrinkQuantifierForWitness(
-    quantifier: QuantifierNode,
+    quantifier: ExecutableQuantifier,
     current: PickResult<Rec>,
-    scenario: Scenario<Rec>,
+    scenario: ExecutableScenario<Rec>,
     explorer: Explorer<Rec>,
     property: (testCase: Rec) => boolean,
     sampler: Sampler,
@@ -330,9 +325,12 @@ export class PerArbitraryShrinker<Rec extends {}> implements Shrinker<Rec> {
       return { shrunk: false, value: current, attempts: 0 }
     }
 
-    // Get shrink candidates from the arbitrary
-    const shrunkenArbitrary = quantifier.arbitrary.shrink(currentPick)
-    const candidates = sampler.sample(shrunkenArbitrary, Math.min(remainingBudget, 100))
+    // Get shrink candidates using the compiled quantifier operations
+    const candidates = quantifier.shrink(
+      currentPick as FluentPick<unknown>,
+      sampler,
+      Math.min(remainingBudget, 100)
+    )
 
     let attempts = 0
 
@@ -344,7 +342,7 @@ export class PerArbitraryShrinker<Rec extends {}> implements Shrinker<Rec> {
       const testCase = {...current, [name]: candidate}
 
       // Only accept candidates that the arbitrary considers strictly shrunken
-      if (!quantifier.arbitrary.isShrunken(candidate as FluentPick<unknown>, currentPick as FluentPick<unknown>)) {
+      if (!quantifier.isShrunken(candidate as FluentPick<unknown>, currentPick as FluentPick<unknown>)) {
         continue
       }
 
@@ -377,10 +375,10 @@ export class PerArbitraryShrinker<Rec extends {}> implements Shrinker<Rec> {
    * The bound variables are converted to constants in the scenario.
    */
   #buildPartialScenario(
-    scenario: Scenario<Rec>,
+    scenario: ExecutableScenario<Rec>,
     upToQuantifierName: string,
     boundValues: PickResult<Rec>
-  ): Scenario<Rec> {
+  ): ExecutableScenario<Rec> {
     // Find the index of the quantifier we're shrinking
     const quantifierIndex = scenario.quantifiers.findIndex(q => q.name === upToQuantifierName)
 
@@ -393,13 +391,9 @@ export class PerArbitraryShrinker<Rec extends {}> implements Shrinker<Rec> {
     // - Quantifiers after remain as-is for exploration
     const newQuantifiers = scenario.quantifiers.map((q, i) => {
       if (i <= quantifierIndex) {
-        // Fix this quantifier to its bound value using a constant arbitrary
         const boundPick = boundValues[q.name as keyof Rec]
         if (boundPick) {
-          return {
-            ...q,
-            arbitrary: new ConstantPickArbitrary(boundPick) as unknown as typeof q.arbitrary
-          }
+          return createConstantExecutableQuantifier(q, boundPick)
         }
       }
       return q
@@ -423,7 +417,7 @@ export class PerArbitraryShrinker<Rec extends {}> implements Shrinker<Rec> {
 export class NoOpShrinker<Rec extends {}> implements Shrinker<Rec> {
   shrink(
     counterexample: PickResult<Rec>,
-    _scenario: Scenario<Rec>,
+    _scenario: ExecutableScenario<Rec>,
     _explorer: Explorer<Rec>,
     _property: (testCase: Rec) => boolean,
     _sampler: Sampler,
@@ -438,7 +432,7 @@ export class NoOpShrinker<Rec extends {}> implements Shrinker<Rec> {
 
   shrinkWitness(
     witness: PickResult<Rec>,
-    _scenario: Scenario<Rec>,
+    _scenario: ExecutableScenario<Rec>,
     _explorer: Explorer<Rec>,
     _property: (testCase: Rec) => boolean,
     _sampler: Sampler,

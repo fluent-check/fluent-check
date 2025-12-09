@@ -1,6 +1,7 @@
 import {type Arbitrary, type FluentPick} from './arbitraries/index.js'
 import {type FluentStrategy} from './strategies/FluentStrategy.js'
 import {FluentStrategyFactory} from './strategies/FluentStrategyFactory.js'
+import {createExecutableScenario} from './ExecutableScenario.js'
 import {
   type Scenario,
   type ScenarioNode,
@@ -342,8 +343,9 @@ export class FluentCheck<
     const path = this.pathFromRoot()
     const root = path[0] as FluentCheck<any, any>
 
-    // Build scenario AST
+    // Build scenario AST and compile to executable form
     const scenario = this.buildScenario()
+    const executableScenario = createExecutableScenario(scenario)
 
     const {strategyFactory, rngBuilder, seed} = root.#resolveExecutionConfig(path)
 
@@ -371,7 +373,7 @@ export class FluentCheck<
 
     // Explore the search space
     const explorationResult = explorer.explore(
-      scenario,
+      executableScenario,
       property,
       sampler,
       explorationBudget
@@ -384,7 +386,7 @@ export class FluentCheck<
         // Shrink the witness to find the minimal satisfying values
         const shrinkResult = shrinker.shrinkWitness(
           explorationResult.witness as unknown as ShrinkerPickResult<Rec>,
-          scenario,
+          executableScenario,
           explorer,
           property,
           sampler,
@@ -437,7 +439,7 @@ export class FluentCheck<
 
     const shrinkResult = shrinker.shrink(
       counterexample,
-      scenario,
+      executableScenario,
       explorer,
       property,
       sampler,
