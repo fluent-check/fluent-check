@@ -124,9 +124,8 @@ export class NestedLoopExplorer<Rec extends {}> implements Explorer<Rec> {
     let testsRun = 0
     let skipped = 0
     const startTime = Date.now()
-
-    // Determine if we're in forall-only mode
     const hasExistential = executableScenario.hasExistential
+    let budgetExceeded = false
 
     // Recursive exploration function
     // Returns:
@@ -139,9 +138,11 @@ export class NestedLoopExplorer<Rec extends {}> implements Explorer<Rec> {
     ): ExplorationResult<Rec> | null => {
       // Check budget limits
       if (testsRun >= budget.maxTests) {
+        budgetExceeded = true
         return null // Budget exhausted, let caller handle
       }
       if (budget.maxTime !== undefined && Date.now() - startTime > budget.maxTime) {
+        budgetExceeded = true
         return null // Time budget exceeded
       }
 
@@ -219,11 +220,11 @@ export class NestedLoopExplorer<Rec extends {}> implements Explorer<Rec> {
               witness: checkResult.witness ?? newTestCase
             }
           }
-          // result === 'some_failed' or 'inconclusive' - try next existential value
-
-          // Check budget
-          if (testsRun >= budget.maxTests) break
-          if (budget.maxTime !== undefined && Date.now() - startTime > budget.maxTime) break
+          if (checkResult.status === 'inconclusive') {
+            budgetExceeded = true
+            break
+          }
+          // result === 'some_failed' - try next existential value
         }
 
         // Exhausted all existential values without finding a witness
@@ -272,12 +273,7 @@ export class NestedLoopExplorer<Rec extends {}> implements Explorer<Rec> {
             allPassed = false
           }
 
-          // Check budget
-          if (testsRun >= budget.maxTests) {
-            allPassed = false
-            break
-          }
-          if (budget.maxTime !== undefined && Date.now() - startTime > budget.maxTime) {
+          if (budgetExceeded) {
             allPassed = false
             break
           }
@@ -311,9 +307,8 @@ export class NestedLoopExplorer<Rec extends {}> implements Explorer<Rec> {
       return result
     }
 
-    // No definitive result found
-    if (hasExistential) {
-      // For scenarios with exists: couldn't find a witness
+    // No definitive result found (budget/time exhausted or no witness for exists)
+    if (budgetExceeded || hasExistential) {
       return {
         outcome: 'exhausted',
         testsRun,
@@ -321,7 +316,7 @@ export class NestedLoopExplorer<Rec extends {}> implements Explorer<Rec> {
       }
     }
 
-    // For forall-only: all tests passed
+    // For forall-only scenarios where we didn't hit budget/time limits, treat as passed
     return {
       outcome: 'passed',
       testsRun,
@@ -438,11 +433,20 @@ export class NestedLoopExplorer<Rec extends {}> implements Explorer<Rec> {
   ): Map<string, FluentPick<unknown>[]> {
     const samples = new Map<string, FluentPick<unknown>[]>()
 
+    if (maxTests <= 0) {
+      for (const q of quantifiers) {
+        samples.set(q.name, [])
+      }
+      return samples
+    }
+
+    const perQuantifier = Math.max(
+      1,
+      Math.floor(Math.pow(maxTests, 1 / Math.max(quantifiers.length, 1)))
+    )
+
     for (const q of quantifiers) {
-      // Calculate how many samples to generate for each quantifier
-      // For nested loops, we want enough samples but not too many
-      const sampleCount = Math.min(maxTests, Math.ceil(Math.sqrt(maxTests) * 2))
-      samples.set(q.name, q.sample(sampler, sampleCount))
+      samples.set(q.name, q.sample(sampler, perQuantifier))
     }
 
     return samples

@@ -116,6 +116,29 @@ describe('Explorer', () => {
       })
     })
 
+    describe('budget exhaustion', () => {
+      it('should report exhausted for forall-only scenarios when no tests can run', () => {
+        const scenario = fc.scenario()
+          .forall('x', fc.constant(1))
+          .then(({x}) => x === 2)
+          .buildScenario()
+
+        const explorer = fc.createNestedLoopExplorer<{x: number}>()
+        const sampler = new fc.RandomSampler()
+        const budget: fc.ExplorationBudget = {maxTests: 0}
+
+        const result = explorer.explore(
+          scenario,
+          () => false,
+          sampler,
+          budget
+        )
+
+        expect(result.outcome).to.equal('exhausted')
+        expect(result.testsRun).to.equal(0)
+      })
+    })
+
     describe('exists semantics', () => {
       it('should pass when witness found', () => {
         // Use a small range to ensure we can find a witness
