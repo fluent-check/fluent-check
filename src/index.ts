@@ -16,6 +16,38 @@ export {
   type Sampler,
   type SamplerConfig
 } from './strategies/Sampler.js'
+export {
+  createScenario,
+  type Scenario,
+  type ScenarioNode,
+  type QuantifierNode,
+  type ForallNode,
+  type ExistsNode,
+  type GivenNode,
+  type WhenNode,
+  type ThenNode
+} from './Scenario.js'
+export {
+  NestedLoopExplorer,
+  createNestedLoopExplorer,
+  type Explorer,
+  type ExplorationBudget,
+  type ExplorationResult,
+  type ExplorationPassed,
+  type ExplorationFailed,
+  type ExplorationExhausted,
+  type TestCase
+} from './strategies/Explorer.js'
+export {
+  PerArbitraryShrinker,
+  NoOpShrinker,
+  createPerArbitraryShrinker,
+  createNoOpShrinker,
+  type Shrinker,
+  type ShrinkBudget,
+  type ShrinkResult,
+  type PickResult
+} from './strategies/Shrinker.js'
 export const scenario = () => new FluentCheck()
 export const strategy = () => new FluentStrategyFactory()
 export {
