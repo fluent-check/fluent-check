@@ -156,34 +156,38 @@ export class CachedSampler implements Sampler {
    */
   constructor(private readonly baseSampler: Sampler) {}
 
-  sample<A>(arbitrary: Arbitrary<A>, count: number): FluentPick<A>[] {
+  /**
+   * Helper method that implements the common caching logic for all sample methods.
+   *
+   * @param arbitrary - The arbitrary to sample from
+   * @param count - Maximum number of samples to generate
+   * @param sampleFn - Function to call on the base sampler if not cached
+   * @returns Array of sampled values
+   */
+  private sampleAndCache<A>(
+    arbitrary: Arbitrary<A>,
+    count: number,
+    sampleFn: (arbitrary: Arbitrary<A>, count: number) => FluentPick<A>[]
+  ): FluentPick<A>[] {
     const cached = this.cache.get(arbitrary as Arbitrary<unknown>)
     if (cached !== undefined) {
       return cached.slice(0, count) as FluentPick<A>[]
     }
-    const samples = this.baseSampler.sample(arbitrary, count)
+    const samples = sampleFn(arbitrary, count)
     this.cache.set(arbitrary as Arbitrary<unknown>, samples as FluentPick<unknown>[])
     return samples
+  }
+
+  sample<A>(arbitrary: Arbitrary<A>, count: number): FluentPick<A>[] {
+    return this.sampleAndCache(arbitrary, count, (a, c) => this.baseSampler.sample(a, c))
   }
 
   sampleWithBias<A>(arbitrary: Arbitrary<A>, count: number): FluentPick<A>[] {
-    const cached = this.cache.get(arbitrary as Arbitrary<unknown>)
-    if (cached !== undefined) {
-      return cached.slice(0, count) as FluentPick<A>[]
-    }
-    const samples = this.baseSampler.sampleWithBias(arbitrary, count)
-    this.cache.set(arbitrary as Arbitrary<unknown>, samples as FluentPick<unknown>[])
-    return samples
+    return this.sampleAndCache(arbitrary, count, (a, c) => this.baseSampler.sampleWithBias(a, c))
   }
 
   sampleUnique<A>(arbitrary: Arbitrary<A>, count: number): FluentPick<A>[] {
-    const cached = this.cache.get(arbitrary as Arbitrary<unknown>)
-    if (cached !== undefined) {
-      return cached.slice(0, count) as FluentPick<A>[]
-    }
-    const samples = this.baseSampler.sampleUnique(arbitrary, count)
-    this.cache.set(arbitrary as Arbitrary<unknown>, samples as FluentPick<unknown>[])
-    return samples
+    return this.sampleAndCache(arbitrary, count, (a, c) => this.baseSampler.sampleUnique(a, c))
   }
 
   getGenerator(): () => number {
