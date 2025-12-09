@@ -249,7 +249,7 @@ export class NestedLoopExplorer<Rec extends {}> implements Explorer<Rec> {
               return result
             }
             // result.outcome === 'passed' or 'exhausted' - for passed, update witness
-            if (result.outcome === 'passed' && result.witness) {
+            if (result.outcome === 'passed' && result.witness !== undefined) {
               lastWitness = result.witness
             }
           } else {
@@ -281,18 +281,20 @@ export class NestedLoopExplorer<Rec extends {}> implements Explorer<Rec> {
 
         // If all forall samples passed with witnesses, return passed
         if (allPassed && quantifierSamples.length > 0) {
-          return lastWitness
-            ? {
-                outcome: 'passed' as const,
-                testsRun,
-                skipped,
-                witness: lastWitness
-              }
-            : {
-                outcome: 'passed' as const,
-                testsRun,
-                skipped
-              }
+          if (lastWitness !== undefined) {
+            return {
+              outcome: 'passed' as const,
+              testsRun,
+              skipped,
+              witness: lastWitness
+            }
+          }
+
+          return {
+            outcome: 'passed' as const,
+            testsRun,
+            skipped
+          }
         }
 
         // Otherwise inconclusive
@@ -382,7 +384,7 @@ export class NestedLoopExplorer<Rec extends {}> implements Explorer<Rec> {
           getTestsRun, setTestsRun, getSkipped, setSkipped
         )
 
-        if (result.status === 'all_passed' && result.witness) {
+        if (result.status === 'all_passed' && result.witness !== undefined) {
           // Found a nested witness - return with the full witness including this level
           return { status: 'all_passed', witness: result.witness }
         }
@@ -454,61 +456,10 @@ export class NestedLoopExplorer<Rec extends {}> implements Explorer<Rec> {
 
   #toExecutableScenario(scenario: ExecutableScenario<Rec> | Scenario<Rec>): ExecutableScenario<Rec> {
     const q = scenario.quantifiers[0] as ExecutableQuantifier | undefined
-    if (q && typeof q.sample === 'function' && typeof q.shrink === 'function') {
+    if (q !== undefined && typeof q.sample === 'function' && typeof q.shrink === 'function') {
       return scenario as ExecutableScenario<Rec>
     }
     return createExecutableScenario(scenario as Scenario<Rec>)
-  }
-
-  /**
-   * Apply given predicates to compute derived values.
-   */
-  #applyGivens(testCase: TestCase<Rec>, givenNodes: GivenNode<Rec>[]): Rec {
-    // Convert FluentPick test case to plain values
-    const values: Record<string, unknown> = {}
-    for (const [key, pick] of Object.entries(testCase)) {
-      values[key] = (pick as FluentPick<unknown>).value
-    }
-
-    // Apply given predicates
-    for (const given of givenNodes) {
-      if (given.isFactory) {
-        const factory = given.predicate as (args: Rec) => unknown
-        values[given.name] = factory(values as Rec)
-      } else {
-        values[given.name] = given.predicate
-      }
-    }
-
-    return values as Rec
-  }
-
-  /**
-   * Execute when predicates (side effects).
-   */
-  #executeWhens(testCase: Rec, whenNodes: WhenNode<Rec>[]): void {
-    for (const when of whenNodes) {
-      when.predicate(testCase)
-    }
-  }
-
-  /**
-   * Evaluate the property using then nodes.
-   */
-  #evaluateProperty(
-    testCase: Rec,
-    thenNodes: ThenNode<Rec>[],
-    property: (testCase: Rec) => boolean
-  ): boolean {
-    // If there are then nodes, use them
-    for (const then of thenNodes) {
-      if (!then.predicate(testCase)) {
-        return false
-      }
-    }
-
-    // Also evaluate the passed-in property function
-    return property(testCase)
   }
 
   /**

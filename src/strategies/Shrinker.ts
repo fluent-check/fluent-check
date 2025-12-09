@@ -392,9 +392,7 @@ export class PerArbitraryShrinker<Rec extends {}> implements Shrinker<Rec> {
     const newQuantifiers = scenario.quantifiers.map((q, i) => {
       if (i <= quantifierIndex) {
         const boundPick = boundValues[q.name as keyof Rec]
-        if (boundPick) {
-          return createConstantExecutableQuantifier(q, boundPick)
-        }
+        return createConstantExecutableQuantifier(q, boundPick)
       }
       return q
     })

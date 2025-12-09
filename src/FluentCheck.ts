@@ -382,10 +382,10 @@ export class FluentCheck<
     // Handle exploration result
     if (explorationResult.outcome === 'passed') {
       // Extract witness values if available (for exists scenarios)
-      if (explorationResult.witness && scenario.hasExistential) {
+      if (scenario.hasExistential && explorationResult.witness !== undefined) {
         // Shrink the witness to find the minimal satisfying values
         const shrinkResult = shrinker.shrinkWitness(
-          explorationResult.witness as unknown as ShrinkerPickResult<Rec>,
+          explorationResult.witness as ShrinkerPickResult<Rec>,
           executableScenario,
           explorer,
           property,

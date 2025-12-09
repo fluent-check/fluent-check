@@ -36,10 +36,11 @@ export class MappedArbitrary<A, B> extends Arbitrary<B> {
   }
 
   override shrink(initial: FluentPick<B>): Arbitrary<B> {
-    const baseValue = (initial as unknown as {__baseValue?: A}).__baseValue ?? initial.original ?? initial.value
+    const withBase = initial as {__baseValue?: A; original?: unknown}
+    const baseValue = (withBase.__baseValue ?? withBase.original ?? initial.value) as A
     const basePick: FluentPick<A> = {
-      value: baseValue as A,
-      original: (initial as {original?: unknown}).original as A ?? baseValue as A
+      value: baseValue,
+      original: (withBase.original as A | undefined) ?? baseValue
     }
 
     return this.baseArbitrary.shrink(basePick).map(v => this.f(v))
@@ -47,10 +48,11 @@ export class MappedArbitrary<A, B> extends Arbitrary<B> {
 
   override isShrunken(candidate: FluentPick<B>, current: FluentPick<B>): boolean {
     const toBasePick = (pick: FluentPick<B>): FluentPick<A> => {
-      const baseValue = (pick as unknown as {__baseValue?: A}).__baseValue ?? pick.original ?? pick.value
+      const withBase = pick as {__baseValue?: A; original?: unknown}
+      const baseValue = (withBase.__baseValue ?? withBase.original ?? pick.value) as A
       return {
-        value: baseValue as A,
-        original: (pick as {original?: unknown}).original as A ?? baseValue as A
+        value: baseValue,
+        original: (withBase.original as A | undefined) ?? baseValue
       }
     }
 
