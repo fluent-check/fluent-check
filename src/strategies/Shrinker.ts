@@ -1,6 +1,8 @@
 import type {FluentPick} from '../arbitraries/index.js'
+import {ArbitraryConstant} from '../arbitraries/ArbitraryConstant.js'
 import type {Scenario, QuantifierNode} from '../Scenario.js'
 import type {Sampler} from './Sampler.js'
+import type {Explorer, ExplorationBudget} from './Explorer.js'
 
 /**
  * Budget constraints for shrinking.
@@ -53,6 +55,10 @@ export interface ShrinkResult<Rec extends {}> {
  * - Independent testing of shrinking logic
  * - Optional shrinking that can be disabled for speed
  *
+ * The Explorer dependency allows the Shrinker to re-verify nested quantifiers
+ * when shrinking. For example, when shrinking a witness for `∃a: ∀b: P(a,b)`,
+ * the Shrinker needs to re-explore `∀b: P(a',b)` for each candidate `a'`.
+ *
  * @typeParam Rec - The record type of bound variables in the scenario
  */
 export interface Shrinker<Rec extends {}> {
@@ -62,6 +68,7 @@ export interface Shrinker<Rec extends {}> {
    *
    * @param counterexample - The failing test case (FluentPick values)
    * @param scenario - The scenario AST for accessing quantifier info
+   * @param explorer - The explorer for re-verifying nested quantifiers
    * @param property - The property function to verify failure
    * @param sampler - The sampler for generating shrink candidates
    * @param budget - Shrinking limits
@@ -70,6 +77,7 @@ export interface Shrinker<Rec extends {}> {
   shrink(
     counterexample: PickResult<Rec>,
     scenario: Scenario<Rec>,
+    explorer: Explorer<Rec>,
     property: (testCase: Rec) => boolean,
     sampler: Sampler,
     budget: ShrinkBudget
@@ -81,6 +89,7 @@ export interface Shrinker<Rec extends {}> {
    *
    * @param witness - The passing test case (FluentPick values)
    * @param scenario - The scenario AST for accessing quantifier info
+   * @param explorer - The explorer for re-verifying nested quantifiers
    * @param property - The property function to verify success
    * @param sampler - The sampler for generating shrink candidates
    * @param budget - Shrinking limits
@@ -89,6 +98,7 @@ export interface Shrinker<Rec extends {}> {
   shrinkWitness(
     witness: PickResult<Rec>,
     scenario: Scenario<Rec>,
+    explorer: Explorer<Rec>,
     property: (testCase: Rec) => boolean,
     sampler: Sampler,
     budget: ShrinkBudget
@@ -100,13 +110,14 @@ export interface Shrinker<Rec extends {}> {
  *
  * This implements the traditional property testing shrinking approach:
  * - For each quantifier, try progressively simpler values
- * - Re-run the property to verify the simpler value still fails
+ * - Use the Explorer to re-verify nested quantifiers
  * - Continue until budget exhausted or no simpler value found
  */
 export class PerArbitraryShrinker<Rec extends {}> implements Shrinker<Rec> {
   shrink(
     counterexample: PickResult<Rec>,
     scenario: Scenario<Rec>,
+    explorer: Explorer<Rec>,
     property: (testCase: Rec) => boolean,
     sampler: Sampler,
     budget: ShrinkBudget
@@ -126,9 +137,11 @@ export class PerArbitraryShrinker<Rec extends {}> implements Shrinker<Rec> {
       for (const quantifier of quantifiers) {
         if (totalAttempts >= budget.maxAttempts) break
 
-        const result = this.#shrinkQuantifier(
+        const result = this.#shrinkQuantifierForCounterexample(
           quantifier,
           current,
+          scenario,
+          explorer,
           property,
           sampler,
           budget.maxAttempts - totalAttempts
@@ -159,11 +172,14 @@ export class PerArbitraryShrinker<Rec extends {}> implements Shrinker<Rec> {
   }
 
   /**
-   * Attempts to shrink a single quantifier's value.
+   * Attempts to shrink a single quantifier's value for counterexample shrinking.
+   * Uses the Explorer to re-verify that the shrunk value still causes a failure.
    */
-  #shrinkQuantifier(
+  #shrinkQuantifierForCounterexample(
     quantifier: QuantifierNode,
     current: PickResult<Rec>,
+    scenario: Scenario<Rec>,
+    explorer: Explorer<Rec>,
     property: (testCase: Rec) => boolean,
     sampler: Sampler,
     remainingBudget: number
@@ -188,63 +204,33 @@ export class PerArbitraryShrinker<Rec extends {}> implements Shrinker<Rec> {
       // Create test case with shrunk value
       const testCase = {...current, [name]: candidate}
 
-      // Convert to plain values for property evaluation
-      const plainTestCase = this.#unwrapTestCase(testCase)
+      // Build a partial scenario starting from this quantifier's position
+      const partialScenario = this.#buildPartialScenario(scenario, quantifier.name, testCase)
 
-      // Check if property still fails with this shrunk value
-      try {
-        const passed = property(plainTestCase)
-        if (!passed) {
-          // Found a smaller counterexample
-          return {
-            shrunk: true,
-            value: testCase,
-            attempts
-          }
+      // Use explorer to verify this shrunk value still causes a failure
+      const explorationBudget: ExplorationBudget = {
+        maxTests: Math.min(100, remainingBudget - attempts)
+      }
+
+      const result = explorer.explore(partialScenario, property, sampler, explorationBudget)
+
+      if (result.outcome === 'failed') {
+        // Found a smaller counterexample - use the full counterexample from exploration
+        return {
+          shrunk: true,
+          value: result.counterexample as PickResult<Rec>,
+          attempts
         }
-      } catch (e) {
-        // If property throws (e.g., PreconditionFailure), try next candidate
-        if (!this.#isPreconditionFailure(e)) {
-          // Property threw a real error - still a failure, use this value
-          return {
-            shrunk: true,
-            value: testCase,
-            attempts
-          }
-        }
-        // PreconditionFailure - skip this candidate
       }
     }
 
     return { shrunk: false, value: current, attempts }
   }
 
-  /**
-   * Converts a PickResult to plain values for property evaluation.
-   */
-  #unwrapTestCase(testCase: PickResult<Rec>): Rec {
-    const result: Record<string, unknown> = {}
-    for (const [key, pick] of Object.entries(testCase)) {
-      result[key] = (pick as FluentPick<unknown>).value
-    }
-    return result as Rec
-  }
-
-  /**
-   * Check if an error is a PreconditionFailure.
-   */
-  #isPreconditionFailure(e: unknown): boolean {
-    return (
-      e !== null &&
-      typeof e === 'object' &&
-      '__brand' in e &&
-      (e as { __brand: string }).__brand === 'PreconditionFailure'
-    )
-  }
-
   shrinkWitness(
     witness: PickResult<Rec>,
     scenario: Scenario<Rec>,
+    explorer: Explorer<Rec>,
     property: (testCase: Rec) => boolean,
     sampler: Sampler,
     budget: ShrinkBudget
@@ -254,19 +240,21 @@ export class PerArbitraryShrinker<Rec extends {}> implements Shrinker<Rec> {
     let rounds = 0
 
     // Only shrink existential quantifiers for witnesses
-    const quantifiers = scenario.quantifiers.filter(q => q.type === 'exists')
+    const existentialQuantifiers = scenario.quantifiers.filter(q => q.type === 'exists')
 
     // Continue shrinking while within budget
     while (rounds < budget.maxRounds && totalAttempts < budget.maxAttempts) {
       let foundSmaller = false
 
       // Try to shrink each existential quantifier
-      for (const quantifier of quantifiers) {
+      for (const quantifier of existentialQuantifiers) {
         if (totalAttempts >= budget.maxAttempts) break
 
         const result = this.#shrinkQuantifierForWitness(
           quantifier,
           current,
+          scenario,
+          explorer,
           property,
           sampler,
           budget.maxAttempts - totalAttempts
@@ -296,13 +284,14 @@ export class PerArbitraryShrinker<Rec extends {}> implements Shrinker<Rec> {
   }
 
   /**
-   * Attempts to shrink a single quantifier's value for witness shrinking.
-   * The key difference from counterexample shrinking is that we look for
-   * values where the property still PASSES.
+   * Attempts to shrink a single existential quantifier's value for witness shrinking.
+   * Uses the Explorer to re-verify that the shrunk value still satisfies all foralls.
    */
   #shrinkQuantifierForWitness(
     quantifier: QuantifierNode,
     current: PickResult<Rec>,
+    scenario: Scenario<Rec>,
+    explorer: Explorer<Rec>,
     property: (testCase: Rec) => boolean,
     sampler: Sampler,
     remainingBudget: number
@@ -324,34 +313,71 @@ export class PerArbitraryShrinker<Rec extends {}> implements Shrinker<Rec> {
       if (attempts >= remainingBudget) break
       attempts++
 
-      // Create test case with shrunk value
+      // Create test case with shrunk existential value
       const testCase = {...current, [name]: candidate}
 
-      // Convert to plain values for property evaluation
-      const plainTestCase = this.#unwrapTestCase(testCase)
+      // Build a partial scenario that fixes this existential and explores remaining quantifiers
+      const partialScenario = this.#buildPartialScenario(scenario, quantifier.name, testCase)
 
-      // Check if property still PASSES with this shrunk value
-      try {
-        const passed = property(plainTestCase)
-        if (passed) {
-          // Found a smaller witness
-          return {
-            shrunk: true,
-            value: testCase,
-            attempts
-          }
+      // Use explorer to verify this shrunk witness still satisfies all foralls
+      const explorationBudget: ExplorationBudget = {
+        maxTests: Math.min(100, remainingBudget - attempts)
+      }
+
+      const result = explorer.explore(partialScenario, property, sampler, explorationBudget)
+
+      if (result.outcome === 'passed') {
+        // Found a smaller witness - use the witness from exploration if available
+        const newWitness = result.witness ?? testCase
+        return {
+          shrunk: true,
+          value: newWitness as PickResult<Rec>,
+          attempts
         }
-      } catch (e) {
-        // If property throws (e.g., PreconditionFailure), try next candidate
-        if (!this.#isPreconditionFailure(e)) {
-          // Property threw a real error - this is a failure, skip
-          continue
-        }
-        // PreconditionFailure - skip this candidate
       }
     }
 
     return { shrunk: false, value: current, attempts }
+  }
+
+  /**
+   * Builds a partial scenario that fixes bound variables and explores remaining ones.
+   * The bound variables are converted to constants in the scenario.
+   */
+  #buildPartialScenario(
+    scenario: Scenario<Rec>,
+    upToQuantifierName: string,
+    boundValues: PickResult<Rec>
+  ): Scenario<Rec> {
+    // Find the index of the quantifier we're shrinking
+    const quantifierIndex = scenario.quantifiers.findIndex(q => q.name === upToQuantifierName)
+
+    if (quantifierIndex === -1) {
+      return scenario
+    }
+
+    // Create new quantifiers array:
+    // - Quantifiers up to and including the shrunk one become "fixed" (constant arbitraries)
+    // - Quantifiers after remain as-is for exploration
+    const newQuantifiers = scenario.quantifiers.map((q, i) => {
+      if (i <= quantifierIndex) {
+        // Fix this quantifier to its bound value using a constant arbitrary
+        const boundPick = boundValues[q.name as keyof Rec]
+        if (boundPick) {
+          return {
+            ...q,
+            arbitrary: new ArbitraryConstant(boundPick.value) as unknown as typeof q.arbitrary
+          }
+        }
+      }
+      return q
+    })
+
+    // Return a modified scenario with the new quantifiers
+    return {
+      ...scenario,
+      quantifiers: newQuantifiers
+    }
   }
 }
 
@@ -365,6 +391,7 @@ export class NoOpShrinker<Rec extends {}> implements Shrinker<Rec> {
   shrink(
     counterexample: PickResult<Rec>,
     _scenario: Scenario<Rec>,
+    _explorer: Explorer<Rec>,
     _property: (testCase: Rec) => boolean,
     _sampler: Sampler,
     _budget: ShrinkBudget
@@ -379,6 +406,7 @@ export class NoOpShrinker<Rec extends {}> implements Shrinker<Rec> {
   shrinkWitness(
     witness: PickResult<Rec>,
     _scenario: Scenario<Rec>,
+    _explorer: Explorer<Rec>,
     _property: (testCase: Rec) => boolean,
     _sampler: Sampler,
     _budget: ShrinkBudget

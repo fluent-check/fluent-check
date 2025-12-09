@@ -1,6 +1,7 @@
 import type {FluentPick} from '../arbitraries/index.js'
 import type {
   Scenario,
+  ScenarioNode,
   QuantifierNode,
   GivenNode,
   WhenNode,
@@ -124,17 +125,9 @@ export class NestedLoopExplorer<Rec extends {}> implements Explorer<Rec> {
     sampler: Sampler,
     budget: ExplorationBudget
   ): ExplorationResult<Rec> {
-    // Extract quantifiers and other nodes from scenario
+    // Extract quantifiers and all nodes from scenario
     const quantifiers = scenario.quantifiers
-    const givenNodes = scenario.nodes.filter(
-      (n): n is GivenNode<Rec> => n.type === 'given'
-    )
-    const whenNodes = scenario.nodes.filter(
-      (n): n is WhenNode<Rec> => n.type === 'when'
-    )
-    const thenNodes = scenario.nodes.filter(
-      (n): n is ThenNode<Rec> => n.type === 'then'
-    )
+    const allNodes = scenario.nodes
 
     // Generate samples for each quantifier upfront
     const samples = this.#generateSamples(quantifiers, sampler, budget.maxTests)
@@ -168,15 +161,9 @@ export class NestedLoopExplorer<Rec extends {}> implements Explorer<Rec> {
       if (quantifierIndex >= quantifiers.length) {
         testsRun++
 
-        // Apply given predicates to get derived values
-        const fullTestCase = this.#applyGivens(testCase, givenNodes)
-
-        // Execute when predicates (side effects)
-        this.#executeWhens(fullTestCase, whenNodes)
-
-        // Evaluate property (from then nodes)
+        // Process all nodes in order, interleaving given, when, and then
         try {
-          const result = this.#evaluateProperty(fullTestCase, thenNodes, property)
+          const result = this.#processNodesInOrder(testCase, allNodes, property)
 
           if (result) {
             // Property satisfied for this test case - return "passed" to bubble up
@@ -224,9 +211,7 @@ export class NestedLoopExplorer<Rec extends {}> implements Explorer<Rec> {
             newTestCase,
             quantifiers,
             samples,
-            givenNodes,
-            whenNodes,
-            thenNodes,
+            allNodes,
             property,
             budget,
             startTime,
@@ -257,6 +242,9 @@ export class NestedLoopExplorer<Rec extends {}> implements Explorer<Rec> {
         return null
       } else {
         // UNIVERSAL: need ALL values to pass, fail on first counterexample
+        let allPassed = true
+        let lastWitness: TestCase<Rec> | undefined
+
         for (const sample of quantifierSamples) {
           const newTestCase = {
             ...testCase,
@@ -271,15 +259,59 @@ export class NestedLoopExplorer<Rec extends {}> implements Explorer<Rec> {
               // Found a counterexample - fail immediately
               return result
             }
-            // result.outcome === 'passed' means this single test passed, continue checking others
+            // result.outcome === 'passed' or 'exhausted' - for passed, update witness
+            if (result.outcome === 'passed' && result.witness) {
+              lastWitness = result.witness
+            }
+          } else {
+            // null result from inner exploration means:
+            // - If inner had exists: couldn't find witness for this forall value
+            //   This is a failure for forall.exists patterns
+            // - If inner was forall-only: inconclusive (budget exhausted)
+            // Check if there's an inner exists that couldn't be satisfied
+            const hasInnerExists = quantifiers.slice(quantifierIndex + 1).some(q => q.type === 'exists')
+            if (hasInnerExists) {
+              // For forall.exists, null means no witness found for this a
+              // This is a counterexample
+              return {
+                outcome: 'failed',
+                counterexample: newTestCase,
+                testsRun,
+                skipped
+              }
+            }
+            // For forall-only nested in forall, null is inconclusive
+            allPassed = false
           }
 
           // Check budget
-          if (testsRun >= budget.maxTests) break
-          if (budget.maxTime !== undefined && Date.now() - startTime > budget.maxTime) break
+          if (testsRun >= budget.maxTests) {
+            allPassed = false
+            break
+          }
+          if (budget.maxTime !== undefined && Date.now() - startTime > budget.maxTime) {
+            allPassed = false
+            break
+          }
         }
 
-        // All forall samples passed (or exhausted without failure)
+        // If all forall samples passed with witnesses, return passed
+        if (allPassed && quantifierSamples.length > 0) {
+          return lastWitness
+            ? {
+                outcome: 'passed' as const,
+                testsRun,
+                skipped,
+                witness: lastWitness
+              }
+            : {
+                outcome: 'passed' as const,
+                testsRun,
+                skipped
+              }
+        }
+
+        // Otherwise inconclusive
         return null
       }
     }
@@ -317,9 +349,7 @@ export class NestedLoopExplorer<Rec extends {}> implements Explorer<Rec> {
     testCase: TestCase<Rec>,
     quantifiers: readonly QuantifierNode[],
     samples: Map<string, FluentPick<unknown>[]>,
-    givenNodes: GivenNode<Rec>[],
-    whenNodes: WhenNode<Rec>[],
-    thenNodes: ThenNode<Rec>[],
+    allNodes: readonly ScenarioNode<Rec>[],
     property: (testCase: Rec) => boolean,
     budget: ExplorationBudget,
     startTime: number,
@@ -335,15 +365,9 @@ export class NestedLoopExplorer<Rec extends {}> implements Explorer<Rec> {
       testsRun++
       setTestsRun(testsRun)
 
-      // Apply given predicates to get derived values
-      const fullTestCase = this.#applyGivens(testCase, givenNodes)
-
-      // Execute when predicates (side effects)
-      this.#executeWhens(fullTestCase, whenNodes)
-
-      // Evaluate property
+      // Process all nodes in order, interleaving given, when, and then
       try {
-        const result = this.#evaluateProperty(fullTestCase, thenNodes, property)
+        const result = this.#processNodesInOrder(testCase, allNodes, property)
         return result
           ? { status: 'all_passed', witness: {...testCase} }
           : { status: 'some_failed' }
@@ -371,7 +395,7 @@ export class NestedLoopExplorer<Rec extends {}> implements Explorer<Rec> {
 
         const result = this.#checkAllForThisExists(
           quantifierIndex + 1, newTestCase, quantifiers, samples,
-          givenNodes, whenNodes, thenNodes, property, budget, startTime,
+          allNodes, property, budget, startTime,
           getTestsRun, setTestsRun, getSkipped, setSkipped
         )
 
@@ -397,7 +421,7 @@ export class NestedLoopExplorer<Rec extends {}> implements Explorer<Rec> {
 
         const result = this.#checkAllForThisExists(
           quantifierIndex + 1, newTestCase, quantifiers, samples,
-          givenNodes, whenNodes, thenNodes, property, budget, startTime,
+          allNodes, property, budget, startTime,
           getTestsRun, setTestsRun, getSkipped, setSkipped
         )
 
@@ -485,6 +509,68 @@ export class NestedLoopExplorer<Rec extends {}> implements Explorer<Rec> {
 
     // Also evaluate the passed-in property function
     return property(testCase)
+  }
+
+  /**
+   * Process all non-quantifier nodes in order, interleaving given, when, and then nodes.
+   * This preserves the original ordering from the FluentCheck chain.
+   *
+   * @returns true if all assertions pass, false if any assertion fails
+   */
+  #processNodesInOrder(
+    testCase: TestCase<Rec>,
+    allNodes: readonly ScenarioNode<Rec>[],
+    property: (testCase: Rec) => boolean
+  ): boolean {
+    // Convert FluentPick test case to plain values
+    const values: Record<string, unknown> = {}
+    for (const [key, pick] of Object.entries(testCase)) {
+      values[key] = (pick as FluentPick<unknown>).value
+    }
+
+    // Track if we have any then nodes in the scenario
+    let hasThenNodes = false
+
+    // Process nodes in order
+    for (const node of allNodes) {
+      switch (node.type) {
+        case 'given': {
+          const given = node as GivenNode<Rec>
+          if (given.isFactory) {
+            const factory = given.predicate as (args: Rec) => unknown
+            values[given.name] = factory(values as Rec)
+          } else {
+            values[given.name] = given.predicate
+          }
+          break
+        }
+        case 'when': {
+          const when = node as WhenNode<Rec>
+          when.predicate(values as Rec)
+          break
+        }
+        case 'then': {
+          hasThenNodes = true
+          const then = node as ThenNode<Rec>
+          if (!then.predicate(values as Rec)) {
+            return false
+          }
+          break
+        }
+        // Skip quantifier nodes - they're handled separately
+        case 'forall':
+        case 'exists':
+          break
+      }
+    }
+
+    // Only evaluate the passed-in property function if there were no then nodes
+    // (the property function duplicates the then node evaluation)
+    if (!hasThenNodes) {
+      return property(values as Rec)
+    }
+
+    return true
   }
 
   /**

@@ -385,6 +385,7 @@ export class FluentCheck<
         const shrinkResult = shrinker.shrinkWitness(
           explorationResult.witness as unknown as ShrinkerPickResult<Rec>,
           scenario,
+          explorer,
           property,
           sampler,
           shrinkBudget
@@ -437,6 +438,7 @@ export class FluentCheck<
     const shrinkResult = shrinker.shrink(
       counterexample,
       scenario,
+      explorer,
       property,
       sampler,
       shrinkBudget
