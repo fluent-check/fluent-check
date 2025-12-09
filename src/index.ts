@@ -8,6 +8,14 @@ export {strategies} from './strategies/presets.js'
 export {props} from './props.js'
 export {templates} from './templates.js'
 export type {CheckableTemplate} from './templates.js'
+export {
+  RandomSampler,
+  BiasedSampler,
+  CachedSampler,
+  DedupingSampler,
+  type Sampler,
+  type SamplerConfig
+} from './strategies/Sampler.js'
 export const scenario = () => new FluentCheck()
 export const strategy = () => new FluentStrategyFactory()
 export {
