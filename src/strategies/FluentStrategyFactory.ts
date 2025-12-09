@@ -172,7 +172,8 @@ export class FluentStrategyFactory<Rec extends StrategyBindings = StrategyBindin
       biased: true,
       cached: true
     }
-    this.enableShrinking = true
+    // Default to full shrinking behavior (matches pre-refactor defaults)
+    this.withPerArbitraryShrinking(this.configuration.shrinkSize)
     return this
   }
 
@@ -242,7 +243,8 @@ export class FluentStrategyFactory<Rec extends StrategyBindings = StrategyBindin
     const shrinkSize = this.configuration.shrinkSize ?? 500
     return {
       maxAttempts: shrinkSize,
-      maxRounds: Math.ceil(shrinkSize / 10) // Allow multiple rounds within budget
+      // Allow up to one successful shrink per attempt; avoids stopping early on large candidates
+      maxRounds: shrinkSize
     }
   }
 

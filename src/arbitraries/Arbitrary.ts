@@ -233,4 +233,15 @@ export abstract class Arbitrary<A> {
   chain<B>(f: (a: A) => Arbitrary<B>): Arbitrary<B> { return new ChainedArbitrary(this, f) }
 
   toString(depth = 0): string { return ' '.repeat(depth * 2) + `Base Arbitrary: ${this.constructor.name}`  }
+
+  /**
+   * Determines if a candidate pick is a shrunken version of the current pick.
+   * Default implementation only rejects identical values (to avoid redundant work),
+   * leaving the ordering responsibility to the arbitrary's shrink method.
+   * Override to enforce domain-aware ordering as a last line of defence.
+   */
+  isShrunken(candidate: FluentPick<A>, current: FluentPick<A>): boolean {
+    const equals = this.equals()
+    return !equals(candidate.value, current.value)
+  }
 }

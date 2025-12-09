@@ -28,6 +28,28 @@ export type PickResult<Rec extends {}> = {
 }
 
 /**
+ * Constant arbitrary that preserves the full pick metadata (value, original, base markers).
+ */
+class ConstantPickArbitrary<A> extends ArbitraryConstant<A> {
+  constructor(private readonly pickValue: FluentPick<A>) {
+    super(pickValue.value)
+  }
+
+  override pick(): FluentPick<A> {
+    // Return a shallow copy to avoid accidental mutation
+    return {...this.pickValue}
+  }
+
+  override cornerCases() {
+    return [this.pick()]
+  }
+
+  override canGenerate(pick: FluentPick<A>) {
+    return pick.value === this.pickValue.value
+  }
+}
+
+/**
  * Result of shrinking a counterexample.
  */
 export interface ShrinkResult<Rec extends {}> {
@@ -204,6 +226,11 @@ export class PerArbitraryShrinker<Rec extends {}> implements Shrinker<Rec> {
       // Create test case with shrunk value
       const testCase = {...current, [name]: candidate}
 
+      // Only accept candidates that the arbitrary considers strictly shrunken
+      if (!quantifier.arbitrary.isShrunken(candidate as FluentPick<unknown>, currentPick as FluentPick<unknown>)) {
+        continue
+      }
+
       // Build a partial scenario starting from this quantifier's position
       const partialScenario = this.#buildPartialScenario(scenario, quantifier.name, testCase)
 
@@ -316,6 +343,11 @@ export class PerArbitraryShrinker<Rec extends {}> implements Shrinker<Rec> {
       // Create test case with shrunk existential value
       const testCase = {...current, [name]: candidate}
 
+      // Only accept candidates that the arbitrary considers strictly shrunken
+      if (!quantifier.arbitrary.isShrunken(candidate as FluentPick<unknown>, currentPick as FluentPick<unknown>)) {
+        continue
+      }
+
       // Build a partial scenario that fixes this existential and explores remaining quantifiers
       const partialScenario = this.#buildPartialScenario(scenario, quantifier.name, testCase)
 
@@ -366,7 +398,7 @@ export class PerArbitraryShrinker<Rec extends {}> implements Shrinker<Rec> {
         if (boundPick) {
           return {
             ...q,
-            arbitrary: new ArbitraryConstant(boundPick.value) as unknown as typeof q.arbitrary
+            arbitrary: new ConstantPickArbitrary(boundPick) as unknown as typeof q.arbitrary
           }
         }
       }
@@ -379,6 +411,7 @@ export class PerArbitraryShrinker<Rec extends {}> implements Shrinker<Rec> {
       quantifiers: newQuantifiers
     }
   }
+
 }
 
 /**
