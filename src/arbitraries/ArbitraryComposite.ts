@@ -7,15 +7,15 @@ import {assertInBounds} from '../util/assertions.js'
 
 /**
  * Represents a union (OR) of multiple arbitraries that all generate the same type.
- * 
+ *
  * Unlike {@link ArbitraryTuple}, which creates a product (AND) by combining values
  * from different arbitraries into a tuple, ArbitraryComposite selects one arbitrary
  * from the collection (weighted by size) and delegates generation to it.
- * 
+ *
  * - Size: Sum of all constituent arbitraries' sizes
  * - Pick: Selects one arbitrary (weighted by size) and delegates to it
  * - canGenerate: Returns true if ANY of the arbitraries can generate the value
- * 
+ *
  */
 export class ArbitraryComposite<A> extends Arbitrary<A> {
   constructor(public readonly arbitraries: NonEmptyArray<Arbitrary<A>>) {

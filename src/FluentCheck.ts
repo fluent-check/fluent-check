@@ -1,4 +1,4 @@
-import {type Arbitrary, type FluentPick, FluentRandomGenerator} from './arbitraries/index.js'
+import {type Arbitrary, type FluentPick} from './arbitraries/index.js'
 import {type FluentStrategy} from './strategies/FluentStrategy.js'
 import {FluentStrategyFactory} from './strategies/FluentStrategyFactory.js'
 
@@ -291,11 +291,13 @@ export class FluentCheck<
     const factory: FluentStrategyFactory<Rec> =
       (strategyFactory as FluentStrategyFactory<Rec> | undefined) ??
       new FluentStrategyFactory<Rec>().defaultStrategy()
-    const strategy = factory.build()
 
-    strategy.randomGenerator = rngBuilder !== undefined
-      ? new FluentRandomGenerator(rngBuilder, seed)
-      : new FluentRandomGenerator()
+    // Configure RNG on the factory before building
+    if (rngBuilder !== undefined) {
+      factory.withRandomGenerator(rngBuilder, seed)
+    }
+
+    const strategy = factory.build()
 
     // Attach strategy and register quantifiers
     for (const node of path) {
@@ -304,8 +306,6 @@ export class FluentCheck<
         node.registerArbitrary()
       }
     }
-
-    strategy.randomGenerator.initialize()
 
     // Build callback chain from leaf to root
     let callback: (testCase: WrapFluentPick<any>) => FluentResult<Record<string, unknown>> = child

@@ -1,10 +1,13 @@
-import {type Arbitrary, type FluentPick, FluentRandomGenerator} from '../arbitraries/index.js'
+import {type Arbitrary, type FluentPick, type FluentRandomGenerator} from '../arbitraries/index.js'
 import type {FluentResult} from '../FluentCheck.js'
 import {
   type FluentStrategyArbitrary,
   type StrategyArbitraries,
   type StrategyBindings
 } from './FluentStrategyTypes.js'
+import type {Sampler} from './Sampler.js'
+import type {ExecutionStrategy} from './ExecutionStrategy.js'
+import type {ShrinkStrategy} from './ShrinkStrategy.js'
 
 export type FluentConfig = { sampleSize?: number, shrinkSize?: number }
 
@@ -23,9 +26,19 @@ implements FluentStrategyInterface<Rec> {
   public arbitraries: StrategyArbitraries<Rec> = {} as StrategyArbitraries<Rec>
 
   /**
-   * Information concerning the random value generation
+   * Sampler used for generating values from arbitraries.
    */
-  public randomGenerator = new FluentRandomGenerator()
+  private readonly sampler: Sampler
+
+  /**
+   * Execution strategy controlling iteration through test cases.
+   */
+  private readonly executionStrategy: ExecutionStrategy
+
+  /**
+   * Shrinking strategy for minimizing counterexamples.
+   */
+  private readonly shrinkStrategy: ShrinkStrategy
 
   /**
    * Helper for accessing the internal arbitrary state by name.
@@ -43,12 +56,28 @@ implements FluentStrategyInterface<Rec> {
   }
 
   /**
-   * Default constructor. Receives the FluentCheck configuration, which is used for test case generation purposes.
+   * Constructor accepting configuration and strategy components.
+   *
+   * @param configuration - Test generation configuration
+   * @param randomGenerator - Random number generator for reproducibility
+   * @param sampler - Strategy for generating sample values
+   * @param executionStrategy - Strategy for controlling test execution
+   * @param shrinkStrategy - Strategy for shrinking counterexamples
    */
-  constructor(public readonly configuration: FluentConfig) {
+  constructor(
+    public readonly configuration: FluentConfig,
+    public readonly randomGenerator: FluentRandomGenerator,
+    sampler: Sampler,
+    executionStrategy: ExecutionStrategy,
+    shrinkStrategy: ShrinkStrategy
+  ) {
     // Ensure sampleSize and shrinkSize are always defined
     this.configuration.sampleSize = this.configuration.sampleSize ?? 1000
     this.configuration.shrinkSize = this.configuration.shrinkSize ?? 500
+
+    this.sampler = sampler
+    this.executionStrategy = executionStrategy
+    this.shrinkStrategy = shrinkStrategy
   }
 
   /**
@@ -56,78 +85,79 @@ implements FluentStrategyInterface<Rec> {
    */
   addArbitrary<K extends keyof Rec & string>(arbitraryName: K, a: Arbitrary<Rec[K]>) {
     this.arbitraries[arbitraryName] = {arbitrary: a, pickNum: 0, collection: []}
-    this.setArbitraryCache(arbitraryName)
   }
 
   /**
    * Configures the information relative a specific arbitrary.
    */
-  configArbitrary<K extends keyof Rec & string>(arbitraryName: K, partial: FluentResult | undefined, depth: number) {
+  configArbitrary<K extends keyof Rec & string>(
+    arbitraryName: K, partial: FluentResult<Rec> | undefined, depth: number
+  ) {
     const state = this.getArbitraryState(arbitraryName)
     state.pickNum = 0
     state.collection = []
 
     if (depth === 0) {
-      state.collection = state.cache ?? this.buildArbitraryCollection(state.arbitrary)
+      state.collection = this.buildArbitraryCollection(state.arbitrary)
     } else if (partial !== undefined) {
       this.shrink(arbitraryName, partial)
     }
   }
 
   /**
-   * Determines whether uniqueness should be taken into account while generating samples.
+   * Generates a collection of inputs for a given arbitrary.
    */
-  isDedupable() {
-    return false
+  buildArbitraryCollection<A>(arbitrary: Arbitrary<A>, sampleSize?: number): FluentPick<A>[] {
+    const size = sampleSize ?? this.configuration.sampleSize ?? 1000
+    return this.sampler.sample(arbitrary, size)
   }
 
   /**
-   * Hook that acts as point of extension of the addArbitrary function and that enables the strategy to be cached.
+   * Shrinks the arbitrary based on a failing example.
    */
-  setArbitraryCache<K extends keyof Rec & string>(_arbitraryName: K) {}
+  shrink<K extends keyof Rec & string>(arbitraryName: K, partial: FluentResult<Rec> | undefined) {
+    if (partial === undefined) return
 
-  /**
-   * Generates a once a collection of inputs for a given arbitrary
-   */
-  buildArbitraryCollection<A>(arbitrary: Arbitrary<A>, sampleSize = this.configuration.sampleSize): FluentPick<A>[] {
-    return this.isDedupable() ? arbitrary.sampleUnique(sampleSize, [], this.randomGenerator.generator) :
-      arbitrary.sample(sampleSize, this.randomGenerator.generator)
+    const arbitraryState = this.getArbitraryState(arbitraryName)
+    const baseArbitrary = arbitraryState.arbitrary
+    const counterexample = partial.example[arbitraryName] as FluentPick<Rec[K]>
+
+    arbitraryState.collection = this.shrinkStrategy.shrink(
+      baseArbitrary,
+      counterexample,
+      this.sampler,
+      this.configuration.shrinkSize ?? 500
+    )
   }
 
   /**
-   * Hook that acts as point of extension of the configArbitrary function and that enables an arbitrary to be shrinked.
-   */
-  shrink<K extends keyof Rec & string>(_name: K, _partial: FluentResult | undefined) {}
-
-  /**
-   * Determines whether there are more inputs to be used for test case generation purposes. This function can use
-   * several factors (e.g. input size, time) to determine whether the generation process should be stoped or not.
+   * Determines whether there are more inputs to be used for test case generation purposes.
    *
-   * Returns true if there are still more inputs to be used; otherwise it returns false.
+   * Delegates to the execution strategy.
+   *
+   * @returns true if there are still more inputs to be used; otherwise false.
    */
-  hasInput<K extends keyof Rec & string>(_arbitraryName: K): boolean {
-    throw new Error('Method <hasInput> not implemented.', {
-      cause: 'FluentStrategy.hasInput is abstract - subclasses must implement this method'
-    })
+  hasInput<K extends keyof Rec & string>(arbitraryName: K): boolean {
+    const state = this.getArbitraryState(arbitraryName)
+    return this.executionStrategy.hasInput(state)
   }
 
   /**
    * Retrieves a new input from the arbitraries record.
+   *
+   * Delegates to the execution strategy.
    */
-  getInput<K extends keyof Rec & string>(_arbitraryName: K): FluentPick<Rec[K]> {
-    throw new Error('Method <getInput > not implemented.', {
-      cause: 'FluentStrategy.getInput is abstract - subclasses must implement this method'
-    })
+  getInput<K extends keyof Rec & string>(arbitraryName: K): FluentPick<Rec[K]> {
+    const state = this.getArbitraryState(arbitraryName)
+    return this.executionStrategy.getInput(state)
   }
 
   /**
-   * When called this function marks the end of one iteration in the test case generation process. So far, this function
-   * is not used but it can be used to perform several operations like keeping a list of generated test cases and save
-   * them to a file or even to track coverage.
+   * Marks the end of one iteration in the test case generation process.
+   *
+   * Delegates to the execution strategy.
    */
   handleResult() {
-    throw new Error('Method <handleResult> not implemented.', {
-      cause: 'FluentStrategy.handleResult is abstract - subclasses must implement this method'
-    })
+    this.executionStrategy.handleResult()
   }
 }

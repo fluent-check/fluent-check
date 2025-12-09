@@ -1,0 +1,224 @@
+import type {Arbitrary, FluentPick} from '../arbitraries/index.js'
+import {FluentRandomGenerator} from '../arbitraries/index.js'
+
+/**
+ * Configuration for a Sampler instance.
+ */
+export interface SamplerConfig {
+  /**
+   * Random number generator function.
+   * Defaults to Math.random if not provided.
+   */
+  generator?: () => number
+  /**
+   * RNG builder function for creating new generators with seeds.
+   * Used when creating new sampler instances.
+   */
+  rngBuilder?: (seed: number) => () => number
+  /**
+   * Seed for random number generation.
+   * Used with rngBuilder to create deterministic generators.
+   */
+  seed?: number
+}
+
+/**
+ * Interface for sampling values from arbitraries.
+ *
+ * The Sampler interface separates the concern of value generation from
+ * execution control and shrinking logic, enabling cleaner composition
+ * and better testability.
+ */
+export interface Sampler {
+  /**
+   * Samples values from an arbitrary.
+   *
+   * @param arbitrary - The arbitrary to sample from
+   * @param count - Maximum number of samples to generate
+   * @returns Array of sampled values (length <= count)
+   */
+  sample<A>(arbitrary: Arbitrary<A>, count: number): FluentPick<A>[]
+
+  /**
+   * Samples values with bias toward corner cases.
+   *
+   * @param arbitrary - The arbitrary to sample from
+   * @param count - Maximum number of samples to generate
+   * @returns Array of sampled values including corner cases
+   */
+  sampleWithBias<A>(arbitrary: Arbitrary<A>, count: number): FluentPick<A>[]
+
+  /**
+   * Samples unique values from an arbitrary.
+   *
+   * @param arbitrary - The arbitrary to sample from
+   * @param count - Maximum number of unique samples to generate
+   * @returns Array of unique sampled values
+   */
+  sampleUnique<A>(arbitrary: Arbitrary<A>, count: number): FluentPick<A>[]
+
+  /**
+   * Gets the random number generator function used by this sampler.
+   * Used by decorators that need to pass the generator to arbitrary methods.
+   *
+   * @returns The generator function
+   */
+  getGenerator(): () => number
+}
+
+/**
+ * Base implementation of Sampler using random generation.
+ *
+ * This is the default sampler that performs basic random sampling
+ * from arbitraries without any special behavior like caching or bias.
+ */
+export class RandomSampler implements Sampler {
+  private readonly generator: () => number
+
+  /**
+   * Creates a new RandomSampler.
+   *
+   * @param config - Optional configuration for RNG
+   */
+  constructor(config: SamplerConfig = {}) {
+    if (config.generator !== undefined) {
+      this.generator = config.generator
+    } else if (config.rngBuilder !== undefined && config.seed !== undefined) {
+      const rng = new FluentRandomGenerator(config.rngBuilder, config.seed)
+      this.generator = rng.generator
+    } else {
+      this.generator = Math.random
+    }
+  }
+
+  sample<A>(arbitrary: Arbitrary<A>, count: number): FluentPick<A>[] {
+    return arbitrary.sample(count, this.generator)
+  }
+
+  sampleWithBias<A>(arbitrary: Arbitrary<A>, count: number): FluentPick<A>[] {
+    return arbitrary.sampleWithBias(count, this.generator)
+  }
+
+  sampleUnique<A>(arbitrary: Arbitrary<A>, count: number): FluentPick<A>[] {
+    return arbitrary.sampleUnique(count, [], this.generator)
+  }
+
+  getGenerator(): () => number {
+    return this.generator
+  }
+}
+
+/**
+ * Decorator that adds bias toward corner cases to another sampler.
+ *
+ * When sampling, this decorator prioritizes corner cases from the arbitrary
+ * before generating random samples.
+ */
+export class BiasedSampler implements Sampler {
+  /**
+   * Creates a new BiasedSampler that wraps another sampler.
+   *
+   * @param baseSampler - The sampler to wrap
+   */
+  constructor(private readonly baseSampler: Sampler) {}
+
+  sample<A>(arbitrary: Arbitrary<A>, count: number): FluentPick<A>[] {
+    return this.baseSampler.sampleWithBias(arbitrary, count)
+  }
+
+  sampleWithBias<A>(arbitrary: Arbitrary<A>, count: number): FluentPick<A>[] {
+    return this.baseSampler.sampleWithBias(arbitrary, count)
+  }
+
+  sampleUnique<A>(arbitrary: Arbitrary<A>, count: number): FluentPick<A>[] {
+    const generator = this.baseSampler.getGenerator()
+    return arbitrary.sampleUniqueWithBias(count, generator)
+  }
+
+  getGenerator(): () => number {
+    return this.baseSampler.getGenerator()
+  }
+}
+
+/**
+ * Decorator that caches samples from an arbitrary.
+ *
+ * When the same arbitrary is sampled multiple times, this decorator
+ * returns the cached result instead of generating new samples.
+ */
+export class CachedSampler implements Sampler {
+  private readonly cache = new Map<Arbitrary<unknown>, FluentPick<unknown>[]>()
+
+  /**
+   * Creates a new CachedSampler that wraps another sampler.
+   *
+   * @param baseSampler - The sampler to wrap
+   */
+  constructor(private readonly baseSampler: Sampler) {}
+
+  sample<A>(arbitrary: Arbitrary<A>, count: number): FluentPick<A>[] {
+    const cached = this.cache.get(arbitrary as Arbitrary<unknown>)
+    if (cached !== undefined) {
+      return cached.slice(0, count) as FluentPick<A>[]
+    }
+    const samples = this.baseSampler.sample(arbitrary, count)
+    this.cache.set(arbitrary as Arbitrary<unknown>, samples as FluentPick<unknown>[])
+    return samples
+  }
+
+  sampleWithBias<A>(arbitrary: Arbitrary<A>, count: number): FluentPick<A>[] {
+    const cached = this.cache.get(arbitrary as Arbitrary<unknown>)
+    if (cached !== undefined) {
+      return cached.slice(0, count) as FluentPick<A>[]
+    }
+    const samples = this.baseSampler.sampleWithBias(arbitrary, count)
+    this.cache.set(arbitrary as Arbitrary<unknown>, samples as FluentPick<unknown>[])
+    return samples
+  }
+
+  sampleUnique<A>(arbitrary: Arbitrary<A>, count: number): FluentPick<A>[] {
+    const cached = this.cache.get(arbitrary as Arbitrary<unknown>)
+    if (cached !== undefined) {
+      return cached.slice(0, count) as FluentPick<A>[]
+    }
+    const samples = this.baseSampler.sampleUnique(arbitrary, count)
+    this.cache.set(arbitrary as Arbitrary<unknown>, samples as FluentPick<unknown>[])
+    return samples
+  }
+
+  getGenerator(): () => number {
+    return this.baseSampler.getGenerator()
+  }
+}
+
+/**
+ * Decorator that ensures unique samples.
+ *
+ * This decorator filters out duplicate values when sampling,
+ * using the arbitrary's equals function to determine uniqueness.
+ */
+export class DedupingSampler implements Sampler {
+  /**
+   * Creates a new DedupingSampler that wraps another sampler.
+   *
+   * @param baseSampler - The sampler to wrap
+   */
+  constructor(private readonly baseSampler: Sampler) {}
+
+  sample<A>(arbitrary: Arbitrary<A>, count: number): FluentPick<A>[] {
+    return this.baseSampler.sampleUnique(arbitrary, count)
+  }
+
+  sampleWithBias<A>(arbitrary: Arbitrary<A>, count: number): FluentPick<A>[] {
+    const generator = this.baseSampler.getGenerator()
+    return arbitrary.sampleUniqueWithBias(count, generator)
+  }
+
+  sampleUnique<A>(arbitrary: Arbitrary<A>, count: number): FluentPick<A>[] {
+    return this.baseSampler.sampleUnique(arbitrary, count)
+  }
+
+  getGenerator(): () => number {
+    return this.baseSampler.getGenerator()
+  }
+}
