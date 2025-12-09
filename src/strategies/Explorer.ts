@@ -1,5 +1,5 @@
 import type {FluentPick} from '../arbitraries/index.js'
-import type {Scenario, ScenarioNode, GivenNode, WhenNode, ThenNode} from '../Scenario.js'
+import type {Scenario, ScenarioNode} from '../Scenario.js'
 import {createExecutableScenario} from '../ExecutableScenario.js'
 import type {ExecutableScenario, ExecutableQuantifier} from '../ExecutableScenario.js'
 import type {Sampler} from './Sampler.js'
@@ -182,7 +182,10 @@ export class NestedLoopExplorer<Rec extends {}> implements Explorer<Rec> {
       }
 
       // Recursive case: iterate through current quantifier's samples
-      const quantifier = quantifiers[quantifierIndex]!
+      const quantifier = quantifiers[quantifierIndex]
+      if (quantifier === undefined) {
+        return null
+      }
       const quantifierSamples = samples.get(quantifier.name) ?? []
       const isExists = quantifier.type === 'exists'
 
@@ -354,19 +357,22 @@ export class NestedLoopExplorer<Rec extends {}> implements Explorer<Rec> {
       try {
         const result = this.#processNodesInOrder(testCase, allNodes, property)
         return result
-          ? { status: 'all_passed', witness: {...testCase} }
-          : { status: 'some_failed' }
+          ? {status: 'all_passed', witness: {...testCase}}
+          : {status: 'some_failed'}
       } catch (e) {
         if (this.#isPreconditionFailure(e)) {
           skipped++
           setSkipped(skipped)
-          return { status: 'inconclusive' }
+          return {status: 'inconclusive'}
         }
         throw e
       }
     }
 
-    const quantifier = quantifiers[quantifierIndex]!
+    const quantifier = quantifiers[quantifierIndex]
+    if (quantifier === undefined) {
+      return {status: 'inconclusive'}
+    }
     const quantifierSamples = samples.get(quantifier.name) ?? []
     const isExists = quantifier.type === 'exists'
 
@@ -386,16 +392,16 @@ export class NestedLoopExplorer<Rec extends {}> implements Explorer<Rec> {
 
         if (result.status === 'all_passed' && result.witness !== undefined) {
           // Found a nested witness - return with the full witness including this level
-          return { status: 'all_passed', witness: result.witness }
+          return {status: 'all_passed', witness: result.witness}
         }
 
         // Check budget
-        if (getTestsRun() >= budget.maxTests) return { status: 'inconclusive' }
+        if (getTestsRun() >= budget.maxTests) return {status: 'inconclusive'}
         if (budget.maxTime !== undefined && Date.now() - startTime > budget.maxTime) {
-          return { status: 'inconclusive' }
+          return {status: 'inconclusive'}
         }
       }
-      return { status: 'some_failed' }
+      return {status: 'some_failed'}
     } else {
       // Forall: ALL values must pass
       for (const sample of quantifierSamples) {
@@ -411,17 +417,17 @@ export class NestedLoopExplorer<Rec extends {}> implements Explorer<Rec> {
         )
 
         if (result.status === 'some_failed') {
-          return { status: 'some_failed' }
+          return {status: 'some_failed'}
         }
 
         // Check budget
-        if (getTestsRun() >= budget.maxTests) return { status: 'inconclusive' }
+        if (getTestsRun() >= budget.maxTests) return {status: 'inconclusive'}
         if (budget.maxTime !== undefined && Date.now() - startTime > budget.maxTime) {
-          return { status: 'inconclusive' }
+          return {status: 'inconclusive'}
         }
       }
       // All forall values passed - return the last successful witness if any
-      return { status: 'all_passed', witness: {...testCase} }
+      return {status: 'all_passed', witness: {...testCase}}
     }
   }
 
@@ -486,7 +492,7 @@ export class NestedLoopExplorer<Rec extends {}> implements Explorer<Rec> {
     for (const node of allNodes) {
       switch (node.type) {
         case 'given': {
-          const given = node as GivenNode<Rec>
+          const given = node
           if (given.isFactory) {
             const factory = given.predicate as (args: Rec) => unknown
             values[given.name] = factory(values as Rec)
@@ -496,13 +502,13 @@ export class NestedLoopExplorer<Rec extends {}> implements Explorer<Rec> {
           break
         }
         case 'when': {
-          const when = node as WhenNode<Rec>
+          const when = node
           when.predicate(values as Rec)
           break
         }
         case 'then': {
           hasThenNodes = true
-          const then = node as ThenNode<Rec>
+          const then = node
           if (!then.predicate(values as Rec)) {
             return false
           }

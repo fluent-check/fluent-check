@@ -12,7 +12,7 @@ import {
   type ThenNode,
   createScenario
 } from './Scenario.js'
-import type {ExplorationBudget, TestCase} from './strategies/Explorer.js'
+import type {ExplorationBudget} from './strategies/Explorer.js'
 import type {PickResult as ShrinkerPickResult} from './strategies/Shrinker.js'
 
 type WrapFluentPick<T> = { [P in keyof T]: FluentPick<T[P]> }
@@ -435,7 +435,7 @@ export class FluentCheck<
     }
 
     // Found a counterexample - apply shrinking
-    const counterexample = explorationResult.counterexample as TestCase<Rec>
+    const counterexample = explorationResult.counterexample
 
     const shrinkResult = shrinker.shrink(
       counterexample,

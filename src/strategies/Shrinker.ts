@@ -202,7 +202,7 @@ export class PerArbitraryShrinker<Rec extends {}> implements Shrinker<Rec> {
     const currentPick = current[name]
 
     if (currentPick === undefined) {
-      return { shrunk: false, value: current, attempts: 0 }
+      return {shrunk: false, value: current, attempts: 0}
     }
 
     // Get shrink candidates using the compiled quantifier operations
@@ -222,7 +222,7 @@ export class PerArbitraryShrinker<Rec extends {}> implements Shrinker<Rec> {
       const testCase = {...current, [name]: candidate}
 
       // Only accept candidates that the arbitrary considers strictly shrunken
-      if (!quantifier.isShrunken(candidate as FluentPick<unknown>, currentPick as FluentPick<unknown>)) {
+      if (!quantifier.isShrunken(candidate, currentPick as FluentPick<unknown>)) {
         continue
       }
 
@@ -246,7 +246,7 @@ export class PerArbitraryShrinker<Rec extends {}> implements Shrinker<Rec> {
       }
     }
 
-    return { shrunk: false, value: current, attempts }
+    return {shrunk: false, value: current, attempts}
   }
 
   shrinkWitness(
@@ -322,7 +322,7 @@ export class PerArbitraryShrinker<Rec extends {}> implements Shrinker<Rec> {
     const currentPick = current[name]
 
     if (currentPick === undefined) {
-      return { shrunk: false, value: current, attempts: 0 }
+      return {shrunk: false, value: current, attempts: 0}
     }
 
     // Get shrink candidates using the compiled quantifier operations
@@ -342,7 +342,7 @@ export class PerArbitraryShrinker<Rec extends {}> implements Shrinker<Rec> {
       const testCase = {...current, [name]: candidate}
 
       // Only accept candidates that the arbitrary considers strictly shrunken
-      if (!quantifier.isShrunken(candidate as FluentPick<unknown>, currentPick as FluentPick<unknown>)) {
+      if (!quantifier.isShrunken(candidate, currentPick as FluentPick<unknown>)) {
         continue
       }
 
@@ -367,7 +367,7 @@ export class PerArbitraryShrinker<Rec extends {}> implements Shrinker<Rec> {
       }
     }
 
-    return { shrunk: false, value: current, attempts }
+    return {shrunk: false, value: current, attempts}
   }
 
   /**

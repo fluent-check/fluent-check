@@ -1,4 +1,4 @@
-import type {Arbitrary, FluentPick} from './arbitraries/index.js'
+import type {FluentPick} from './arbitraries/index.js'
 import type {Sampler} from './strategies/Sampler.js'
 import type {QuantifierNode, Scenario, ScenarioNode} from './Scenario.js'
 
