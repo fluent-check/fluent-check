@@ -2,6 +2,7 @@ import type {FluentPick} from '../arbitraries/index.js'
 import type {Scenario, ScenarioNode} from '../Scenario.js'
 import {createExecutableScenario} from '../ExecutableScenario.js'
 import type {ExecutableScenario, ExecutableQuantifier} from '../ExecutableScenario.js'
+import {PreconditionFailure} from '../FluentCheck.js'
 import type {Sampler} from './Sampler.js'
 
 /**
@@ -533,13 +534,8 @@ export class NestedLoopExplorer<Rec extends {}> implements Explorer<Rec> {
   /**
    * Check if an error is a PreconditionFailure.
    */
-  #isPreconditionFailure(e: unknown): boolean {
-    return (
-      e !== null &&
-      typeof e === 'object' &&
-      '__brand' in e &&
-      (e as { __brand: string }).__brand === 'PreconditionFailure'
-    )
+  #isPreconditionFailure(e: unknown): e is PreconditionFailure {
+    return e instanceof PreconditionFailure
   }
 }
 
