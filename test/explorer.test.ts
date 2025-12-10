@@ -421,6 +421,6 @@ describe('Explorer', () => {
 
       expect(result.satisfiable).to.be.true
       expect(result.example).to.deep.equal({})
-    })    
+    })
   })
 })
