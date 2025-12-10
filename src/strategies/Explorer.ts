@@ -518,7 +518,7 @@ export class NestedLoopExplorer<Rec extends {}> implements Explorer<Rec> {
     // Only evaluate the passed-in property function if there were no then nodes
     // (the property function duplicates the then node evaluation)
     if (!hasThenNodes) {
-      return property(values as Rec)
+      return true
     }
 
     return true
