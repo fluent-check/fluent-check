@@ -5,7 +5,7 @@ import type {ScenarioNode} from '../Scenario.js'
 import {createExecutableScenario} from '../ExecutableScenario.js'
 import type {ExecutableScenario, ExecutableQuantifier} from '../ExecutableScenario.js'
 import type {Sampler} from './Sampler.js'
-import type {Explorer, ExplorationBudget} from './Explorer.js'
+import type {Explorer} from './Explorer.js'
 import type {BoundTestCase} from './types.js'
 
 class BoundConstantArbitrary<A> extends ArbitraryConstant<A> {
@@ -168,117 +168,16 @@ export class PerArbitraryShrinker<Rec extends {}> implements Shrinker<Rec> {
     sampler: Sampler,
     budget: ShrinkBudget
   ): ShrinkResult<Rec> {
-    let current = {...counterexample}
-    let totalAttempts = 0
-    let rounds = 0
-
-    // Get quantifiers from scenario
-    const quantifiers = scenario.quantifiers
-
-    // Continue shrinking while within budget
-    while (rounds < budget.maxRounds && totalAttempts < budget.maxAttempts) {
-      let foundSmaller = false
-
-      // Try to shrink each quantifier
-      for (const quantifier of quantifiers) {
-        if (totalAttempts >= budget.maxAttempts) break
-
-        const result = this.#shrinkQuantifierForCounterexample(
-          quantifier,
-          current,
-          scenario,
-          explorer,
-          property,
-          sampler,
-          budget.maxAttempts - totalAttempts
-        )
-
-        totalAttempts += result.attempts
-
-        if (result.shrunk) {
-          current = result.value
-          foundSmaller = true
-          rounds++
-
-          // After finding a smaller value, restart from the first quantifier
-          // This ensures we don't miss opportunities to shrink earlier quantifiers
-          break
-        }
-      }
-
-      // If we couldn't shrink any quantifier, we're done
-      if (!foundSmaller) break
-    }
-
-    return {
-      minimized: current,
-      attempts: totalAttempts,
-      rounds
-    }
-  }
-
-  /**
-   * Attempts to shrink a single quantifier's value for counterexample shrinking.
-   * Uses the Explorer to re-verify that the shrunk value still causes a failure.
-   */
-  #shrinkQuantifierForCounterexample(
-    quantifier: ExecutableQuantifier,
-    current: BoundTestCase<Rec>,
-    scenario: ExecutableScenario<Rec>,
-    explorer: Explorer<Rec>,
-    property: (testCase: Rec) => boolean,
-    sampler: Sampler,
-    remainingBudget: number
-  ): { shrunk: boolean; value: BoundTestCase<Rec>; attempts: number } {
-    const name = quantifier.name as keyof Rec
-    const currentPick = current[name]
-
-    if (currentPick === undefined) {
-      return {shrunk: false, value: current, attempts: 0}
-    }
-
-    // Get shrink candidates using the compiled quantifier operations
-    const candidates = quantifier.shrink(
-      currentPick as FluentPick<unknown>,
+    return this.#shrinkAcrossQuantifiers(
+      counterexample,
+      scenario.quantifiers,
+      scenario,
+      explorer,
+      property,
       sampler,
-      Math.min(remainingBudget, 100)
+      budget,
+      result => (result.outcome === 'failed' ? result.counterexample : null)
     )
-
-    let attempts = 0
-
-    for (const candidate of candidates) {
-      if (attempts >= remainingBudget) break
-      attempts++
-
-      // Create test case with shrunk value
-      const testCase = {...current, [name]: candidate}
-
-      // Only accept candidates that the arbitrary considers strictly shrunken
-      if (!quantifier.isShrunken(candidate, currentPick as FluentPick<unknown>)) {
-        continue
-      }
-
-      // Build a partial scenario starting from this quantifier's position
-      const partialScenario = this.#buildPartialScenario(scenario, quantifier.name, testCase)
-
-      // Use explorer to verify this shrunk value still causes a failure
-      const explorationBudget: ExplorationBudget = {
-        maxTests: Math.min(100, remainingBudget - attempts)
-      }
-
-      const result = explorer.explore(partialScenario, property, sampler, explorationBudget)
-
-      if (result.outcome === 'failed') {
-        // Found a smaller counterexample - use the full counterexample from exploration
-        return {
-          shrunk: true,
-          value: result.counterexample,
-          attempts
-        }
-      }
-    }
-
-    return {shrunk: false, value: current, attempts}
   }
 
   shrinkWitness(
@@ -289,29 +188,52 @@ export class PerArbitraryShrinker<Rec extends {}> implements Shrinker<Rec> {
     sampler: Sampler,
     budget: ShrinkBudget
   ): ShrinkResult<Rec> {
-    let current = {...witness}
+    const existentials = scenario.quantifiers.filter(q => q.type === 'exists')
+    return this.#shrinkAcrossQuantifiers(
+      witness,
+      existentials,
+      scenario,
+      explorer,
+      property,
+      sampler,
+      budget,
+      (result, candidate) =>
+        result.outcome === 'passed' ? result.witness ?? candidate : null
+    )
+  }
+
+  #shrinkAcrossQuantifiers(
+    input: BoundTestCase<Rec>,
+    quantifiers: readonly ExecutableQuantifier[],
+    scenario: ExecutableScenario<Rec>,
+    explorer: Explorer<Rec>,
+    property: (testCase: Rec) => boolean,
+    sampler: Sampler,
+    budget: ShrinkBudget,
+    accept: (
+      result: ReturnType<Explorer<Rec>['explore']>,
+      candidate: BoundTestCase<Rec>
+    ) => BoundTestCase<Rec> | null
+  ): ShrinkResult<Rec> {
+    let current = {...input}
     let totalAttempts = 0
     let rounds = 0
 
-    // Only shrink existential quantifiers for witnesses
-    const existentialQuantifiers = scenario.quantifiers.filter(q => q.type === 'exists')
-
-    // Continue shrinking while within budget
     while (rounds < budget.maxRounds && totalAttempts < budget.maxAttempts) {
       let foundSmaller = false
 
-      // Try to shrink each existential quantifier
-      for (const quantifier of existentialQuantifiers) {
+      for (const quantifier of quantifiers) {
         if (totalAttempts >= budget.maxAttempts) break
 
-        const result = this.#shrinkQuantifierForWitness(
+        const result = this.#shrinkQuantifier(
           quantifier,
           current,
           scenario,
           explorer,
           property,
           sampler,
-          budget.maxAttempts - totalAttempts
+          budget.maxAttempts - totalAttempts,
+          accept
         )
 
         totalAttempts += result.attempts
@@ -320,13 +242,10 @@ export class PerArbitraryShrinker<Rec extends {}> implements Shrinker<Rec> {
           current = result.value
           foundSmaller = true
           rounds++
-
-          // After finding a smaller value, restart from the first quantifier
           break
         }
       }
 
-      // If we couldn't shrink any quantifier, we're done
       if (!foundSmaller) break
     }
 
@@ -337,29 +256,24 @@ export class PerArbitraryShrinker<Rec extends {}> implements Shrinker<Rec> {
     }
   }
 
-  /**
-   * Attempts to shrink a single existential quantifier's value for witness shrinking.
-   * Uses the Explorer to re-verify that the shrunk value still satisfies all foralls.
-   */
-  #shrinkQuantifierForWitness(
+  #shrinkQuantifier(
     quantifier: ExecutableQuantifier,
     current: BoundTestCase<Rec>,
     scenario: ExecutableScenario<Rec>,
     explorer: Explorer<Rec>,
     property: (testCase: Rec) => boolean,
     sampler: Sampler,
-    remainingBudget: number
+    remainingBudget: number,
+    accept: (
+      result: ReturnType<Explorer<Rec>['explore']>,
+      candidate: BoundTestCase<Rec>
+    ) => BoundTestCase<Rec> | null
   ): { shrunk: boolean; value: BoundTestCase<Rec>; attempts: number } {
-    const name = quantifier.name as keyof Rec
-    const currentPick = current[name]
+    const binding = this.#bindingFor(current, quantifier)
+    if (binding === null) return {shrunk: false, value: current, attempts: 0}
 
-    if (currentPick === undefined) {
-      return {shrunk: false, value: current, attempts: 0}
-    }
-
-    // Get shrink candidates using the compiled quantifier operations
     const candidates = quantifier.shrink(
-      currentPick as FluentPick<unknown>,
+      binding.pick,
       sampler,
       Math.min(remainingBudget, 100)
     )
@@ -370,36 +284,32 @@ export class PerArbitraryShrinker<Rec extends {}> implements Shrinker<Rec> {
       if (attempts >= remainingBudget) break
       attempts++
 
-      // Create test case with shrunk existential value
-      const testCase = {...current, [name]: candidate}
+      if (!quantifier.isShrunken(candidate, binding.pick)) continue
 
-      // Only accept candidates that the arbitrary considers strictly shrunken
-      if (!quantifier.isShrunken(candidate, currentPick as FluentPick<unknown>)) {
-        continue
-      }
-
-      // Build a partial scenario that fixes this existential and explores remaining quantifiers
+      const testCase = {...current, [binding.key]: candidate}
       const partialScenario = this.#buildPartialScenario(scenario, quantifier.name, testCase)
 
-      // Use explorer to verify this shrunk witness still satisfies all foralls
-      const explorationBudget: ExplorationBudget = {
+      const result = explorer.explore(partialScenario, property, sampler, {
         maxTests: Math.min(100, remainingBudget - attempts)
-      }
+      })
 
-      const result = explorer.explore(partialScenario, property, sampler, explorationBudget)
-
-      if (result.outcome === 'passed') {
-        // Found a smaller witness - use the witness from exploration if available
-        const newWitness = result.witness ?? testCase
-        return {
-          shrunk: true,
-          value: newWitness,
-          attempts
-        }
+      const accepted = accept(result, testCase)
+      if (accepted !== null) {
+        return {shrunk: true, value: accepted, attempts}
       }
     }
 
     return {shrunk: false, value: current, attempts}
+  }
+
+  #bindingFor(
+    current: BoundTestCase<Rec>,
+    quantifier: ExecutableQuantifier
+  ): {key: keyof Rec; pick: FluentPick<unknown>} | null {
+    const key = quantifier.name as keyof Rec
+    const pick = current[key]
+    if (pick === undefined) return null
+    return {key, pick: pick as FluentPick<unknown>}
   }
 
   /**
