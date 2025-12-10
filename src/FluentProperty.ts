@@ -14,6 +14,9 @@ type ArbitraryArgs<Arbs extends readonly Arbitrary<any>[]> = {
   [K in keyof Arbs]: Arbs[K] extends Arbitrary<infer A> ? A : never
 }
 
+type ArgName<Index extends number> = `arg${Index}`
+type ArgNames<Args extends readonly unknown[]> = ReadonlyArray<ArgName<Extract<TupleIndices<Args>, number>>>
+
 /**
  * A fluent property test builder that provides a simplified API for property-based testing.
  *
@@ -89,7 +92,7 @@ class FluentPropertyImpl<const Args extends unknown[]> implements FluentProperty
   readonly #arbitraries: { [I in keyof Args]: Arbitrary<Args[I]> }
   readonly #predicate: (...args: Args) => boolean
   readonly #strategyFactory?: FluentStrategyFactory<PropRecord<Args>>
-  readonly #argNames: readonly string[]
+  readonly #argNames: ArgNames<Args>
 
   constructor(
     arbitraries: { [I in keyof Args]: Arbitrary<Args[I]> },
@@ -98,37 +101,32 @@ class FluentPropertyImpl<const Args extends unknown[]> implements FluentProperty
   ) {
     this.#arbitraries = arbitraries
     this.#predicate = predicate
-    this.#argNames = this.#arbitraries.map((_, i) => `arg${i}`)
+    this.#argNames = this.#buildArgNames()
     if (strategyFactory !== undefined) {
       this.#strategyFactory = strategyFactory
     }
   }
 
   check(): FluentResult<PropRecord<Args>> {
-    const checker = this.#createBaseCheck()
-
-    // Build the chain with positional argument names
-    let chain: FluentCheck<any, any> = checker as any
-    this.#arbitraries.forEach((arbitrary, index) => {
-      if (arbitrary === undefined) return
-      const name = this.#argNames[index] ?? `arg${index}`
-      chain = chain.forall(name, arbitrary) as typeof chain
-    })
+    const chain = this.#buildForallChain()
+    const configuredChain = this.#strategyFactory === undefined
+      ? chain
+      : chain.config(this.#strategyFactory)
 
     // Create the predicate wrapper that extracts positional arguments
-    const wrappedPredicate = (args: Record<string, unknown>): boolean => {
+    const wrappedPredicate = (args: PropRecord<Args>): boolean => {
       const positionalArgs = this.#argNames.map(name => args[name]) as Args
       return this.#predicate(...positionalArgs)
     }
 
-    return chain.then(wrappedPredicate).check() as FluentResult<PropRecord<Args>>
+    return configuredChain.then(wrappedPredicate).check()
   }
 
   assert(message?: string): void {
     const result = this.check()
     if (!result.satisfiable) {
       const prefix = message !== undefined && message !== '' ? `${message}: ` : ''
-      const argsStr = this.#formatArgs(result.example as Record<string, unknown>)
+      const argsStr = this.#formatArgs(result.example)
       const seedStr = result.seed !== undefined ? ` (seed: ${result.seed})` : ''
       throw new Error(`${prefix}Property failed with counterexample: ${argsStr}${seedStr}`)
     }
@@ -138,14 +136,26 @@ class FluentPropertyImpl<const Args extends unknown[]> implements FluentProperty
     return new FluentPropertyImpl(this.#arbitraries, this.#predicate, strategyFactory)
   }
 
-  #createBaseCheck(): FluentCheck<PropRecord<Args>> {
-    if (this.#strategyFactory === undefined) {
-      return new FluentCheck<PropRecord<Args>>()
-    }
-    return new FluentCheck<PropRecord<Args>>().config(this.#strategyFactory)
+  #createBaseCheck(): FluentCheck<{}> {
+    return new FluentCheck<{}>()
   }
 
-  #formatArgs(example: Record<string, unknown>): string {
+  #buildArgNames(): ArgNames<Args> {
+    return this.#arbitraries.map((_, i) => `arg${i}` as const) as ArgNames<Args>
+  }
+
+  #buildForallChain(): FluentCheck<PropRecord<Args>> {
+    let chain: FluentCheck<Record<string, unknown>> =
+      this.#createBaseCheck() as FluentCheck<Record<string, unknown>>
+    this.#arbitraries.forEach((arbitrary, index) => {
+      const name = this.#argNames[index]
+      if (name === undefined) return
+      chain = chain.forall(name as string, arbitrary) as FluentCheck<Record<string, unknown>>
+    })
+    return chain as FluentCheck<PropRecord<Args>>
+  }
+
+  #formatArgs(example: PropRecord<Args>): string {
     const args = this.#argNames.map(name => example[name])
     if (args.length === 1) return JSON.stringify(args[0])
     return `(${args.map(a => JSON.stringify(a)).join(', ')})`
