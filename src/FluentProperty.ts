@@ -10,6 +10,13 @@ type PropRecord<Args extends readonly unknown[]> = {
 
 export type PropExample<Args extends readonly unknown[]> = PropRecord<Args>
 
+type ArbitraryArgs<Arbs extends readonly Arbitrary<any>[]> = {
+  [K in keyof Arbs]: Arbs[K] extends Arbitrary<infer A> ? A : never
+}
+
+type ArgName<Index extends number> = `arg${Index}`
+type ArgNames<Args extends readonly unknown[]> = ReadonlyArray<ArgName<Extract<TupleIndices<Args>, number>>>
+
 /**
  * A fluent property test builder that provides a simplified API for property-based testing.
  *
@@ -84,160 +91,94 @@ export interface FluentProperty<Args extends readonly unknown[]> {
 class FluentPropertyImpl<const Args extends unknown[]> implements FluentProperty<Args> {
   readonly #arbitraries: { [I in keyof Args]: Arbitrary<Args[I]> }
   readonly #predicate: (...args: Args) => boolean
-  readonly #strategyFactory?: FluentStrategyFactory
+  readonly #strategyFactory?: FluentStrategyFactory<PropRecord<Args>>
+  readonly #argNames: ArgNames<Args>
 
   constructor(
     arbitraries: { [I in keyof Args]: Arbitrary<Args[I]> },
     predicate: (...args: Args) => boolean,
-    strategyFactory?: FluentStrategyFactory
+    strategyFactory?: FluentStrategyFactory<PropRecord<Args>>
   ) {
     this.#arbitraries = arbitraries
     this.#predicate = predicate
+    this.#argNames = this.#buildArgNames()
     if (strategyFactory !== undefined) {
       this.#strategyFactory = strategyFactory
     }
   }
 
   check(): FluentResult<PropRecord<Args>> {
-    let checker = new FluentCheck()
-
-    if (this.#strategyFactory !== undefined) {
-      checker = checker.config(this.#strategyFactory)
-    }
-
-    // Build the chain with positional argument names
-    const chain = this.#arbitraries.reduce((current, arbitrary, index) => {
-      if (arbitrary === undefined) return current
-      return current.forall(`arg${index}`, arbitrary)
-    }, checker)
+    const chain = this.#buildForallChain()
+    const configuredChain = this.#strategyFactory === undefined
+      ? chain
+      : chain.config(this.#strategyFactory)
 
     // Create the predicate wrapper that extracts positional arguments
-    const wrappedPredicate = (args: Record<string, unknown>): boolean => {
-      const positionalArgs = this.#arbitraries.map((_, i) => args[`arg${i}`]) as Args
+    const wrappedPredicate = (args: PropRecord<Args>): boolean => {
+      const positionalArgs = this.#argNames.map(name => args[name]) as Args
       return this.#predicate(...positionalArgs)
     }
 
-    return chain.then(wrappedPredicate).check() as FluentResult<PropRecord<Args>>
+    return configuredChain.then(wrappedPredicate).check()
   }
 
   assert(message?: string): void {
     const result = this.check()
     if (!result.satisfiable) {
       const prefix = message !== undefined && message !== '' ? `${message}: ` : ''
-      // Extract positional arguments for cleaner error message
-      const example = result.example as Record<string, unknown>
-      const args = this.#arbitraries.map((_, i) => example[`arg${i}`])
-      const argsStr = args.length === 1
-        ? JSON.stringify(args[0])
-        : `(${args.map(a => JSON.stringify(a)).join(', ')})`
+      const argsStr = this.#formatArgs(result.example)
       const seedStr = result.seed !== undefined ? ` (seed: ${result.seed})` : ''
       throw new Error(`${prefix}Property failed with counterexample: ${argsStr}${seedStr}`)
     }
   }
 
-  config(strategyFactory: FluentStrategyFactory): FluentProperty<Args> {
+  config(strategyFactory: FluentStrategyFactory<PropRecord<Args>>): FluentProperty<Args> {
     return new FluentPropertyImpl(this.#arbitraries, this.#predicate, strategyFactory)
+  }
+
+  #createBaseCheck(): FluentCheck<{}> {
+    return new FluentCheck<{}>()
+  }
+
+  #buildArgNames(): ArgNames<Args> {
+    return this.#arbitraries.map((_, i) => `arg${i}` as const) as ArgNames<Args>
+  }
+
+  #buildForallChain(): FluentCheck<PropRecord<Args>> {
+    let chain: FluentCheck<Record<string, unknown>> =
+      this.#createBaseCheck() as FluentCheck<Record<string, unknown>>
+    this.#arbitraries.forEach((arbitrary, index) => {
+      const name = this.#argNames[index]
+      if (name === undefined) return
+      chain = chain.forall(name as string, arbitrary) as FluentCheck<Record<string, unknown>>
+    })
+    return chain as FluentCheck<PropRecord<Args>>
+  }
+
+  #formatArgs(example: PropRecord<Args>): string {
+    const args = this.#argNames.map(name => example[name])
+    if (args.length === 1) return JSON.stringify(args[0])
+    return `(${args.map(a => JSON.stringify(a)).join(', ')})`
   }
 }
 
-// Overloads for 1-5 arbitraries
-
 /**
- * Create a property test with a single arbitrary.
+ * Create a property test with one or more arbitraries.
  *
- * @param arb - The arbitrary to generate test values
+ * @param arbs - The arbitraries to generate test values
  * @param predicate - A function that returns true if the property holds
  * @returns A `FluentProperty` that can be checked or asserted
  *
  * @example
  * ```typescript
  * fc.prop(fc.integer(), x => x + 0 === x).assert();
- * ```
- */
-export function prop<A>(
-  arb: Arbitrary<A>,
-  predicate: (a: A) => boolean
-): FluentProperty<[A]>
-
-/**
- * Create a property test with two arbitraries.
- *
- * @param arb1 - First arbitrary
- * @param arb2 - Second arbitrary
- * @param predicate - A function that returns true if the property holds
- * @returns A `FluentProperty` that can be checked or asserted
- *
- * @example
- * ```typescript
  * fc.prop(fc.integer(), fc.integer(), (a, b) => a + b === b + a).assert();
  * ```
  */
-export function prop<A, B>(
-  arb1: Arbitrary<A>,
-  arb2: Arbitrary<B>,
-  predicate: (a: A, b: B) => boolean
-): FluentProperty<[A, B]>
-
-/**
- * Create a property test with three arbitraries.
- *
- * @param arb1 - First arbitrary
- * @param arb2 - Second arbitrary
- * @param arb3 - Third arbitrary
- * @param predicate - A function that returns true if the property holds
- * @returns A `FluentProperty` that can be checked or asserted
- *
- * @example
- * ```typescript
- * fc.prop(fc.integer(), fc.integer(), fc.integer(),
- *   (a, b, c) => (a + b) + c === a + (b + c)
- * ).assert();
- * ```
- */
-export function prop<A, B, C>(
-  arb1: Arbitrary<A>,
-  arb2: Arbitrary<B>,
-  arb3: Arbitrary<C>,
-  predicate: (a: A, b: B, c: C) => boolean
-): FluentProperty<[A, B, C]>
-
-/**
- * Create a property test with four arbitraries.
- *
- * @param arb1 - First arbitrary
- * @param arb2 - Second arbitrary
- * @param arb3 - Third arbitrary
- * @param arb4 - Fourth arbitrary
- * @param predicate - A function that returns true if the property holds
- * @returns A `FluentProperty` that can be checked or asserted
- */
-export function prop<A, B, C, D>(
-  arb1: Arbitrary<A>,
-  arb2: Arbitrary<B>,
-  arb3: Arbitrary<C>,
-  arb4: Arbitrary<D>,
-  predicate: (a: A, b: B, c: C, d: D) => boolean
-): FluentProperty<[A, B, C, D]>
-
-/**
- * Create a property test with five arbitraries.
- *
- * @param arb1 - First arbitrary
- * @param arb2 - Second arbitrary
- * @param arb3 - Third arbitrary
- * @param arb4 - Fourth arbitrary
- * @param arb5 - Fifth arbitrary
- * @param predicate - A function that returns true if the property holds
- * @returns A `FluentProperty` that can be checked or asserted
- */
-export function prop<A, B, C, D, E>(
-  arb1: Arbitrary<A>,
-  arb2: Arbitrary<B>,
-  arb3: Arbitrary<C>,
-  arb4: Arbitrary<D>,
-  arb5: Arbitrary<E>,
-  predicate: (a: A, b: B, c: C, d: D, e: E) => boolean
-): FluentProperty<[A, B, C, D, E]>
+export function prop<
+  const Arbs extends readonly [Arbitrary<unknown>, ...Arbitrary<unknown>[]],
+  const Args extends ArbitraryArgs<Arbs> = ArbitraryArgs<Arbs>
+>(...args: [...arbs: Arbs, predicate: (...args: Args) => boolean]): FluentProperty<Args>
 
 // Implementation
 export function prop<Args extends unknown[]>(

@@ -33,7 +33,11 @@ export class ArbitrarySet<A> extends Arbitrary<A[]> {
 
     while (pick.size !== size) {
       const index = Math.floor(generator() * this.elements.length)
-      pick.add(this.elements[index]!)
+      const element = this.elements[index]
+      if (element === undefined) {
+        continue
+      }
+      pick.add(element)
     }
 
     const value = Array.from(pick).toSorted()

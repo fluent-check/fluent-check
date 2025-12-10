@@ -1,9 +1,20 @@
 import {type Arbitrary, type FluentPick} from './arbitraries/index.js'
-import {type FluentStrategy} from './strategies/FluentStrategy.js'
 import {FluentStrategyFactory} from './strategies/FluentStrategyFactory.js'
+import {createExecutableScenario} from './ExecutableScenario.js'
+import {
+  type Scenario,
+  type ScenarioNode,
+  type ForallNode,
+  type ExistsNode,
+  type GivenNode,
+  type WhenNode,
+  type ThenNode,
+  createScenario
+} from './Scenario.js'
+import type {ExplorationBudget} from './strategies/Explorer.js'
+import type {BoundTestCase} from './strategies/types.js'
 
-type WrapFluentPick<T> = { [P in keyof T]: FluentPick<T[P]> }
-type PickResult<V> = Record<string, FluentPick<V>>
+type PickResult<V> = BoundTestCase<Record<string, V>>
 type ValueResult<V> = Record<string, V>
 
 // Utility types
@@ -206,7 +217,6 @@ export class FluentCheck<
   Rec extends ParentRec,
   ParentRec extends {} = {}
 > {
-  public strategy!: FluentStrategy
   private strategyFactory?: FluentStrategyFactory
 
   constructor(
@@ -225,10 +235,9 @@ export class FluentCheck<
    * @param v - A constant value or factory function that computes the value
    *
    * @remarks
-   * Type inference is controlled: when both constant and factory forms could
-   * infer `V`, the factory return type takes precedence. This uses `NoInfer<V>`
-   * on the constant position to prevent literal type inference issues (e.g.,
-   * inferring `5` instead of `number`).
+   * Overloads prefer the factory form when a function is provided so inference
+   * flows from the factory return type. Constant values still infer `V` from
+   * the provided value instead of falling back to `unknown`.
    *
    * @example
    * ```typescript
@@ -240,7 +249,15 @@ export class FluentCheck<
    * ```
    */
   given<const K extends string, V>(
-    name: FreshName<Rec, K>, v: NoInfer<V> | ((args: Rec) => V)
+    name: FreshName<Rec, K>,
+    factory: (args: Rec) => V
+  ): FluentCheckGiven<FreshName<Rec, K>, V, Prettify<Rec & Record<FreshName<Rec, K>, V>>, Rec>
+  given<const K extends string, V>(
+    name: FreshName<Rec, K>,
+    value: V
+  ): FluentCheckGiven<FreshName<Rec, K>, V, Prettify<Rec & Record<FreshName<Rec, K>, V>>, Rec>
+  given<const K extends string, V>(
+    name: FreshName<Rec, K>, v: V | ((args: Rec) => V)
   ): FluentCheckGiven<FreshName<Rec, K>, V, Prettify<Rec & Record<FreshName<Rec, K>, V>>, Rec> {
     return v instanceof Function
       ? new FluentCheckGivenMutable(this, name, v)
@@ -280,11 +297,57 @@ export class FluentCheck<
     return this.parent !== undefined ? [...this.parent.pathFromRoot(), this] : [this]
   }
 
-  check(
-    child: (testCase: WrapFluentPick<any>) => FluentResult<Record<string, unknown>> = () => new FluentResult(true)
-  ): FluentResult<Rec> {
+  /**
+   * Extracts the scenario node representation of this FluentCheck node.
+   * Override in subclasses to provide specific node types.
+   * Returns undefined for nodes that don't contribute to the scenario (e.g., root, generator).
+   */
+  protected toScenarioNode(): ScenarioNode<Rec> | undefined {
+    return undefined
+  }
+
+  /**
+   * Builds an immutable Scenario AST from this FluentCheck chain.
+   *
+   * The scenario captures the complete structure of the property test,
+   * including all quantifiers, given clauses, when clauses, and assertions.
+   * Node order matches the chain order from root to leaf.
+   *
+   * @returns A Scenario<Rec> representing this FluentCheck chain
+   *
+   * @example
+   * ```typescript
+   * const scenario = fc.scenario()
+   *   .forall('x', fc.integer())
+   *   .forall('y', fc.integer())
+   *   .then(({ x, y }) => x + y === y + x)
+   *   .buildScenario();
+   *
+   * console.log(scenario.quantifiers.length); // 2
+   * console.log(scenario.hasExistential);     // false
+   * ```
+   */
+  buildScenario(): Scenario<Rec> {
+    const path = this.pathFromRoot()
+    const nodes: ScenarioNode<Rec>[] = []
+
+    for (const node of path) {
+      const scenarioNode = node.toScenarioNode()
+      if (scenarioNode !== undefined) {
+        nodes.push(scenarioNode as ScenarioNode<Rec>)
+      }
+    }
+
+    return createScenario(nodes)
+  }
+
+  check(): FluentResult<Rec> {
     const path = this.pathFromRoot()
     const root = path[0] as FluentCheck<any, any>
+
+    // Build scenario AST and compile to executable form
+    const scenario = this.buildScenario()
+    const executableScenario = createExecutableScenario(scenario)
 
     const {strategyFactory, rngBuilder, seed} = root.#resolveExecutionConfig(path)
 
@@ -297,43 +360,156 @@ export class FluentCheck<
       factory.withRandomGenerator(rngBuilder, seed)
     }
 
-    const strategy = factory.build()
+    // Build components from factory
+    const explorer = factory.buildExplorer()
+    const shrinker = factory.buildShrinker()
+    const shrinkBudget = factory.buildShrinkBudget()
+    const {sampler, randomGenerator} = factory.buildStandaloneSampler()
 
-    // Attach strategy and register quantifiers
-    for (const node of path) {
-      node.strategy = strategy
-      if (node instanceof FluentCheckQuantifier) {
-        node.registerArbitrary()
+    const explorationBudget: ExplorationBudget = {
+      maxTests: factory.configuration.sampleSize ?? 1000
+    }
+
+    // Build property function from scenario's then nodes
+    const property = this.#buildPropertyFunction(scenario)
+
+    // Explore the search space
+    const explorationResult = explorer.explore(
+      executableScenario,
+      property,
+      sampler,
+      explorationBudget
+    )
+
+    // Handle exploration result
+    if (explorationResult.outcome === 'passed') {
+      // Extract witness values if available (for exists scenarios)
+      if (scenario.hasExistential && explorationResult.witness !== undefined) {
+        // Shrink the witness to find the minimal satisfying values
+        const shrinkResult = shrinker.shrinkWitness(
+          explorationResult.witness,
+          executableScenario,
+          explorer,
+          property,
+          sampler,
+          shrinkBudget
+        )
+
+        // Filter to only include existential quantifiers' values
+        const existentialNames = new Set(
+          scenario.quantifiers
+            .filter(q => q.type === 'exists')
+            .map(q => q.name)
+        )
+
+        const example: Record<string, unknown> = {}
+        for (const [key, pick] of Object.entries(shrinkResult.minimized)) {
+          if (existentialNames.has(key)) {
+            example[key] = (pick as FluentPick<unknown>).value
+          }
+        }
+
+        return new FluentResult<Rec>(
+          true,
+          example as Rec,
+          randomGenerator.seed,
+          explorationResult.skipped
+        )
       }
+
+      // For forall-only scenarios that pass, return empty example
+      return new FluentResult<Rec>(
+        true,
+        {} as Rec,
+        randomGenerator.seed,
+        explorationResult.skipped
+      )
     }
 
-    // Build callback chain from leaf to root
-    let callback: (testCase: WrapFluentPick<any>) => FluentResult<Record<string, unknown>> = child
-
-    for (let i = path.length - 1; i > 0; i -= 1) {
-      const node = path[i] as FluentCheck<any, any>
-      const prev = callback
-      callback = (testCase: WrapFluentPick<any>) => node.run(testCase as any, prev)
+    if (explorationResult.outcome === 'exhausted') {
+      // For forall-only scenarios, exhausted budget without counterexample is a (incomplete) pass.
+      // For scenarios with exists, exhausted budget means no witness found.
+      return new FluentResult<Rec>(
+        !scenario.hasExistential,
+        {} as Rec,
+        randomGenerator.seed,
+        explorationResult.skipped
+      )
     }
 
-    const r = root.run({} as any, callback)
+    // Found a counterexample - apply shrinking
+    const counterexample = explorationResult.counterexample
+
+    const shrinkResult = shrinker.shrink(
+      counterexample,
+      executableScenario,
+      explorer,
+      property,
+      sampler,
+      shrinkBudget
+    )
+
+    // Convert shrunk counterexample to FluentResult
     return new FluentResult<Rec>(
-      r.satisfiable,
-      FluentCheck.unwrapFluentPick(r.example) as Rec,
-      strategy.randomGenerator.seed,
-      r.skipped
+      false,
+      FluentCheck.unwrapFluentPick(shrinkResult.minimized) as Rec,
+      randomGenerator.seed,
+      explorationResult.skipped
     )
   }
 
-  // Default node behaviour: just forward to callback
-  protected run(
-    testCase: WrapFluentPick<Rec> | Rec,
-    callback: (arg: WrapFluentPick<Rec> | Rec) => FluentResult
-  ): FluentResult {
-    return callback(testCase)
+  /**
+   * Builds a property function from scenario's then nodes and given/when nodes.
+   */
+  #buildPropertyFunction(scenario: Scenario<Rec>): (testCase: Rec) => boolean {
+    const givenNodes: GivenNode<Rec>[] = []
+    const whenNodes: WhenNode<Rec>[] = []
+    const thenNodes: ThenNode<Rec>[] = []
+
+    for (const node of scenario.nodes) {
+      switch (node.type) {
+        case 'given':
+          givenNodes.push(node)
+          break
+        case 'when':
+          whenNodes.push(node)
+          break
+        case 'then':
+          thenNodes.push(node)
+          break
+      }
+    }
+
+    return (testCase: Rec): boolean => {
+      // Apply given predicates to compute derived values
+      const fullTestCase: Record<string, unknown> = {...testCase}
+
+      for (const given of givenNodes) {
+        if (given.isFactory) {
+          const factory = given.predicate as (args: Rec) => unknown
+          fullTestCase[given.name] = factory(fullTestCase as Rec)
+        } else {
+          fullTestCase[given.name] = given.predicate
+        }
+      }
+
+      // Execute when predicates (side effects)
+      for (const when of whenNodes) {
+        when.predicate(fullTestCase as Rec)
+      }
+
+      // Evaluate all then predicates
+      for (const then of thenNodes) {
+        if (!then.predicate(fullTestCase as Rec)) {
+          return false
+        }
+      }
+
+      return true
+    }
   }
 
-  static unwrapFluentPick<T>(testCase: PickResult<T>): ValueResult<T> {
+  static unwrapFluentPick<T>(testCase: BoundTestCase<Record<string, T>>): ValueResult<T> {
     // TypeScript 5.5 automatically infers NonNullable from filter predicate
     const entries = Object.entries(testCase)
       .filter(([, pick]) => pick !== undefined)
@@ -368,6 +544,13 @@ class FluentCheckWhen<Rec extends ParentRec, ParentRec extends {}>
   }
 
   and(f: (givens: Rec) => void) { return this.when(f) }
+
+  protected override toScenarioNode(): WhenNode<Rec> {
+    return {
+      type: 'when',
+      predicate: this.f
+    }
+  }
 }
 
 abstract class FluentCheckGiven<
@@ -389,10 +572,17 @@ abstract class FluentCheckGiven<
    *
    * @remarks
    * Type inference follows the same rules as `given()`: factory return type
-   * is the primary inference source for `V`. Uses `NoInfer<V>` on the constant
-   * position.
+   * is preferred when a function is provided, and constants infer `V` directly.
    */
-  and<const K extends string, V>(name: FreshName<Rec, K>, f: ((args: Rec) => V) | NoInfer<V>) {
+  and<const K extends string, V>(
+    name: FreshName<Rec, K>,
+    factory: (args: Rec) => V
+  ): FluentCheckGiven<FreshName<Rec, K>, V, Prettify<Rec & Record<FreshName<Rec, K>, V>>, Rec>
+  and<const K extends string, V>(
+    name: FreshName<Rec, K>,
+    value: V
+  ): FluentCheckGiven<FreshName<Rec, K>, V, Prettify<Rec & Record<FreshName<Rec, K>, V>>, Rec>
+  and<const K extends string, V>(name: FreshName<Rec, K>, f: V | ((args: Rec) => V)) {
     return super.given(name, f)
   }
 }
@@ -411,6 +601,15 @@ class FluentCheckGivenMutable<
 
     super(parent, name)
   }
+
+  protected override toScenarioNode(): GivenNode<ParentRec> {
+    return {
+      type: 'given',
+      name: this.name,
+      predicate: this.factory,
+      isFactory: true
+    }
+  }
 }
 
 class FluentCheckGivenConstant<
@@ -428,9 +627,13 @@ class FluentCheckGivenConstant<
     super(parent, name)
   }
 
-  protected override run(testCase: Rec, callback: (arg: Rec) => FluentResult) {
-    (testCase as Record<string, V>)[this.name] = this.value
-    return callback(testCase)
+  protected override toScenarioNode(): GivenNode<ParentRec> {
+    return {
+      type: 'given',
+      name: this.name,
+      predicate: this.value,
+      isFactory: false
+    }
   }
 }
 
@@ -449,37 +652,7 @@ abstract class FluentCheckQuantifier<
     super(parent)
   }
 
-  protected override run(
-    testCase: WrapFluentPick<Rec>,
-    callback: (arg: WrapFluentPick<Rec>) => FluentResult,
-    partial: FluentResult | undefined = undefined,
-    depth = 0,
-    accumulatedSkips = 0): FluentResult {
-
-    this.strategy.configArbitrary(this.name, partial, depth)
-
-    let totalSkipped = accumulatedSkips
-
-    while (this.strategy.hasInput(this.name)) {
-      testCase[this.name] = this.strategy.getInput(this.name) as FluentPick<Rec[K]>
-      const result = callback(testCase)
-      totalSkipped += result.skipped
-      if (result.satisfiable === this.breakValue) {
-        result.addExample(this.name, testCase[this.name])
-        return this.run(testCase, callback, result, depth + 1, totalSkipped)
-      }
-    }
-
-    const finalResult = partial ?? new FluentResult(!this.breakValue)
-    finalResult.skipped = totalSkipped
-    return finalResult
-  }
-
   abstract breakValue: boolean
-
-  registerArbitrary() {
-    this.strategy.addArbitrary(this.name, this.a as Arbitrary<Rec[K]>)
-  }
 }
 
 class FluentCheckUniversal<
@@ -489,6 +662,14 @@ class FluentCheckUniversal<
   ParentRec extends {}
 > extends FluentCheckQuantifier<K, A, Rec, ParentRec> {
   breakValue = false
+
+  protected override toScenarioNode(): ForallNode<A> {
+    return {
+      type: 'forall',
+      name: this.name,
+      arbitrary: this.a
+    }
+  }
 }
 
 class FluentCheckExistential<
@@ -498,56 +679,33 @@ class FluentCheckExistential<
   ParentRec extends {}
 > extends FluentCheckQuantifier<K, A, Rec, ParentRec> {
   breakValue = true
+
+  protected override toScenarioNode(): ExistsNode<A> {
+    return {
+      type: 'exists',
+      name: this.name,
+      arbitrary: this.a
+    }
+  }
 }
 
 class FluentCheckAssert<Rec extends ParentRec, ParentRec extends {}>
   extends FluentCheck<Rec, ParentRec> {
-  preliminaries: FluentCheck<unknown, any>[]
-
   constructor(
     protected override readonly parent: FluentCheck<ParentRec, any>,
     public readonly assertion: (args: Rec) => boolean) {
 
     super(parent)
-    this.preliminaries = this.pathFromRoot().filter(node =>
-      node instanceof FluentCheckGivenMutable ||
-      node instanceof FluentCheckWhen)
   }
 
   and(assertion: (args: Rec) => boolean) {
     return this.then(assertion)
   }
 
-  #runPreliminaries<T>(testCase: ValueResult<T>): Rec {
-    const data: Record<string, unknown> = {}
-
-    this.preliminaries.forEach(node => {
-      if (node instanceof FluentCheckGivenMutable) data[node.name] = node.factory({...testCase, ...data})
-      else if (node instanceof FluentCheckWhen) node.f({...testCase, ...data})
-    })
-
-    return data as Rec
-  }
-
-  protected override run(testCase: WrapFluentPick<Rec>,
-    callback: (arg: WrapFluentPick<Rec>) => FluentResult): FluentResult {
-    const unwrappedTestCase = FluentCheck.unwrapFluentPick(testCase)
-    try {
-      const passed = this.assertion({...unwrappedTestCase, ...this.#runPreliminaries(unwrappedTestCase)} as Rec)
-      if (passed) {
-        return callback(testCase)
-      } else {
-        return new FluentResult(false)
-      }
-    } catch (e) {
-      if (e instanceof PreconditionFailure) {
-        // Precondition failed - skip this test case
-        // Return satisfiable=true so quantifier continues with other cases
-        const result = callback(testCase)
-        result.addSkipped()
-        return result
-      }
-      throw e // Re-throw other errors
+  protected override toScenarioNode(): ThenNode<Rec> {
+    return {
+      type: 'then',
+      predicate: this.assertion
     }
   }
 }

@@ -14,7 +14,9 @@ export class MappedArbitrary<A, B> extends Arbitrary<B> {
 
   mapFluentPick(p: FluentPick<A>): FluentPick<B> {
     const original = 'original' in p && p.original !== undefined ? p.original : p.value
-    return {value: this.f(p.value), original}
+    const value = this.f(p.value)
+    // Preserve the pre-mapped value so shrinking can reconstruct the base pick
+    return {value, original, preMapValue: p.value}
   }
 
   override pick(generator: () => number): FluentPick<B> | undefined {
@@ -34,7 +36,27 @@ export class MappedArbitrary<A, B> extends Arbitrary<B> {
   }
 
   override shrink(initial: FluentPick<B>): Arbitrary<B> {
-    return this.baseArbitrary.shrink({value: initial.original, original: initial.original}).map(v => this.f(v))
+    const withBase = initial as {preMapValue?: A; original?: unknown}
+    const baseValue = (withBase.preMapValue ?? withBase.original ?? initial.value) as A
+    const basePick: FluentPick<A> = {
+      value: baseValue,
+      original: (withBase.original as A | undefined) ?? baseValue
+    }
+
+    return this.baseArbitrary.shrink(basePick).map(v => this.f(v))
+  }
+
+  override isShrunken(candidate: FluentPick<B>, current: FluentPick<B>): boolean {
+    const toBasePick = (pick: FluentPick<B>): FluentPick<A> => {
+      const withBase = pick as {preMapValue?: A; original?: unknown}
+      const baseValue = (withBase.preMapValue ?? withBase.original ?? pick.value) as A
+      return {
+        value: baseValue,
+        original: (withBase.original as A | undefined) ?? baseValue
+      }
+    }
+
+    return this.baseArbitrary.isShrunken(toBasePick(candidate), toBasePick(current))
   }
 
   override canGenerate(pick: FluentPick<B>) {

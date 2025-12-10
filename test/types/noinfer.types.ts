@@ -13,7 +13,7 @@
 
 import {FluentCheck} from '../../src/FluentCheck.js'
 import {integer, type Arbitrary} from '../../src/arbitraries/index.js'
-import {type Expect, type Equal} from './test-utils.types.js'
+import {type Expect, type Equal, type Extends, type IsUnknown} from './test-utils.types.js'
 
 // ============================================================================
 // Helper type to extract Rec from FluentCheck
@@ -43,6 +43,17 @@ type ExplicitRec = ExtractRec<typeof explicitType>
 type _T2 = Expect<Equal<ExplicitRec['x'], number>>
 
 // ============================================================================
+// Test: given() with constant infers value type
+// ============================================================================
+
+const constantValue = new FluentCheck().given('multiplier', 2)
+type ConstantRec = ExtractRec<typeof constantValue>
+
+// Should not fall back to unknown when only a constant is provided
+type _T2a = Expect<Extends<ConstantRec['multiplier'], number>>
+type _T2b = Expect<Equal<IsUnknown<ConstantRec['multiplier']>, false>>
+
+// ============================================================================
 // Test: and() chains preserve types correctly
 // ============================================================================
 
@@ -55,6 +66,15 @@ type ChainedRec = ExtractRec<typeof chainedGiven>
 // Both 'a' and 'b' should have correct types
 type _T3 = Expect<Equal<ChainedRec['a'], number>>
 type _T4 = Expect<Equal<ChainedRec['b'], string>>
+
+// Constants in and() should also preserve inference
+const chainedConstant = new FluentCheck()
+  .given('a', () => 1)
+  .and('b', 2)
+
+type ChainedConstRec = ExtractRec<typeof chainedConstant>
+type _T4a = Expect<Extends<ChainedConstRec['b'], number>>
+type _T4b = Expect<Equal<IsUnknown<ChainedConstRec['b']>, false>>
 
 // ============================================================================
 // Test: map() - B inferred from transformation function f
@@ -99,3 +119,17 @@ type ComposedRec = ExtractRec<typeof composed>
 
 type _T10 = Expect<Equal<ComposedRec['n'], number>>
 type _T11 = Expect<Equal<ComposedRec['doubled'], number>>
+
+// ============================================================================
+// Test: constant given combined with quantifier and then()
+// ============================================================================
+
+const constantScenario = new FluentCheck()
+  .given('multiplier', 2)
+  .forall('x', integer(1, 10))
+  .then(({multiplier, x}) => multiplier * x >= 2)
+
+type ConstantScenarioRec = ExtractRec<typeof constantScenario>
+
+type _T12 = Expect<Extends<ConstantScenarioRec['multiplier'], number>>
+type _T13 = Expect<Equal<ConstantScenarioRec['x'], number>>

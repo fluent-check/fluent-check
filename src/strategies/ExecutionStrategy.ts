@@ -47,7 +47,10 @@ export class SequentialExecutionStrategy implements ExecutionStrategy {
 
   getInput<T>(state: FluentStrategyArbitrary<T>): FluentPick<T> {
     const collection = state.collection ?? []
-    const next = collection[state.pickNum]!
+    const next = collection[state.pickNum]
+    if (next === undefined) {
+      throw new Error('No input available for SequentialExecutionStrategy')
+    }
     state.pickNum += 1
     return next
   }

@@ -4,6 +4,8 @@ import type {StrategyBindings} from './FluentStrategyTypes.js'
 import {RandomSampler, BiasedSampler, CachedSampler, DedupingSampler, type Sampler} from './Sampler.js'
 import {SequentialExecutionStrategy, type ExecutionStrategy} from './ExecutionStrategy.js'
 import {StandardShrinkStrategy, NoShrinkStrategy, type ShrinkStrategy} from './ShrinkStrategy.js'
+import {NestedLoopExplorer, type Explorer} from './Explorer.js'
+import {PerArbitraryShrinker, NoOpShrinker, type Shrinker, type ShrinkBudget} from './Shrinker.js'
 
 export class FluentStrategyFactory<Rec extends StrategyBindings = StrategyBindings> {
 
@@ -31,6 +33,20 @@ export class FluentStrategyFactory<Rec extends StrategyBindings = StrategyBindin
    */
   private rngBuilder: (seed: number) => () => number = (_: number) => Math.random
   private rngSeed: number = Math.floor(Math.random() * 0x100000000)
+
+  /**
+   * Explorer factory function for creating explorers.
+   * Defaults to NestedLoopExplorer.
+   */
+  private explorerFactory: <R extends StrategyBindings>() => Explorer<R> =
+    <R extends StrategyBindings>() => new NestedLoopExplorer<R>()
+
+  /**
+   * Shrinker factory function for creating shrinkers.
+   * Defaults to NoOpShrinker (shrinking disabled until explicitly enabled).
+   */
+  private shrinkerFactory: <R extends StrategyBindings>() => Shrinker<R> =
+    <R extends StrategyBindings>() => new NoOpShrinker<R>()
 
   /**
    * Changes the sample size to be used while sampling test cases.
@@ -92,6 +108,57 @@ export class FluentStrategyFactory<Rec extends StrategyBindings = StrategyBindin
   withShrinking(shrinkSize = 500) {
     this.configuration = {...this.configuration, shrinkSize}
     this.enableShrinking = true
+    this.shrinkerFactory = <R extends StrategyBindings>() => new PerArbitraryShrinker<R>()
+    return this
+  }
+
+  /**
+   * Disables shrinking (useful for faster test execution).
+   */
+  withoutShrinking() {
+    this.enableShrinking = false
+    this.shrinkerFactory = <R extends StrategyBindings>() => new NoOpShrinker<R>()
+    return this
+  }
+
+  /**
+   * Configures per-arbitrary shrinking (current default when shrinking is enabled).
+   * Each quantifier's value is shrunk independently.
+   */
+  withPerArbitraryShrinking(shrinkSize = 500) {
+    return this.withShrinking(shrinkSize)
+  }
+
+  /**
+   * Configures a custom shrinker factory.
+   *
+   * @param factory - Function that creates a Shrinker instance
+   */
+  withShrinker(factory: <R extends StrategyBindings>() => Shrinker<R>) {
+    this.shrinkerFactory = factory
+    this.enableShrinking = true
+    return this
+  }
+
+  /**
+   * Configures the factory to use nested loop exploration (default).
+   *
+   * This is the traditional property testing approach that iterates through
+   * all combinations using nested loops. It's the default explorer, so calling
+   * this method is optional unless you want to reset after using a different explorer.
+   */
+  withNestedExploration() {
+    this.explorerFactory = <R extends StrategyBindings>() => new NestedLoopExplorer<R>()
+    return this
+  }
+
+  /**
+   * Configures a custom explorer factory.
+   *
+   * @param factory - Function that creates an Explorer instance
+   */
+  withExplorer(factory: <R extends StrategyBindings>() => Explorer<R>) {
+    this.explorerFactory = factory
     return this
   }
 
@@ -105,7 +172,8 @@ export class FluentStrategyFactory<Rec extends StrategyBindings = StrategyBindin
       biased: true,
       cached: true
     }
-    this.enableShrinking = true
+    // Default to full shrinking behavior (matches pre-refactor defaults)
+    this.withPerArbitraryShrinking(this.configuration.shrinkSize)
     return this
   }
 
@@ -152,6 +220,44 @@ export class FluentStrategyFactory<Rec extends StrategyBindings = StrategyBindin
     return this.enableShrinking
       ? new StandardShrinkStrategy()
       : new NoShrinkStrategy()
+  }
+
+  /**
+   * Builds an explorer based on configuration.
+   */
+  buildExplorer(): Explorer<Rec> {
+    return this.explorerFactory<Rec>()
+  }
+
+  /**
+   * Builds a shrinker based on configuration.
+   */
+  buildShrinker(): Shrinker<Rec> {
+    return this.shrinkerFactory<Rec>()
+  }
+
+  /**
+   * Builds the shrink budget based on configuration.
+   */
+  buildShrinkBudget(): ShrinkBudget {
+    const shrinkSize = this.configuration.shrinkSize ?? 500
+    return {
+      maxAttempts: shrinkSize,
+      // Allow up to one successful shrink per attempt; avoids stopping early on large candidates
+      maxRounds: shrinkSize
+    }
+  }
+
+  /**
+   * Builds a sampler with a new random generator.
+   * Useful for standalone explorer usage.
+   */
+  buildStandaloneSampler(): { sampler: Sampler; randomGenerator: FluentRandomGenerator } {
+    const randomGenerator = this.buildRandomGenerator()
+    return {
+      sampler: this.buildSampler(randomGenerator),
+      randomGenerator
+    }
   }
 
   /**
