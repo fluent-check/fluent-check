@@ -1,6 +1,17 @@
 import type {Arbitrary, FluentPick} from '../arbitraries/index.js'
 import {FluentRandomGenerator} from '../arbitraries/index.js'
 
+const uniqueWithBias = <A>(arbitrary: Arbitrary<A>, count: number, generator: () => number) =>
+  arbitrary.sampleUniqueWithBias(count, generator)
+
+const resolveGenerator = (config: SamplerConfig = {}): (() => number) => {
+  if (config.generator !== undefined) return config.generator
+  if (config.rngBuilder !== undefined && config.seed !== undefined) {
+    return new FluentRandomGenerator(config.rngBuilder, config.seed).generator
+  }
+  return Math.random
+}
+
 /**
  * Configuration for a Sampler instance.
  */
@@ -75,20 +86,8 @@ export interface Sampler {
 export class RandomSampler implements Sampler {
   private readonly generator: () => number
 
-  /**
-   * Creates a new RandomSampler.
-   *
-   * @param config - Optional configuration for RNG
-   */
   constructor(config: SamplerConfig = {}) {
-    if (config.generator !== undefined) {
-      this.generator = config.generator
-    } else if (config.rngBuilder !== undefined && config.seed !== undefined) {
-      const rng = new FluentRandomGenerator(config.rngBuilder, config.seed)
-      this.generator = rng.generator
-    } else {
-      this.generator = Math.random
-    }
+    this.generator = resolveGenerator(config)
   }
 
   sample<A>(arbitrary: Arbitrary<A>, count: number): FluentPick<A>[] {
@@ -131,8 +130,7 @@ export class BiasedSampler implements Sampler {
   }
 
   sampleUnique<A>(arbitrary: Arbitrary<A>, count: number): FluentPick<A>[] {
-    const generator = this.baseSampler.getGenerator()
-    return arbitrary.sampleUniqueWithBias(count, generator)
+    return uniqueWithBias(arbitrary, count, this.baseSampler.getGenerator())
   }
 
   getGenerator(): () => number {
@@ -167,27 +165,27 @@ export class CachedSampler implements Sampler {
   private sampleAndCache<A>(
     arbitrary: Arbitrary<A>,
     count: number,
-    sampleFn: (arbitrary: Arbitrary<A>, count: number) => FluentPick<A>[]
+    sampleFn: () => FluentPick<A>[]
   ): FluentPick<A>[] {
     const cached = this.cache.get(arbitrary as Arbitrary<unknown>)
     if (cached !== undefined) {
       return cached.slice(0, count) as FluentPick<A>[]
     }
-    const samples = sampleFn(arbitrary, count)
+    const samples = sampleFn()
     this.cache.set(arbitrary as Arbitrary<unknown>, samples as FluentPick<unknown>[])
     return samples
   }
 
   sample<A>(arbitrary: Arbitrary<A>, count: number): FluentPick<A>[] {
-    return this.sampleAndCache(arbitrary, count, (a, c) => this.baseSampler.sample(a, c))
+    return this.sampleAndCache(arbitrary, count, () => this.baseSampler.sample(arbitrary, count))
   }
 
   sampleWithBias<A>(arbitrary: Arbitrary<A>, count: number): FluentPick<A>[] {
-    return this.sampleAndCache(arbitrary, count, (a, c) => this.baseSampler.sampleWithBias(a, c))
+    return this.sampleAndCache(arbitrary, count, () => this.baseSampler.sampleWithBias(arbitrary, count))
   }
 
   sampleUnique<A>(arbitrary: Arbitrary<A>, count: number): FluentPick<A>[] {
-    return this.sampleAndCache(arbitrary, count, (a, c) => this.baseSampler.sampleUnique(a, c))
+    return this.sampleAndCache(arbitrary, count, () => this.baseSampler.sampleUnique(arbitrary, count))
   }
 
   getGenerator(): () => number {
@@ -214,8 +212,7 @@ export class DedupingSampler implements Sampler {
   }
 
   sampleWithBias<A>(arbitrary: Arbitrary<A>, count: number): FluentPick<A>[] {
-    const generator = this.baseSampler.getGenerator()
-    return arbitrary.sampleUniqueWithBias(count, generator)
+    return uniqueWithBias(arbitrary, count, this.baseSampler.getGenerator())
   }
 
   sampleUnique<A>(arbitrary: Arbitrary<A>, count: number): FluentPick<A>[] {
