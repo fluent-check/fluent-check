@@ -121,7 +121,7 @@ class FluentPropertyImpl<const Args extends unknown[]> implements FluentProperty
       return this.#predicate(...positionalArgs)
     }
 
-    return (chain as FluentCheck<PropRecord<Args>>).then(wrappedPredicate).check() as FluentResult<PropRecord<Args>>
+    return chain.then(wrappedPredicate).check() as FluentResult<PropRecord<Args>>
   }
 
   assert(message?: string): void {
