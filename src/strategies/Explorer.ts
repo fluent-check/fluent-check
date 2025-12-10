@@ -65,6 +65,23 @@ export interface ExplorationExhausted {
   readonly skipped: number
 }
 
+type PropertyEvaluation = 'passed' | 'failed' | 'skipped'
+
+interface ExplorationState {
+  testsRun: number
+  skipped: number
+  budgetExceeded: boolean
+  startTime: number
+}
+
+type TraversalOutcome<Rec extends {}> =
+  | {kind: 'pass'; witness?: BoundTestCase<Rec>}
+  | {kind: 'fail'; counterexample: BoundTestCase<Rec>}
+  | {kind: 'inconclusive'; budgetExceeded: boolean}
+
+type TestCaseEvaluator<Rec extends {}> =
+  (testCase: BoundTestCase<Rec>, state: ExplorationState) => PropertyEvaluation
+
 /**
  * Interface for exploring the search space of a property test scenario.
  *
@@ -106,321 +123,218 @@ export class NestedLoopExplorer<Rec extends {}> implements Explorer<Rec> {
     budget: ExplorationBudget
   ): ExplorationResult<Rec> {
     const executableScenario = this.#toExecutableScenario(scenario)
-
-    // Extract quantifiers and all nodes from scenario
     const quantifiers = executableScenario.quantifiers
-    const allNodes = executableScenario.nodes
-
-    // Generate samples for each quantifier upfront
     const samples = this.#generateSamples(quantifiers, sampler, budget.maxTests)
+    const evaluator = this.#createEvaluator(executableScenario.nodes, property)
 
-    // Track exploration state
-    let testsRun = 0
-    let skipped = 0
-    const startTime = Date.now()
-    const hasExistential = executableScenario.hasExistential
-    let budgetExceeded = false
+    const state: ExplorationState = {
+      testsRun: 0,
+      skipped: 0,
+      budgetExceeded: false,
+      startTime: Date.now()
+    }
 
-    // Recursive exploration function
-    // Returns:
-    // - 'passed': all inner checks succeeded (forall satisfied, or exists found witness at leaf)
-    // - 'failed' with counterexample: a forall failed
-    // - null: inconclusive, continue searching
-    const exploreQuantifier = (
+    const traverse = (
       quantifierIndex: number,
       testCase: BoundTestCase<Rec>
-    ): ExplorationResult<Rec> | null => {
-      // Check budget limits
-      if (testsRun >= budget.maxTests) {
-        budgetExceeded = true
-        return null // Budget exhausted, let caller handle
-      }
-      if (budget.maxTime !== undefined && Date.now() - startTime > budget.maxTime) {
-        budgetExceeded = true
-        return null // Time budget exceeded
+    ): TraversalOutcome<Rec> => {
+      if (this.#isOutOfBudget(budget, state)) {
+        return {kind: 'inconclusive', budgetExceeded: true}
       }
 
-      // Base case: all quantifiers bound, evaluate property
       if (quantifierIndex >= quantifiers.length) {
-        testsRun++
+        const evaluation = evaluator(testCase, state)
 
-        // Process all nodes in order, interleaving given, when, and then
-        try {
-          const result = this.#processNodesInOrder(testCase, allNodes)
-
-          if (result) {
-            // Property satisfied for this test case - return "passed" to bubble up
-            return {
-              outcome: 'passed',
-              testsRun,
-              skipped,
-              witness: {...testCase}
-            }
-          } else {
-            // Property failed for this test case - return "failed" to bubble up
-            return {
-              outcome: 'failed',
-              counterexample: {...testCase},
-              testsRun,
-              skipped
-            }
-          }
-        } catch (e) {
-          // Handle PreconditionFailure (skip this test case)
-          if (this.#isPreconditionFailure(e)) {
-            skipped++
-            return null // Continue with next test case
-          }
-          throw e // Re-throw other errors
+        if (evaluation === 'passed') {
+          return {kind: 'pass', witness: {...testCase}}
         }
+
+        if (evaluation === 'failed') {
+          return {kind: 'fail', counterexample: {...testCase}}
+        }
+
+        return {kind: 'inconclusive', budgetExceeded: false}
       }
 
-      // Recursive case: iterate through current quantifier's samples
       const quantifier = quantifiers[quantifierIndex]
       if (quantifier === undefined) {
-        return null
+        return {kind: 'inconclusive', budgetExceeded: false}
       }
-      const quantifierSamples = samples.get(quantifier.name) ?? []
-      const isExists = quantifier.type === 'exists'
 
-      if (isExists) {
-        // EXISTENTIAL: need to find ONE value where all inner checks pass
-        for (const sample of quantifierSamples) {
-          const newTestCase = {
-            ...testCase,
-            [quantifier.name]: sample
-          } as BoundTestCase<Rec>
+      if (quantifier.type === 'exists') {
+        return this.#handleExists(
+          quantifierIndex,
+          testCase,
+          quantifiers,
+          samples,
+          evaluator,
+          state,
+          traverse
+        )
+      }
 
-          // Check ALL inner quantifiers for this existential value
-          const checkResult = this.#checkAllForThisExists(
-            quantifierIndex + 1,
-            newTestCase,
-            quantifiers,
-            samples,
-            allNodes,
-            budget,
-            startTime,
-            () => testsRun,
-            (n: number) => { testsRun = n },
-            () => skipped,
-            (n: number) => { skipped = n }
-          )
+      return this.#handleForall(
+        quantifierIndex,
+        testCase,
+        quantifiers,
+        samples,
+        state,
+        traverse
+      )
+    }
 
-          if (checkResult.status === 'all_passed') {
-            // Found a witness! All inner foralls passed
-            // Use the witness from the check which includes all nested existentials
-            return {
-              outcome: 'passed',
-              testsRun,
-              skipped,
-              witness: checkResult.witness ?? newTestCase
-            }
-          }
-          if (checkResult.status === 'inconclusive') {
-            budgetExceeded = true
-            break
-          }
-          // result === 'some_failed' - try next existential value
-        }
+    const outcome = traverse(0, {} as BoundTestCase<Rec>)
 
-        // Exhausted all existential values without finding a witness
-        return null
-      } else {
-        // UNIVERSAL: need ALL values to pass, fail on first counterexample
-        let allPassed = true
-        let lastWitness: BoundTestCase<Rec> | undefined
-
-        for (const sample of quantifierSamples) {
-          const newTestCase = {
-            ...testCase,
-            [quantifier.name]: sample
-          } as BoundTestCase<Rec>
-
-          // Recurse to next quantifier
-          const result = exploreQuantifier(quantifierIndex + 1, newTestCase)
-
-          if (result !== null) {
-            if (result.outcome === 'failed') {
-              // Found a counterexample - fail immediately
-              return result
-            }
-            // result.outcome === 'passed' or 'exhausted' - for passed, update witness
-            if (result.outcome === 'passed' && result.witness !== undefined) {
-              lastWitness = result.witness
-            }
-          } else {
-            // null result from inner exploration means:
-            // - If inner had exists: couldn't find witness for this forall value
-            //   This is a failure for forall.exists patterns
-            // - If inner was forall-only: inconclusive (budget exhausted)
-            // Check if there's an inner exists that couldn't be satisfied
-            const hasInnerExists = quantifiers.slice(quantifierIndex + 1).some(q => q.type === 'exists')
-            if (hasInnerExists) {
-              // For forall.exists, null means no witness found for this a
-              // This is a counterexample
-              return {
-                outcome: 'failed',
-                counterexample: newTestCase,
-                testsRun,
-                skipped
-              }
-            }
-            // For forall-only nested in forall, null is inconclusive
-            allPassed = false
-          }
-
-          if (budgetExceeded) {
-            allPassed = false
-            break
-          }
-        }
-
-        // If all forall samples passed with witnesses, return passed
-        if (allPassed && quantifierSamples.length > 0) {
-          if (lastWitness !== undefined) {
-            return {
-              outcome: 'passed' as const,
-              testsRun,
-              skipped,
-              witness: lastWitness
-            }
-          }
-
-          return {
-            outcome: 'passed' as const,
-            testsRun,
-            skipped
-          }
-        }
-
-        // Otherwise inconclusive
-        return null
+    if (outcome.kind === 'pass') {
+      return {
+        outcome: 'passed',
+        testsRun: state.testsRun,
+        skipped: state.skipped,
+        ...(outcome.witness !== undefined ? {witness: outcome.witness} : {})
       }
     }
 
-    // Start exploration
-    const result = exploreQuantifier(0, {} as BoundTestCase<Rec>)
-
-    if (result !== null) {
-      return result
+    if (outcome.kind === 'fail') {
+      return {
+        outcome: 'failed',
+        counterexample: outcome.counterexample,
+        testsRun: state.testsRun,
+        skipped: state.skipped
+      }
     }
 
-    // No definitive result found (budget/time exhausted or no witness for exists)
-    if (budgetExceeded || hasExistential) {
+    if (state.budgetExceeded || executableScenario.hasExistential || outcome.budgetExceeded) {
       return {
         outcome: 'exhausted',
-        testsRun,
-        skipped
+        testsRun: state.testsRun,
+        skipped: state.skipped
       }
     }
 
-    // For forall-only scenarios where we didn't hit budget/time limits, treat as passed
     return {
       outcome: 'passed',
-      testsRun,
-      skipped
+      testsRun: state.testsRun,
+      skipped: state.skipped
     }
   }
 
-  /**
-   * Result from checking inner quantifiers for an existential value.
-   */
-  #checkAllForThisExists(
+  #handleExists(
     quantifierIndex: number,
     testCase: BoundTestCase<Rec>,
     quantifiers: readonly ExecutableQuantifier[],
     samples: Map<string, FluentPick<unknown>[]>,
-    allNodes: readonly ScenarioNode<Rec>[],
-    budget: ExplorationBudget,
-    startTime: number,
-    getTestsRun: () => number,
-    setTestsRun: (n: number) => void,
-    getSkipped: () => number,
-    setSkipped: (n: number) => void
-  ): { status: 'all_passed' | 'some_failed' | 'inconclusive'; witness?: BoundTestCase<Rec> } {
-    // Base case: all quantifiers bound, evaluate property
-    if (quantifierIndex >= quantifiers.length) {
-      let testsRun = getTestsRun()
-      let skipped = getSkipped()
-      testsRun++
-      setTestsRun(testsRun)
-
-      // Process all nodes in order, interleaving given, when, and then
-      try {
-        const result = this.#processNodesInOrder(testCase, allNodes)
-        return result
-          ? {status: 'all_passed', witness: {...testCase}}
-          : {status: 'some_failed'}
-      } catch (e) {
-        if (this.#isPreconditionFailure(e)) {
-          skipped++
-          setSkipped(skipped)
-          return {status: 'inconclusive'}
-        }
-        throw e
-      }
-    }
-
+    evaluator: TestCaseEvaluator<Rec>,
+    state: ExplorationState,
+    traverse: (
+      quantifierIndex: number,
+      testCase: BoundTestCase<Rec>
+    ) => TraversalOutcome<Rec>
+  ): TraversalOutcome<Rec> {
     const quantifier = quantifiers[quantifierIndex]
     if (quantifier === undefined) {
-      return {status: 'inconclusive'}
+      return {kind: 'inconclusive', budgetExceeded: false}
     }
+
     const quantifierSamples = samples.get(quantifier.name) ?? []
-    const isExists = quantifier.type === 'exists'
+    let sawBudgetLimit = false
 
-    if (isExists) {
-      // Nested exists: need to find ONE value where inner checks pass
-      for (const sample of quantifierSamples) {
-        const newTestCase = {
-          ...testCase,
-          [quantifier.name]: sample
-        } as BoundTestCase<Rec>
+    for (const sample of quantifierSamples) {
+      const newTestCase = {
+        ...testCase,
+        [quantifier.name]: sample
+      } as BoundTestCase<Rec>
 
-        const result = this.#checkAllForThisExists(
-          quantifierIndex + 1, newTestCase, quantifiers, samples,
-          allNodes, budget, startTime,
-          getTestsRun, setTestsRun, getSkipped, setSkipped
-        )
+      const outcome = traverse(quantifierIndex + 1, newTestCase)
 
-        if (result.status === 'all_passed' && result.witness !== undefined) {
-          // Found a nested witness - return with the full witness including this level
-          return {status: 'all_passed', witness: result.witness}
-        }
-
-        // Check budget
-        if (getTestsRun() >= budget.maxTests) return {status: 'inconclusive'}
-        if (budget.maxTime !== undefined && Date.now() - startTime > budget.maxTime) {
-          return {status: 'inconclusive'}
-        }
+      if (outcome.kind === 'pass') {
+        return {kind: 'pass', witness: outcome.witness ?? newTestCase}
       }
-      return {status: 'some_failed'}
-    } else {
-      // Forall: ALL values must pass
-      for (const sample of quantifierSamples) {
-        const newTestCase = {
-          ...testCase,
-          [quantifier.name]: sample
-        } as BoundTestCase<Rec>
 
-        const result = this.#checkAllForThisExists(
-          quantifierIndex + 1, newTestCase, quantifiers, samples,
-          allNodes, budget, startTime,
-          getTestsRun, setTestsRun, getSkipped, setSkipped
-        )
-
-        if (result.status === 'some_failed') {
-          return {status: 'some_failed'}
+      if (outcome.kind === 'inconclusive') {
+        if (outcome.budgetExceeded) {
+          sawBudgetLimit = true
+          break
         }
-
-        // Check budget
-        if (getTestsRun() >= budget.maxTests) return {status: 'inconclusive'}
-        if (budget.maxTime !== undefined && Date.now() - startTime > budget.maxTime) {
-          return {status: 'inconclusive'}
-        }
+        continue
       }
-      // All forall values passed - return the last successful witness if any
-      return {status: 'all_passed', witness: {...testCase}}
+      // fail - try next sample
     }
+
+    if (sawBudgetLimit) {
+      return {kind: 'inconclusive', budgetExceeded: true}
+    }
+
+    return {kind: 'inconclusive', budgetExceeded: false}
+  }
+
+  #handleForall(
+    quantifierIndex: number,
+    testCase: BoundTestCase<Rec>,
+    quantifiers: readonly ExecutableQuantifier[],
+    samples: Map<string, FluentPick<unknown>[]>,
+    state: ExplorationState,
+    traverse: (
+      quantifierIndex: number,
+      testCase: BoundTestCase<Rec>
+    ) => TraversalOutcome<Rec>
+  ): TraversalOutcome<Rec> {
+    const quantifier = quantifiers[quantifierIndex]
+    if (quantifier === undefined) {
+      return {kind: 'inconclusive', budgetExceeded: false}
+    }
+
+    const quantifierSamples = samples.get(quantifier.name) ?? []
+    const hasInnerExists = this.#hasInnerExistential(quantifiers, quantifierIndex + 1)
+
+    let allPassed = true
+    let lastWitness: BoundTestCase<Rec> | undefined
+    let sawBudgetLimit = false
+
+    for (const sample of quantifierSamples) {
+      const newTestCase = {
+        ...testCase,
+        [quantifier.name]: sample
+      } as BoundTestCase<Rec>
+
+      const outcome = traverse(quantifierIndex + 1, newTestCase)
+
+      if (outcome.kind === 'fail') {
+        return {kind: 'fail', counterexample: outcome.counterexample}
+      }
+
+      if (outcome.kind === 'pass') {
+        if (outcome.witness !== undefined) {
+          lastWitness = outcome.witness
+        }
+        continue
+      }
+
+      if (outcome.kind === 'inconclusive') {
+        if (outcome.budgetExceeded) {
+          sawBudgetLimit = true
+          allPassed = false
+          break
+        }
+
+        if (hasInnerExists) {
+          return {kind: 'fail', counterexample: newTestCase}
+        }
+        allPassed = false
+      }
+    }
+
+    if (allPassed && quantifierSamples.length > 0) {
+      return {
+        kind: 'pass',
+        ...(lastWitness !== undefined ? {witness: lastWitness} : {})
+      }
+    }
+
+    if (sawBudgetLimit) {
+      return {kind: 'inconclusive', budgetExceeded: true}
+    }
+
+    return {kind: 'inconclusive', budgetExceeded: false}
   }
 
   /**
@@ -440,10 +354,8 @@ export class NestedLoopExplorer<Rec extends {}> implements Explorer<Rec> {
       return samples
     }
 
-    const perQuantifier = Math.max(
-      1,
-      Math.floor(Math.pow(maxTests, 1 / Math.max(quantifiers.length, 1)))
-    )
+    const quantifierCount = Math.max(quantifiers.length, 1)
+    const perQuantifier = Math.max(1, Math.floor(maxTests ** (1 / quantifierCount)))
 
     for (const q of quantifiers) {
       samples.set(q.name, q.sample(sampler, perQuantifier))
@@ -453,72 +365,115 @@ export class NestedLoopExplorer<Rec extends {}> implements Explorer<Rec> {
   }
 
   #toExecutableScenario(scenario: ExecutableScenario<Rec> | Scenario<Rec>): ExecutableScenario<Rec> {
+    return this.#isExecutableScenario(scenario)
+      ? scenario
+      : createExecutableScenario(scenario)
+  }
+
+  #isExecutableScenario(
+    scenario: ExecutableScenario<Rec> | Scenario<Rec>
+  ): scenario is ExecutableScenario<Rec> {
     const q = scenario.quantifiers[0] as ExecutableQuantifier | undefined
-    if (q !== undefined && typeof q.sample === 'function' && typeof q.shrink === 'function') {
-      return scenario as ExecutableScenario<Rec>
-    }
-    return createExecutableScenario(scenario as Scenario<Rec>)
+    return typeof q?.sample === 'function' && typeof q?.shrink === 'function'
   }
 
   /**
-   * Process all non-quantifier nodes in order, interleaving given, when, and then nodes.
-   * This preserves the original ordering from the FluentCheck chain.
-   *
-   * @returns true if all assertions pass, false if any assertion fails
+   * Evaluate the property for a fully bound test case while tracking skips.
    */
-  #processNodesInOrder(
-    testCase: BoundTestCase<Rec>,
-    allNodes: readonly ScenarioNode<Rec>[]
-  ): boolean {
-    // Convert FluentPick test case to plain values
-    const values: Record<string, unknown> = {}
-    for (const [key, pick] of Object.entries(testCase)) {
-      values[key] = (pick as FluentPick<unknown>).value
+  #createEvaluator(
+    nodes: readonly ScenarioNode<Rec>[],
+    property: (testCase: Rec) => boolean
+  ): TestCaseEvaluator<Rec> {
+    const hasThenNodes = nodes.some(node => node.type === 'then')
+
+    if (!hasThenNodes) {
+      return (testCase: BoundTestCase<Rec>, state: ExplorationState) => {
+        state.testsRun += 1
+        try {
+          return property(this.#unwrapTestCase(testCase)) ? 'passed' : 'failed'
+        } catch (e) {
+          if (this.#isPreconditionFailure(e)) {
+            state.skipped += 1
+            return 'skipped'
+          }
+          throw e
+        }
+      }
     }
 
-    // Track if we have any then nodes in the scenario
-    let hasThenNodes = false
+    return (testCase: BoundTestCase<Rec>, state: ExplorationState) => {
+      state.testsRun += 1
+      try {
+        return this.#evaluateScenarioNodes(testCase, nodes) ? 'passed' : 'failed'
+      } catch (e) {
+        if (this.#isPreconditionFailure(e)) {
+          state.skipped += 1
+          return 'skipped'
+        }
+        throw e
+      }
+    }
+  }
 
-    // Process nodes in order
-    for (const node of allNodes) {
+  #evaluateScenarioNodes(
+    testCase: BoundTestCase<Rec>,
+    nodes: readonly ScenarioNode<Rec>[]
+  ): boolean {
+    const values: Record<string, unknown> = {...this.#unwrapTestCase(testCase)}
+
+    for (const node of nodes) {
       switch (node.type) {
-        case 'given': {
-          const given = node
-          if (given.isFactory) {
-            const factory = given.predicate as (args: Rec) => unknown
-            values[given.name] = factory(values as Rec)
-          } else {
-            values[given.name] = given.predicate
-          }
-          break
-        }
-        case 'when': {
-          const when = node
-          when.predicate(values as Rec)
-          break
-        }
-        case 'then': {
-          hasThenNodes = true
-          const then = node
-          if (!then.predicate(values as Rec)) {
-            return false
-          }
-          break
-        }
-        // Skip quantifier nodes - they're handled separately
         case 'forall':
         case 'exists':
+          break
+        case 'given':
+          if (node.isFactory) {
+            const factory = node.predicate as (args: Rec) => unknown
+            values[node.name] = factory(values as Rec)
+          } else {
+            values[node.name] = node.predicate
+          }
+          break
+        case 'when':
+          node.predicate(values as Rec)
+          break
+        case 'then':
+          if (!node.predicate(values as Rec)) {
+            return false
+          }
           break
       }
     }
 
-    // Only evaluate the passed-in property function if there were no then nodes
-    // (the property function duplicates the then node evaluation)
-    if (!hasThenNodes) {
+    return true
+  }
+
+  #unwrapTestCase(testCase: BoundTestCase<Rec>): Rec {
+    const values = Object.entries(testCase).map(
+      ([key, pick]) => [key, (pick as FluentPick<unknown>).value] as const
+    )
+    return Object.fromEntries(values) as Rec
+  }
+
+  #isOutOfBudget(budget: ExplorationBudget, state: ExplorationState): boolean {
+    if (state.testsRun >= budget.maxTests) {
+      state.budgetExceeded = true
       return true
     }
 
-    return true
+    if (budget.maxTime !== undefined && Date.now() - state.startTime > budget.maxTime) {
+      state.budgetExceeded = true
+      return true
+    }
+
+    return false
+  }
+
+  #hasInnerExistential(
+    quantifiers: readonly ExecutableQuantifier[],
+    startIndex: number
+  ): boolean {
+    return quantifiers.slice(startIndex).some(q => q.type === 'exists')
   }
 
   /**
