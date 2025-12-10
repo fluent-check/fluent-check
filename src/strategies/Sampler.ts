@@ -170,7 +170,7 @@ export class CachedSampler implements Sampler {
     sampleFn: (arbitrary: Arbitrary<A>, count: number) => FluentPick<A>[]
   ): FluentPick<A>[] {
     const cached = this.cache.get(arbitrary as Arbitrary<unknown>)
-    if (cached !== undefined) {
+    if (cached !== undefined && cached.length >= count) {
       return cached.slice(0, count) as FluentPick<A>[]
     }
     const samples = sampleFn(arbitrary, count)
