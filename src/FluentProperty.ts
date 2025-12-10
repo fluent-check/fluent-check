@@ -10,6 +10,10 @@ type PropRecord<Args extends readonly unknown[]> = {
 
 export type PropExample<Args extends readonly unknown[]> = PropRecord<Args>
 
+type ArbitraryArgs<Arbs extends readonly Arbitrary<any>[]> = {
+  [K in keyof Arbs]: Arbs[K] extends Arbitrary<infer A> ? A : never
+}
+
 /**
  * A fluent property test builder that provides a simplified API for property-based testing.
  *
@@ -148,104 +152,23 @@ class FluentPropertyImpl<const Args extends unknown[]> implements FluentProperty
   }
 }
 
-// Overloads for 1-5 arbitraries
-
 /**
- * Create a property test with a single arbitrary.
+ * Create a property test with one or more arbitraries.
  *
- * @param arb - The arbitrary to generate test values
+ * @param arbs - The arbitraries to generate test values
  * @param predicate - A function that returns true if the property holds
  * @returns A `FluentProperty` that can be checked or asserted
  *
  * @example
  * ```typescript
  * fc.prop(fc.integer(), x => x + 0 === x).assert();
- * ```
- */
-export function prop<A>(
-  arb: Arbitrary<A>,
-  predicate: (a: A) => boolean
-): FluentProperty<[A]>
-
-/**
- * Create a property test with two arbitraries.
- *
- * @param arb1 - First arbitrary
- * @param arb2 - Second arbitrary
- * @param predicate - A function that returns true if the property holds
- * @returns A `FluentProperty` that can be checked or asserted
- *
- * @example
- * ```typescript
  * fc.prop(fc.integer(), fc.integer(), (a, b) => a + b === b + a).assert();
  * ```
  */
-export function prop<A, B>(
-  arb1: Arbitrary<A>,
-  arb2: Arbitrary<B>,
-  predicate: (a: A, b: B) => boolean
-): FluentProperty<[A, B]>
-
-/**
- * Create a property test with three arbitraries.
- *
- * @param arb1 - First arbitrary
- * @param arb2 - Second arbitrary
- * @param arb3 - Third arbitrary
- * @param predicate - A function that returns true if the property holds
- * @returns A `FluentProperty` that can be checked or asserted
- *
- * @example
- * ```typescript
- * fc.prop(fc.integer(), fc.integer(), fc.integer(),
- *   (a, b, c) => (a + b) + c === a + (b + c)
- * ).assert();
- * ```
- */
-export function prop<A, B, C>(
-  arb1: Arbitrary<A>,
-  arb2: Arbitrary<B>,
-  arb3: Arbitrary<C>,
-  predicate: (a: A, b: B, c: C) => boolean
-): FluentProperty<[A, B, C]>
-
-/**
- * Create a property test with four arbitraries.
- *
- * @param arb1 - First arbitrary
- * @param arb2 - Second arbitrary
- * @param arb3 - Third arbitrary
- * @param arb4 - Fourth arbitrary
- * @param predicate - A function that returns true if the property holds
- * @returns A `FluentProperty` that can be checked or asserted
- */
-export function prop<A, B, C, D>(
-  arb1: Arbitrary<A>,
-  arb2: Arbitrary<B>,
-  arb3: Arbitrary<C>,
-  arb4: Arbitrary<D>,
-  predicate: (a: A, b: B, c: C, d: D) => boolean
-): FluentProperty<[A, B, C, D]>
-
-/**
- * Create a property test with five arbitraries.
- *
- * @param arb1 - First arbitrary
- * @param arb2 - Second arbitrary
- * @param arb3 - Third arbitrary
- * @param arb4 - Fourth arbitrary
- * @param arb5 - Fifth arbitrary
- * @param predicate - A function that returns true if the property holds
- * @returns A `FluentProperty` that can be checked or asserted
- */
-export function prop<A, B, C, D, E>(
-  arb1: Arbitrary<A>,
-  arb2: Arbitrary<B>,
-  arb3: Arbitrary<C>,
-  arb4: Arbitrary<D>,
-  arb5: Arbitrary<E>,
-  predicate: (a: A, b: B, c: C, d: D, e: E) => boolean
-): FluentProperty<[A, B, C, D, E]>
+export function prop<
+  const Arbs extends readonly [Arbitrary<any>, ...Arbitrary<any>[]],
+  const Args extends ArbitraryArgs<Arbs> = ArbitraryArgs<Arbs>
+>(...args: [...arbs: Arbs, predicate: (...args: Args) => boolean]): FluentProperty<Args>
 
 // Implementation
 export function prop<Args extends unknown[]>(
