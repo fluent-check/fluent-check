@@ -71,6 +71,52 @@ describe('Explorer', () => {
       })
     })
 
+    describe('property-based exploration', () => {
+      it('respects budget bounds for forall-only scenarios', () => {
+        fc.prop(
+          fc.integer(1, 20),
+          fc.integer(1, 10),
+          (maxTests, span) => {
+            const min = -span
+            const max = span
+            const scenario = fc.scenario()
+              .forall('x', fc.integer(min, max))
+              .then(({x}) => x >= min && x <= max)
+              .buildScenario()
+
+            const explorer = fc.createNestedLoopExplorer<{x: number}>()
+            const result = explorer.explore(scenario, () => true, new fc.RandomSampler(), {maxTests})
+
+            return result.outcome === 'passed' && result.testsRun <= maxTests
+          }
+        ).assert()
+      })
+
+      it('finds a corner-case witness for exists scenarios', () => {
+        fc.prop(
+          fc.integer(-5, 0),
+          fc.integer(0, 10),
+          (start, offset) => {
+            const min = start
+            const max = start + offset
+            const witness = min
+
+            const scenario = fc.scenario()
+              .exists('x', fc.integer(min, max))
+              .then(({x}) => x === witness)
+              .buildScenario()
+
+            const explorer = fc.createNestedLoopExplorer<{x: number}>()
+            const sampler = new fc.BiasedSampler(new fc.RandomSampler())
+            const budget: fc.ExplorationBudget = {maxTests: Math.max(5, max - min + 1)}
+
+            const result = explorer.explore(scenario, () => true, sampler, budget)
+            return result.outcome === 'passed'
+          }
+        ).assert()
+      })
+    })
+
     describe('forall semantics', () => {
       it('should fail on first counterexample', () => {
         const scenario = fc.scenario()

@@ -132,6 +132,40 @@ describe('Scenario AST', () => {
     })
   })
 
+  describe('property-based', () => {
+    it('preserves quantifier order', () => {
+      fc.prop(
+        fc.array(fc.string(1, 5), 1, 4),
+        names => {
+          const chain = names.reduce(
+            (acc, name) => acc.forall(name, fc.integer(-5, 5)),
+            fc.scenario()
+          )
+          const scenario = chain.buildScenario()
+          const quantifierNames = scenario.quantifiers.map(q => q.name)
+
+          return quantifierNames.length === names.length &&
+            quantifierNames.every((q, idx) => q === names[idx])
+        }
+      ).assert()
+    })
+
+    it('computes search space as product of quantifier sizes', () => {
+      fc.prop(
+        fc.integer(1, 5),
+        fc.integer(1, 5),
+        (sizeA, sizeB) => {
+          const scenario = fc.scenario()
+            .forall('a', fc.integer(0, sizeA - 1))
+            .forall('b', fc.integer(0, sizeB - 1))
+            .buildScenario()
+
+          return scenario.searchSpaceSize === sizeA * sizeB
+        }
+      ).assert()
+    })
+  })
+
   describe('derived properties', () => {
     describe('quantifiers', () => {
       it('should return only quantifier nodes', () => {
