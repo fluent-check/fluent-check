@@ -410,5 +410,17 @@ describe('Explorer', () => {
       const explorerResult = explorer.explore(scenario, () => true, sampler, budget)
       expect(explorerResult.outcome).to.equal('passed')
     })
+
+    it('should treat exhausted budget as satisfiable for forall-only scenarios', () => {
+      const result = fc.scenario()
+        .config(fc.strategy().withSampleSize(0))
+        .forall('x', fc.integer())
+        // Would fail if executed, but zero budget means no counterexample observed
+        .then(() => false)
+        .check()
+
+      expect(result.satisfiable).to.be.true
+      expect(result.example).to.deep.equal({})
+    })    
   })
 })

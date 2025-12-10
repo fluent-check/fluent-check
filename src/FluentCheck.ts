@@ -235,10 +235,9 @@ export class FluentCheck<
    * @param v - A constant value or factory function that computes the value
    *
    * @remarks
-   * Type inference is controlled: when both constant and factory forms could
-   * infer `V`, the factory return type takes precedence. This uses `NoInfer<V>`
-   * on the constant position to prevent literal type inference issues (e.g.,
-   * inferring `5` instead of `number`).
+   * Overloads prefer the factory form when a function is provided so inference
+   * flows from the factory return type. Constant values still infer `V` from
+   * the provided value instead of falling back to `unknown`.
    *
    * @example
    * ```typescript
@@ -250,7 +249,15 @@ export class FluentCheck<
    * ```
    */
   given<const K extends string, V>(
-    name: FreshName<Rec, K>, v: NoInfer<V> | ((args: Rec) => V)
+    name: FreshName<Rec, K>,
+    factory: (args: Rec) => V
+  ): FluentCheckGiven<FreshName<Rec, K>, V, Prettify<Rec & Record<FreshName<Rec, K>, V>>, Rec>
+  given<const K extends string, V>(
+    name: FreshName<Rec, K>,
+    value: V
+  ): FluentCheckGiven<FreshName<Rec, K>, V, Prettify<Rec & Record<FreshName<Rec, K>, V>>, Rec>
+  given<const K extends string, V>(
+    name: FreshName<Rec, K>, v: V | ((args: Rec) => V)
   ): FluentCheckGiven<FreshName<Rec, K>, V, Prettify<Rec & Record<FreshName<Rec, K>, V>>, Rec> {
     return v instanceof Function
       ? new FluentCheckGivenMutable(this, name, v)
@@ -420,9 +427,10 @@ export class FluentCheck<
     }
 
     if (explorationResult.outcome === 'exhausted') {
-      // For scenarios with exists: exhausted means no witness found
+      // For forall-only scenarios, exhausted budget without counterexample is a (incomplete) pass.
+      // For scenarios with exists, exhausted budget means no witness found.
       return new FluentResult<Rec>(
-        false,
+        !scenario.hasExistential,
         {} as Rec,
         randomGenerator.seed,
         explorationResult.skipped
@@ -564,10 +572,17 @@ abstract class FluentCheckGiven<
    *
    * @remarks
    * Type inference follows the same rules as `given()`: factory return type
-   * is the primary inference source for `V`. Uses `NoInfer<V>` on the constant
-   * position.
+   * is preferred when a function is provided, and constants infer `V` directly.
    */
-  and<const K extends string, V>(name: FreshName<Rec, K>, f: ((args: Rec) => V) | NoInfer<V>) {
+  and<const K extends string, V>(
+    name: FreshName<Rec, K>,
+    factory: (args: Rec) => V
+  ): FluentCheckGiven<FreshName<Rec, K>, V, Prettify<Rec & Record<FreshName<Rec, K>, V>>, Rec>
+  and<const K extends string, V>(
+    name: FreshName<Rec, K>,
+    value: V
+  ): FluentCheckGiven<FreshName<Rec, K>, V, Prettify<Rec & Record<FreshName<Rec, K>, V>>, Rec>
+  and<const K extends string, V>(name: FreshName<Rec, K>, f: V | ((args: Rec) => V)) {
     return super.given(name, f)
   }
 }
