@@ -46,6 +46,7 @@ The `FluentResult` class SHALL provide assertion methods for fluent test verific
 - **WHEN** `assertNotSatisfiable()` is called on a satisfiable result
 - **THEN** an error SHALL be thrown
 - **AND** the error message SHALL include the found example
+- **AND** if the result is incomplete, the error message SHALL also indicate the reason for incompletion
 
 #### Scenario: Assert example match
 - **WHEN** `assertExample(expected)` is called
