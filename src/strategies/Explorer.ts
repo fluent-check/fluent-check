@@ -354,7 +354,7 @@ export abstract class AbstractExplorer<Rec extends {}> implements Explorer<Rec> 
   }
 
   protected unwrapTestCase(testCase: BoundTestCase<Rec>): Rec {
-    const entries = Object.entries(testCase) as Array<[string, FluentPick<unknown>]>
+    const entries: Array<[string, FluentPick<unknown>]> = Object.entries(testCase)
     const values = entries.map(([key, pick]) => [key, pick.value] as const)
     return Object.fromEntries(values) as Rec
   }
