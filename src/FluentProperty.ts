@@ -84,59 +84,67 @@ export interface FluentProperty<Args extends readonly unknown[]> {
 class FluentPropertyImpl<const Args extends unknown[]> implements FluentProperty<Args> {
   readonly #arbitraries: { [I in keyof Args]: Arbitrary<Args[I]> }
   readonly #predicate: (...args: Args) => boolean
-  readonly #strategyFactory?: FluentStrategyFactory
+  readonly #strategyFactory?: FluentStrategyFactory<PropRecord<Args>>
+  readonly #argNames: readonly string[]
 
   constructor(
     arbitraries: { [I in keyof Args]: Arbitrary<Args[I]> },
     predicate: (...args: Args) => boolean,
-    strategyFactory?: FluentStrategyFactory
+    strategyFactory?: FluentStrategyFactory<PropRecord<Args>>
   ) {
     this.#arbitraries = arbitraries
     this.#predicate = predicate
+    this.#argNames = this.#arbitraries.map((_, i) => `arg${i}`)
     if (strategyFactory !== undefined) {
       this.#strategyFactory = strategyFactory
     }
   }
 
   check(): FluentResult<PropRecord<Args>> {
-    let checker = new FluentCheck()
-
-    if (this.#strategyFactory !== undefined) {
-      checker = checker.config(this.#strategyFactory)
-    }
+    const checker = this.#createBaseCheck()
 
     // Build the chain with positional argument names
-    const chain = this.#arbitraries.reduce((current, arbitrary, index) => {
-      if (arbitrary === undefined) return current
-      return current.forall(`arg${index}`, arbitrary)
-    }, checker)
+    let chain: FluentCheck<any, any> = checker as any
+    this.#arbitraries.forEach((arbitrary, index) => {
+      if (arbitrary === undefined) return
+      const name = this.#argNames[index] ?? `arg${index}`
+      chain = chain.forall(name, arbitrary) as typeof chain
+    })
 
     // Create the predicate wrapper that extracts positional arguments
     const wrappedPredicate = (args: Record<string, unknown>): boolean => {
-      const positionalArgs = this.#arbitraries.map((_, i) => args[`arg${i}`]) as Args
+      const positionalArgs = this.#argNames.map(name => args[name]) as Args
       return this.#predicate(...positionalArgs)
     }
 
-    return chain.then(wrappedPredicate).check() as FluentResult<PropRecord<Args>>
+    return (chain as FluentCheck<PropRecord<Args>>).then(wrappedPredicate).check() as FluentResult<PropRecord<Args>>
   }
 
   assert(message?: string): void {
     const result = this.check()
     if (!result.satisfiable) {
       const prefix = message !== undefined && message !== '' ? `${message}: ` : ''
-      // Extract positional arguments for cleaner error message
-      const example = result.example as Record<string, unknown>
-      const args = this.#arbitraries.map((_, i) => example[`arg${i}`])
-      const argsStr = args.length === 1
-        ? JSON.stringify(args[0])
-        : `(${args.map(a => JSON.stringify(a)).join(', ')})`
+      const argsStr = this.#formatArgs(result.example as Record<string, unknown>)
       const seedStr = result.seed !== undefined ? ` (seed: ${result.seed})` : ''
       throw new Error(`${prefix}Property failed with counterexample: ${argsStr}${seedStr}`)
     }
   }
 
-  config(strategyFactory: FluentStrategyFactory): FluentProperty<Args> {
+  config(strategyFactory: FluentStrategyFactory<PropRecord<Args>>): FluentProperty<Args> {
     return new FluentPropertyImpl(this.#arbitraries, this.#predicate, strategyFactory)
+  }
+
+  #createBaseCheck(): FluentCheck<PropRecord<Args>> {
+    if (this.#strategyFactory === undefined) {
+      return new FluentCheck<PropRecord<Args>>()
+    }
+    return new FluentCheck<PropRecord<Args>>().config(this.#strategyFactory)
+  }
+
+  #formatArgs(example: Record<string, unknown>): string {
+    const args = this.#argNames.map(name => example[name])
+    if (args.length === 1) return JSON.stringify(args[0])
+    return `(${args.map(a => JSON.stringify(a)).join(', ')})`
   }
 }
 
