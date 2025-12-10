@@ -13,10 +13,10 @@ import {
   createScenario
 } from './Scenario.js'
 import type {ExplorationBudget} from './strategies/Explorer.js'
-import type {PickResult as ShrinkerPickResult} from './strategies/Shrinker.js'
+import type {BoundTestCase} from './strategies/types.js'
 
 type WrapFluentPick<T> = { [P in keyof T]: FluentPick<T[P]> }
-type PickResult<V> = Record<string, FluentPick<V>>
+type PickResult<V> = BoundTestCase<Record<string, V>>
 type ValueResult<V> = Record<string, V>
 
 // Utility types
@@ -337,9 +337,7 @@ export class FluentCheck<
     return createScenario(nodes)
   }
 
-  check(
-    _child: (testCase: WrapFluentPick<any>) => FluentResult<Record<string, unknown>> = () => new FluentResult(true)
-  ): FluentResult<Rec> {
+  check(): FluentResult<Rec> {
     const path = this.pathFromRoot()
     const root = path[0] as FluentCheck<any, any>
 
@@ -385,7 +383,7 @@ export class FluentCheck<
       if (scenario.hasExistential && explorationResult.witness !== undefined) {
         // Shrink the witness to find the minimal satisfying values
         const shrinkResult = shrinker.shrinkWitness(
-          explorationResult.witness as ShrinkerPickResult<Rec>,
+          explorationResult.witness as BoundTestCase<Rec>,
           executableScenario,
           explorer,
           property,
@@ -435,7 +433,7 @@ export class FluentCheck<
     }
 
     // Found a counterexample - apply shrinking
-    const counterexample = explorationResult.counterexample
+    const counterexample = explorationResult.counterexample as BoundTestCase<Rec>
 
     const shrinkResult = shrinker.shrink(
       counterexample,
@@ -449,7 +447,7 @@ export class FluentCheck<
     // Convert shrunk counterexample to FluentResult
     return new FluentResult<Rec>(
       false,
-      FluentCheck.unwrapFluentPick(shrinkResult.minimized as PickResult<Rec[keyof Rec]>) as Rec,
+      FluentCheck.unwrapFluentPick(shrinkResult.minimized) as Rec,
       randomGenerator.seed,
       explorationResult.skipped
     )
@@ -506,7 +504,7 @@ export class FluentCheck<
     return callback(testCase)
   }
 
-  static unwrapFluentPick<T>(testCase: PickResult<T>): ValueResult<T> {
+  static unwrapFluentPick<T>(testCase: BoundTestCase<Record<string, T>>): ValueResult<T> {
     // TypeScript 5.5 automatically infers NonNullable from filter predicate
     const entries = Object.entries(testCase)
       .filter(([, pick]) => pick !== undefined)

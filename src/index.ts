@@ -36,7 +36,7 @@ export {
   type ExplorationPassed,
   type ExplorationFailed,
   type ExplorationExhausted,
-  type TestCase
+  type BoundTestCase
 } from './strategies/Explorer.js'
 export {
   createExecutableScenario,
@@ -50,8 +50,7 @@ export {
   createNoOpShrinker,
   type Shrinker,
   type ShrinkBudget,
-  type ShrinkResult,
-  type PickResult
+  type ShrinkResult
 } from './strategies/Shrinker.js'
 export const scenario = () => new FluentCheck()
 export const strategy = () => new FluentStrategyFactory()

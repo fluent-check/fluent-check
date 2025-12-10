@@ -1,6 +1,10 @@
 export type FluentPick<V> = {
   value: V
   original?: any
+  /**
+   * Optional pre-map value used to preserve base picks through mapped arbitraries.
+   */
+  preMapValue?: unknown
 }
 
 export type ExactSize = {

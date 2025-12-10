@@ -62,6 +62,16 @@ describe('Arbitrary tests', () => {
       .check()).to.deep.include({satisfiable: true, example: {point: [202, '_aaa']}})
   })
 
+  it('should shrink mapped arbitraries using the pre-map value', () => {
+    const mapped = fc.integer(0, 10).map(n => n * n)
+    const shrunk = mapped.shrink({value: 25, original: 25, preMapValue: 5})
+    const samples = shrunk.sample(5, () => 0.1)
+
+    expect(samples.every(p => p.value <= 25)).to.be.true
+    expect(samples.some(p => p.value < 25)).to.be.true
+    expect(samples.every(p => Number.isInteger(Math.sqrt(p.value)))).to.be.true
+  })
+
   describe('Corner Cases', () => {
     it('should return the corner cases of integers', () => {
       expect(fc.integer().cornerCases().map(c => c.value)).to.have.members(

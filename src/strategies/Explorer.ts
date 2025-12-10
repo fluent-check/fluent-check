@@ -4,6 +4,7 @@ import {createExecutableScenario} from '../ExecutableScenario.js'
 import type {ExecutableScenario, ExecutableQuantifier} from '../ExecutableScenario.js'
 import {PreconditionFailure} from '../FluentCheck.js'
 import type {Sampler} from './Sampler.js'
+import type {BoundTestCase} from './types.js'
 
 /**
  * Budget constraints for exploration.
@@ -19,14 +20,6 @@ export interface ExplorationBudget {
    * If set, exploration MAY stop early when exceeded.
    */
   readonly maxTime?: number
-}
-
-/**
- * Test case with all bound variables as FluentPick objects.
- * Preserves the original/value pair needed for shrinking.
- */
-export type TestCase<Rec extends {}> = {
-  [K in keyof Rec]: FluentPick<Rec[K]>
 }
 
 /**
@@ -49,7 +42,7 @@ export interface ExplorationPassed<Rec extends {} = {}> {
    * For exists scenarios, the witness that satisfied the property.
    * For forall-only scenarios, this may be undefined or empty.
    */
-  readonly witness?: TestCase<Rec>
+  readonly witness?: BoundTestCase<Rec>
 }
 
 /**
@@ -57,7 +50,7 @@ export interface ExplorationPassed<Rec extends {} = {}> {
  */
 export interface ExplorationFailed<Rec extends {}> {
   readonly outcome: 'failed'
-  readonly counterexample: TestCase<Rec>
+  readonly counterexample: BoundTestCase<Rec>
   readonly testsRun: number
   readonly skipped: number
 }
@@ -135,7 +128,7 @@ export class NestedLoopExplorer<Rec extends {}> implements Explorer<Rec> {
     // - null: inconclusive, continue searching
     const exploreQuantifier = (
       quantifierIndex: number,
-      testCase: TestCase<Rec>
+      testCase: BoundTestCase<Rec>
     ): ExplorationResult<Rec> | null => {
       // Check budget limits
       if (testsRun >= budget.maxTests) {
@@ -196,7 +189,7 @@ export class NestedLoopExplorer<Rec extends {}> implements Explorer<Rec> {
           const newTestCase = {
             ...testCase,
             [quantifier.name]: sample
-          } as TestCase<Rec>
+          } as BoundTestCase<Rec>
 
           // Check ALL inner quantifiers for this existential value
           const checkResult = this.#checkAllForThisExists(
@@ -236,13 +229,13 @@ export class NestedLoopExplorer<Rec extends {}> implements Explorer<Rec> {
       } else {
         // UNIVERSAL: need ALL values to pass, fail on first counterexample
         let allPassed = true
-        let lastWitness: TestCase<Rec> | undefined
+        let lastWitness: BoundTestCase<Rec> | undefined
 
         for (const sample of quantifierSamples) {
           const newTestCase = {
             ...testCase,
             [quantifier.name]: sample
-          } as TestCase<Rec>
+          } as BoundTestCase<Rec>
 
           // Recurse to next quantifier
           const result = exploreQuantifier(quantifierIndex + 1, newTestCase)
@@ -307,7 +300,7 @@ export class NestedLoopExplorer<Rec extends {}> implements Explorer<Rec> {
     }
 
     // Start exploration
-    const result = exploreQuantifier(0, {} as TestCase<Rec>)
+    const result = exploreQuantifier(0, {} as BoundTestCase<Rec>)
 
     if (result !== null) {
       return result
@@ -335,7 +328,7 @@ export class NestedLoopExplorer<Rec extends {}> implements Explorer<Rec> {
    */
   #checkAllForThisExists(
     quantifierIndex: number,
-    testCase: TestCase<Rec>,
+    testCase: BoundTestCase<Rec>,
     quantifiers: readonly ExecutableQuantifier[],
     samples: Map<string, FluentPick<unknown>[]>,
     allNodes: readonly ScenarioNode<Rec>[],
@@ -346,7 +339,7 @@ export class NestedLoopExplorer<Rec extends {}> implements Explorer<Rec> {
     setTestsRun: (n: number) => void,
     getSkipped: () => number,
     setSkipped: (n: number) => void
-  ): { status: 'all_passed' | 'some_failed' | 'inconclusive'; witness?: TestCase<Rec> } {
+  ): { status: 'all_passed' | 'some_failed' | 'inconclusive'; witness?: BoundTestCase<Rec> } {
     // Base case: all quantifiers bound, evaluate property
     if (quantifierIndex >= quantifiers.length) {
       let testsRun = getTestsRun()
@@ -383,7 +376,7 @@ export class NestedLoopExplorer<Rec extends {}> implements Explorer<Rec> {
         const newTestCase = {
           ...testCase,
           [quantifier.name]: sample
-        } as TestCase<Rec>
+        } as BoundTestCase<Rec>
 
         const result = this.#checkAllForThisExists(
           quantifierIndex + 1, newTestCase, quantifiers, samples,
@@ -409,7 +402,7 @@ export class NestedLoopExplorer<Rec extends {}> implements Explorer<Rec> {
         const newTestCase = {
           ...testCase,
           [quantifier.name]: sample
-        } as TestCase<Rec>
+        } as BoundTestCase<Rec>
 
         const result = this.#checkAllForThisExists(
           quantifierIndex + 1, newTestCase, quantifiers, samples,
@@ -476,7 +469,7 @@ export class NestedLoopExplorer<Rec extends {}> implements Explorer<Rec> {
    * @returns true if all assertions pass, false if any assertion fails
    */
   #processNodesInOrder(
-    testCase: TestCase<Rec>,
+    testCase: BoundTestCase<Rec>,
     allNodes: readonly ScenarioNode<Rec>[],
     property: (testCase: Rec) => boolean
   ): boolean {
@@ -545,3 +538,5 @@ export class NestedLoopExplorer<Rec extends {}> implements Explorer<Rec> {
 export function createNestedLoopExplorer<Rec extends {}>(): Explorer<Rec> {
   return new NestedLoopExplorer<Rec>()
 }
+
+export type {BoundTestCase} from './types.js'

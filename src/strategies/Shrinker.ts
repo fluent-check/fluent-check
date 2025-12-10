@@ -1,7 +1,62 @@
 import type {FluentPick} from '../arbitraries/index.js'
+import {ArbitraryConstant} from '../arbitraries/ArbitraryConstant.js'
+import {createScenario} from '../Scenario.js'
+import type {ScenarioNode} from '../Scenario.js'
+import {createExecutableScenario} from '../ExecutableScenario.js'
 import type {ExecutableScenario, ExecutableQuantifier} from '../ExecutableScenario.js'
 import type {Sampler} from './Sampler.js'
 import type {Explorer, ExplorationBudget} from './Explorer.js'
+import type {BoundTestCase} from './types.js'
+
+class BoundConstantArbitrary<A> extends ArbitraryConstant<A> {
+  constructor(private readonly pickValue: FluentPick<A>) {
+    super(pickValue.value)
+  }
+
+  override pick(): FluentPick<A> {
+    return {
+      value: this.pickValue.value,
+      original: this.pickValue.original ?? this.pickValue.value,
+      preMapValue: this.pickValue.preMapValue
+    }
+  }
+
+  override cornerCases(): FluentPick<A>[] {
+    return [this.pick()]
+  }
+}
+
+export function buildPartialExecutableScenario<Rec extends {}>(
+  scenario: ExecutableScenario<Rec>,
+  upToQuantifierName: string,
+  boundValues: BoundTestCase<Rec>
+): ExecutableScenario<Rec> {
+  // Find the index of the quantifier we're shrinking
+  const quantifierIndex = scenario.quantifiers.findIndex(q => q.name === upToQuantifierName)
+
+  if (quantifierIndex === -1) {
+    return scenario
+  }
+
+  // Build new nodes where bound quantifiers are converted to constants
+  const newNodes = scenario.nodes.map(node => {
+    if (node.type === 'forall' || node.type === 'exists') {
+      const qIndex = scenario.quantifiers.findIndex(q => q.name === node.name)
+      const boundPick = boundValues[node.name as keyof Rec]
+      if (qIndex !== -1 && qIndex <= quantifierIndex && boundPick !== undefined) {
+        return {
+          ...node,
+          arbitrary: new BoundConstantArbitrary(boundPick as FluentPick<unknown>)
+        } as ScenarioNode<Rec>
+      }
+    }
+    return node
+  }) as ScenarioNode<Rec>[]
+
+  // Recreate scenario to keep nodes/quantifiers/searchSpace in sync, then compile
+  const updatedScenario = createScenario(newNodes)
+  return createExecutableScenario(updatedScenario)
+}
 
 /**
  * Budget constraints for shrinking.
@@ -19,36 +74,13 @@ export interface ShrinkBudget {
 }
 
 /**
- * Test case with all bound variables as FluentPick objects.
- * Same as TestCase from Explorer - preserved for shrinking context.
- */
-export type PickResult<Rec extends {}> = {
-  [K in keyof Rec]: FluentPick<Rec[K]>
-}
-
-function createConstantExecutableQuantifier<A>(
-  source: ExecutableQuantifier<A>,
-  pick: FluentPick<A>
-): ExecutableQuantifier<A> {
-  const constantSample = (_sampler: Sampler, _count: number) => [pick]
-  return {
-    name: source.name,
-    type: source.type,
-    sample: constantSample,
-    sampleWithBias: constantSample,
-    shrink: () => [],
-    isShrunken: () => false
-  }
-}
-
-/**
  * Result of shrinking a counterexample.
  */
 export interface ShrinkResult<Rec extends {}> {
   /**
    * The minimized counterexample (may be same as input if no shrinking occurred).
    */
-  readonly minimized: PickResult<Rec>
+  readonly minimized: BoundTestCase<Rec>
 
   /**
    * Number of shrink candidates tested.
@@ -89,7 +121,7 @@ export interface Shrinker<Rec extends {}> {
    * @returns The shrink result with minimized counterexample
    */
   shrink(
-    counterexample: PickResult<Rec>,
+    counterexample: BoundTestCase<Rec>,
     scenario: ExecutableScenario<Rec>,
     explorer: Explorer<Rec>,
     property: (testCase: Rec) => boolean,
@@ -110,7 +142,7 @@ export interface Shrinker<Rec extends {}> {
    * @returns The shrink result with minimized witness
    */
   shrinkWitness(
-    witness: PickResult<Rec>,
+    witness: BoundTestCase<Rec>,
     scenario: ExecutableScenario<Rec>,
     explorer: Explorer<Rec>,
     property: (testCase: Rec) => boolean,
@@ -129,7 +161,7 @@ export interface Shrinker<Rec extends {}> {
  */
 export class PerArbitraryShrinker<Rec extends {}> implements Shrinker<Rec> {
   shrink(
-    counterexample: PickResult<Rec>,
+    counterexample: BoundTestCase<Rec>,
     scenario: ExecutableScenario<Rec>,
     explorer: Explorer<Rec>,
     property: (testCase: Rec) => boolean,
@@ -191,13 +223,13 @@ export class PerArbitraryShrinker<Rec extends {}> implements Shrinker<Rec> {
    */
   #shrinkQuantifierForCounterexample(
     quantifier: ExecutableQuantifier,
-    current: PickResult<Rec>,
+    current: BoundTestCase<Rec>,
     scenario: ExecutableScenario<Rec>,
     explorer: Explorer<Rec>,
     property: (testCase: Rec) => boolean,
     sampler: Sampler,
     remainingBudget: number
-  ): { shrunk: boolean; value: PickResult<Rec>; attempts: number } {
+  ): { shrunk: boolean; value: BoundTestCase<Rec>; attempts: number } {
     const name = quantifier.name as keyof Rec
     const currentPick = current[name]
 
@@ -240,7 +272,7 @@ export class PerArbitraryShrinker<Rec extends {}> implements Shrinker<Rec> {
         // Found a smaller counterexample - use the full counterexample from exploration
         return {
           shrunk: true,
-          value: result.counterexample as PickResult<Rec>,
+          value: result.counterexample as BoundTestCase<Rec>,
           attempts
         }
       }
@@ -250,7 +282,7 @@ export class PerArbitraryShrinker<Rec extends {}> implements Shrinker<Rec> {
   }
 
   shrinkWitness(
-    witness: PickResult<Rec>,
+    witness: BoundTestCase<Rec>,
     scenario: ExecutableScenario<Rec>,
     explorer: Explorer<Rec>,
     property: (testCase: Rec) => boolean,
@@ -311,13 +343,13 @@ export class PerArbitraryShrinker<Rec extends {}> implements Shrinker<Rec> {
    */
   #shrinkQuantifierForWitness(
     quantifier: ExecutableQuantifier,
-    current: PickResult<Rec>,
+    current: BoundTestCase<Rec>,
     scenario: ExecutableScenario<Rec>,
     explorer: Explorer<Rec>,
     property: (testCase: Rec) => boolean,
     sampler: Sampler,
     remainingBudget: number
-  ): { shrunk: boolean; value: PickResult<Rec>; attempts: number } {
+  ): { shrunk: boolean; value: BoundTestCase<Rec>; attempts: number } {
     const name = quantifier.name as keyof Rec
     const currentPick = current[name]
 
@@ -361,7 +393,7 @@ export class PerArbitraryShrinker<Rec extends {}> implements Shrinker<Rec> {
         const newWitness = result.witness ?? testCase
         return {
           shrunk: true,
-          value: newWitness as PickResult<Rec>,
+          value: newWitness as BoundTestCase<Rec>,
           attempts
         }
       }
@@ -377,31 +409,9 @@ export class PerArbitraryShrinker<Rec extends {}> implements Shrinker<Rec> {
   #buildPartialScenario(
     scenario: ExecutableScenario<Rec>,
     upToQuantifierName: string,
-    boundValues: PickResult<Rec>
+    boundValues: BoundTestCase<Rec>
   ): ExecutableScenario<Rec> {
-    // Find the index of the quantifier we're shrinking
-    const quantifierIndex = scenario.quantifiers.findIndex(q => q.name === upToQuantifierName)
-
-    if (quantifierIndex === -1) {
-      return scenario
-    }
-
-    // Create new quantifiers array:
-    // - Quantifiers up to and including the shrunk one become "fixed" (constant arbitraries)
-    // - Quantifiers after remain as-is for exploration
-    const newQuantifiers = scenario.quantifiers.map((q, i) => {
-      if (i <= quantifierIndex) {
-        const boundPick = boundValues[q.name as keyof Rec]
-        return createConstantExecutableQuantifier(q, boundPick)
-      }
-      return q
-    })
-
-    // Return a modified scenario with the new quantifiers
-    return {
-      ...scenario,
-      quantifiers: newQuantifiers
-    }
+    return buildPartialExecutableScenario(scenario, upToQuantifierName, boundValues)
   }
 
 }
@@ -414,7 +424,7 @@ export class PerArbitraryShrinker<Rec extends {}> implements Shrinker<Rec> {
  */
 export class NoOpShrinker<Rec extends {}> implements Shrinker<Rec> {
   shrink(
-    counterexample: PickResult<Rec>,
+    counterexample: BoundTestCase<Rec>,
     _scenario: ExecutableScenario<Rec>,
     _explorer: Explorer<Rec>,
     _property: (testCase: Rec) => boolean,
@@ -429,7 +439,7 @@ export class NoOpShrinker<Rec extends {}> implements Shrinker<Rec> {
   }
 
   shrinkWitness(
-    witness: PickResult<Rec>,
+    witness: BoundTestCase<Rec>,
     _scenario: ExecutableScenario<Rec>,
     _explorer: Explorer<Rec>,
     _property: (testCase: Rec) => boolean,
