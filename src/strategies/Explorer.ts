@@ -110,16 +110,16 @@ class ExplorationResultBuilder<Rec extends {}> {
   passed(witness?: BoundTestCase<Rec>): ExplorationPassed<Rec> {
     return witness !== undefined
       ? {
-          outcome: 'passed',
-          testsRun: this.state.testsRun,
-          skipped: this.state.skipped,
-          witness
-        }
+        outcome: 'passed',
+        testsRun: this.state.testsRun,
+        skipped: this.state.skipped,
+        witness
+      }
       : {
-          outcome: 'passed',
-          testsRun: this.state.testsRun,
-          skipped: this.state.skipped
-        }
+        outcome: 'passed',
+        testsRun: this.state.testsRun,
+        skipped: this.state.skipped
+      }
   }
 
   failed(counterexample: BoundTestCase<Rec>): ExplorationFailed<Rec> {
@@ -208,19 +208,13 @@ export abstract class AbstractExplorer<Rec extends {}> implements Explorer<Rec> 
     ctx: TraversalContext<Rec>
   ): TraversalOutcome<Rec> {
     const budgetOutcome = this.ensureBudget(ctx)
-    if (budgetOutcome !== null) {
-      return budgetOutcome
-    }
+    if (budgetOutcome !== null) return budgetOutcome
 
     const leafOutcome = this.tryLeaf(quantifierIndex, testCase, ctx)
-    if (leafOutcome !== null) {
-      return leafOutcome
-    }
+    if (leafOutcome !== null) return leafOutcome
 
     const quantifier = ctx.quantifiers[quantifierIndex]
-    if (quantifier === undefined) {
-      return ctx.outcomes.inconclusive(false)
-    }
+    if (quantifier === undefined) return ctx.outcomes.inconclusive(false)
 
     const frame: QuantifierFrame<Rec> = {
       index: quantifierIndex,
@@ -229,20 +223,17 @@ export abstract class AbstractExplorer<Rec extends {}> implements Explorer<Rec> 
       ctx
     }
 
-    const handler = this.quantifierHandlers(ctx)[quantifier.type]
+    const handler = this.quantifierHandlers()[quantifier.type]
     return handler(frame)
   }
 
   protected abstract handleExists(frame: QuantifierFrame<Rec>): TraversalOutcome<Rec>
-
   protected abstract handleForall(frame: QuantifierFrame<Rec>): TraversalOutcome<Rec>
 
   /**
    * Quantifier handlers map to avoid scattered conditionals.
    */
-  protected quantifierHandlers(
-    ctx: TraversalContext<Rec>
-  ): Record<'forall' | 'exists', (frame: QuantifierFrame<Rec>) => TraversalOutcome<Rec>> {
+  protected quantifierHandlers(): Record<'forall' | 'exists', (frame: QuantifierFrame<Rec>) => TraversalOutcome<Rec>> {
     return {
       exists: frame => this.handleExists(frame),
       forall: frame => this.handleForall(frame)
@@ -257,10 +248,7 @@ export abstract class AbstractExplorer<Rec extends {}> implements Explorer<Rec> 
     frame: QuantifierFrame<Rec>,
     sample: FluentPick<unknown>
   ): BoundTestCase<Rec> {
-    return {
-      ...frame.testCase,
-      [frame.quantifier.name]: sample
-    } as BoundTestCase<Rec>
+    return {...frame.testCase, [frame.quantifier.name]: sample}
   }
 
   protected tryLeaf(
@@ -268,19 +256,12 @@ export abstract class AbstractExplorer<Rec extends {}> implements Explorer<Rec> 
     testCase: BoundTestCase<Rec>,
     ctx: TraversalContext<Rec>
   ): TraversalOutcome<Rec> | null {
-    if (quantifierIndex < ctx.quantifiers.length) {
-      return null
-    }
+    if (quantifierIndex < ctx.quantifiers.length) return null
 
     const evaluation = ctx.evaluator(testCase, ctx.state)
 
-    if (evaluation === 'passed') {
-      return ctx.outcomes.pass({...testCase})
-    }
-
-    if (evaluation === 'failed') {
-      return ctx.outcomes.fail({...testCase})
-    }
+    if (evaluation === 'passed') return ctx.outcomes.pass({...testCase})
+    if (evaluation === 'failed') return ctx.outcomes.fail({...testCase})
 
     return ctx.outcomes.inconclusive(false)
   }
@@ -291,10 +272,7 @@ export abstract class AbstractExplorer<Rec extends {}> implements Explorer<Rec> 
       : null
   }
 
-  protected toExplorationResult(
-    outcome: TraversalOutcome<Rec>,
-    ctx: TraversalContext<Rec>
-  ): ExplorationResult<Rec> {
+  protected toExplorationResult(outcome: TraversalOutcome<Rec>, ctx: TraversalContext<Rec>): ExplorationResult<Rec> {
     switch (outcome.kind) {
       case 'pass':
         return ctx.results.passed(outcome.witness)
@@ -406,7 +384,7 @@ export abstract class AbstractExplorer<Rec extends {}> implements Explorer<Rec> 
     return samples
   }
 
-  protected toExecutableScenario(scenario: ExecutableScenario<Rec> | Scenario<Rec>): ExecutableScenario<Rec> {
+  protected toExecutableScenario(scenario: ExecutableScenario<Rec> | Scenario<Rec>) {
     return this.isExecutableScenario(scenario)
       ? scenario
       : createExecutableScenario(scenario)
@@ -433,10 +411,7 @@ export abstract class AbstractExplorer<Rec extends {}> implements Explorer<Rec> 
     return false
   }
 
-  protected hasInnerExistential(
-    quantifiers: readonly ExecutableQuantifier[],
-    startIndex: number
-  ): boolean {
+  protected hasInnerExistential(quantifiers: readonly ExecutableQuantifier[], startIndex: number) {
     return quantifiers.slice(startIndex).some(q => q.type === 'exists')
   }
 
@@ -486,14 +461,11 @@ export class NestedLoopExplorer<Rec extends {}> extends AbstractExplorer<Rec> {
       const newTestCase = this.bindSample(frame, sample)
       const outcome = this.traverse(frame.index + 1, newTestCase, frame.ctx)
 
-      if (outcome.kind === 'fail') {
+      if (outcome.kind === 'fail')
         return frame.ctx.outcomes.fail(outcome.counterexample)
-      }
 
       if (outcome.kind === 'pass') {
-        if (outcome.witness !== undefined) {
-          lastWitness = outcome.witness
-        }
+        if (outcome.witness !== undefined) lastWitness = outcome.witness
         continue
       }
 
@@ -503,9 +475,9 @@ export class NestedLoopExplorer<Rec extends {}> extends AbstractExplorer<Rec> {
         break
       }
 
-      if (hasInnerExists) {
+      if (hasInnerExists)
         return frame.ctx.outcomes.fail(newTestCase)
-      }
+
       allPassed = false
     }
 
