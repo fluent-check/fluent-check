@@ -1,5 +1,4 @@
 import {type Arbitrary, type FluentPick} from './arbitraries/index.js'
-import {type FluentStrategy} from './strategies/FluentStrategy.js'
 import {FluentStrategyFactory} from './strategies/FluentStrategyFactory.js'
 import {createExecutableScenario} from './ExecutableScenario.js'
 import {
@@ -15,7 +14,6 @@ import {
 import type {ExplorationBudget} from './strategies/Explorer.js'
 import type {BoundTestCase} from './strategies/types.js'
 
-type WrapFluentPick<T> = { [P in keyof T]: FluentPick<T[P]> }
 type PickResult<V> = BoundTestCase<Record<string, V>>
 type ValueResult<V> = Record<string, V>
 
@@ -219,7 +217,6 @@ export class FluentCheck<
   Rec extends ParentRec,
   ParentRec extends {} = {}
 > {
-  public strategy!: FluentStrategy
   private strategyFactory?: FluentStrategyFactory
 
   constructor(
@@ -496,14 +493,6 @@ export class FluentCheck<
     }
   }
 
-  // Default node behaviour: just forward to callback
-  protected run(
-    testCase: WrapFluentPick<Rec> | Rec,
-    callback: (arg: WrapFluentPick<Rec> | Rec) => FluentResult
-  ): FluentResult {
-    return callback(testCase)
-  }
-
   static unwrapFluentPick<T>(testCase: BoundTestCase<Record<string, T>>): ValueResult<T> {
     // TypeScript 5.5 automatically infers NonNullable from filter predicate
     const entries = Object.entries(testCase)
@@ -615,11 +604,6 @@ class FluentCheckGivenConstant<
     super(parent, name)
   }
 
-  protected override run(testCase: Rec, callback: (arg: Rec) => FluentResult) {
-    (testCase as Record<string, V>)[this.name] = this.value
-    return callback(testCase)
-  }
-
   protected override toScenarioNode(): GivenNode<ParentRec> {
     return {
       type: 'given',
@@ -645,37 +629,7 @@ abstract class FluentCheckQuantifier<
     super(parent)
   }
 
-  protected override run(
-    testCase: WrapFluentPick<Rec>,
-    callback: (arg: WrapFluentPick<Rec>) => FluentResult,
-    partial: FluentResult | undefined = undefined,
-    depth = 0,
-    accumulatedSkips = 0): FluentResult {
-
-    this.strategy.configArbitrary(this.name, partial, depth)
-
-    let totalSkipped = accumulatedSkips
-
-    while (this.strategy.hasInput(this.name)) {
-      testCase[this.name] = this.strategy.getInput(this.name) as FluentPick<Rec[K]>
-      const result = callback(testCase)
-      totalSkipped += result.skipped
-      if (result.satisfiable === this.breakValue) {
-        result.addExample(this.name, testCase[this.name])
-        return this.run(testCase, callback, result, depth + 1, totalSkipped)
-      }
-    }
-
-    const finalResult = partial ?? new FluentResult(!this.breakValue)
-    finalResult.skipped = totalSkipped
-    return finalResult
-  }
-
   abstract breakValue: boolean
-
-  registerArbitrary() {
-    this.strategy.addArbitrary(this.name, this.a as Arbitrary<Rec[K]>)
-  }
 }
 
 class FluentCheckUniversal<
@@ -714,53 +668,15 @@ class FluentCheckExistential<
 
 class FluentCheckAssert<Rec extends ParentRec, ParentRec extends {}>
   extends FluentCheck<Rec, ParentRec> {
-  preliminaries: FluentCheck<unknown, any>[]
-
   constructor(
     protected override readonly parent: FluentCheck<ParentRec, any>,
     public readonly assertion: (args: Rec) => boolean) {
 
     super(parent)
-    this.preliminaries = this.pathFromRoot().filter(node =>
-      node instanceof FluentCheckGivenMutable ||
-      node instanceof FluentCheckWhen)
   }
 
   and(assertion: (args: Rec) => boolean) {
     return this.then(assertion)
-  }
-
-  #runPreliminaries<T>(testCase: ValueResult<T>): Rec {
-    const data: Record<string, unknown> = {}
-
-    this.preliminaries.forEach(node => {
-      if (node instanceof FluentCheckGivenMutable) data[node.name] = node.factory({...testCase, ...data})
-      else if (node instanceof FluentCheckWhen) node.f({...testCase, ...data})
-    })
-
-    return data as Rec
-  }
-
-  protected override run(testCase: WrapFluentPick<Rec>,
-    callback: (arg: WrapFluentPick<Rec>) => FluentResult): FluentResult {
-    const unwrappedTestCase = FluentCheck.unwrapFluentPick(testCase)
-    try {
-      const passed = this.assertion({...unwrappedTestCase, ...this.#runPreliminaries(unwrappedTestCase)} as Rec)
-      if (passed) {
-        return callback(testCase)
-      } else {
-        return new FluentResult(false)
-      }
-    } catch (e) {
-      if (e instanceof PreconditionFailure) {
-        // Precondition failed - skip this test case
-        // Return satisfiable=true so quantifier continues with other cases
-        const result = callback(testCase)
-        result.addSkipped()
-        return result
-      }
-      throw e // Re-throw other errors
-    }
   }
 
   protected override toScenarioNode(): ThenNode<Rec> {
