@@ -146,7 +146,7 @@ export class NestedLoopExplorer<Rec extends {}> implements Explorer<Rec> {
 
         // Process all nodes in order, interleaving given, when, and then
         try {
-          const result = this.#processNodesInOrder(testCase, allNodes, property)
+          const result = this.#processNodesInOrder(testCase, allNodes)
 
           if (result) {
             // Property satisfied for this test case - return "passed" to bubble up
@@ -198,7 +198,6 @@ export class NestedLoopExplorer<Rec extends {}> implements Explorer<Rec> {
             quantifiers,
             samples,
             allNodes,
-            property,
             budget,
             startTime,
             () => testsRun,
@@ -332,7 +331,6 @@ export class NestedLoopExplorer<Rec extends {}> implements Explorer<Rec> {
     quantifiers: readonly ExecutableQuantifier[],
     samples: Map<string, FluentPick<unknown>[]>,
     allNodes: readonly ScenarioNode<Rec>[],
-    property: (testCase: Rec) => boolean,
     budget: ExplorationBudget,
     startTime: number,
     getTestsRun: () => number,
@@ -349,7 +347,7 @@ export class NestedLoopExplorer<Rec extends {}> implements Explorer<Rec> {
 
       // Process all nodes in order, interleaving given, when, and then
       try {
-        const result = this.#processNodesInOrder(testCase, allNodes, property)
+        const result = this.#processNodesInOrder(testCase, allNodes)
         return result
           ? {status: 'all_passed', witness: {...testCase}}
           : {status: 'some_failed'}
@@ -380,7 +378,7 @@ export class NestedLoopExplorer<Rec extends {}> implements Explorer<Rec> {
 
         const result = this.#checkAllForThisExists(
           quantifierIndex + 1, newTestCase, quantifiers, samples,
-          allNodes, property, budget, startTime,
+          allNodes, budget, startTime,
           getTestsRun, setTestsRun, getSkipped, setSkipped
         )
 
@@ -406,7 +404,7 @@ export class NestedLoopExplorer<Rec extends {}> implements Explorer<Rec> {
 
         const result = this.#checkAllForThisExists(
           quantifierIndex + 1, newTestCase, quantifiers, samples,
-          allNodes, property, budget, startTime,
+          allNodes, budget, startTime,
           getTestsRun, setTestsRun, getSkipped, setSkipped
         )
 
@@ -470,8 +468,7 @@ export class NestedLoopExplorer<Rec extends {}> implements Explorer<Rec> {
    */
   #processNodesInOrder(
     testCase: BoundTestCase<Rec>,
-    allNodes: readonly ScenarioNode<Rec>[],
-    property: (testCase: Rec) => boolean
+    allNodes: readonly ScenarioNode<Rec>[]
   ): boolean {
     // Convert FluentPick test case to plain values
     const values: Record<string, unknown> = {}
