@@ -170,11 +170,13 @@ export class ArbitraryRecord<S extends RecordSchema> extends Arbitrary<UnwrapSch
       propertyEquals.set(key, arbitrary.equals())
     }
     return (a: unknown, b: unknown): boolean => {
-      const objA = a as Record<string, unknown>
-      const objB = b as Record<string, unknown>
+      const objA = a as UnwrapSchema<S>
+      const objB = b as UnwrapSchema<S>
       for (const key of this.#keys) {
         const keyEquals = propertyEquals.get(key)
-        if (keyEquals !== undefined && !keyEquals(objA[key as string], objB[key as string])) return false
+        if (keyEquals !== undefined && !keyEquals(objA[key as keyof UnwrapSchema<S>], objB[key as keyof UnwrapSchema<S>])) {
+          return false
+        }
       }
       return true
     }
