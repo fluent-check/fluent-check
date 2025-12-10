@@ -326,6 +326,7 @@ export abstract class AbstractExplorer<Rec extends {}> implements Explorer<Rec> 
     nodes: readonly ScenarioNode<Rec>[]
   ): boolean {
     const values: Record<string, unknown> = {...this.unwrapTestCase(testCase)}
+    const record = values as Rec
 
     for (const node of nodes) {
       switch (node.type) {
@@ -333,18 +334,16 @@ export abstract class AbstractExplorer<Rec extends {}> implements Explorer<Rec> 
         case 'exists':
           break
         case 'given':
-          if (node.isFactory) {
-            const factory = node.predicate as (args: Rec) => unknown
-            values[node.name] = factory(values as Rec)
-          } else {
-            values[node.name] = node.predicate
-          }
+          values[node.name] =
+            node.isFactory && typeof node.predicate === 'function'
+              ? node.predicate(record)
+              : node.predicate
           break
         case 'when':
-          node.predicate(values as Rec)
+          node.predicate(record)
           break
         case 'then':
-          if (!node.predicate(values as Rec)) {
+          if (!node.predicate(record)) {
             return false
           }
           break
@@ -355,9 +354,8 @@ export abstract class AbstractExplorer<Rec extends {}> implements Explorer<Rec> 
   }
 
   protected unwrapTestCase(testCase: BoundTestCase<Rec>): Rec {
-    const values = Object.entries(testCase).map(
-      ([key, pick]) => [key, (pick as FluentPick<unknown>).value] as const
-    )
+    const entries = Object.entries(testCase) as Array<[string, FluentPick<unknown>]>
+    const values = entries.map(([key, pick]) => [key, pick.value] as const)
     return Object.fromEntries(values) as Rec
   }
 
