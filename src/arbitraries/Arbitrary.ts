@@ -77,6 +77,14 @@ export abstract class Arbitrary<A> {
   }
 
   /**
+   * Returns an equality function typed to this arbitrary's element type.
+   * Uses the untyped equals() result under the hood for compatibility.
+   */
+  equalsTyped(): EqualsFunction<A> & EqualsFunction {
+    return this.equals() as EqualsFunction<A> & EqualsFunction
+  }
+
+  /**
    * Returns a sample of picks of a given size. Sample might contain repeated values
    * and corner cases are not taken into account.
    */
