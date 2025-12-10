@@ -33,7 +33,7 @@ The `FluentResult` class SHALL provide assertion methods for fluent test verific
 - **AND** the method SHALL return void
 
 #### Scenario: Assert satisfiable failure
-- **WHEN** `assertSatisfiable()` is called on an unsatisfiable result (counterexample found or no witness before budget exhaustion)
+- **WHEN** `assertSatisfiable()` is called on an unsatisfiable result (e.g., a counterexample was found, or no witness was found for an existential property)
 - **THEN** an error SHALL be thrown
 - **AND** the error message SHALL include the counterexample or exhaustion reason
 - **AND** the error message SHALL include the seed for reproducibility
