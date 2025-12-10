@@ -380,7 +380,7 @@ export class FluentCheck<
       if (scenario.hasExistential && explorationResult.witness !== undefined) {
         // Shrink the witness to find the minimal satisfying values
         const shrinkResult = shrinker.shrinkWitness(
-          explorationResult.witness as BoundTestCase<Rec>,
+          explorationResult.witness,
           executableScenario,
           explorer,
           property,
@@ -430,7 +430,7 @@ export class FluentCheck<
     }
 
     // Found a counterexample - apply shrinking
-    const counterexample = explorationResult.counterexample as BoundTestCase<Rec>
+    const counterexample = explorationResult.counterexample
 
     const shrinkResult = shrinker.shrink(
       counterexample,

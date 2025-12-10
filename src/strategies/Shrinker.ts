@@ -51,7 +51,7 @@ export function buildPartialExecutableScenario<Rec extends {}>(
       }
     }
     return node
-  }) as ScenarioNode<Rec>[]
+  })
 
   // Recreate scenario to keep nodes/quantifiers/searchSpace in sync, then compile
   const updatedScenario = createScenario(newNodes)
@@ -272,7 +272,7 @@ export class PerArbitraryShrinker<Rec extends {}> implements Shrinker<Rec> {
         // Found a smaller counterexample - use the full counterexample from exploration
         return {
           shrunk: true,
-          value: result.counterexample as BoundTestCase<Rec>,
+          value: result.counterexample,
           attempts
         }
       }
@@ -393,7 +393,7 @@ export class PerArbitraryShrinker<Rec extends {}> implements Shrinker<Rec> {
         const newWitness = result.witness ?? testCase
         return {
           shrunk: true,
-          value: newWitness as BoundTestCase<Rec>,
+          value: newWitness,
           attempts
         }
       }
