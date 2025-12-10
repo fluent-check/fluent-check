@@ -454,15 +454,23 @@ export class FluentCheck<
    * Builds a property function from scenario's then nodes and given/when nodes.
    */
   #buildPropertyFunction(scenario: Scenario<Rec>): (testCase: Rec) => boolean {
-    const givenNodes = scenario.nodes.filter(
-      (n): n is GivenNode<Rec> => n.type === 'given'
-    )
-    const whenNodes = scenario.nodes.filter(
-      (n): n is WhenNode<Rec> => n.type === 'when'
-    )
-    const thenNodes = scenario.nodes.filter(
-      (n): n is ThenNode<Rec> => n.type === 'then'
-    )
+    const givenNodes: GivenNode<Rec>[] = []
+    const whenNodes: WhenNode<Rec>[] = []
+    const thenNodes: ThenNode<Rec>[] = []
+
+    for (const node of scenario.nodes) {
+      switch (node.type) {
+        case 'given':
+          givenNodes.push(node)
+          break
+        case 'when':
+          whenNodes.push(node)
+          break
+        case 'then':
+          thenNodes.push(node)
+          break
+      }
+    }
 
     return (testCase: Rec): boolean => {
       // Apply given predicates to compute derived values
