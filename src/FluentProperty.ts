@@ -166,7 +166,7 @@ class FluentPropertyImpl<const Args extends unknown[]> implements FluentProperty
  * ```
  */
 export function prop<
-  const Arbs extends readonly [Arbitrary<any>, ...Arbitrary<any>[]],
+  const Arbs extends readonly [Arbitrary<unknown>, ...Arbitrary<unknown>[]],
   const Args extends ArbitraryArgs<Arbs> = ArbitraryArgs<Arbs>
 >(...args: [...arbs: Arbs, predicate: (...args: Args) => boolean]): FluentProperty<Args>
 
