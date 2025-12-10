@@ -101,12 +101,6 @@ interface QuantifierSemantics<Rec extends {}> {
   forall(frame: QuantifierFrame<Rec>, next: TraverseNext<Rec>): TraversalOutcome<Rec>
 }
 
-interface QuantifierTools<Rec extends {}> {
-  samplesFor(frame: QuantifierFrame<Rec>): readonly FluentPick<unknown>[]
-  bindSample(frame: QuantifierFrame<Rec>, sample: FluentPick<unknown>): BoundTestCase<Rec>
-  hasInnerExistential(quantifiers: readonly ExecutableQuantifier[], startIndex: number): boolean
-}
-
 class TraversalOutcomeBuilder<Rec extends {}> {
   pass(witness?: BoundTestCase<Rec>): TraversalOutcome<Rec> {
     return witness !== undefined ? {kind: 'pass', witness} : {kind: 'pass'}
@@ -256,25 +250,6 @@ export abstract class AbstractExplorer<Rec extends {}> implements Explorer<Rec> 
       exists: frame => semantics.exists(frame, next),
       forall: frame => semantics.forall(frame, next)
     }
-  }
-
-  protected quantifierTools(): QuantifierTools<Rec> {
-    return {
-      samplesFor: frame => this.samplesFor(frame),
-      bindSample: (frame, sample) => this.bindSample(frame, sample),
-      hasInnerExistential: (quantifiers, startIndex) => this.hasInnerExistential(quantifiers, startIndex)
-    }
-  }
-
-  protected samplesFor(frame: QuantifierFrame<Rec>): readonly FluentPick<unknown>[] {
-    return frame.ctx.samples.get(frame.quantifier.name) ?? []
-  }
-
-  protected bindSample(
-    frame: QuantifierFrame<Rec>,
-    sample: FluentPick<unknown>
-  ): BoundTestCase<Rec> {
-    return {...frame.testCase, [frame.quantifier.name]: sample}
   }
 
   protected tryLeaf(
@@ -437,10 +412,6 @@ export abstract class AbstractExplorer<Rec extends {}> implements Explorer<Rec> 
     return false
   }
 
-  protected hasInnerExistential(quantifiers: readonly ExecutableQuantifier[], startIndex: number) {
-    return quantifiers.slice(startIndex).some(q => q.type === 'exists')
-  }
-
   protected isPreconditionFailure(e: unknown): e is PreconditionFailure {
     return e instanceof PreconditionFailure
   }
@@ -451,19 +422,17 @@ export abstract class AbstractExplorer<Rec extends {}> implements Explorer<Rec> 
  */
 export class NestedLoopExplorer<Rec extends {}> extends AbstractExplorer<Rec> {
   protected quantifierSemantics(): QuantifierSemantics<Rec> {
-    return new NestedLoopSemantics<Rec>(this.quantifierTools())
+    return new NestedLoopSemantics<Rec>()
   }
 }
 
 class NestedLoopSemantics<Rec extends {}> implements QuantifierSemantics<Rec> {
-  constructor(private readonly tools: QuantifierTools<Rec>) {}
-
   exists(frame: QuantifierFrame<Rec>, next: TraverseNext<Rec>): TraversalOutcome<Rec> {
-    const quantifierSamples = this.tools.samplesFor(frame)
+    const quantifierSamples = this.samplesFor(frame)
     let sawBudgetLimit = false
 
     for (const sample of quantifierSamples) {
-      const newTestCase = this.tools.bindSample(frame, sample)
+      const newTestCase = this.bindSample(frame, sample)
       const outcome = next(frame.index + 1, newTestCase, frame.ctx)
 
       if (outcome.kind === 'pass') {
@@ -484,15 +453,15 @@ class NestedLoopSemantics<Rec extends {}> implements QuantifierSemantics<Rec> {
   }
 
   forall(frame: QuantifierFrame<Rec>, next: TraverseNext<Rec>): TraversalOutcome<Rec> {
-    const quantifierSamples = this.tools.samplesFor(frame)
-    const hasInnerExists = this.tools.hasInnerExistential(frame.ctx.quantifiers, frame.index + 1)
+    const quantifierSamples = this.samplesFor(frame)
+    const hasInnerExists = this.hasInnerExistential(frame.ctx.quantifiers, frame.index + 1)
 
     let allPassed = true
     let lastWitness: BoundTestCase<Rec> | undefined
     let sawBudgetLimit = false
 
     for (const sample of quantifierSamples) {
-      const newTestCase = this.tools.bindSample(frame, sample)
+      const newTestCase = this.bindSample(frame, sample)
       const outcome = next(frame.index + 1, newTestCase, frame.ctx)
 
       if (outcome.kind === 'fail') {
@@ -522,6 +491,21 @@ class NestedLoopSemantics<Rec extends {}> implements QuantifierSemantics<Rec> {
     }
 
     return frame.ctx.outcomes.inconclusive(sawBudgetLimit)
+  }
+
+  private samplesFor(frame: QuantifierFrame<Rec>): readonly FluentPick<unknown>[] {
+    return frame.ctx.samples.get(frame.quantifier.name) ?? []
+  }
+
+  private bindSample(
+    frame: QuantifierFrame<Rec>,
+    sample: FluentPick<unknown>
+  ): BoundTestCase<Rec> {
+    return {...frame.testCase, [frame.quantifier.name]: sample}
+  }
+
+  private hasInnerExistential(quantifiers: readonly ExecutableQuantifier[], startIndex: number) {
+    return quantifiers.slice(startIndex).some(q => q.type === 'exists')
   }
 }
 
