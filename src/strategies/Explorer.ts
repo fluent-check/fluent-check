@@ -90,6 +90,23 @@ type TraversalOutcome<Rec extends {}> =
   | {kind: 'fail'; counterexample: BoundTestCase<Rec>}
   | {kind: 'inconclusive'; budgetExceeded: boolean}
 
+type TraverseNext<Rec extends {}> = (
+  quantifierIndex: number,
+  testCase: BoundTestCase<Rec>,
+  ctx: TraversalContext<Rec>
+) => TraversalOutcome<Rec>
+
+interface QuantifierSemantics<Rec extends {}> {
+  exists(frame: QuantifierFrame<Rec>, next: TraverseNext<Rec>): TraversalOutcome<Rec>
+  forall(frame: QuantifierFrame<Rec>, next: TraverseNext<Rec>): TraversalOutcome<Rec>
+}
+
+interface QuantifierTools<Rec extends {}> {
+  samplesFor(frame: QuantifierFrame<Rec>): readonly FluentPick<unknown>[]
+  bindSample(frame: QuantifierFrame<Rec>, sample: FluentPick<unknown>): BoundTestCase<Rec>
+  hasInnerExistential(quantifiers: readonly ExecutableQuantifier[], startIndex: number): boolean
+}
+
 class TraversalOutcomeBuilder<Rec extends {}> {
   pass(witness?: BoundTestCase<Rec>): TraversalOutcome<Rec> {
     return witness !== undefined ? {kind: 'pass', witness} : {kind: 'pass'}
@@ -227,16 +244,25 @@ export abstract class AbstractExplorer<Rec extends {}> implements Explorer<Rec> 
     return handler(frame)
   }
 
-  protected abstract handleExists(frame: QuantifierFrame<Rec>): TraversalOutcome<Rec>
-  protected abstract handleForall(frame: QuantifierFrame<Rec>): TraversalOutcome<Rec>
+  protected abstract quantifierSemantics(): QuantifierSemantics<Rec>
 
   /**
    * Quantifier handlers map to avoid scattered conditionals.
    */
   protected quantifierHandlers(): Record<'forall' | 'exists', (frame: QuantifierFrame<Rec>) => TraversalOutcome<Rec>> {
+    const semantics = this.quantifierSemantics()
+    const next: TraverseNext<Rec> = (index, testCase, ctx) => this.traverse(index, testCase, ctx)
     return {
-      exists: frame => this.handleExists(frame),
-      forall: frame => this.handleForall(frame)
+      exists: frame => semantics.exists(frame, next),
+      forall: frame => semantics.forall(frame, next)
+    }
+  }
+
+  protected quantifierTools(): QuantifierTools<Rec> {
+    return {
+      samplesFor: frame => this.samplesFor(frame),
+      bindSample: (frame, sample) => this.bindSample(frame, sample),
+      hasInnerExistential: (quantifiers, startIndex) => this.hasInnerExistential(quantifiers, startIndex)
     }
   }
 
@@ -424,13 +450,21 @@ export abstract class AbstractExplorer<Rec extends {}> implements Explorer<Rec> 
  * Nested loop explorer implementing the traditional property testing approach.
  */
 export class NestedLoopExplorer<Rec extends {}> extends AbstractExplorer<Rec> {
-  protected handleExists(frame: QuantifierFrame<Rec>): TraversalOutcome<Rec> {
-    const quantifierSamples = this.samplesFor(frame)
+  protected quantifierSemantics(): QuantifierSemantics<Rec> {
+    return new NestedLoopSemantics<Rec>(this.quantifierTools())
+  }
+}
+
+class NestedLoopSemantics<Rec extends {}> implements QuantifierSemantics<Rec> {
+  constructor(private readonly tools: QuantifierTools<Rec>) {}
+
+  exists(frame: QuantifierFrame<Rec>, next: TraverseNext<Rec>): TraversalOutcome<Rec> {
+    const quantifierSamples = this.tools.samplesFor(frame)
     let sawBudgetLimit = false
 
     for (const sample of quantifierSamples) {
-      const newTestCase = this.bindSample(frame, sample)
-      const outcome = this.traverse(frame.index + 1, newTestCase, frame.ctx)
+      const newTestCase = this.tools.bindSample(frame, sample)
+      const outcome = next(frame.index + 1, newTestCase, frame.ctx)
 
       if (outcome.kind === 'pass') {
         return frame.ctx.outcomes.pass(outcome.witness ?? newTestCase)
@@ -449,20 +483,21 @@ export class NestedLoopExplorer<Rec extends {}> extends AbstractExplorer<Rec> {
     return frame.ctx.outcomes.inconclusive(sawBudgetLimit)
   }
 
-  protected handleForall(frame: QuantifierFrame<Rec>): TraversalOutcome<Rec> {
-    const quantifierSamples = this.samplesFor(frame)
-    const hasInnerExists = this.hasInnerExistential(frame.ctx.quantifiers, frame.index + 1)
+  forall(frame: QuantifierFrame<Rec>, next: TraverseNext<Rec>): TraversalOutcome<Rec> {
+    const quantifierSamples = this.tools.samplesFor(frame)
+    const hasInnerExists = this.tools.hasInnerExistential(frame.ctx.quantifiers, frame.index + 1)
 
     let allPassed = true
     let lastWitness: BoundTestCase<Rec> | undefined
     let sawBudgetLimit = false
 
     for (const sample of quantifierSamples) {
-      const newTestCase = this.bindSample(frame, sample)
-      const outcome = this.traverse(frame.index + 1, newTestCase, frame.ctx)
+      const newTestCase = this.tools.bindSample(frame, sample)
+      const outcome = next(frame.index + 1, newTestCase, frame.ctx)
 
-      if (outcome.kind === 'fail')
+      if (outcome.kind === 'fail') {
         return frame.ctx.outcomes.fail(outcome.counterexample)
+      }
 
       if (outcome.kind === 'pass') {
         if (outcome.witness !== undefined) lastWitness = outcome.witness
@@ -475,8 +510,9 @@ export class NestedLoopExplorer<Rec extends {}> extends AbstractExplorer<Rec> {
         break
       }
 
-      if (hasInnerExists)
+      if (hasInnerExists) {
         return frame.ctx.outcomes.fail(newTestCase)
+      }
 
       allPassed = false
     }
