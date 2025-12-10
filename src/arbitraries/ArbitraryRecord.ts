@@ -164,8 +164,8 @@ export class ArbitraryRecord<S extends RecordSchema> extends Arbitrary<UnwrapSch
 
   /** Composes property equality for record comparison */
   override equals(): EqualsFunction {
-    type Key = keyof UnwrapSchema<S>
-    const keys = this.#keys as Key[]
+    type Key = keyof S
+    const keys = this.#keys
     const propertyEquals = new Map<Key, EqualsFunction>()
     for (const key of keys) {
       const arbitrary = this.getArbitrary(key)
