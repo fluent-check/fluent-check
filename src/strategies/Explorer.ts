@@ -74,24 +74,84 @@ interface ExplorationState {
   startTime: number
 }
 
+interface TraversalContext<Rec extends {}> {
+  readonly quantifiers: readonly ExecutableQuantifier[]
+  readonly samples: Map<string, FluentPick<unknown>[]>
+  readonly evaluator: TestCaseEvaluator<Rec>
+  readonly budget: ExplorationBudget
+  readonly state: ExplorationState
+  readonly hasExistential: boolean
+  readonly outcomes: TraversalOutcomeBuilder<Rec>
+  readonly results: ExplorationResultBuilder<Rec>
+}
+
 type TraversalOutcome<Rec extends {}> =
   | {kind: 'pass'; witness?: BoundTestCase<Rec>}
   | {kind: 'fail'; counterexample: BoundTestCase<Rec>}
   | {kind: 'inconclusive'; budgetExceeded: boolean}
+
+class TraversalOutcomeBuilder<Rec extends {}> {
+  pass(witness?: BoundTestCase<Rec>): TraversalOutcome<Rec> {
+    return witness !== undefined ? {kind: 'pass', witness} : {kind: 'pass'}
+  }
+
+  fail(counterexample: BoundTestCase<Rec>): TraversalOutcome<Rec> {
+    return {kind: 'fail', counterexample}
+  }
+
+  inconclusive(budgetExceeded: boolean): TraversalOutcome<Rec> {
+    return {kind: 'inconclusive', budgetExceeded}
+  }
+}
+
+class ExplorationResultBuilder<Rec extends {}> {
+  constructor(private readonly state: ExplorationState) {}
+
+  passed(witness?: BoundTestCase<Rec>): ExplorationPassed<Rec> {
+    return witness !== undefined
+      ? {
+          outcome: 'passed',
+          testsRun: this.state.testsRun,
+          skipped: this.state.skipped,
+          witness
+        }
+      : {
+          outcome: 'passed',
+          testsRun: this.state.testsRun,
+          skipped: this.state.skipped
+        }
+  }
+
+  failed(counterexample: BoundTestCase<Rec>): ExplorationFailed<Rec> {
+    return {
+      outcome: 'failed',
+      counterexample,
+      testsRun: this.state.testsRun,
+      skipped: this.state.skipped
+    }
+  }
+
+  exhausted(): ExplorationExhausted {
+    return {
+      outcome: 'exhausted',
+      testsRun: this.state.testsRun,
+      skipped: this.state.skipped
+    }
+  }
+}
+
+interface QuantifierFrame<Rec extends {}> {
+  readonly index: number
+  readonly quantifier: ExecutableQuantifier
+  readonly testCase: BoundTestCase<Rec>
+  readonly ctx: TraversalContext<Rec>
+}
 
 type TestCaseEvaluator<Rec extends {}> =
   (testCase: BoundTestCase<Rec>, state: ExplorationState) => PropertyEvaluation
 
 /**
  * Interface for exploring the search space of a property test scenario.
- *
- * The Explorer separates scenario traversal logic from the FluentCheck chain,
- * enabling:
- * - Alternative exploration strategies (e.g., tuple sampling, adaptive search)
- * - Cleaner separation between scenario definition and execution
- * - Better testability of exploration logic
- *
- * @typeParam Rec - The record type of bound variables in the scenario
  */
 export interface Explorer<Rec extends {}> {
   explore(
@@ -103,29 +163,19 @@ export interface Explorer<Rec extends {}> {
 }
 
 /**
- * Nested loop explorer implementing the traditional property testing approach.
- *
- * This explorer iterates through all combinations of quantifier values using
- * nested loops, matching the current FluentCheck behavior:
- * - For `forall`: iterates all samples, fails on first counterexample
- * - For `exists`: searches for a witness that satisfies the property
- *
- * The explorer is stateless - each call to `explore()` is independent.
+ * Base explorer that handles traversal, leaving quantifier semantics to subclasses.
  */
-export class NestedLoopExplorer<Rec extends {}> implements Explorer<Rec> {
-  /**
-   * Explores the search space using nested iteration.
-   */
+export abstract class AbstractExplorer<Rec extends {}> implements Explorer<Rec> {
   explore(
     scenario: ExecutableScenario<Rec> | Scenario<Rec>,
     property: (testCase: Rec) => boolean,
     sampler: Sampler,
     budget: ExplorationBudget
   ): ExplorationResult<Rec> {
-    const executableScenario = this.#toExecutableScenario(scenario)
+    const executableScenario = this.toExecutableScenario(scenario)
     const quantifiers = executableScenario.quantifiers
-    const samples = this.#generateSamples(quantifiers, sampler, budget.maxTests)
-    const evaluator = this.#createEvaluator(executableScenario.nodes, property)
+    const samples = this.generateSamples(quantifiers, sampler, budget.maxTests)
+    const evaluator = this.createEvaluator(executableScenario.nodes, property)
 
     const state: ExplorationState = {
       testsRun: 0,
@@ -134,253 +184,130 @@ export class NestedLoopExplorer<Rec extends {}> implements Explorer<Rec> {
       startTime: Date.now()
     }
 
-    const traverse = (
-      quantifierIndex: number,
-      testCase: BoundTestCase<Rec>
-    ): TraversalOutcome<Rec> => {
-      if (this.#isOutOfBudget(budget, state)) {
-        return {kind: 'inconclusive', budgetExceeded: true}
-      }
+    const outcomes = new TraversalOutcomeBuilder<Rec>()
+    const results = new ExplorationResultBuilder<Rec>(state)
 
-      if (quantifierIndex >= quantifiers.length) {
-        const evaluation = evaluator(testCase, state)
-
-        if (evaluation === 'passed') {
-          return {kind: 'pass', witness: {...testCase}}
-        }
-
-        if (evaluation === 'failed') {
-          return {kind: 'fail', counterexample: {...testCase}}
-        }
-
-        return {kind: 'inconclusive', budgetExceeded: false}
-      }
-
-      const quantifier = quantifiers[quantifierIndex]
-      if (quantifier === undefined) {
-        return {kind: 'inconclusive', budgetExceeded: false}
-      }
-
-      if (quantifier.type === 'exists') {
-        return this.#handleExists(
-          quantifierIndex,
-          testCase,
-          quantifiers,
-          samples,
-          evaluator,
-          state,
-          traverse
-        )
-      }
-
-      return this.#handleForall(
-        quantifierIndex,
-        testCase,
-        quantifiers,
-        samples,
-        state,
-        traverse
-      )
+    const ctx: TraversalContext<Rec> = {
+      quantifiers,
+      samples,
+      evaluator,
+      budget,
+      state,
+      hasExistential: executableScenario.hasExistential,
+      outcomes,
+      results
     }
 
-    const outcome = traverse(0, {} as BoundTestCase<Rec>)
+    const outcome = this.traverse(0, {} as BoundTestCase<Rec>, ctx)
+    return this.toExplorationResult(outcome, ctx)
+  }
 
-    if (outcome.kind === 'pass') {
-      return {
-        outcome: 'passed',
-        testsRun: state.testsRun,
-        skipped: state.skipped,
-        ...(outcome.witness !== undefined ? {witness: outcome.witness} : {})
-      }
+  protected traverse(
+    quantifierIndex: number,
+    testCase: BoundTestCase<Rec>,
+    ctx: TraversalContext<Rec>
+  ): TraversalOutcome<Rec> {
+    const budgetOutcome = this.ensureBudget(ctx)
+    if (budgetOutcome !== null) {
+      return budgetOutcome
     }
 
-    if (outcome.kind === 'fail') {
-      return {
-        outcome: 'failed',
-        counterexample: outcome.counterexample,
-        testsRun: state.testsRun,
-        skipped: state.skipped
-      }
+    const leafOutcome = this.tryLeaf(quantifierIndex, testCase, ctx)
+    if (leafOutcome !== null) {
+      return leafOutcome
     }
 
-    if (state.budgetExceeded || executableScenario.hasExistential || outcome.budgetExceeded) {
-      return {
-        outcome: 'exhausted',
-        testsRun: state.testsRun,
-        skipped: state.skipped
-      }
+    const quantifier = ctx.quantifiers[quantifierIndex]
+    if (quantifier === undefined) {
+      return ctx.outcomes.inconclusive(false)
     }
 
+    const frame: QuantifierFrame<Rec> = {
+      index: quantifierIndex,
+      quantifier,
+      testCase,
+      ctx
+    }
+
+    const handler = this.quantifierHandlers(ctx)[quantifier.type]
+    return handler(frame)
+  }
+
+  protected abstract handleExists(frame: QuantifierFrame<Rec>): TraversalOutcome<Rec>
+
+  protected abstract handleForall(frame: QuantifierFrame<Rec>): TraversalOutcome<Rec>
+
+  /**
+   * Quantifier handlers map to avoid scattered conditionals.
+   */
+  protected quantifierHandlers(
+    ctx: TraversalContext<Rec>
+  ): Record<'forall' | 'exists', (frame: QuantifierFrame<Rec>) => TraversalOutcome<Rec>> {
     return {
-      outcome: 'passed',
-      testsRun: state.testsRun,
-      skipped: state.skipped
+      exists: frame => this.handleExists(frame),
+      forall: frame => this.handleForall(frame)
     }
   }
 
-  #handleExists(
+  protected samplesFor(frame: QuantifierFrame<Rec>): readonly FluentPick<unknown>[] {
+    return frame.ctx.samples.get(frame.quantifier.name) ?? []
+  }
+
+  protected bindSample(
+    frame: QuantifierFrame<Rec>,
+    sample: FluentPick<unknown>
+  ): BoundTestCase<Rec> {
+    return {
+      ...frame.testCase,
+      [frame.quantifier.name]: sample
+    } as BoundTestCase<Rec>
+  }
+
+  protected tryLeaf(
     quantifierIndex: number,
     testCase: BoundTestCase<Rec>,
-    quantifiers: readonly ExecutableQuantifier[],
-    samples: Map<string, FluentPick<unknown>[]>,
-    evaluator: TestCaseEvaluator<Rec>,
-    state: ExplorationState,
-    traverse: (
-      quantifierIndex: number,
-      testCase: BoundTestCase<Rec>
-    ) => TraversalOutcome<Rec>
-  ): TraversalOutcome<Rec> {
-    const quantifier = quantifiers[quantifierIndex]
-    if (quantifier === undefined) {
-      return {kind: 'inconclusive', budgetExceeded: false}
+    ctx: TraversalContext<Rec>
+  ): TraversalOutcome<Rec> | null {
+    if (quantifierIndex < ctx.quantifiers.length) {
+      return null
     }
 
-    const quantifierSamples = samples.get(quantifier.name) ?? []
-    let sawBudgetLimit = false
+    const evaluation = ctx.evaluator(testCase, ctx.state)
 
-    for (const sample of quantifierSamples) {
-      const newTestCase = {
-        ...testCase,
-        [quantifier.name]: sample
-      } as BoundTestCase<Rec>
-
-      const outcome = traverse(quantifierIndex + 1, newTestCase)
-
-      if (outcome.kind === 'pass') {
-        return {kind: 'pass', witness: outcome.witness ?? newTestCase}
-      }
-
-      if (outcome.kind === 'inconclusive') {
-        if (outcome.budgetExceeded) {
-          sawBudgetLimit = true
-          break
-        }
-        continue
-      }
-      // fail - try next sample
+    if (evaluation === 'passed') {
+      return ctx.outcomes.pass({...testCase})
     }
 
-    if (sawBudgetLimit) {
-      return {kind: 'inconclusive', budgetExceeded: true}
+    if (evaluation === 'failed') {
+      return ctx.outcomes.fail({...testCase})
     }
 
-    return {kind: 'inconclusive', budgetExceeded: false}
+    return ctx.outcomes.inconclusive(false)
   }
 
-  #handleForall(
-    quantifierIndex: number,
-    testCase: BoundTestCase<Rec>,
-    quantifiers: readonly ExecutableQuantifier[],
-    samples: Map<string, FluentPick<unknown>[]>,
-    state: ExplorationState,
-    traverse: (
-      quantifierIndex: number,
-      testCase: BoundTestCase<Rec>
-    ) => TraversalOutcome<Rec>
-  ): TraversalOutcome<Rec> {
-    const quantifier = quantifiers[quantifierIndex]
-    if (quantifier === undefined) {
-      return {kind: 'inconclusive', budgetExceeded: false}
-    }
-
-    const quantifierSamples = samples.get(quantifier.name) ?? []
-    const hasInnerExists = this.#hasInnerExistential(quantifiers, quantifierIndex + 1)
-
-    let allPassed = true
-    let lastWitness: BoundTestCase<Rec> | undefined
-    let sawBudgetLimit = false
-
-    for (const sample of quantifierSamples) {
-      const newTestCase = {
-        ...testCase,
-        [quantifier.name]: sample
-      } as BoundTestCase<Rec>
-
-      const outcome = traverse(quantifierIndex + 1, newTestCase)
-
-      if (outcome.kind === 'fail') {
-        return {kind: 'fail', counterexample: outcome.counterexample}
-      }
-
-      if (outcome.kind === 'pass') {
-        if (outcome.witness !== undefined) {
-          lastWitness = outcome.witness
-        }
-        continue
-      }
-
-      if (outcome.kind === 'inconclusive') {
-        if (outcome.budgetExceeded) {
-          sawBudgetLimit = true
-          allPassed = false
-          break
-        }
-
-        if (hasInnerExists) {
-          return {kind: 'fail', counterexample: newTestCase}
-        }
-        allPassed = false
-      }
-    }
-
-    if (allPassed && quantifierSamples.length > 0) {
-      return {
-        kind: 'pass',
-        ...(lastWitness !== undefined ? {witness: lastWitness} : {})
-      }
-    }
-
-    if (sawBudgetLimit) {
-      return {kind: 'inconclusive', budgetExceeded: true}
-    }
-
-    return {kind: 'inconclusive', budgetExceeded: false}
+  protected ensureBudget(ctx: TraversalContext<Rec>): TraversalOutcome<Rec> | null {
+    return this.isOutOfBudget(ctx.budget, ctx.state)
+      ? ctx.outcomes.inconclusive(true)
+      : null
   }
 
-  /**
-   * Generate samples for each quantifier.
-   */
-  #generateSamples(
-    quantifiers: readonly ExecutableQuantifier[],
-    sampler: Sampler,
-    maxTests: number
-  ): Map<string, FluentPick<unknown>[]> {
-    const samples = new Map<string, FluentPick<unknown>[]>()
-
-    if (maxTests <= 0) {
-      for (const q of quantifiers) {
-        samples.set(q.name, [])
-      }
-      return samples
+  protected toExplorationResult(
+    outcome: TraversalOutcome<Rec>,
+    ctx: TraversalContext<Rec>
+  ): ExplorationResult<Rec> {
+    switch (outcome.kind) {
+      case 'pass':
+        return ctx.results.passed(outcome.witness)
+      case 'fail':
+        return ctx.results.failed(outcome.counterexample)
+      case 'inconclusive':
+        return ctx.state.budgetExceeded || ctx.hasExistential || outcome.budgetExceeded
+          ? ctx.results.exhausted()
+          : ctx.results.passed()
     }
-
-    const quantifierCount = Math.max(quantifiers.length, 1)
-    const perQuantifier = Math.max(1, Math.floor(maxTests ** (1 / quantifierCount)))
-
-    for (const q of quantifiers) {
-      samples.set(q.name, q.sample(sampler, perQuantifier))
-    }
-
-    return samples
   }
 
-  #toExecutableScenario(scenario: ExecutableScenario<Rec> | Scenario<Rec>): ExecutableScenario<Rec> {
-    return this.#isExecutableScenario(scenario)
-      ? scenario
-      : createExecutableScenario(scenario)
-  }
-
-  #isExecutableScenario(
-    scenario: ExecutableScenario<Rec> | Scenario<Rec>
-  ): scenario is ExecutableScenario<Rec> {
-    const q = scenario.quantifiers[0] as ExecutableQuantifier | undefined
-    return typeof q?.sample === 'function' && typeof q?.shrink === 'function'
-  }
-
-  /**
-   * Evaluate the property for a fully bound test case while tracking skips.
-   */
-  #createEvaluator(
+  protected createEvaluator(
     nodes: readonly ScenarioNode<Rec>[],
     property: (testCase: Rec) => boolean
   ): TestCaseEvaluator<Rec> {
@@ -390,9 +317,9 @@ export class NestedLoopExplorer<Rec extends {}> implements Explorer<Rec> {
       return (testCase: BoundTestCase<Rec>, state: ExplorationState) => {
         state.testsRun += 1
         try {
-          return property(this.#unwrapTestCase(testCase)) ? 'passed' : 'failed'
+          return property(this.unwrapTestCase(testCase)) ? 'passed' : 'failed'
         } catch (e) {
-          if (this.#isPreconditionFailure(e)) {
+          if (this.isPreconditionFailure(e)) {
             state.skipped += 1
             return 'skipped'
           }
@@ -404,9 +331,9 @@ export class NestedLoopExplorer<Rec extends {}> implements Explorer<Rec> {
     return (testCase: BoundTestCase<Rec>, state: ExplorationState) => {
       state.testsRun += 1
       try {
-        return this.#evaluateScenarioNodes(testCase, nodes) ? 'passed' : 'failed'
+        return this.evaluateScenarioNodes(testCase, nodes) ? 'passed' : 'failed'
       } catch (e) {
-        if (this.#isPreconditionFailure(e)) {
+        if (this.isPreconditionFailure(e)) {
           state.skipped += 1
           return 'skipped'
         }
@@ -415,11 +342,11 @@ export class NestedLoopExplorer<Rec extends {}> implements Explorer<Rec> {
     }
   }
 
-  #evaluateScenarioNodes(
+  protected evaluateScenarioNodes(
     testCase: BoundTestCase<Rec>,
     nodes: readonly ScenarioNode<Rec>[]
   ): boolean {
-    const values: Record<string, unknown> = {...this.#unwrapTestCase(testCase)}
+    const values: Record<string, unknown> = {...this.unwrapTestCase(testCase)}
 
     for (const node of nodes) {
       switch (node.type) {
@@ -448,14 +375,51 @@ export class NestedLoopExplorer<Rec extends {}> implements Explorer<Rec> {
     return true
   }
 
-  #unwrapTestCase(testCase: BoundTestCase<Rec>): Rec {
+  protected unwrapTestCase(testCase: BoundTestCase<Rec>): Rec {
     const values = Object.entries(testCase).map(
       ([key, pick]) => [key, (pick as FluentPick<unknown>).value] as const
     )
     return Object.fromEntries(values) as Rec
   }
 
-  #isOutOfBudget(budget: ExplorationBudget, state: ExplorationState): boolean {
+  protected generateSamples(
+    quantifiers: readonly ExecutableQuantifier[],
+    sampler: Sampler,
+    maxTests: number
+  ): Map<string, FluentPick<unknown>[]> {
+    const samples = new Map<string, FluentPick<unknown>[]>()
+
+    if (maxTests <= 0) {
+      for (const q of quantifiers) {
+        samples.set(q.name, [])
+      }
+      return samples
+    }
+
+    const quantifierCount = Math.max(quantifiers.length, 1)
+    const perQuantifier = Math.max(1, Math.floor(maxTests ** (1 / quantifierCount)))
+
+    for (const q of quantifiers) {
+      samples.set(q.name, q.sample(sampler, perQuantifier))
+    }
+
+    return samples
+  }
+
+  protected toExecutableScenario(scenario: ExecutableScenario<Rec> | Scenario<Rec>): ExecutableScenario<Rec> {
+    return this.isExecutableScenario(scenario)
+      ? scenario
+      : createExecutableScenario(scenario)
+  }
+
+  protected isExecutableScenario(
+    scenario: ExecutableScenario<Rec> | Scenario<Rec>
+  ): scenario is ExecutableScenario<Rec> {
+    const q = scenario.quantifiers[0] as ExecutableQuantifier | undefined
+    return typeof q?.sample === 'function' && typeof q?.shrink === 'function'
+  }
+
+  protected isOutOfBudget(budget: ExplorationBudget, state: ExplorationState): boolean {
     if (state.testsRun >= budget.maxTests) {
       state.budgetExceeded = true
       return true
@@ -469,18 +433,87 @@ export class NestedLoopExplorer<Rec extends {}> implements Explorer<Rec> {
     return false
   }
 
-  #hasInnerExistential(
+  protected hasInnerExistential(
     quantifiers: readonly ExecutableQuantifier[],
     startIndex: number
   ): boolean {
     return quantifiers.slice(startIndex).some(q => q.type === 'exists')
   }
 
-  /**
-   * Check if an error is a PreconditionFailure.
-   */
-  #isPreconditionFailure(e: unknown): e is PreconditionFailure {
+  protected isPreconditionFailure(e: unknown): e is PreconditionFailure {
     return e instanceof PreconditionFailure
+  }
+}
+
+/**
+ * Nested loop explorer implementing the traditional property testing approach.
+ */
+export class NestedLoopExplorer<Rec extends {}> extends AbstractExplorer<Rec> {
+  protected handleExists(frame: QuantifierFrame<Rec>): TraversalOutcome<Rec> {
+    const quantifierSamples = this.samplesFor(frame)
+    let sawBudgetLimit = false
+
+    for (const sample of quantifierSamples) {
+      const newTestCase = this.bindSample(frame, sample)
+      const outcome = this.traverse(frame.index + 1, newTestCase, frame.ctx)
+
+      if (outcome.kind === 'pass') {
+        return frame.ctx.outcomes.pass(outcome.witness ?? newTestCase)
+      }
+
+      if (outcome.kind === 'inconclusive') {
+        if (outcome.budgetExceeded) {
+          sawBudgetLimit = true
+          break
+        }
+        continue
+      }
+      // fail - try next sample
+    }
+
+    return frame.ctx.outcomes.inconclusive(sawBudgetLimit)
+  }
+
+  protected handleForall(frame: QuantifierFrame<Rec>): TraversalOutcome<Rec> {
+    const quantifierSamples = this.samplesFor(frame)
+    const hasInnerExists = this.hasInnerExistential(frame.ctx.quantifiers, frame.index + 1)
+
+    let allPassed = true
+    let lastWitness: BoundTestCase<Rec> | undefined
+    let sawBudgetLimit = false
+
+    for (const sample of quantifierSamples) {
+      const newTestCase = this.bindSample(frame, sample)
+      const outcome = this.traverse(frame.index + 1, newTestCase, frame.ctx)
+
+      if (outcome.kind === 'fail') {
+        return frame.ctx.outcomes.fail(outcome.counterexample)
+      }
+
+      if (outcome.kind === 'pass') {
+        if (outcome.witness !== undefined) {
+          lastWitness = outcome.witness
+        }
+        continue
+      }
+
+      if (outcome.budgetExceeded) {
+        sawBudgetLimit = true
+        allPassed = false
+        break
+      }
+
+      if (hasInnerExists) {
+        return frame.ctx.outcomes.fail(newTestCase)
+      }
+      allPassed = false
+    }
+
+    if (allPassed && quantifierSamples.length > 0) {
+      return frame.ctx.outcomes.pass(lastWitness)
+    }
+
+    return frame.ctx.outcomes.inconclusive(sawBudgetLimit)
   }
 }
 
