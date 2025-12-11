@@ -1,5 +1,6 @@
 import jstat from 'jstat'
 import {AsyncLocalStorage} from 'node:async_hooks'
+import {stringify, stringToHash} from './arbitraries/util.js'
 
 /**
  * A probability distribution (https://en.wikipedia.org/wiki/Probability_distribution).
@@ -619,6 +620,15 @@ export class DistributionTracker {
 }
 
 /**
+ * Interface for arbitrary-like objects passed to statistics collector.
+ */
+interface ArbitraryLike {
+  cornerCases(): unknown[]
+  hashCode?(): (a: unknown) => number
+  equals?(): (a: unknown, b: unknown) => boolean
+}
+
+/**
  * Collector for per-arbitrary statistics.
  */
 export class ArbitraryStatisticsCollector {
@@ -629,7 +639,11 @@ export class ArbitraryStatisticsCollector {
    * of test cases that actually executed (testsRun) when preconditions filter samples.
    */
   private samplesGenerated = 0
-  private readonly uniqueValues = new Set<string>()
+
+  // Use hash buckets for efficient deduplication
+  private readonly uniqueValuesBuckets = new Map<number, unknown[]>()
+  private uniqueValuesCount = 0
+
   private readonly cornerCasesTested: unknown[] = []
   private cornerCasesTotal = 0
   private distributionTracker?: DistributionTracker
@@ -642,21 +656,65 @@ export class ArbitraryStatisticsCollector {
    * This is called during traversal for each sample, regardless of whether
    * the test case passes, fails, or is filtered by preconditions.
    */
-  recordSample(value: unknown, arbitrary: {cornerCases(): unknown[]}): void {
+  recordSample(value: unknown, arbitrary: ArbitraryLike): void {
     this.samplesGenerated++
 
-    // Track uniqueness using JSON stringification (simple approach)
-    // For better performance with large objects, could use hashCode/equals if available
-    const valueKey = JSON.stringify(value)
-    this.uniqueValues.add(valueKey)
+        // Get hash and equals functions
+        const hashFn = arbitrary.hashCode !== undefined
+          ? arbitrary.hashCode() 
+          : (a: unknown) => {
+            if (a === null) return 0
+            if (a === undefined) return 1
+            if (typeof a === 'number') return a | 0
+            if (typeof a === 'boolean') return a ? 1 : 0
+            if (typeof a === 'string') return stringToHash(a)
+            return stringToHash(stringify(a))
+          }
+          
+        const eqFn = arbitrary.equals !== undefined
+          ? arbitrary.equals() 
+          : (a: unknown, b: unknown) => {
+            if (a === b) return true
+            if (typeof a === 'object' && a !== null && b !== null) {
+              return stringify(a) === stringify(b)
+            }
+            return false
+          }
+    // Calculate hash
+    const h = hashFn(value)
 
-    // Check if this is a corner case
-    const cornerCases = arbitrary.cornerCases()
-    this.cornerCasesTotal = cornerCases.length
-    for (const cornerCase of cornerCases) {
-      if (JSON.stringify(cornerCase) === valueKey) {
-        this.cornerCasesTested.push(value)
-        break
+    // Check for existence in bucket
+    let bucket = this.uniqueValuesBuckets.get(h)
+    let isUnique = false
+
+    if (bucket === undefined) {
+      bucket = [value]
+      this.uniqueValuesBuckets.set(h, bucket)
+      isUnique = true
+    } else {
+      if (!bucket.some(v => eqFn(v, value))) {
+        bucket.push(value)
+        isUnique = true
+      }
+    }
+
+    if (isUnique) {
+      this.uniqueValuesCount++
+
+      // Check if this is a corner case (only check unique values to avoid redundant work)
+      // Note: This check relies on JSON stringification for now as cornerCases() returns values,
+      // not picks, and we don't have isShrunken or similar here.
+      // Ideally we would use eqFn but cornerCases might not return exact same instances.
+      // Stick to stringify for corner case matching for consistency with previous behavior.
+      const cornerCases = arbitrary.cornerCases()
+      this.cornerCasesTotal = cornerCases.length
+      const valueStr = stringify(value)
+
+      for (const cornerCase of cornerCases) {
+        if (stringify(cornerCase) === valueStr) {
+          this.cornerCasesTested.push(value)
+          break
+        }
       }
     }
   }
@@ -699,7 +757,7 @@ export class ArbitraryStatisticsCollector {
   getStatistics(): ArbitraryStatistics {
     const stats: ArbitraryStatistics = {
       samplesGenerated: this.samplesGenerated,
-      uniqueValues: this.uniqueValues.size,
+      uniqueValues: this.uniqueValuesCount,
       cornerCases: {
         tested: this.cornerCasesTested,
         total: this.cornerCasesTotal
@@ -763,7 +821,8 @@ export class ArbitraryStatisticsCollector {
    */
   reset(): void {
     this.samplesGenerated = 0
-    this.uniqueValues.clear()
+    this.uniqueValuesBuckets.clear()
+    this.uniqueValuesCount = 0
     this.cornerCasesTested.length = 0
     this.cornerCasesTotal = 0
     this.distributionTracker?.reset()
