@@ -380,22 +380,20 @@ export abstract class AbstractExplorer<Rec extends {}> implements Explorer<Rec> 
       }
     }
 
-    switch (outcome.kind) {
-      case 'pass': {
-        const result = ctx.results.passed(outcome.witness)
-        return detailedStats !== undefined ? {...result, detailedStats} : result
+    const baseResult = (() => {
+      switch (outcome.kind) {
+        case 'pass':
+          return ctx.results.passed(outcome.witness)
+        case 'fail':
+          return ctx.results.failed(outcome.counterexample)
+        case 'inconclusive':
+          return ctx.state.budgetExceeded || ctx.hasExistential || outcome.budgetExceeded
+            ? ctx.results.exhausted()
+            : ctx.results.passed()
       }
-      case 'fail': {
-        const result = ctx.results.failed(outcome.counterexample)
-        return detailedStats !== undefined ? {...result, detailedStats} : result
-      }
-      case 'inconclusive': {
-        const result = ctx.state.budgetExceeded || ctx.hasExistential || outcome.budgetExceeded
-          ? ctx.results.exhausted()
-          : ctx.results.passed()
-        return detailedStats !== undefined ? {...result, detailedStats} : result
-      }
-    }
+    })()
+
+    return detailedStats !== undefined ? {...baseResult, detailedStats} : baseResult
   }
 
   protected createEvaluator(
@@ -664,75 +662,75 @@ export class NestedLoopExplorer<Rec extends {}> extends AbstractExplorer<Rec> {
 
 class NestedLoopSemantics<Rec extends {}> implements QuantifierSemantics<Rec> {
   exists(frame: QuantifierFrame<Rec>, next: TraverseNext<Rec>): TraversalOutcome<Rec> {
-    const quantifierSamples = this.samplesFor(frame)
     let sawBudgetLimit = false
 
-    for (const sample of quantifierSamples) {
-      // Track statistics if context is available
-      this.trackSampleStatistics(frame, sample)
-
-      const newTestCase = this.bindSample(frame, sample)
-      const outcome = next(frame.index + 1, newTestCase, frame.ctx)
-
+    const result = this.forEachSample(frame, next, (outcome, testCase) => {
       if (outcome.kind === 'pass') {
-        return frame.ctx.outcomes.pass(outcome.witness ?? newTestCase)
+        return frame.ctx.outcomes.pass(outcome.witness ?? testCase)
       }
+      if (outcome.kind === 'inconclusive' && outcome.budgetExceeded) {
+        sawBudgetLimit = true
+        return 'break'
+      }
+      return 'continue'
+    })
 
-      if (outcome.kind === 'inconclusive') {
-        if (outcome.budgetExceeded) {
-          sawBudgetLimit = true
-          break
-        }
-        continue
+    if (result !== 'break' && result !== 'continue') return result
+    return frame.ctx.outcomes.inconclusive(sawBudgetLimit)
+  }
+
+  forall(frame: QuantifierFrame<Rec>, next: TraverseNext<Rec>): TraversalOutcome<Rec> {
+    let sawBudgetLimit = false
+    let allPassed = true
+    let lastWitness: BoundTestCase<Rec> | undefined
+    const hasInnerExists = this.hasInnerExistential(frame.ctx.quantifiers, frame.index + 1)
+
+    const result = this.forEachSample(frame, next, (outcome, testCase) => {
+      if (outcome.kind === 'fail') {
+        return frame.ctx.outcomes.fail(outcome.counterexample)
       }
-      // fail - try next sample
+      if (outcome.kind === 'pass') {
+        if (outcome.witness !== undefined) lastWitness = outcome.witness
+        return 'continue'
+      }
+      if (outcome.budgetExceeded) {
+        sawBudgetLimit = true
+        allPassed = false
+        return 'break'
+      }
+      if (hasInnerExists) {
+        return frame.ctx.outcomes.fail(testCase)
+      }
+      allPassed = false
+      return 'continue'
+    })
+
+    if (result !== 'break' && result !== 'continue') return result
+
+    if (allPassed && this.samplesFor(frame).length > 0) {
+      return frame.ctx.outcomes.pass(lastWitness)
     }
 
     return frame.ctx.outcomes.inconclusive(sawBudgetLimit)
   }
 
-  forall(frame: QuantifierFrame<Rec>, next: TraverseNext<Rec>): TraversalOutcome<Rec> {
-    const quantifierSamples = this.samplesFor(frame)
-    const hasInnerExists = this.hasInnerExistential(frame.ctx.quantifiers, frame.index + 1)
-
-    let allPassed = true
-    let lastWitness: BoundTestCase<Rec> | undefined
-    let sawBudgetLimit = false
-
-    for (const sample of quantifierSamples) {
-      // Track statistics if context is available
+  private forEachSample(
+    frame: QuantifierFrame<Rec>,
+    next: TraverseNext<Rec>,
+    visitor: (
+      outcome: TraversalOutcome<Rec>,
+      testCase: BoundTestCase<Rec>
+    ) => TraversalOutcome<Rec> | 'continue' | 'break'
+  ): TraversalOutcome<Rec> | 'break' | 'continue' {
+    const samples = this.samplesFor(frame)
+    for (const sample of samples) {
       this.trackSampleStatistics(frame, sample)
-
       const newTestCase = this.bindSample(frame, sample)
       const outcome = next(frame.index + 1, newTestCase, frame.ctx)
-
-      if (outcome.kind === 'fail') {
-        return frame.ctx.outcomes.fail(outcome.counterexample)
-      }
-
-      if (outcome.kind === 'pass') {
-        if (outcome.witness !== undefined) lastWitness = outcome.witness
-        continue
-      }
-
-      if (outcome.budgetExceeded) {
-        sawBudgetLimit = true
-        allPassed = false
-        break
-      }
-
-      if (hasInnerExists) {
-        return frame.ctx.outcomes.fail(newTestCase)
-      }
-
-      allPassed = false
+      const result = visitor(outcome, newTestCase)
+      if (result !== 'continue') return result
     }
-
-    if (allPassed && quantifierSamples.length > 0) {
-      return frame.ctx.outcomes.pass(lastWitness)
-    }
-
-    return frame.ctx.outcomes.inconclusive(sawBudgetLimit)
+    return 'continue'
   }
 
   private samplesFor(frame: QuantifierFrame<Rec>): readonly FluentPick<unknown>[] {
