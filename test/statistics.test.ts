@@ -1,4 +1,4 @@
-import {BetaBinomialDistribution, IntegerDistribution, type FluentStatistics} from '../src/statistics'
+import {BetaBinomialDistribution, IntegerDistribution} from '../src/statistics'
 import * as fc from '../src/index'
 import {it} from 'mocha'
 import {expect} from 'chai'
@@ -131,6 +131,7 @@ describe('Statistics tests', () => {
             }
           }, 12345)
           .forall('x', fc.integer(0, 10))
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
           .then(({x}) => {
             callCount++
             // Fail on 7th test
@@ -232,6 +233,7 @@ describe('Statistics tests', () => {
         const result = fc.scenario()
           .config(fc.strategy().withSampleSize(200))
           .forall('x', fc.integer(0, 100))
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
           .then(({x}) => {
             testCount++
             // Fail on 10th test to ensure we have passing tests before
@@ -324,10 +326,11 @@ describe('Statistics tests', () => {
 
       it('should track discards even when property becomes unsatisfiable', () => {
         let testCount = 0
-        let discardCount = 0
+        let discardCount = 0  // eslint-disable-line @typescript-eslint/no-unused-vars
         const result = fc.scenario()
           .config(fc.strategy().withSampleSize(100))
           .forall('x', fc.integer(0, 100))
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
           .then(({x}) => {
             testCount++
             // Discard tests 3, 7, 11 (create some gaps)
@@ -367,6 +370,7 @@ describe('Statistics tests', () => {
         const result = fc.scenario()
           .config(fc.strategy().withSampleSize(1))
           .forall('x', fc.constant(1))
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
           .then(({x}) => {
             // Busy wait for delayMs
             const start = Date.now()
@@ -389,6 +393,7 @@ describe('Statistics tests', () => {
         const smallResult = fc.scenario()
           .config(fc.strategy().withSampleSize(5))
           .forall('x', fc.constant(1))
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
           .then(({x}) => {
             const start = Date.now()
             while (Date.now() - start < workPerTest) { /* busy wait */ }
@@ -399,6 +404,7 @@ describe('Statistics tests', () => {
         const largeResult = fc.scenario()
           .config(fc.strategy().withSampleSize(20))
           .forall('x', fc.constant(1))
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
           .then(({x}) => {
             const start = Date.now()
             while (Date.now() - start < workPerTest) { /* busy wait */ }
@@ -444,6 +450,7 @@ describe('Statistics tests', () => {
         const result = fc.scenario()
           .config(fc.strategy().withSampleSize(200))
           .forall('x', fc.integer(0, 100))
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
           .then(({x}) => {
             testCount++
             return testCount !== 15 // Fail on 15th test
@@ -463,7 +470,7 @@ describe('Statistics tests', () => {
       it('should maintain invariants with mixed preconditions and failures', () => {
         const sampleSize = 200
         let testCount = 0
-        let passedCount = 0
+        let passedCount = 0  // eslint-disable-line @typescript-eslint/no-unused-vars
         let discardedCount = 0
 
         const result = fc.scenario()
@@ -497,6 +504,7 @@ describe('Statistics tests', () => {
         const result = fc.scenario()
           .config(fc.strategy().withSampleSize(50))
           .forall('x', fc.integer(0, 10))
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
           .then(({x}) => true)
           .check()
 
@@ -511,6 +519,7 @@ describe('Statistics tests', () => {
         const result = fc.scenario()
           .config(fc.strategy().withSampleSize(sampleSize))
           .forall('x', fc.integer(0, 100))
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
           .then(({x}) => {
             fc.pre(false) // Discard all tests
             return true

@@ -53,6 +53,34 @@ export interface ThenNode<Rec extends {} = {}> {
 }
 
 /**
+ * A classify node - predicate-based classification with a label.
+ * The label is counted when the predicate returns true.
+ */
+export interface ClassifyNode<Rec extends {} = {}> {
+  readonly type: 'classify'
+  readonly predicate: (args: Rec) => boolean
+  readonly label: string
+}
+
+/**
+ * A label node - dynamic labeling function.
+ * The function returns a label string that is counted for each test case.
+ */
+export interface LabelNode<Rec extends {} = {}> {
+  readonly type: 'label'
+  readonly fn: (args: Rec) => string
+}
+
+/**
+ * A collect node - value collection function.
+ * The function returns a value (string or number) that is used as a label and counted.
+ */
+export interface CollectNode<Rec extends {} = {}> {
+  readonly type: 'collect'
+  readonly fn: (args: Rec) => string | number
+}
+
+/**
  * Union of all scenario node types.
  */
 export type ScenarioNode<Rec extends {} = {}> =
@@ -60,6 +88,9 @@ export type ScenarioNode<Rec extends {} = {}> =
   | GivenNode<Rec>
   | WhenNode<Rec>
   | ThenNode<Rec>
+  | ClassifyNode<Rec>
+  | LabelNode<Rec>
+  | CollectNode<Rec>
 
 /**
  * An immutable AST representation of a property test scenario.

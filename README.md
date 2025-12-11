@@ -482,6 +482,112 @@ fc.scenario()
 
 The result includes a `skipped` count showing how many test cases were skipped due to failed preconditions. Skipped cases count as neither passes nor failures.
 
+### Test Case Classification
+
+FluentCheck allows you to classify and label test cases to gain insight into what kinds of inputs were actually tested. This helps ensure important categories (empty arrays, negative numbers, edge cases) are adequately covered.
+
+#### Classify by Predicate
+
+Use `classify()` to label test cases when a predicate is true:
+
+```typescript
+const result = fc.scenario()
+  .config(fc.strategy().withSampleSize(100))
+  .forall('xs', fc.array(fc.integer(), 0, 10))
+  .classify(({xs}) => xs.length === 0, 'empty')
+  .classify(({xs}) => xs.length < 5, 'small')
+  .classify(({xs}) => xs.length >= 5, 'large')
+  .then(({xs}) => xs.length >= 0)
+  .check()
+
+// Access classification statistics
+console.log(result.statistics.labels)
+// { empty: 15, small: 42, large: 43 }
+
+console.log(result.statistics.labelPercentages)
+// { empty: 15.0, small: 42.0, large: 43.0 }
+```
+
+#### Dynamic Labeling
+
+Use `label()` to dynamically assign labels based on test case values:
+
+```typescript
+const result = fc.scenario()
+  .config(fc.strategy().withSampleSize(100))
+  .forall('x', fc.integer(-100, 100))
+  .label(({x}) => x < 0 ? 'negative' : x > 0 ? 'positive' : 'zero')
+  .then(({x}) => Math.abs(x) >= 0)
+  .check()
+
+console.log(result.statistics.labelPercentages)
+// { negative: 48.5, positive: 48.5, zero: 3.0 }
+```
+
+#### Value Collection
+
+Use `collect()` to aggregate values and use them as labels:
+
+```typescript
+const result = fc.scenario()
+  .config(fc.strategy().withSampleSize(50))
+  .forall('xs', fc.array(fc.integer(), 0, 10))
+  .collect(({xs}) => xs.length)  // Collect array lengths
+  .then(({xs}) => xs.length >= 0)
+  .check()
+
+console.log(result.statistics.labels)
+// { '0': 5, '1': 8, '2': 12, '3': 10, ... }
+```
+
+#### Multiple Classifications
+
+You can combine multiple classification methods in the same scenario:
+
+```typescript
+const result = fc.scenario()
+  .config(fc.strategy().withSampleSize(100))
+  .forall('xs', fc.array(fc.integer(), 0, 10))
+  .classify(({xs}) => xs.length === 0, 'empty')
+  .label(({xs}) => xs.length < 5 ? 'small' : 'large')
+  .collect(({xs}) => xs.length)
+  .then(({xs}) => xs.length >= 0)
+  .check()
+
+// All classifications are tracked independently
+console.log(result.statistics.labels)
+// { empty: 10, small: 45, large: 45, '0': 10, '1': 8, ... }
+```
+
+#### Classification with Preconditions
+
+Classifications are evaluated before preconditions, so discarded tests are still classified:
+
+```typescript
+const result = fc.scenario()
+  .config(fc.strategy().withSampleSize(100))
+  .forall('x', fc.integer(0, 100))
+  .classify(({x}) => x < 50, 'small')
+  .classify(({x}) => x >= 50, 'large')
+  .then(({x}) => {
+    fc.pre(x % 2 === 0)  // Discard odd numbers
+    return true
+  })
+  .check()
+
+// Labels include all tests (even discarded ones)
+// Percentages are based on testsRun, not testsPassed
+console.log(result.statistics.testsRun)        // 100
+console.log(result.statistics.testsDiscarded)  // ~50
+console.log(result.statistics.labels)          // { small: ~50, large: ~50 }
+```
+
+**When to use classification:**
+- Verify test coverage of important input categories
+- Debug why certain edge cases aren't being found
+- Understand the distribution of generated test data
+- Ensure balanced testing across different input types
+
 ## Detailed Documentation
 
 For more details on each feature, check out our detailed documentation:
@@ -490,6 +596,7 @@ For more details on each feature, check out our detailed documentation:
 - [Quantifiers](docs/quantifiers.md)
 - [Given-When-Then Pattern](docs/given-when-then-pattern.md)
 - [Statistical Confidence](docs/statistical-confidence.md)
+- [Test Case Classification](docs/test-case-classification.md) (coming soon)
 - [Smart Shrinking](docs/smart-shrinking.md)
 - [Customizable Strategies](docs/customizable-strategies.md)
 - [Composable Arbitraries](docs/composable-arbitraries.md)

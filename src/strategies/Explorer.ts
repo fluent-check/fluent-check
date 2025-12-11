@@ -1,5 +1,5 @@
 import type {FluentPick} from '../arbitraries/index.js'
-import type {Scenario, ScenarioNode} from '../Scenario.js'
+import type {Scenario, ScenarioNode, ClassifyNode, LabelNode, CollectNode} from '../Scenario.js'
 import {createExecutableScenario} from '../ExecutableScenario.js'
 import type {ExecutableScenario, ExecutableQuantifier} from '../ExecutableScenario.js'
 import {PreconditionFailure} from '../FluentCheck.js'
@@ -43,6 +43,8 @@ export interface ExplorationPassed<Rec extends {} = {}> {
    * For forall-only scenarios, this may be undefined or empty.
    */
   readonly witness?: BoundTestCase<Rec>
+  /** Label counts for test case classifications (optional) */
+  readonly labels?: Record<string, number>
 }
 
 /**
@@ -53,6 +55,8 @@ export interface ExplorationFailed<Rec extends {}> {
   readonly counterexample: BoundTestCase<Rec>
   readonly testsRun: number
   readonly skipped: number
+  /** Label counts for test case classifications (optional) */
+  readonly labels?: Record<string, number>
 }
 
 /**
@@ -63,6 +67,8 @@ export interface ExplorationExhausted {
   readonly outcome: 'exhausted'
   readonly testsRun: number
   readonly skipped: number
+  /** Label counts for test case classifications (optional) */
+  readonly labels?: Record<string, number>
 }
 
 type PropertyEvaluation = 'passed' | 'failed' | 'skipped'
@@ -72,6 +78,7 @@ interface ExplorationState {
   skipped: number
   budgetExceeded: boolean
   startTime: number
+  labels: Map<string, number>
 }
 
 interface TraversalContext<Rec extends {}> {
@@ -118,35 +125,49 @@ class TraversalOutcomeBuilder<Rec extends {}> {
 class ExplorationResultBuilder<Rec extends {}> {
   constructor(private readonly state: ExplorationState) {}
 
+  private labelsToRecord(): Record<string, number> | undefined {
+    if (this.state.labels.size === 0) {
+      return undefined
+    }
+    return Object.fromEntries(this.state.labels)
+  }
+
   passed(witness?: BoundTestCase<Rec>): ExplorationPassed<Rec> {
+    const labels = this.labelsToRecord()
     return witness !== undefined
       ? {
         outcome: 'passed',
         testsRun: this.state.testsRun,
         skipped: this.state.skipped,
-        witness
+        witness,
+        ...(labels !== undefined && {labels})
       }
       : {
         outcome: 'passed',
         testsRun: this.state.testsRun,
-        skipped: this.state.skipped
+        skipped: this.state.skipped,
+        ...(labels !== undefined && {labels})
       }
   }
 
   failed(counterexample: BoundTestCase<Rec>): ExplorationFailed<Rec> {
+    const labels = this.labelsToRecord()
     return {
       outcome: 'failed',
       counterexample,
       testsRun: this.state.testsRun,
-      skipped: this.state.skipped
+      skipped: this.state.skipped,
+      ...(labels !== undefined && {labels})
     }
   }
 
   exhausted(): ExplorationExhausted {
+    const labels = this.labelsToRecord()
     return {
       outcome: 'exhausted',
       testsRun: this.state.testsRun,
-      skipped: this.state.skipped
+      skipped: this.state.skipped,
+      ...(labels !== undefined && {labels})
     }
   }
 }
@@ -192,7 +213,8 @@ export abstract class AbstractExplorer<Rec extends {}> implements Explorer<Rec> 
       testsRun: 0,
       skipped: 0,
       budgetExceeded: false,
-      startTime: Date.now()
+      startTime: Date.now(),
+      labels: new Map<string, number>()
     }
 
     const outcomes = new TraversalOutcomeBuilder<Rec>()
@@ -290,11 +312,17 @@ export abstract class AbstractExplorer<Rec extends {}> implements Explorer<Rec> 
     nodes: readonly ScenarioNode<Rec>[],
     property: (testCase: Rec) => boolean
   ): TestCaseEvaluator<Rec> {
+    const classificationNodes = nodes.filter(
+      (node): node is ClassifyNode<Rec> | LabelNode<Rec> | CollectNode<Rec> =>
+        node.type === 'classify' || node.type === 'label' || node.type === 'collect'
+    )
     const hasThenNodes = nodes.some(node => node.type === 'then')
 
     if (!hasThenNodes) {
       return (testCase: BoundTestCase<Rec>, state: ExplorationState) => {
         state.testsRun += 1
+        // Evaluate classifications before property evaluation (so discarded tests are still classified)
+        this.evaluateClassifications(testCase, classificationNodes, state)
         try {
           return property(this.unwrapTestCase(testCase)) ? 'passed' : 'failed'
         } catch (e) {
@@ -309,6 +337,8 @@ export abstract class AbstractExplorer<Rec extends {}> implements Explorer<Rec> 
 
     return (testCase: BoundTestCase<Rec>, state: ExplorationState) => {
       state.testsRun += 1
+      // Evaluate classifications before scenario evaluation (so discarded tests are still classified)
+      this.evaluateClassifications(testCase, classificationNodes, state)
       try {
         return this.evaluateScenarioNodes(testCase, nodes) ? 'passed' : 'failed'
       } catch (e) {
@@ -317,6 +347,38 @@ export abstract class AbstractExplorer<Rec extends {}> implements Explorer<Rec> 
           return 'skipped'
         }
         throw e
+      }
+    }
+  }
+
+  protected evaluateClassifications(
+    testCase: BoundTestCase<Rec>,
+    classificationNodes: readonly (ClassifyNode<Rec> | LabelNode<Rec> | CollectNode<Rec>)[],
+    state: ExplorationState
+  ): void {
+    if (classificationNodes.length === 0) {
+      return
+    }
+
+    const record = this.unwrapTestCase(testCase)
+
+    for (const node of classificationNodes) {
+      let label: string
+      switch (node.type) {
+        case 'classify':
+          if (node.predicate(record)) {
+            label = node.label
+            state.labels.set(label, (state.labels.get(label) ?? 0) + 1)
+          }
+          break
+        case 'label':
+          label = node.fn(record)
+          state.labels.set(label, (state.labels.get(label) ?? 0) + 1)
+          break
+        case 'collect':
+          label = String(node.fn(record))
+          state.labels.set(label, (state.labels.get(label) ?? 0) + 1)
+          break
       }
     }
   }
@@ -346,6 +408,11 @@ export abstract class AbstractExplorer<Rec extends {}> implements Explorer<Rec> 
           if (!node.predicate(record)) {
             return false
           }
+          break
+        case 'classify':
+        case 'label':
+        case 'collect':
+          // Classifications are evaluated separately before scenario evaluation
           break
       }
     }
