@@ -776,7 +776,11 @@ class NestedLoopSemantics<Rec extends {}> implements QuantifierSemantics<Rec> {
     } else {
       // Fallback: record sample without corner case checking.
       // This should be rare - only if quantifier node is missing from nodes array.
-      collector.recordSample(sample.value, {cornerCases: () => []})
+      collector.recordSample(sample.value, {
+        cornerCases: () => [],
+        hashCode: () => (a: unknown) => typeof a === 'number' ? a | 0 : 0,
+        equals: () => (a: unknown, b: unknown) => a === b
+      })
     }
 
     // Track numeric values for distribution

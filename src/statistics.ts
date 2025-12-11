@@ -1,6 +1,6 @@
 import jstat from 'jstat'
 import {AsyncLocalStorage} from 'node:async_hooks'
-import {stringify, stringToHash} from './arbitraries/util.js'
+import {stringify} from './arbitraries/util.js'
 
 /**
  * A probability distribution (https://en.wikipedia.org/wiki/Probability_distribution).
@@ -263,20 +263,9 @@ export interface DistributionStatistics {
 }
 
 /**
- * Length statistics for arrays or strings.
+ * Length statistics for arrays or strings (subset of DistributionStatistics).
  */
-export interface LengthStatistics {
-  /** Minimum length generated */
-  min: number
-  /** Maximum length generated */
-  max: number
-  /** Mean length */
-  mean: number
-  /** Estimated median length */
-  median: number
-  /** Number of observations */
-  count: number
-}
+export type LengthStatistics = Pick<DistributionStatistics, 'min' | 'max' | 'mean' | 'median' | 'count'>
 
 /**
  * Statistics for target observations.
@@ -631,179 +620,112 @@ export class DistributionTracker {
  */
 interface ArbitraryLike {
   cornerCases(): unknown[]
-  hashCode?(): (a: unknown) => number
-  equals?(): (a: unknown, b: unknown) => boolean
+  hashCode(): (a: unknown) => number
+  equals(): (a: unknown, b: unknown) => boolean
+}
+
+/**
+ * Extract length statistics from a distribution tracker.
+ */
+function toLengthStatistics(tracker: DistributionTracker): LengthStatistics {
+  const stats = tracker.getStatistics()
+  return {
+    min: stats.min,
+    max: stats.max,
+    mean: stats.mean,
+    median: stats.median,
+    count: stats.count
+  }
 }
 
 /**
  * Collector for per-arbitrary statistics.
  */
 export class ArbitraryStatisticsCollector {
-  /**
-   * Number of samples generated for this arbitrary.
-   * Note: This counts all generated samples during traversal, including those
-   * that may be filtered by preconditions. This may be higher than the number
-   * of test cases that actually executed (testsRun) when preconditions filter samples.
-   */
   private samplesGenerated = 0
-
-  // Use hash buckets for efficient deduplication
   private readonly uniqueValuesBuckets = new Map<number, unknown[]>()
   private uniqueValuesCount = 0
-
   private readonly cornerCasesTested: unknown[] = []
   private cornerCasesTotal = 0
   private distributionTracker?: DistributionTracker
   private arrayLengthTracker?: DistributionTracker
   private stringLengthTracker?: DistributionTracker
-  private isNumeric = false
 
   /**
    * Record that a sample was generated.
-   * This is called during traversal for each sample, regardless of whether
-   * the test case passes, fails, or is filtered by preconditions.
    */
   recordSample(value: unknown, arbitrary: ArbitraryLike): void {
     this.samplesGenerated++
 
-    // Get hash and equals functions
-    const hashFn = arbitrary.hashCode !== undefined
-      ? arbitrary.hashCode()
-      : (a: unknown) => {
-        if (a === null) return 0
-        if (a === undefined) return 1
-        if (typeof a === 'number') return a | 0
-        if (typeof a === 'boolean') return a ? 1 : 0
-        if (typeof a === 'string') return stringToHash(a)
-        return stringToHash(stringify(a))
-      }
-
-    const eqFn = arbitrary.equals !== undefined
-      ? arbitrary.equals()
-      : (a: unknown, b: unknown) => {
-        if (a === b) return true
-        if (typeof a === 'object' && a !== null && b !== null) {
-          return stringify(a) === stringify(b)
-        }
-        return false
-      }
-
-    // Calculate hash
+    const hashFn = arbitrary.hashCode()
+    const eqFn = arbitrary.equals()
     const h = hashFn(value)
 
     // Check for existence in bucket
-    let bucket = this.uniqueValuesBuckets.get(h)
-    let isUnique = false
-
-    if (bucket === undefined) {
-      bucket = [value]
-      this.uniqueValuesBuckets.set(h, bucket)
-      isUnique = true
-    } else {
-      if (!bucket.some(v => eqFn(v, value))) {
-        bucket.push(value)
-        isUnique = true
-      }
-    }
+    const bucket = this.uniqueValuesBuckets.get(h)
+    const isUnique = bucket === undefined
+      ? (this.uniqueValuesBuckets.set(h, [value]), true)
+      : !bucket.some(v => eqFn(v, value)) && (bucket.push(value), true)
 
     if (isUnique) {
       this.uniqueValuesCount++
+      this.checkCornerCase(value, arbitrary)
+    }
+  }
 
-      // Check if this is a corner case (only check unique values to avoid redundant work)
-      // Note: This check relies on JSON stringification for now as cornerCases() returns values,
-      // not picks, and we don't have isShrunken or similar here.
-      // Ideally we would use eqFn but cornerCases might not return exact same instances.
-      // Stick to stringify for corner case matching for consistency with previous behavior.
-      const cornerCases = arbitrary.cornerCases()
-      this.cornerCasesTotal = cornerCases.length
-      const valueStr = stringify(value)
+  private checkCornerCase(value: unknown, arbitrary: ArbitraryLike): void {
+    const cornerCases = arbitrary.cornerCases()
+    this.cornerCasesTotal = cornerCases.length
+    const valueStr = stringify(value)
 
-      for (const cornerCase of cornerCases) {
-        if (stringify(cornerCase) === valueStr) {
-          this.cornerCasesTested.push(value)
-          break
-        }
+    for (const cornerCase of cornerCases) {
+      if (stringify(cornerCase) === valueStr) {
+        this.cornerCasesTested.push(value)
+        break
       }
     }
   }
 
-  /**
-   * Record a numeric value for distribution tracking.
-   */
+  /** Record a numeric value for distribution tracking. */
   recordNumericValue(value: number): void {
-    if (!this.isNumeric) {
-      this.isNumeric = true
-      this.distributionTracker = new DistributionTracker()
-    }
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    this.distributionTracker!.add(value)
+    this.distributionTracker ??= new DistributionTracker()
+    this.distributionTracker.add(value)
   }
 
-  /**
-   * Record an array length value for tracking.
-   */
+  /** Record an array length value for tracking. */
   recordArrayLength(length: number): void {
-    if (this.arrayLengthTracker === undefined) {
-      this.arrayLengthTracker = new DistributionTracker()
-    }
+    this.arrayLengthTracker ??= new DistributionTracker()
     this.arrayLengthTracker.add(length)
   }
 
-  /**
-   * Record a string length value for tracking.
-   */
+  /** Record a string length value for tracking. */
   recordStringLength(length: number): void {
-    if (this.stringLengthTracker === undefined) {
-      this.stringLengthTracker = new DistributionTracker()
-    }
+    this.stringLengthTracker ??= new DistributionTracker()
     this.stringLengthTracker.add(length)
   }
 
-  /**
-   * Get the collected statistics.
-   */
+  /** Get the collected statistics. */
   getStatistics(): ArbitraryStatistics {
     const stats: ArbitraryStatistics = {
       samplesGenerated: this.samplesGenerated,
       uniqueValues: this.uniqueValuesCount,
-      cornerCases: {
-        tested: this.cornerCasesTested,
-        total: this.cornerCasesTotal
-      }
+      cornerCases: {tested: this.cornerCasesTested, total: this.cornerCasesTotal}
     }
 
     if (this.distributionTracker !== undefined && this.distributionTracker.getCount() > 0) {
       stats.distribution = this.distributionTracker.getStatistics()
     }
-
     if (this.arrayLengthTracker !== undefined && this.arrayLengthTracker.getCount() > 0) {
-      const lengthStats = this.arrayLengthTracker.getStatistics()
-      stats.arrayLengths = {
-        min: lengthStats.min,
-        max: lengthStats.max,
-        mean: lengthStats.mean,
-        median: lengthStats.median,
-        count: lengthStats.count
-      }
+      stats.arrayLengths = toLengthStatistics(this.arrayLengthTracker)
     }
-
     if (this.stringLengthTracker !== undefined && this.stringLengthTracker.getCount() > 0) {
-      const lengthStats = this.stringLengthTracker.getStatistics()
-      stats.stringLengths = {
-        min: lengthStats.min,
-        max: lengthStats.max,
-        mean: lengthStats.mean,
-        median: lengthStats.median,
-        count: lengthStats.count
-      }
+      stats.stringLengths = toLengthStatistics(this.stringLengthTracker)
     }
 
     return stats
   }
 
-  /**
-   * Reset the collector.
-   */
+  /** Reset the collector. */
   reset(): void {
     this.samplesGenerated = 0
     this.uniqueValuesBuckets.clear()
