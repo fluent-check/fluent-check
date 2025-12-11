@@ -1,6 +1,6 @@
 # Tooling
 
-## MODIFIED Requirements
+## ADDED Requirements
 
 ### Requirement: Strict Mode Code Patterns
 

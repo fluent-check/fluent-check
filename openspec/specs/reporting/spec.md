@@ -3,9 +3,7 @@
 ## Purpose
 
 Test result reporting and assertion integration for property-based tests. Provides structured results containing success/failure status, examples or counterexamples, and reproducibility seeds, along with an expect function for seamless test framework integration.
-
 ## Requirements
-
 ### Requirement: FluentResult
 
 The system SHALL provide a `FluentResult` class containing test execution outcomes.
@@ -56,3 +54,15 @@ The system SHALL unwrap FluentPick values to plain values in results.
 - **WHEN** a result is returned from `check()`
 - **THEN** `result.example` contains plain values, not FluentPick wrappers
 - **AND** values are accessible by their bound variable names
+
+### Requirement: FluentStatistics Interface
+
+The system SHALL provide a FluentStatistics interface for test execution metrics.
+
+#### Scenario: Basic statistics fields
+- **WHEN** a test completes
+- **THEN** `statistics.testsRun` SHALL be a number representing total tests executed
+- **AND** `statistics.testsPassed` SHALL be a number representing tests that passed
+- **AND** `statistics.testsDiscarded` SHALL be a number representing filtered tests
+- **AND** `statistics.executionTimeMs` SHALL be a number representing execution time
+

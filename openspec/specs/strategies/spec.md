@@ -16,6 +16,12 @@ The system SHALL provide a `FluentStrategyFactory` for building customized test 
 - **WHEN** `.build()` is called on the factory
 - **THEN** a configured FluentStrategy instance is returned
 
+#### Scenario: Build strategy lazily at check time
+- **GIVEN** a FluentCheck scenario configured with a `FluentStrategyFactory`
+- **WHEN** `.check()` (or `.assert()`) is called on the scenario
+- **THEN** a `FluentStrategy` instance SHALL be built from the configured factory at execution time
+- **AND** that instance SHALL be reused for the entire scenario execution
+
 ### Requirement: Default Strategy
 
 The system SHALL provide a `defaultStrategy()` method that configures a sensible default combination of features.
@@ -97,6 +103,11 @@ The system SHALL define a `FluentStrategyInterface` with core methods for test e
 - **WHEN** `handleResult()` is called
 - **THEN** it marks the end of one test iteration
 
+#### Scenario: Register arbitraries before execution
+- **GIVEN** a FluentCheck scenario with one or more quantifiers (`forall` / `exists`)
+- **WHEN** `.check()` (or `.assert()`) is called on the scenario
+- **THEN** each quantifier SHALL register its arbitrary with the `FluentStrategy` before any inputs are drawn via `hasInput` / `getInput`
+
 ### Requirement: Strategy Composition
 
 The system SHALL support composing strategy features through mixins.
@@ -134,4 +145,271 @@ The system SHALL provide pre-configured strategy presets for common testing scen
 #### Scenario: Preset compatibility with config
 - **WHEN** a strategy preset is passed to `scenario().config()`
 - **THEN** the scenario SHALL use the preset's configuration
+
+### Requirement: Explorer Interface
+
+The system SHALL provide an `Explorer<Rec>` interface for navigating the search space of a scenario.
+
+#### Scenario: Explore method signature
+- **WHEN** an Explorer is used
+- **THEN** it SHALL accept a scenario, property function, sampler, and budget
+- **AND** it SHALL return an ExplorationResult
+
+#### Scenario: Explorer is stateless
+- **WHEN** an Explorer explores a scenario
+- **THEN** the Explorer instance SHALL NOT retain state between explorations
+
+### Requirement: Exploration Budget
+
+The system SHALL provide an `ExplorationBudget` type for controlling exploration limits.
+
+#### Scenario: Max tests budget
+- **WHEN** `budget.maxTests` is set to N
+- **THEN** the explorer SHALL evaluate the property at most N times
+
+#### Scenario: Optional time budget
+- **WHEN** `budget.maxTime` is set
+- **THEN** the explorer MAY stop early if time is exceeded
+
+### Requirement: Exploration Result
+
+The system SHALL provide an `ExplorationResult<Rec>` type representing exploration outcomes.
+
+#### Scenario: Passed result
+- **WHEN** all tested cases satisfy the property
+- **THEN** the result SHALL have `outcome: 'passed'` and `testsRun` count
+
+#### Scenario: Failed result
+- **WHEN** a counterexample is found
+- **THEN** the result SHALL have `outcome: 'failed'`, `counterexample`, and `testsRun` count
+
+#### Scenario: Exhausted result
+- **WHEN** the budget is exhausted before finding failure
+- **THEN** the result SHALL have `outcome: 'exhausted'` and `testsRun` count
+
+### Requirement: Nested Loop Explorer
+
+The system SHALL provide a `NestedLoopExplorer` that implements current behavior.
+
+#### Scenario: Forall semantics
+- **WHEN** exploring a scenario with only `forall` quantifiers
+- **THEN** it SHALL iterate nested loops over all quantifier samples
+- **AND** it SHALL fail on the first counterexample found
+
+#### Scenario: Exists semantics
+- **WHEN** exploring a scenario with `exists` quantifiers
+- **THEN** it SHALL search for a witness that satisfies the property
+- **AND** it SHALL succeed when a witness is found
+
+#### Scenario: Given predicate
+- **WHEN** a `given` predicate is in the scenario
+- **THEN** test cases not satisfying the predicate SHALL be skipped
+
+### Requirement: Explorer Configuration
+
+The system SHALL allow configuring which Explorer implementation to use.
+
+#### Scenario: Configure via factory
+- **WHEN** `factory.withNestedExploration()` is called
+- **THEN** the resulting checker SHALL use NestedLoopExplorer
+
+#### Scenario: Default explorer
+- **WHEN** no explorer is explicitly configured
+- **THEN** NestedLoopExplorer SHALL be used by default
+
+### Requirement: Sampler Interface
+
+The system SHALL provide a `Sampler` interface for generating samples from arbitraries.
+
+#### Scenario: Sample method
+- **WHEN** `sampler.sample(arbitrary, count)` is called
+- **THEN** it SHALL return an array of `FluentPick` values
+- **AND** the array length SHALL be at most `count`
+
+#### Scenario: Sample with bias method
+- **WHEN** `sampler.sampleWithBias(arbitrary, count)` is called
+- **THEN** it SHALL include corner cases from the arbitrary
+- **AND** remaining samples SHALL be randomly generated
+
+#### Scenario: Sample unique method
+- **WHEN** `sampler.sampleUnique(arbitrary, count)` is called
+- **THEN** it SHALL return only unique values
+- **AND** uniqueness SHALL be determined by the arbitrary's equals function
+
+### Requirement: Random Sampler
+
+The system SHALL provide a `RandomSampler` as the base sampler implementation.
+
+#### Scenario: Random generation
+- **WHEN** a RandomSampler samples from an arbitrary
+- **THEN** it SHALL use the configured RNG for value generation
+
+#### Scenario: RNG injection
+- **WHEN** a RandomSampler is created with a custom RNG
+- **THEN** it SHALL use that RNG for all sampling operations
+
+### Requirement: Biased Sampler Decorator
+
+The system SHALL provide a `BiasedSampler` that wraps another sampler.
+
+#### Scenario: Bias toward corner cases
+- **WHEN** a BiasedSampler samples from an arbitrary
+- **THEN** it SHALL prioritize corner cases before random samples
+
+### Requirement: Cached Sampler Decorator
+
+The system SHALL provide a `CachedSampler` that memoizes samples.
+
+#### Scenario: Cache samples
+- **WHEN** a CachedSampler samples from the same arbitrary twice
+- **THEN** it SHALL return the cached result on the second call
+
+### Requirement: Deduping Sampler Decorator
+
+The system SHALL provide a `DedupingSampler` that ensures unique samples.
+
+#### Scenario: Deduplicate samples
+- **WHEN** a DedupingSampler generates samples
+- **THEN** duplicate values SHALL be filtered out
+
+### Requirement: Sampler Composition
+
+The system SHALL support composing samplers via decoration.
+
+#### Scenario: Compose decorators
+- **WHEN** `new CachedSampler(new BiasedSampler(new RandomSampler()))` is created
+- **THEN** sampling SHALL apply all decorators in order (inner to outer)
+
+### Requirement: Scenario Data Structure
+
+The system SHALL provide a `Scenario<Rec>` type representing an immutable AST of a property test.
+
+#### Scenario: Scenario contains nodes
+- **WHEN** a scenario is built from a FluentCheck chain
+- **THEN** it SHALL contain an ordered array of nodes representing quantifiers and predicates
+
+#### Scenario: Scenario is immutable
+- **WHEN** a scenario is created
+- **THEN** its `nodes` array SHALL be readonly
+- **AND** individual nodes SHALL be readonly
+
+### Requirement: Scenario Node Types
+
+The system SHALL support different node types in a scenario.
+
+#### Scenario: Forall node
+- **WHEN** a `forall` quantifier is in the chain
+- **THEN** the scenario SHALL contain a node with `type: 'forall'`, `name`, and `arbitrary`
+
+#### Scenario: Exists node
+- **WHEN** an `exists` quantifier is in the chain
+- **THEN** the scenario SHALL contain a node with `type: 'exists'`, `name`, and `arbitrary`
+
+#### Scenario: Given node
+- **WHEN** a `given` predicate is in the chain
+- **THEN** the scenario SHALL contain a node with `type: 'given'` and `predicate`
+
+#### Scenario: Then node
+- **WHEN** a `then` predicate is in the chain
+- **THEN** the scenario SHALL contain a node with `type: 'then'` and `predicate`
+
+### Requirement: Scenario Derived Properties
+
+The system SHALL provide computed properties on scenarios for analysis.
+
+#### Scenario: Quantifiers list
+- **WHEN** `scenario.quantifiers` is accessed
+- **THEN** it SHALL return only the quantifier nodes (forall/exists)
+
+#### Scenario: Existential detection
+- **WHEN** `scenario.hasExistential` is accessed
+- **THEN** it SHALL return true if any `exists` quantifier is present
+
+#### Scenario: Search space size
+- **WHEN** `scenario.searchSpaceSize` is accessed
+- **THEN** it SHALL return the product of all quantifier arbitrary sizes
+
+### Requirement: Build Scenario from FluentCheck
+
+The system SHALL provide a method to extract a scenario from a FluentCheck chain.
+
+#### Scenario: Build scenario
+- **WHEN** `buildScenario()` is called on a FluentCheck instance
+- **THEN** it SHALL return a `Scenario<Rec>` representing the full chain
+- **AND** node order SHALL match the chain order (root to leaf)
+
+### Requirement: Shrinker Interface
+
+The system SHALL provide a `Shrinker<Rec>` interface for minimizing counterexamples.
+
+#### Scenario: Shrink method signature
+- **WHEN** a Shrinker is used
+- **THEN** it SHALL accept a counterexample, scenario, property function, sampler, and budget
+- **AND** it SHALL return a ShrinkResult
+
+#### Scenario: Shrinker preserves failure
+- **WHEN** a Shrinker shrinks a counterexample
+- **THEN** the shrunk value SHALL still fail the property
+
+### Requirement: Shrink Budget
+
+The system SHALL provide a `ShrinkBudget` type for controlling shrinking limits.
+
+#### Scenario: Max attempts budget
+- **WHEN** `budget.maxAttempts` is set to N
+- **THEN** the shrinker SHALL test at most N shrink candidates
+
+#### Scenario: Max rounds budget
+- **WHEN** `budget.maxRounds` is set to R
+- **THEN** the shrinker SHALL perform at most R shrink iterations
+
+### Requirement: Shrink Result
+
+The system SHALL provide a `ShrinkResult<Rec>` type representing shrinking outcomes.
+
+#### Scenario: Shrunk value
+- **WHEN** shrinking completes
+- **THEN** the result SHALL contain the minimized counterexample
+
+#### Scenario: Shrink statistics
+- **WHEN** shrinking completes
+- **THEN** the result SHALL include `attempts` and `rounds` counts
+
+### Requirement: Per-Arbitrary Shrinker
+
+The system SHALL provide a `PerArbitraryShrinker` that shrinks each quantifier independently.
+
+#### Scenario: Shrink individual arbitraries
+- **WHEN** shrinking a counterexample with multiple quantifiers
+- **THEN** each quantifier's value SHALL be shrunk independently
+- **AND** the property SHALL be re-evaluated to confirm failure
+
+#### Scenario: Use arbitrary shrink method
+- **WHEN** shrinking a value
+- **THEN** it SHALL use the arbitrary's `shrink()` method to generate candidates
+
+### Requirement: No-Op Shrinker
+
+The system SHALL provide a `NoOpShrinker` that disables shrinking.
+
+#### Scenario: Return unchanged
+- **WHEN** NoOpShrinker shrinks a counterexample
+- **THEN** it SHALL return the counterexample unchanged
+- **AND** attempts and rounds SHALL be 0
+
+### Requirement: Shrinker Configuration
+
+The system SHALL allow configuring which Shrinker implementation to use.
+
+#### Scenario: Enable shrinking
+- **WHEN** `factory.withShrinking()` is called
+- **THEN** the resulting checker SHALL use PerArbitraryShrinker
+
+#### Scenario: Disable shrinking
+- **WHEN** `factory.withoutShrinking()` is called
+- **THEN** the resulting checker SHALL use NoOpShrinker
+
+#### Scenario: Configure shrink size
+- **WHEN** `factory.withShrinking(1000)` is called
+- **THEN** the shrinker budget SHALL have maxAttempts of 1000
 
