@@ -126,6 +126,132 @@ export const factorial = (n: number) => {
 }
 
 /**
+ * Calculates the Wilson score confidence interval for a proportion.
+ *
+ * The Wilson score interval is better than normal approximation for extreme values
+ * and works well even for small sample sizes.
+ *
+ * @param successes - Number of successful trials
+ * @param trials - Total number of trials
+ * @param confidence - Confidence level (default 0.95 for 95% confidence)
+ * @returns A tuple [lower, upper] representing the confidence interval
+ *
+ * @example
+ * ```typescript
+ * // 95% confidence interval for 50 successes out of 100 trials
+ * const [lower, upper] = wilsonScoreInterval(50, 100, 0.95)
+ * // Returns approximately [0.40, 0.60]
+ * ```
+ */
+export function wilsonScoreInterval(
+  successes: number,
+  trials: number,
+  confidence = 0.95
+): [number, number] {
+  if (trials === 0) {
+    return [0, 1]
+  }
+
+  if (successes === 0) {
+    // Special case: no successes
+    const z = getZScore(confidence)
+    const denominator = 1 + (z * z) / trials
+    const center = (z * z) / (2 * trials) / denominator
+    const margin = z / denominator * Math.sqrt((z * z) / (4 * trials))
+    return [Math.max(0, center - margin), Math.min(1, center + margin)]
+  }
+
+  if (successes === trials) {
+    // Special case: all successes
+    const z = getZScore(confidence)
+    const denominator = 1 + (z * z) / trials
+    const center = (successes + z * z / 2) / (trials + z * z) / denominator
+    const margin = z / denominator * Math.sqrt((successes * (trials - successes)) / trials + (z * z) / 4)
+    return [Math.max(0, center - margin), Math.min(1, center + margin)]
+  }
+
+  // Standard Wilson score interval
+  const z = getZScore(confidence)
+  const p = successes / trials
+  const denominator = 1 + (z * z) / trials
+  const center = (p + (z * z) / (2 * trials)) / denominator
+  const margin = z / denominator * Math.sqrt((p * (1 - p)) / trials + (z * z) / (4 * trials * trials))
+
+  return [Math.max(0, center - margin), Math.min(1, center + margin)]
+}
+
+/**
+ * Gets the z-score for a given confidence level.
+ * Uses standard normal distribution critical values.
+ *
+ * @param confidence - Confidence level (e.g., 0.95 for 95%)
+ * @returns Z-score for the confidence level
+ */
+function getZScore(confidence: number): number {
+  // Common confidence levels and their z-scores
+  const zScores: Record<number, number> = {
+    0.80: 1.2816,
+    0.85: 1.4395,
+    0.90: 1.6449,
+    0.95: 1.9600,
+    0.99: 2.5758,
+    0.999: 3.2905
+  }
+
+  const exactZ = zScores[confidence]
+  if (exactZ !== undefined) {
+    return exactZ
+  }
+
+  // For other confidence levels, use approximation
+  // This is a simplified approximation - for production, consider using jstat
+  if (confidence < 0.5 || confidence >= 1.0) {
+    throw new Error(`Confidence level must be between 0.5 and 1.0, got ${confidence}`)
+  }
+
+  // Use jstat for more accurate z-scores if available
+  // For now, linear interpolation between known values
+  const sortedLevels = Object.keys(zScores).map(Number).sort((a, b) => a - b)
+  const lower = sortedLevels.filter(level => level <= confidence).pop() ?? 0.90
+  const upper = sortedLevels.filter(level => level >= confidence).shift() ?? 0.95
+
+  if (lower === upper) {
+    const z = zScores[lower]
+    if (z === undefined) {
+      throw new Error(`Invalid confidence level: ${confidence}`)
+    }
+    return z
+  }
+
+  // Linear interpolation
+  const lowerZ = zScores[lower]
+  const upperZ = zScores[upper]
+  if (lowerZ === undefined || upperZ === undefined) {
+    throw new Error(`Invalid confidence level: ${confidence}`)
+  }
+  const ratio = (confidence - lower) / (upper - lower)
+  return lowerZ + (upperZ - lowerZ) * ratio
+}
+
+/**
+ * Coverage verification result for a single coverage requirement.
+ */
+export interface CoverageResult {
+  /** The label being verified */
+  label: string
+  /** The minimum required percentage (0-100) */
+  requiredPercentage: number
+  /** The actual observed percentage (0-100) */
+  observedPercentage: number
+  /** Whether the requirement was satisfied */
+  satisfied: boolean
+  /** Wilson score confidence interval for observed percentage */
+  confidenceInterval: [number, number]
+  /** The confidence level used (default 0.95) */
+  confidence: number
+}
+
+/**
  * Basic execution statistics for property-based tests.
  */
 export interface FluentStatistics {
@@ -141,4 +267,6 @@ export interface FluentStatistics {
   labels?: Record<string, number>
   /** Label percentages (0-100) for test case classifications (optional) */
   labelPercentages?: Record<string, number>
+  /** Coverage verification results (optional) */
+  coverageResults?: CoverageResult[]
 }

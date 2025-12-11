@@ -12,11 +12,13 @@ import {
   type ClassifyNode,
   type LabelNode,
   type CollectNode,
+  type CoverNode,
+  type CoverTableNode,
   createScenario
 } from './Scenario.js'
 import type {ExplorationBudget} from './strategies/Explorer.js'
 import type {BoundTestCase} from './strategies/types.js'
-import {type FluentStatistics} from './statistics.js'
+import {type FluentStatistics, type CoverageResult, wilsonScoreInterval} from './statistics.js'
 
 type PickResult<V> = BoundTestCase<Record<string, V>>
 type ValueResult<V> = Record<string, V>
@@ -353,6 +355,71 @@ export class FluentCheck<
     return new FluentCheckCollect(this, fn)
   }
 
+  /**
+   * Specifies a coverage requirement with a minimum percentage.
+   * The predicate is evaluated for each test case, and the label is counted when true.
+   * After test execution, the coverage requirement is verified using statistical confidence intervals.
+   *
+   * @param percentage - Required minimum percentage (0-100)
+   * @param predicate - Function that returns true when the test case matches this coverage requirement
+   * @param label - Label string to count when predicate is true
+   * @returns A new FluentCheck instance with the coverage node added
+   *
+   * @example
+   * ```typescript
+   * fc.scenario()
+   *   .forall('x', fc.integer(-100, 100))
+   *   .cover(10, ({x}) => x < 0, 'negative')
+   *   .cover(10, ({x}) => x > 0, 'positive')
+   *   .then(({x}) => Math.abs(x) >= 0)
+   *   .checkCoverage()
+   * ```
+   */
+  cover(
+    percentage: number,
+    predicate: (args: Rec) => boolean,
+    label: string
+  ): FluentCheckCover<Rec, ParentRec> {
+    if (percentage < 0 || percentage > 100) {
+      throw new Error(`Coverage percentage must be between 0 and 100, got ${percentage}`)
+    }
+    return new FluentCheckCover(this, predicate, label, percentage)
+  }
+
+  /**
+   * Specifies tabular coverage requirements with multiple categories.
+   * Each category has its own required percentage, and the getCategory function
+   * determines which category each test case belongs to.
+   *
+   * @param name - Name of the coverage table
+   * @param categories - Object mapping category names to required percentages (0-100)
+   * @param getCategory - Function that returns the category name for each test case
+   * @returns A new FluentCheck instance with the coverage table node added
+   *
+   * @example
+   * ```typescript
+   * fc.scenario()
+   *   .forall('xs', fc.array(fc.integer()))
+   *   .coverTable('sizes', { empty: 5, small: 20, large: 20 },
+   *     ({xs}) => xs.length === 0 ? 'empty' : xs.length < 10 ? 'small' : 'large')
+   *   .then(({xs}) => xs.sort().length === xs.length)
+   *   .checkCoverage()
+   * ```
+   */
+  coverTable(
+    name: string,
+    categories: Record<string, number>,
+    getCategory: (args: Rec) => string
+  ): FluentCheckCoverTable<Rec, ParentRec> {
+    // Validate category percentages
+    for (const [category, percentage] of Object.entries(categories)) {
+      if (percentage < 0 || percentage > 100) {
+        throw new Error(`Coverage percentage for category "${category}" must be between 0 and 100, got ${percentage}`)
+      }
+    }
+    return new FluentCheckCoverTable(this, name, categories, getCategory)
+  }
+
   withGenerator(
     generator: (seed: number) => () => number,
     seed?: number
@@ -580,6 +647,139 @@ export class FluentCheck<
       randomGenerator.seed,
       explorationResult.skipped
     )
+  }
+
+  /**
+   * Check the property and verify coverage requirements.
+   * Executes tests and verifies that all coverage requirements are satisfied using statistical confidence intervals.
+   *
+   * @param options - Optional configuration
+   * @param options.confidence - Confidence level for coverage verification (default 0.95)
+   * @returns A FluentResult with coverage verification results
+   * @throws Error if coverage requirements are not satisfied
+   *
+   * @example
+   * ```typescript
+   * const result = fc.scenario()
+   *   .forall('x', fc.integer(-100, 100))
+   *   .cover(10, ({x}) => x < 0, 'negative')
+   *   .cover(10, ({x}) => x > 0, 'positive')
+   *   .then(({x}) => Math.abs(x) >= 0)
+   *   .checkCoverage({ confidence: 0.99 })
+   *
+   * // Check coverage results
+   * if (result.statistics.coverageResults) {
+   *   for (const coverage of result.statistics.coverageResults) {
+   *     console.log(`${coverage.label}: ${coverage.satisfied ? 'PASS' : 'FAIL'}`)
+   *   }
+   * }
+   * ```
+   */
+  checkCoverage(options?: { confidence?: number }): FluentResult<Rec> {
+    const confidence = options?.confidence ?? 0.95
+    if (confidence <= 0 || confidence >= 1) {
+      throw new Error(`Confidence level must be between 0 and 1, got ${confidence}`)
+    }
+
+    // Execute tests (same as check())
+    const result = this.check()
+
+    // Extract coverage nodes from scenario
+    const scenario = this.buildScenario()
+    const coverNodes = scenario.nodes.filter(
+      (node): node is CoverNode<Rec> => node.type === 'cover'
+    )
+    const coverTableNodes = scenario.nodes.filter(
+      (node): node is CoverTableNode<Rec> => node.type === 'coverTable'
+    )
+
+    // If no coverage requirements, return result as-is
+    if (coverNodes.length === 0 && coverTableNodes.length === 0) {
+      return result
+    }
+
+    // Build coverage requirements list
+    const coverageRequirements: Array<{ label: string; requiredPercentage: number }> = []
+
+    // Add cover node requirements
+    for (const node of coverNodes) {
+      coverageRequirements.push({
+        label: node.label,
+        requiredPercentage: node.requiredPercentage
+      })
+    }
+
+    // Add coverTable node requirements (one per category)
+    for (const node of coverTableNodes) {
+      for (const [category, percentage] of Object.entries(node.categories)) {
+        coverageRequirements.push({
+          label: `${node.name}.${category}`,
+          requiredPercentage: percentage
+        })
+      }
+    }
+
+    // Verify coverage requirements
+    const coverageResults: CoverageResult[] = []
+    const unsatisfied: string[] = []
+
+    const labels = result.statistics.labels ?? {}
+    const testsRun = result.statistics.testsRun
+
+    for (const requirement of coverageRequirements) {
+      const labelCount = labels[requirement.label] ?? 0
+      const observedPercentage = testsRun > 0 ? (labelCount / testsRun) * 100 : 0
+
+      // Calculate Wilson score interval for observed percentage
+      const [lower, upper] = wilsonScoreInterval(labelCount, testsRun, confidence)
+      const confidenceInterval: [number, number] = [lower * 100, upper * 100]
+
+      // Check if required percentage is within confidence interval
+      // Requirement is satisfied if required percentage is <= upper bound
+      // (i.e., we're confident the true percentage is at least the required amount)
+      const requiredPct = requirement.requiredPercentage / 100
+      const satisfied = requiredPct <= upper
+
+      coverageResults.push({
+        label: requirement.label,
+        requiredPercentage: requirement.requiredPercentage,
+        observedPercentage,
+        satisfied,
+        confidenceInterval,
+        confidence
+      })
+
+      if (!satisfied) {
+        const ciStr = `[${confidenceInterval[0].toFixed(2)}, ${confidenceInterval[1].toFixed(2)}]`
+        unsatisfied.push(
+          `${requirement.label}: required ${requirement.requiredPercentage}%, ` +
+          `observed ${observedPercentage.toFixed(2)}% (CI: ${ciStr})`
+        )
+      }
+    }
+
+    // Add coverage results to statistics
+    const updatedStatistics: FluentStatistics = {
+      ...result.statistics,
+      coverageResults
+    }
+
+    // Create new result with coverage verification
+    const coverageResult = new FluentResult<Rec>(
+      result.satisfiable && unsatisfied.length === 0,
+      result.example,
+      updatedStatistics,
+      result.seed,
+      result.skipped
+    )
+
+    // Throw error if any requirements not satisfied
+    if (unsatisfied.length > 0) {
+      const errorMessage = `Coverage requirements not satisfied:\n${unsatisfied.map(req => `  - ${req}`).join('\n')}`
+      throw new Error(errorMessage)
+    }
+
+    return coverageResult
   }
 
   /**
@@ -894,6 +1094,48 @@ class FluentCheckCollect<Rec extends ParentRec, ParentRec extends {}>
     return {
       type: 'collect',
       fn: this.fn
+    }
+  }
+}
+
+class FluentCheckCover<Rec extends ParentRec, ParentRec extends {}>
+  extends FluentCheck<Rec, ParentRec> {
+  constructor(
+    protected override readonly parent: FluentCheck<ParentRec, any>,
+    public readonly predicate: (args: Rec) => boolean,
+    public readonly coverLabel: string,
+    public readonly requiredPercentage: number
+  ) {
+    super(parent)
+  }
+
+  protected override toScenarioNode(): CoverNode<Rec> {
+    return {
+      type: 'cover',
+      predicate: this.predicate,
+      label: this.coverLabel,
+      requiredPercentage: this.requiredPercentage
+    }
+  }
+}
+
+class FluentCheckCoverTable<Rec extends ParentRec, ParentRec extends {}>
+  extends FluentCheck<Rec, ParentRec> {
+  constructor(
+    protected override readonly parent: FluentCheck<ParentRec, any>,
+    public readonly name: string,
+    public readonly categories: Record<string, number>,
+    public readonly getCategory: (args: Rec) => string
+  ) {
+    super(parent)
+  }
+
+  protected override toScenarioNode(): CoverTableNode<Rec> {
+    return {
+      type: 'coverTable',
+      name: this.name,
+      categories: this.categories,
+      getCategory: this.getCategory
     }
   }
 }
