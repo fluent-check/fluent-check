@@ -9,17 +9,121 @@ When a property test fails, the initial counterexample is often complex and cont
 1. **Type-aware**: Shrinking respects the type structure of values
 2. **Composable**: Shrinking works across composed arbitraries
 3. **Customizable**: Users can implement custom shrinking logic
-4. **Efficient**: The search space is pruned to avoid combinatorial explosion
+4. **Nested quantifier aware**: Re-verifies nested existential/universal quantifiers during shrinking
+5. **Budget-controlled**: Configurable limits on shrinking attempts and rounds
 
-## Implementation Details
+## Architecture Overview
 
-Shrinking is implemented at the arbitrary level through the `shrink` method:
+FluentCheck separates shrinking into two layers:
+
+1. **Arbitrary-level shrinking**: Each `Arbitrary<A>` implements a `shrink` method that returns candidate values
+2. **Strategy-level shrinking**: The `Shrinker` interface orchestrates the shrinking process across quantifiers
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    SHRINKER INTERFACE                           │
+│  - Orchestrates shrinking across quantifiers                    │
+│  - Re-verifies nested quantifiers using Explorer                │
+│  - Budget control (maxAttempts, maxRounds)                      │
+└──────────────────────────────┬──────────────────────────────────┘
+                               │
+┌──────────────────────────────▼──────────────────────────────────┐
+│                 EXECUTABLE QUANTIFIER                           │
+│  - shrink(pick, sampler, count) → FluentPick<A>[]               │
+│  - isShrunken(candidate, current) → boolean                     │
+└──────────────────────────────┬──────────────────────────────────┘
+                               │
+┌──────────────────────────────▼──────────────────────────────────┐
+│                    ARBITRARY.shrink()                           │
+│  - Returns new Arbitrary with simpler values                    │
+│  - Type-specific shrinking strategies                           │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+## Shrinker Interface
+
+The `Shrinker` interface handles counterexample and witness minimization:
+
+```typescript
+export interface Shrinker<Rec extends {}> {
+  /**
+   * Shrinks a counterexample to a minimal form.
+   * Finds smaller values that still FAIL the property.
+   */
+  shrink(
+    counterexample: BoundTestCase<Rec>,
+    scenario: ExecutableScenario<Rec>,
+    explorer: Explorer<Rec>,
+    property: (testCase: Rec) => boolean,
+    sampler: Sampler,
+    budget: ShrinkBudget
+  ): ShrinkResult<Rec>
+
+  /**
+   * Shrinks a witness to a minimal form.
+   * Finds smaller values that still PASS the property.
+   */
+  shrinkWitness(
+    witness: BoundTestCase<Rec>,
+    scenario: ExecutableScenario<Rec>,
+    explorer: Explorer<Rec>,
+    property: (testCase: Rec) => boolean,
+    sampler: Sampler,
+    budget: ShrinkBudget
+  ): ShrinkResult<Rec>
+}
+
+export interface ShrinkBudget {
+  readonly maxAttempts: number  // Max shrink candidates to test
+  readonly maxRounds: number    // Max successful shrink rounds
+}
+
+export interface ShrinkResult<Rec extends {}> {
+  readonly minimized: BoundTestCase<Rec>
+  readonly attempts: number
+  readonly rounds: number
+}
+```
+
+## Available Shrinkers
+
+### PerArbitraryShrinker
+
+The default shrinker that shrinks each quantifier's value independently:
+
+```typescript
+export class PerArbitraryShrinker<Rec extends {}> implements Shrinker<Rec> {
+  shrink(counterexample, scenario, explorer, property, sampler, budget) {
+    // For each quantifier:
+    //   1. Get shrink candidates via quantifier.shrink()
+    //   2. Build partial scenario (bind previous quantifiers to constants)
+    //   3. Re-explore with candidate value (via explorer)
+    //   4. Accept if property still fails
+    //   5. Continue until no smaller value found or budget exhausted
+  }
+}
+```
+
+### NoOpShrinker
+
+A no-op shrinker for faster test execution when shrinking is not needed:
+
+```typescript
+export class NoOpShrinker<Rec extends {}> implements Shrinker<Rec> {
+  shrink(counterexample, ...) {
+    return { minimized: counterexample, attempts: 0, rounds: 0 }
+  }
+}
+```
+
+## Arbitrary-Level Shrinking
+
+Each arbitrary type implements its own shrinking strategy via the `shrink` method:
 
 ```typescript
 export abstract class Arbitrary<A> {
   /**
-   * Given a pick known to falsify a property, returns a new arbitrary with simpler cases to be tested.
-   * This is part of FluentCheck's behavior of searching for simpler counter-examples after one is found.
+   * Returns a new arbitrary with simpler cases to be tested.
    */
   shrink<B extends A>(_initial: FluentPick<B>): Arbitrary<A> {
     return NoArbitrary
@@ -27,44 +131,12 @@ export abstract class Arbitrary<A> {
 }
 ```
 
-The tests verify that shrinking produces simpler values:
-
-```typescript
-// From arbitrary.test.ts
-it('should return values smaller than what was shrunk', () => {
-  expect(fc.scenario()
-    .forall('n', fc.integer(0, 100))
-    .forall('s', fc.integer(0, 100))
-    .given('a', () => fc.integer(0, 100))
-    .then(({n, s, a}) => a.shrink({value: s}).sample(n).every(i => i.value < s))
-    .and(({n, s, a}) => a.shrink({value: s}).sampleWithBias(n).every(i => i.value < s))
-    .check()
-  ).to.have.property('satisfiable', true)
-})
-```
-
-Each arbitrary type implements its own shrinking strategy:
+**Shrinking strategies by type:**
 
 1. **Numbers**: Shrink toward 0 or other "simple" values
 2. **Strings**: Shrink by reducing length or complexity
 3. **Arrays**: Shrink by removing elements or shrinking individual elements
 4. **Tuples**: Shrink each element while maintaining the structure
-
-Shrinking is integrated into the strategy system through the `Shrinkable` mixin:
-
-```typescript
-export function Shrinkable<TBase extends MixinStrategy>(Base: TBase) {
-  return class extends Base {
-    shrink<K extends string>(arbitraryName: K, partial: FluentResult) {
-      const shrinkedArbitrary = this.arbitraries[arbitraryName].arbitrary.shrink(partial.example[arbitraryName])
-      this.arbitraries[arbitraryName].collection = this.buildArbitraryCollection(shrinkedArbitrary,
-        this.configuration.shrinkSize!)
-    }
-  }
-}
-```
-
-The shrinking process is triggered automatically when a property fails and the strategy includes the `Shrinkable` mixin (which is part of the default strategy).
 
 Tests show that shrinking works for complex, composed arbitraries:
 
@@ -143,17 +215,116 @@ it('should return the correct size of shrinked integer arbitraries', () => {
 
 This test shows that when shrinking from a value of 5, the resulting arbitrary has a size of 5 (representing values 0 through 4), which is exactly what we'd expect - all values less than the original failure point.
 
+## Nested Quantifier Re-verification
+
+A key feature of FluentCheck's shrinking is its handling of nested quantifiers. When shrinking a counterexample for a scenario like `∀a: ∃b: P(a,b)`:
+
+1. When shrinking `a` to candidate `a'`:
+   - Build a partial scenario with `∃b: P(a',b)`
+   - Re-explore to verify a witness exists for new `a'`
+   - Accept only if the witness still exists
+
+This is implemented via the `buildPartialExecutableScenario` helper:
+
+```typescript
+// Build partial scenario where earlier quantifiers are bound to constants
+const partialScenario = buildPartialExecutableScenario(scenario, quantifier.name, testCase)
+
+// Re-explore with the Explorer to verify nested quantifiers
+const result = explorer.explore(partialScenario, property, sampler, {
+  maxTests: Math.min(100, budget.maxAttempts - attempts)
+})
+```
+
+## Budget Control
+
+Shrinking is controlled by configurable budgets:
+
+```typescript
+export interface ShrinkBudget {
+  readonly maxAttempts: number  // Max shrink candidates to test
+  readonly maxRounds: number    // Max successful shrink rounds
+}
+```
+
+Configure shrinking budget via the strategy factory:
+
+```typescript
+// Default: 500 attempts and rounds
+fc.scenario()
+  .config(new FluentStrategyFactory().withShrinking(500))
+  .forall('x', fc.integer())
+  .then(({x}) => x < 100)
+  .check()
+
+// Faster but potentially larger counterexamples
+fc.scenario()
+  .config(new FluentStrategyFactory().withShrinking(100))
+  .forall('x', fc.integer())
+  .then(({x}) => x < 100)
+  .check()
+
+// Disable shrinking entirely
+fc.scenario()
+  .config(new FluentStrategyFactory().withoutShrinking())
+  .forall('x', fc.integer())
+  .then(({x}) => x < 100)
+  .check()
+```
+
 ## Advanced Shrinking Features
 
 FluentCheck's shrinking system includes:
 
-1. **Multi-step shrinking**: Performing multiple passes to find the simplest example
+1. **Multi-step shrinking**: Performing multiple rounds to find the simplest example
 2. **Structural preservation**: Maintaining invariants during shrinking
-3. **Context-aware shrinking**: Using property context to guide the shrinking process
-4. **Shrinking with constraints**: Respecting preconditions during shrinking
+3. **Nested quantifier re-verification**: Using the Explorer to verify nested quantifiers
+4. **Shrinking with constraints**: Respecting filter preconditions during shrinking
+5. **Witness shrinking**: Minimizing witnesses for existential quantifiers
 
 This is illustrated in the handling of tuple arbitraries, where each component is shrunk while preserving the tuple structure.
 
+## Custom Shrinker Implementation
+
+Implement the `Shrinker` interface to create custom shrinking strategies:
+
+```typescript
+export class MyCustomShrinker<Rec extends {}> implements Shrinker<Rec> {
+  shrink(
+    counterexample: BoundTestCase<Rec>,
+    scenario: ExecutableScenario<Rec>,
+    explorer: Explorer<Rec>,
+    property: (testCase: Rec) => boolean,
+    sampler: Sampler,
+    budget: ShrinkBudget
+  ): ShrinkResult<Rec> {
+    // Custom shrinking logic
+    // Use explorer to re-verify nested quantifiers
+    // Return ShrinkResult with minimized counterexample
+  }
+
+  shrinkWitness(/* same parameters */): ShrinkResult<Rec> {
+    // Shrink witnesses for existential quantifiers
+  }
+}
+
+// Use with factory
+const strategy = new FluentStrategyFactory()
+  .withShrinker(() => new MyCustomShrinker())
+  .build()
+```
+
 ## Comparison with Other Frameworks
 
-While many property testing frameworks implement some form of shrinking, FluentCheck's approach is distinguished by its integration with the type system, allowing for more precise and type-safe shrinking operations. Unlike frameworks that use ad-hoc shrinking strategies, FluentCheck's shrinking is built into the arbitrary system, ensuring consistent behavior across different types of values. 
+FluentCheck's shrinking architecture provides several advantages:
+
+| Feature | FluentCheck | Other Frameworks |
+|---------|-------------|------------------|
+| **Arbitrary-level shrinking** | Composable, type-aware | Often similar |
+| **Strategy-level orchestration** | Separate `Shrinker` interface | Usually coupled |
+| **Nested quantifier handling** | Re-verifies via Explorer | Often unsupported |
+| **Witness shrinking** | First-class support | Rarely available |
+| **Budget control** | Configurable attempts/rounds | Often fixed |
+| **Custom shrinkers** | Pluggable interface | Difficult to extend |
+
+The separation between arbitrary-level shrinking and strategy-level orchestration enables independent testing, easy algorithm replacement, and proper handling of complex quantifier nesting.
