@@ -18,9 +18,9 @@ The system SHALL provide coverage verification results in FluentStatistics.
 #### Scenario: Coverage verification logic
 - **WHEN** a coverage requirement specifies 10% minimum
 - **AND** observed percentage is 8% with 95% confidence interval [6%, 10%]
-- **THEN** `satisfied` SHALL be `false` (required 10% is at upper bound, not within interval)
+- **THEN** `satisfied` SHALL be `true` (required 10% is at upper bound, statistically plausible)
 - **AND** if observed percentage is 12% with interval [10%, 14%]
-- **THEN** `satisfied` SHALL be `true` (required 10% is within interval)
+- **THEN** `satisfied` SHALL be `true` (required 10% is at or below upper bound)
 
 #### Scenario: Wilson score interval calculation
 - **WHEN** coverage verification is performed
@@ -56,7 +56,6 @@ The system SHALL provide coverage verification results in FluentStatistics.
 
 #### Scenario: Coverage satisfaction determination
 - **WHEN** required percentage is R and observed percentage is O with confidence interval [L, U]
-- **THEN** `satisfied` SHALL be `true` if and only if R is within [L, U]
-- **AND** if R < L, requirement is satisfied (observed is higher than required)
+- **THEN** `satisfied` SHALL be `true` if and only if R <= U
+- **AND** if R <= U, requirement is satisfied (statistically plausible that true percentage meets requirement)
 - **AND** if R > U, requirement is not satisfied (observed is lower than required)
-- **AND** if L <= R <= U, requirement is satisfied (within confidence interval)

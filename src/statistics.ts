@@ -152,25 +152,6 @@ export function wilsonScoreInterval(
     return [0, 1]
   }
 
-  if (successes === 0) {
-    // Special case: no successes
-    const z = getZScore(confidence)
-    const denominator = 1 + (z * z) / trials
-    const center = (z * z) / (2 * trials) / denominator
-    const margin = z / denominator * Math.sqrt((z * z) / (4 * trials))
-    return [Math.max(0, center - margin), Math.min(1, center + margin)]
-  }
-
-  if (successes === trials) {
-    // Special case: all successes
-    const z = getZScore(confidence)
-    const denominator = 1 + (z * z) / trials
-    const center = (successes + z * z / 2) / (trials + z * z) / denominator
-    const margin = z / denominator * Math.sqrt((successes * (trials - successes)) / trials + (z * z) / 4)
-    return [Math.max(0, center - margin), Math.min(1, center + margin)]
-  }
-
-  // Standard Wilson score interval
   const z = getZScore(confidence)
   const p = successes / trials
   const denominator = 1 + (z * z) / trials
@@ -182,55 +163,19 @@ export function wilsonScoreInterval(
 
 /**
  * Gets the z-score for a given confidence level.
- * Uses standard normal distribution critical values.
+ * Uses standard normal distribution inverse CDF.
  *
  * @param confidence - Confidence level (e.g., 0.95 for 95%)
  * @returns Z-score for the confidence level
  */
 function getZScore(confidence: number): number {
-  // Common confidence levels and their z-scores
-  const zScores: Record<number, number> = {
-    0.80: 1.2816,
-    0.85: 1.4395,
-    0.90: 1.6449,
-    0.95: 1.9600,
-    0.99: 2.5758,
-    0.999: 3.2905
+  if (confidence <= 0 || confidence >= 1) {
+    throw new Error(`Confidence level must be between 0 and 1, got ${confidence}`)
   }
-
-  const exactZ = zScores[confidence]
-  if (exactZ !== undefined) {
-    return exactZ
-  }
-
-  // For other confidence levels, use approximation
-  // This is a simplified approximation - for production, consider using jstat
-  if (confidence < 0.5 || confidence >= 1.0) {
-    throw new Error(`Confidence level must be between 0.5 and 1.0, got ${confidence}`)
-  }
-
-  // Use jstat for more accurate z-scores if available
-  // For now, linear interpolation between known values
-  const sortedLevels = Object.keys(zScores).map(Number).sort((a, b) => a - b)
-  const lower = sortedLevels.filter(level => level <= confidence).pop() ?? 0.90
-  const upper = sortedLevels.filter(level => level >= confidence).shift() ?? 0.95
-
-  if (lower === upper) {
-    const z = zScores[lower]
-    if (z === undefined) {
-      throw new Error(`Invalid confidence level: ${confidence}`)
-    }
-    return z
-  }
-
-  // Linear interpolation
-  const lowerZ = zScores[lower]
-  const upperZ = zScores[upper]
-  if (lowerZ === undefined || upperZ === undefined) {
-    throw new Error(`Invalid confidence level: ${confidence}`)
-  }
-  const ratio = (confidence - lower) / (upper - lower)
-  return lowerZ + (upperZ - lowerZ) * ratio
+  // The z-score corresponds to the quantile for p = 1 - (1 - confidence) / 2,
+  // which simplifies to (1 + confidence) / 2.
+  const p = (1 + confidence) / 2
+  return jstat.normal.inv(p, 0, 1)
 }
 
 /**

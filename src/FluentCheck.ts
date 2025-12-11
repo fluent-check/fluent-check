@@ -734,9 +734,9 @@ export class FluentCheck<
       const [lower, upper] = wilsonScoreInterval(labelCount, testsRun, confidence)
       const confidenceInterval: [number, number] = [lower * 100, upper * 100]
 
-      // Check if required percentage is within confidence interval
-      // Requirement is satisfied if required percentage is <= upper bound
-      // (i.e., we're confident the true percentage is at least the required amount)
+      // Requirement is satisfied if the required percentage is not greater than the
+      // upper bound of the confidence interval. This means it's statistically
+      // plausible that the true percentage meets or exceeds the requirement.
       const requiredPct = requirement.requiredPercentage / 100
       const satisfied = requiredPct <= upper
 
