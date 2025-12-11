@@ -758,7 +758,7 @@ class NestedLoopSemantics<Rec extends {}> implements QuantifierSemantics<Rec> {
     frame: QuantifierFrame<Rec>,
     sample: FluentPick<unknown>
   ): void {
-    if (frame.ctx.statisticsContext === undefined) {
+    if (frame.ctx.statisticsContext === undefined || frame.ctx.detailedStatisticsEnabled !== true) {
       return
     }
 
