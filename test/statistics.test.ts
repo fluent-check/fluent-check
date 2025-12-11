@@ -522,6 +522,22 @@ describe('Statistics tests', () => {
         expect(result.statistics.testsDiscarded).to.equal(sampleSize)
         expect(result.statistics.testsPassed).to.equal(0)
       })
+
+      it('should handle exhausted exists scenario correctly (no counterexample found)', () => {
+        const sampleSize = 50
+        const result = fc.scenario()
+          .config(fc.strategy().withSampleSize(sampleSize))
+          .exists('x', fc.integer(0, 10))
+          .then(({x}) => x > 1000) // Impossible condition - no witness exists
+          .check()
+
+        expect(result.satisfiable).to.be.false // No witness found
+        expect(result.statistics.testsRun).to.equal(sampleSize)
+        // All tests "passed" in the sense that none was a counterexample
+        // (they just didn't satisfy the exists condition)
+        expect(result.statistics.testsPassed).to.equal(sampleSize)
+        expect(result.statistics.testsDiscarded).to.equal(0)
+      })
     })
   })
 })

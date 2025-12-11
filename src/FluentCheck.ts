@@ -391,14 +391,14 @@ export class FluentCheck<
 
     // Helper function to calculate statistics
     const calculateStatistics = (
-      satisfiable: boolean,
       testsRun: number,
       skipped: number,
-      executionTimeMs: number
+      executionTimeMs: number,
+      counterexampleFound: boolean
     ): FluentStatistics => ({
       testsRun,
       // testsPassed counts tests where property held (excluding discarded and counterexample if any)
-      testsPassed: satisfiable ? testsRun - skipped : testsRun - skipped - 1,
+      testsPassed: counterexampleFound ? testsRun - skipped - 1 : testsRun - skipped,
       testsDiscarded: skipped,
       executionTimeMs
     })
@@ -434,7 +434,7 @@ export class FluentCheck<
         return new FluentResult<Rec>(
           true,
           example as Rec,
-          calculateStatistics(true, explorationResult.testsRun, explorationResult.skipped, executionTimeMs),
+          calculateStatistics(explorationResult.testsRun, explorationResult.skipped, executionTimeMs, false),
           randomGenerator.seed,
           explorationResult.skipped
         )
@@ -444,7 +444,7 @@ export class FluentCheck<
       return new FluentResult<Rec>(
         true,
         {} as Rec,
-        calculateStatistics(true, explorationResult.testsRun, explorationResult.skipped, executionTimeMs),
+        calculateStatistics(explorationResult.testsRun, explorationResult.skipped, executionTimeMs, false),
         randomGenerator.seed,
         explorationResult.skipped
       )
@@ -457,7 +457,7 @@ export class FluentCheck<
       return new FluentResult<Rec>(
         satisfiable,
         {} as Rec,
-        calculateStatistics(satisfiable, explorationResult.testsRun, explorationResult.skipped, executionTimeMs),
+        calculateStatistics(explorationResult.testsRun, explorationResult.skipped, executionTimeMs, false),
         randomGenerator.seed,
         explorationResult.skipped
       )
@@ -479,7 +479,7 @@ export class FluentCheck<
     return new FluentResult<Rec>(
       false,
       FluentCheck.unwrapFluentPick(shrinkResult.minimized) as Rec,
-      calculateStatistics(false, explorationResult.testsRun, explorationResult.skipped, executionTimeMs),
+      calculateStatistics(explorationResult.testsRun, explorationResult.skipped, executionTimeMs, true),
       randomGenerator.seed,
       explorationResult.skipped
     )
