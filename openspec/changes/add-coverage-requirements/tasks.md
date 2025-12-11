@@ -107,7 +107,7 @@
 
 - [x] 9.1 Add JSDoc comments to new methods
 - [ ] 9.2 Add examples to README or docs
-- [ ] 9.3 Document Wilson score interval approach
+- [x] 9.3 Document Wilson score interval approach
 - [ ] 9.4 Update CHANGELOG
 
 ## Acceptance Criteria
