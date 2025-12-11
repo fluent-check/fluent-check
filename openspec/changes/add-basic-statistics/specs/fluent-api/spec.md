@@ -14,7 +14,7 @@ The system SHALL include basic execution statistics in every FluentResult.
 - **THEN** `result.statistics.testsRun` SHALL equal the total number of test cases executed
 - **AND** `result.statistics.testsPassed` SHALL equal tests where the property held
   - For satisfiable results: `testsPassed = testsRun - skipped`
-  - For unsatisfiable results: `testsPassed = 0`
+  - For unsatisfiable results: `testsPassed = testsRun - skipped - 1`
 - **AND** `result.statistics.testsDiscarded` SHALL equal tests filtered by preconditions (same as `skipped`)
 
 #### Scenario: Execution time tracking
