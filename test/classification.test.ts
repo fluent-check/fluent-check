@@ -32,7 +32,7 @@ describe('Test Case Classification', () => {
         .classify(({x}) => x >= 0, 'non-negative')
         .classify(({x}) => x <= 5, 'small')
         .classify(({x}) => x > 5, 'large')
-        .then(({_x}) => true)
+        .then(({x}) => x >= 0) // Always true for range [0, 10]
         .check()
 
       expect(result.satisfiable).to.be.true
@@ -51,8 +51,10 @@ describe('Test Case Classification', () => {
         .forall('x', fc.integer(0, 10))
         .classify(({x}) => x < 5, 'small')
         .classify(({x}) => x >= 5, 'large')
-        .then(({_x}) => {
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        .then(({x}) => {
           testCount++
+          // x is used in classify above, but not in the property itself
           return testCount !== 10 // Fail on 10th test
         })
         .check()
@@ -91,7 +93,7 @@ describe('Test Case Classification', () => {
         .forall('x', fc.integer(0, 10))
         .classify(({x}) => x < 5, 'small')
         .label(({x}) => x < 5 ? 'small' : 'large') // Same label as classify
-        .then(({_x}) => true)
+        .then(({x}) => x >= 0) // Always true for range [0, 10]
         .check()
 
       expect(result.satisfiable).to.be.true
@@ -126,7 +128,7 @@ describe('Test Case Classification', () => {
         .forall('x', fc.integer(0, 5))
         .collect(({x}) => x) // Number
         .collect(({x}) => `value-${x}`) // String
-        .then(({_x}) => true)
+        .then(({x}) => x >= 0) // Always true for range [0, 5]
         .check()
 
       expect(result.satisfiable).to.be.true
@@ -146,7 +148,7 @@ describe('Test Case Classification', () => {
         .config(fc.strategy().withSampleSize(100))
         .forall('x', fc.integer(0, 1))
         .label(({x}) => x === 0 ? 'zero' : 'one')
-        .then(({_x}) => true)
+        .then(({x}) => x >= 0 && x <= 1) // Always true for range [0, 1]
         .check()
 
       expect(result.satisfiable).to.be.true
@@ -170,6 +172,7 @@ describe('Test Case Classification', () => {
         .config(fc.strategy().withSampleSize(100))
         .forall('x', fc.integer(0, 100))
         .classify(({x}) => x % 2 === 0, 'even')
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
         .then(({x}) => {
           fc.pre(false) // Discard all tests
           return true
@@ -255,7 +258,7 @@ describe('Test Case Classification', () => {
         .config(fc.strategy().withSampleSize(0))
         .forall('x', fc.integer())
         .classify(({x}) => x >= 0, 'non-negative')
-        .then(({_x}) => true)
+        .then(({x}) => x >= 0) // Always true for any integer (property test)
         .check()
 
       expect(result.satisfiable).to.be.true

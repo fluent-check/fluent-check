@@ -533,6 +533,7 @@ export class FluentCheck<
       return new FluentResult<Rec>(
         true,
         {} as Rec,
+        // eslint-disable-next-line max-len
         calculateStatistics(explorationResult.testsRun, explorationResult.skipped, executionTimeMs, false, explorationResult.labels),
         randomGenerator.seed,
         explorationResult.skipped
@@ -546,6 +547,7 @@ export class FluentCheck<
       return new FluentResult<Rec>(
         satisfiable,
         {} as Rec,
+        // eslint-disable-next-line max-len
         calculateStatistics(explorationResult.testsRun, explorationResult.skipped, executionTimeMs, false, explorationResult.labels),
         randomGenerator.seed,
         explorationResult.skipped
@@ -568,13 +570,13 @@ export class FluentCheck<
     return new FluentResult<Rec>(
       false,
       FluentCheck.unwrapFluentPick(shrinkResult.minimized) as Rec,
-          calculateStatistics(
-            explorationResult.testsRun,
-            explorationResult.skipped,
-            executionTimeMs,
-            true,
-            explorationResult.labels
-          ),
+      calculateStatistics(
+        explorationResult.testsRun,
+        explorationResult.skipped,
+        executionTimeMs,
+        true,
+        explorationResult.labels
+      ),
       randomGenerator.seed,
       explorationResult.skipped
     )
