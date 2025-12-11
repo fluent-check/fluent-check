@@ -81,6 +81,30 @@ export interface CollectNode<Rec extends {} = {}> {
 }
 
 /**
+ * A cover node - coverage requirement with a predicate and required percentage.
+ * The label is counted when the predicate returns true, and the required percentage
+ * is verified after test execution.
+ */
+export interface CoverNode<Rec extends {} = {}> {
+  readonly type: 'cover'
+  readonly predicate: (args: Rec) => boolean
+  readonly label: string
+  readonly requiredPercentage: number
+}
+
+/**
+ * A cover table node - tabular coverage with multiple categories.
+ * Each category has its own required percentage, and the getCategory function
+ * determines which category each test case belongs to.
+ */
+export interface CoverTableNode<Rec extends {} = {}> {
+  readonly type: 'coverTable'
+  readonly name: string
+  readonly categories: Record<string, number>
+  readonly getCategory: (args: Rec) => string
+}
+
+/**
  * Union of all scenario node types.
  */
 export type ScenarioNode<Rec extends {} = {}> =
@@ -91,6 +115,8 @@ export type ScenarioNode<Rec extends {} = {}> =
   | ClassifyNode<Rec>
   | LabelNode<Rec>
   | CollectNode<Rec>
+  | CoverNode<Rec>
+  | CoverTableNode<Rec>
 
 /**
  * An immutable AST representation of a property test scenario.

@@ -1,5 +1,13 @@
 import type {FluentPick} from '../arbitraries/index.js'
-import type {Scenario, ScenarioNode, ClassifyNode, LabelNode, CollectNode} from '../Scenario.js'
+import type {
+  Scenario,
+  ScenarioNode,
+  ClassifyNode,
+  LabelNode,
+  CollectNode,
+  CoverNode,
+  CoverTableNode
+} from '../Scenario.js'
 import {createExecutableScenario} from '../ExecutableScenario.js'
 import type {ExecutableScenario, ExecutableQuantifier} from '../ExecutableScenario.js'
 import {PreconditionFailure} from '../FluentCheck.js'
@@ -313,8 +321,9 @@ export abstract class AbstractExplorer<Rec extends {}> implements Explorer<Rec> 
     property: (testCase: Rec) => boolean
   ): TestCaseEvaluator<Rec> {
     const classificationNodes = nodes.filter(
-      (node): node is ClassifyNode<Rec> | LabelNode<Rec> | CollectNode<Rec> =>
-        node.type === 'classify' || node.type === 'label' || node.type === 'collect'
+      (node): node is ClassifyNode<Rec> | LabelNode<Rec> | CollectNode<Rec> | CoverNode<Rec> | CoverTableNode<Rec> =>
+        node.type === 'classify' || node.type === 'label' || node.type === 'collect' ||
+        node.type === 'cover' || node.type === 'coverTable'
     )
     const hasThenNodes = nodes.some(node => node.type === 'then')
 
@@ -353,7 +362,9 @@ export abstract class AbstractExplorer<Rec extends {}> implements Explorer<Rec> 
 
   protected evaluateClassifications(
     testCase: BoundTestCase<Rec>,
-    classificationNodes: readonly (ClassifyNode<Rec> | LabelNode<Rec> | CollectNode<Rec>)[],
+    classificationNodes: readonly (
+      ClassifyNode<Rec> | LabelNode<Rec> | CollectNode<Rec> | CoverNode<Rec> | CoverTableNode<Rec>
+    )[],
     state: ExplorationState
   ): void {
     if (classificationNodes.length === 0) {
@@ -379,6 +390,23 @@ export abstract class AbstractExplorer<Rec extends {}> implements Explorer<Rec> 
           label = String(node.fn(record))
           state.labels.set(label, (state.labels.get(label) ?? 0) + 1)
           break
+        case 'cover':
+          // Cover nodes work like classify nodes - count label when predicate is true
+          if (node.predicate(record)) {
+            label = node.label
+            state.labels.set(label, (state.labels.get(label) ?? 0) + 1)
+          }
+          break
+        case 'coverTable': {
+          // CoverTable nodes work like label nodes - get category and count with qualified name
+          const category = node.getCategory(record)
+          if (category in node.categories) {
+            label = `${node.name}.${category}`
+            state.labels.set(label, (state.labels.get(label) ?? 0) + 1)
+          }
+          // If category not in categories object, ignore (could log warning in future)
+          break
+        }
       }
     }
   }
@@ -412,7 +440,9 @@ export abstract class AbstractExplorer<Rec extends {}> implements Explorer<Rec> 
         case 'classify':
         case 'label':
         case 'collect':
-          // Classifications are evaluated separately before scenario evaluation
+        case 'cover':
+        case 'coverTable':
+          // Classifications and coverage requirements are evaluated separately before scenario evaluation
           break
       }
     }

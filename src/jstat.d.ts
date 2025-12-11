@@ -12,11 +12,18 @@ declare module 'jstat' {
     cdf(k: number, n: number, p: number): number
   }
 
+  export const normal: {
+    pdf(x: number, mean: number, std: number): number
+    cdf(x: number, mean: number, std: number): number
+    inv(p: number, mean: number, std: number): number
+  }
+
   export function gammaln(x: number): number
 
   const jstat: {
     beta: typeof beta
     binomial: typeof binomial
+    normal: typeof normal
     gammaln: typeof gammaln
   }
 
