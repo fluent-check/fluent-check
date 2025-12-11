@@ -471,7 +471,7 @@ export class FluentCheck<
       }
 
       // Calculate label percentages if labels are present
-      if (labels !== undefined && Object.keys(labels).length > 0) {
+      if (labels !== undefined) {
         stats.labels = labels
         if (testsRun > 0) {
           const labelPercentages: Record<string, number> = {}

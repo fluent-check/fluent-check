@@ -126,15 +126,10 @@ class ExplorationResultBuilder<Rec extends {}> {
   constructor(private readonly state: ExplorationState) {}
 
   private labelsToRecord(): Record<string, number> | undefined {
-    // Only return labels if there are any classifications
     if (this.state.labels.size === 0) {
       return undefined
     }
-    const record: Record<string, number> = {}
-    for (const [label, count] of this.state.labels) {
-      record[label] = count
-    }
-    return Object.keys(record).length > 0 ? record : undefined
+    return Object.fromEntries(this.state.labels)
   }
 
   passed(witness?: BoundTestCase<Rec>): ExplorationPassed<Rec> {
@@ -365,8 +360,7 @@ export abstract class AbstractExplorer<Rec extends {}> implements Explorer<Rec> 
       return
     }
 
-    const values: Record<string, unknown> = {...this.unwrapTestCase(testCase)}
-    const record = values as Rec
+    const record = this.unwrapTestCase(testCase)
 
     for (const node of classificationNodes) {
       let label: string

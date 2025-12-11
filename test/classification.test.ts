@@ -40,7 +40,7 @@ describe('Test Case Classification', () => {
         // A test case can match multiple predicates
         expect(result.statistics.labels['non-negative']).to.equal(result.statistics.testsRun)
         const largeCount = result.statistics.labels.large ?? 0
-        expect(result.statistics.labels.small + largeCount).to.be.at.most(result.statistics.testsRun)
+        expect((result.statistics.labels.small ?? 0) + largeCount).to.be.at.most(result.statistics.testsRun)
       }
     })
 
@@ -64,7 +64,7 @@ describe('Test Case Classification', () => {
       if (result.statistics.labels !== undefined) {
         // Should have classified the 10 tests that ran
         const largeCount = result.statistics.labels.large ?? 0
-        expect(result.statistics.labels.small + largeCount).to.equal(10)
+        expect((result.statistics.labels.small ?? 0) + largeCount).to.equal(10)
       }
     })
   })
@@ -99,7 +99,10 @@ describe('Test Case Classification', () => {
       expect(result.satisfiable).to.be.true
       if (result.statistics.labels !== undefined) {
         // Label counts should be summed when same label appears multiple times
-        expect(result.statistics.labels.small).to.be.greaterThan(0)
+        // Total labels exceed testsRun because each test gets labeled twice
+        const smallCount = result.statistics.labels.small ?? 0
+        const largeCount = result.statistics.labels.large ?? 0
+        expect(smallCount + largeCount).to.be.greaterThan(result.statistics.testsRun)
       }
     })
   })
@@ -210,7 +213,7 @@ describe('Test Case Classification', () => {
       if (result.statistics.labels !== undefined) {
         // Should have classified all tests, including discarded ones
         const largeCount = result.statistics.labels.large ?? 0
-        expect(result.statistics.labels.small + largeCount).to.equal(result.statistics.testsRun)
+        expect((result.statistics.labels.small ?? 0) + largeCount).to.equal(result.statistics.testsRun)
       }
     })
   })
