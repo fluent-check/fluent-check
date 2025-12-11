@@ -69,7 +69,7 @@ Statistics are calculated from `ExplorationResult` data which already tracks `te
 
 - `testsRun`: From `explorationResult.testsRun`
 - `skipped`: From `explorationResult.skipped` (same as `testsDiscarded`)
-- `testsPassed`: Calculated as `satisfiable ? testsRun - skipped : 0`
+- `testsPassed`: Calculated as `satisfiable ? testsRun - skipped : testsRun - skipped - 1`
 - `executionTimeMs`: Calculated from start/end times in `check()`
 
 ## Dependencies
