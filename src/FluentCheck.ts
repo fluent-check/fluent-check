@@ -13,6 +13,7 @@ import {
 } from './Scenario.js'
 import type {ExplorationBudget} from './strategies/Explorer.js'
 import type {BoundTestCase} from './strategies/types.js'
+import {type FluentStatistics} from './statistics.js'
 
 type PickResult<V> = BoundTestCase<Record<string, V>>
 type ValueResult<V> = Record<string, V>
@@ -84,6 +85,7 @@ export class FluentResult<Rec extends {} = {}> {
   constructor(
     public readonly satisfiable = false,
     public example: Rec = {} as Rec,
+    public readonly statistics: FluentStatistics,
     public readonly seed?: number,
     public skipped = 0) { }
 
@@ -373,6 +375,9 @@ export class FluentCheck<
     // Build property function from scenario's then nodes
     const property = this.#buildPropertyFunction(scenario)
 
+    // Track execution time
+    const startTime = Date.now()
+
     // Explore the search space
     const explorationResult = explorer.explore(
       executableScenario,
@@ -380,6 +385,23 @@ export class FluentCheck<
       sampler,
       explorationBudget
     )
+
+    const endTime = Date.now()
+    const executionTimeMs = endTime - startTime
+
+    // Helper function to calculate statistics
+    const calculateStatistics = (
+      satisfiable: boolean,
+      testsRun: number,
+      skipped: number,
+      executionTimeMs: number
+    ): FluentStatistics => ({
+      testsRun,
+      // testsPassed counts tests where property held (excluding discarded and counterexample if any)
+      testsPassed: satisfiable ? testsRun - skipped : testsRun - skipped - 1,
+      testsDiscarded: skipped,
+      executionTimeMs
+    })
 
     // Handle exploration result
     if (explorationResult.outcome === 'passed') {
@@ -412,6 +434,7 @@ export class FluentCheck<
         return new FluentResult<Rec>(
           true,
           example as Rec,
+          calculateStatistics(true, explorationResult.testsRun, explorationResult.skipped, executionTimeMs),
           randomGenerator.seed,
           explorationResult.skipped
         )
@@ -421,6 +444,7 @@ export class FluentCheck<
       return new FluentResult<Rec>(
         true,
         {} as Rec,
+        calculateStatistics(true, explorationResult.testsRun, explorationResult.skipped, executionTimeMs),
         randomGenerator.seed,
         explorationResult.skipped
       )
@@ -429,9 +453,11 @@ export class FluentCheck<
     if (explorationResult.outcome === 'exhausted') {
       // For forall-only scenarios, exhausted budget without counterexample is a (incomplete) pass.
       // For scenarios with exists, exhausted budget means no witness found.
+      const satisfiable = !scenario.hasExistential
       return new FluentResult<Rec>(
-        !scenario.hasExistential,
+        satisfiable,
         {} as Rec,
+        calculateStatistics(satisfiable, explorationResult.testsRun, explorationResult.skipped, executionTimeMs),
         randomGenerator.seed,
         explorationResult.skipped
       )
@@ -453,6 +479,7 @@ export class FluentCheck<
     return new FluentResult<Rec>(
       false,
       FluentCheck.unwrapFluentPick(shrinkResult.minimized) as Rec,
+      calculateStatistics(false, explorationResult.testsRun, explorationResult.skipped, executionTimeMs),
       randomGenerator.seed,
       explorationResult.skipped
     )

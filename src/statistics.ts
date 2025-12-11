@@ -124,3 +124,17 @@ export const factorial = (n: number) => {
   while (x <= n) f *= x++
   return f
 }
+
+/**
+ * Basic execution statistics for property-based tests.
+ */
+export interface FluentStatistics {
+  /** Total test cases executed */
+  testsRun: number
+  /** Test cases that passed (where the property held) */
+  testsPassed: number
+  /** Test cases filtered by preconditions */
+  testsDiscarded: number
+  /** Total execution time in milliseconds */
+  executionTimeMs: number
+}
