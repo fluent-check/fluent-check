@@ -93,7 +93,7 @@ The `explorationResult` already contains:
 - `executionTimeMs`: Calculate from `ExplorationState.startTime` to completion
 - `testsPassed`: Calculate as:
   - If `satisfiable === true`: `testsRun - skipped`
-  - If `satisfiable === false`: `0` (counterexample found, no passing tests)
+  - If `satisfiable === false`: `testsRun - skipped - 1` (tests passed before counterexample)
 
 **Implementation approach**:
 1. Capture start time before exploration begins (line ~377)
