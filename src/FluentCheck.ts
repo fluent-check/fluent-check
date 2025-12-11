@@ -679,7 +679,10 @@ export class FluentCheck<
             if (progress.totalTests !== undefined) {
               progressInfo.percentComplete = (progress.testsRun / progress.totalTests) * 100
             }
-            checkOptions.onProgress!(progressInfo)
+            const onProgress = checkOptions.onProgress
+            if (onProgress !== undefined) {
+              onProgress(progressInfo)
+            }
           } catch (e) {
             if (effectiveVerbosity >= Verbosity.Normal) {
               console.error('Progress callback error:', e)

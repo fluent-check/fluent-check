@@ -610,6 +610,13 @@ export class DistributionTracker {
   }
 
   /**
+   * Get the number of values added.
+   */
+  getCount(): number {
+    return this.meanVariance.getCount()
+  }
+
+  /**
    * Reset all trackers.
    */
   reset(): void {
@@ -659,27 +666,28 @@ export class ArbitraryStatisticsCollector {
   recordSample(value: unknown, arbitrary: ArbitraryLike): void {
     this.samplesGenerated++
 
-        // Get hash and equals functions
-        const hashFn = arbitrary.hashCode !== undefined
-          ? arbitrary.hashCode() 
-          : (a: unknown) => {
-            if (a === null) return 0
-            if (a === undefined) return 1
-            if (typeof a === 'number') return a | 0
-            if (typeof a === 'boolean') return a ? 1 : 0
-            if (typeof a === 'string') return stringToHash(a)
-            return stringToHash(stringify(a))
-          }
-          
-        const eqFn = arbitrary.equals !== undefined
-          ? arbitrary.equals() 
-          : (a: unknown, b: unknown) => {
-            if (a === b) return true
-            if (typeof a === 'object' && a !== null && b !== null) {
-              return stringify(a) === stringify(b)
-            }
-            return false
-          }
+    // Get hash and equals functions
+    const hashFn = arbitrary.hashCode !== undefined
+      ? arbitrary.hashCode()
+      : (a: unknown) => {
+        if (a === null) return 0
+        if (a === undefined) return 1
+        if (typeof a === 'number') return a | 0
+        if (typeof a === 'boolean') return a ? 1 : 0
+        if (typeof a === 'string') return stringToHash(a)
+        return stringToHash(stringify(a))
+      }
+
+    const eqFn = arbitrary.equals !== undefined
+      ? arbitrary.equals()
+      : (a: unknown, b: unknown) => {
+        if (a === b) return true
+        if (typeof a === 'object' && a !== null && b !== null) {
+          return stringify(a) === stringify(b)
+        }
+        return false
+      }
+
     // Calculate hash
     const h = hashFn(value)
 
@@ -764,52 +772,29 @@ export class ArbitraryStatisticsCollector {
       }
     }
 
-    if (this.distributionTracker !== undefined && this.samplesGenerated > 0) {
-      try {
-        stats.distribution = this.distributionTracker.getStatistics()
-      } catch (e) {
-        // If no values were added, distribution remains undefined
-        // This can happen if recordNumericValue was never called despite samples being generated
-        if (e instanceof Error && !e.message.includes('no values added')) {
-          // Unexpected error - log for debugging (in production, this would use a logger)
-          console.warn(`Unexpected error getting distribution statistics: ${e.message}`)
-        }
+    if (this.distributionTracker !== undefined && this.distributionTracker.getCount() > 0) {
+      stats.distribution = this.distributionTracker.getStatistics()
+    }
+
+    if (this.arrayLengthTracker !== undefined && this.arrayLengthTracker.getCount() > 0) {
+      const lengthStats = this.arrayLengthTracker.getStatistics()
+      stats.arrayLengths = {
+        min: lengthStats.min,
+        max: lengthStats.max,
+        mean: lengthStats.mean,
+        median: lengthStats.median,
+        count: lengthStats.count
       }
     }
 
-    if (this.arrayLengthTracker !== undefined && this.samplesGenerated > 0) {
-      try {
-        const lengthStats = this.arrayLengthTracker.getStatistics()
-        stats.arrayLengths = {
-          min: lengthStats.min,
-          max: lengthStats.max,
-          mean: lengthStats.mean,
-          median: lengthStats.median,
-          count: lengthStats.count
-        }
-      } catch (e) {
-        // If no values were added, array length stats remain undefined
-        if (e instanceof Error && !e.message.includes('no values added')) {
-          console.warn(`Unexpected error getting array length statistics: ${e.message}`)
-        }
-      }
-    }
-
-    if (this.stringLengthTracker !== undefined && this.samplesGenerated > 0) {
-      try {
-        const lengthStats = this.stringLengthTracker.getStatistics()
-        stats.stringLengths = {
-          min: lengthStats.min,
-          max: lengthStats.max,
-          mean: lengthStats.mean,
-          median: lengthStats.median,
-          count: lengthStats.count
-        }
-      } catch (e) {
-        // If no values were added, string length stats remain undefined
-        if (e instanceof Error && !e.message.includes('no values added')) {
-          console.warn(`Unexpected error getting string length statistics: ${e.message}`)
-        }
+    if (this.stringLengthTracker !== undefined && this.stringLengthTracker.getCount() > 0) {
+      const lengthStats = this.stringLengthTracker.getStatistics()
+      stats.stringLengths = {
+        min: lengthStats.min,
+        max: lengthStats.max,
+        mean: lengthStats.mean,
+        median: lengthStats.median,
+        count: lengthStats.count
       }
     }
 
