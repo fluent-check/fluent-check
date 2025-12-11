@@ -6,6 +6,7 @@ import {SequentialExecutionStrategy, type ExecutionStrategy} from './ExecutionSt
 import {StandardShrinkStrategy, NoShrinkStrategy, type ShrinkStrategy} from './ShrinkStrategy.js'
 import {NestedLoopExplorer, type Explorer} from './Explorer.js'
 import {PerArbitraryShrinker, NoOpShrinker, type Shrinker, type ShrinkBudget} from './Shrinker.js'
+import {Verbosity} from '../statistics.js'
 
 export class FluentStrategyFactory<Rec extends StrategyBindings = StrategyBindings> {
 
@@ -47,6 +48,16 @@ export class FluentStrategyFactory<Rec extends StrategyBindings = StrategyBindin
    */
   private shrinkerFactory: <R extends StrategyBindings>() => Shrinker<R> =
     <R extends StrategyBindings>() => new NoOpShrinker<R>()
+
+  /**
+   * Whether detailed statistics collection is enabled.
+   */
+  private detailedStatistics = false
+
+  /**
+   * Verbosity level for output.
+   */
+  private verbosity: Verbosity = Verbosity.Normal
 
   /**
    * Changes the sample size to be used while sampling test cases.
@@ -127,6 +138,42 @@ export class FluentStrategyFactory<Rec extends StrategyBindings = StrategyBindin
    */
   withPerArbitraryShrinking(shrinkSize = 500) {
     return this.withShrinking(shrinkSize)
+  }
+
+  /**
+   * Enables detailed statistics collection.
+   * When enabled, per-arbitrary statistics, distribution tracking, and enhanced metrics are collected.
+   *
+   * @returns This factory for method chaining
+   */
+  withDetailedStatistics(): this {
+    this.detailedStatistics = true
+    return this
+  }
+
+  /**
+   * Sets the verbosity level for test output.
+   *
+   * @param level - The verbosity level (Quiet, Normal, Verbose, or Debug)
+   * @returns This factory for method chaining
+   */
+  withVerbosity(level: Verbosity): this {
+    this.verbosity = level
+    return this
+  }
+
+  /**
+   * Gets whether detailed statistics are enabled.
+   */
+  getDetailedStatistics(): boolean {
+    return this.detailedStatistics
+  }
+
+  /**
+   * Gets the current verbosity level.
+   */
+  getVerbosity(): Verbosity {
+    return this.verbosity
   }
 
   /**

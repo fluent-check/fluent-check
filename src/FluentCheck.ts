@@ -18,7 +18,15 @@ import {
 } from './Scenario.js'
 import type {ExplorationBudget} from './strategies/Explorer.js'
 import type {BoundTestCase} from './strategies/types.js'
-import {type FluentStatistics, type CoverageResult, wilsonScoreInterval} from './statistics.js'
+import {FluentReporter} from './FluentReporter.js'
+import {
+  type FluentStatistics,
+  type CoverageResult,
+  wilsonScoreInterval,
+  getCurrentStatisticsContext,
+  StatisticsContext as StatisticsContextClass,
+  Verbosity
+} from './statistics.js'
 
 type PickResult<V> = BoundTestCase<Record<string, V>>
 type ValueResult<V> = Record<string, V>
@@ -84,6 +92,96 @@ export function pre(condition: boolean, message?: string): asserts condition {
   if (!condition) {
     throw new PreconditionFailure(message)
   }
+}
+
+/**
+ * Record an event during property evaluation.
+ * Events are tracked per test case (multiple calls with the same name in one test case count as one).
+ *
+ * @param name - Event identifier
+ *
+ * @example
+ * ```typescript
+ * fc.scenario()
+ *   .forall('x', fc.integer())
+ *   .then(({x}) => {
+ *     if (x > 1000) fc.event('large value')
+ *     return x * x >= 0
+ *   })
+ *   .check()
+ * ```
+ */
+export function event(name: string): void {
+  const context = getCurrentStatisticsContext()
+  if (context === undefined) {
+    throw new Error('fc.event() can only be called within a property function (.then() callback)')
+  }
+  const testCaseIndex = context.getTestCaseIndex()
+  context.recordEvent(name, testCaseIndex)
+}
+
+/**
+ * Record a target observation for coverage-guided optimization.
+ * The explorer may use these observations to guide generation toward higher values.
+ *
+ * @param observation - A finite number to maximize (not NaN, not Infinity)
+ * @param label - Optional label to distinguish multiple targets (defaults to "default")
+ *
+ * @example
+ * ```typescript
+ * fc.scenario()
+ *   .forall('xs', fc.array(fc.integer()))
+ *   .then(({xs}) => {
+ *     fc.target(xs.length, 'array length')
+ *     return isSorted(sort(xs))
+ *   })
+ *   .check()
+ * ```
+ */
+export function target(observation: number, label = 'default'): void {
+  const context = getCurrentStatisticsContext()
+  if (context === undefined) {
+    throw new Error('fc.target() can only be called within a property function (.then() callback)')
+  }
+  if (!Number.isFinite(observation)) {
+    // Log warning if verbosity >= Normal (not implemented yet)
+    return
+  }
+  context.recordTarget(label, observation)
+}
+
+/**
+ * Progress information for progress callbacks.
+ */
+export interface ProgressInfo {
+  /** Number of tests executed so far */
+  testsRun: number
+  /** Total tests planned (may be undefined for unbounded) */
+  totalTests?: number
+  /** Percentage complete (0-100) if totalTests is known */
+  percentComplete?: number
+  /** Tests passed so far */
+  testsPassed: number
+  /** Tests discarded so far */
+  testsDiscarded: number
+  /** Milliseconds since test start */
+  elapsedMs: number
+  /** Current phase of execution */
+  currentPhase: 'exploring' | 'shrinking'
+}
+
+/**
+ * Options for the check() method.
+ */
+export interface CheckOptions {
+  /** Whether to log statistics after test completion */
+  logStatistics?: boolean
+  /** Shortcut to set verbosity to Verbose */
+  verbose?: boolean
+  /** Progress callback for long-running tests */
+  onProgress?: (progress: ProgressInfo) => void
+  /** Progress update interval (default: 100 tests or 1000ms) */
+  progressInterval?: number
 }
 
 export class FluentResult<Rec extends {} = {}> {
@@ -475,7 +573,7 @@ export class FluentCheck<
     return createScenario(nodes)
   }
 
-  check(): FluentResult<Rec> {
+  check(options?: CheckOptions): FluentResult<Rec> {
     const path = this.pathFromRoot()
     const root = path[0] as FluentCheck<any, any>
 
@@ -504,22 +602,120 @@ export class FluentCheck<
       maxTests: factory.configuration.sampleSize ?? 1000
     }
 
+    // Create statistics context for events/targets (always needed) and detailed stats (if enabled)
+    // Events and targets work independently of detailed statistics
+    const statisticsContext = new StatisticsContextClass()
+    const detailedStatisticsEnabled = factory.getDetailedStatistics()
+
     // Build property function from scenario's then nodes
     const property = this.#buildPropertyFunction(scenario)
 
     // Track execution time
     const startTime = Date.now()
+    const verbosity = factory.getVerbosity()
+    const checkOptions = options ?? {}
+
+    // Handle verbose shortcut
+    const effectiveVerbosity = checkOptions.verbose === true ? Verbosity.Verbose : verbosity
+
+    // Progress tracking
+    const DEFAULT_PROGRESS_INTERVAL = 100 // Default: update every 100 tests
+    const DEFAULT_PROGRESS_TIME_INTERVAL_MS = 1000 // Default: update every 1 second
+
+    let lastProgressUpdate = 0
+    const progressInterval = checkOptions.progressInterval ?? DEFAULT_PROGRESS_INTERVAL
+    const progressTimeInterval = DEFAULT_PROGRESS_TIME_INTERVAL_MS
+    let lastProgressTime = startTime
+
+    // Verbose output helper
+    const verboseLog = (message: string) => {
+      if (effectiveVerbosity >= Verbosity.Verbose) {
+        console.log(message)
+      }
+    }
+
+    // Debug output helper
+    const debugLog = (message: string) => {
+      if (effectiveVerbosity >= Verbosity.Debug) {
+        console.log(`[DEBUG] ${message}`)
+      }
+    }
+
+    verboseLog(`Starting exploration with ${explorationBudget.maxTests} max tests...`)
+    debugLog(`RNG seed: ${randomGenerator.seed}`)
+    debugLog(`Strategy: detailedStats=${detailedStatisticsEnabled ? 'true' : 'false'}, verbosity=${Verbosity[effectiveVerbosity]}`)
 
     // Explore the search space
+    // Always pass statistics context (for events/targets), even if detailed stats disabled
+    // Pass progress callback wrapper that respects interval settings
     const explorationResult = explorer.explore(
       executableScenario,
       property,
       sampler,
-      explorationBudget
+      explorationBudget,
+      statisticsContext,
+      detailedStatisticsEnabled,
+      checkOptions.onProgress !== undefined ? (progress) => {
+        // The Explorer's progress callback provides raw counts
+        // We wrap it to respect interval settings and format as ProgressInfo
+        const now = Date.now()
+        const shouldUpdate =
+          progress.testsRun - lastProgressUpdate >= progressInterval ||
+          now - lastProgressTime >= progressTimeInterval
+
+        if (shouldUpdate) {
+          lastProgressUpdate = progress.testsRun
+          lastProgressTime = now
+
+          try {
+            const progressInfo: ProgressInfo = {
+              testsRun: progress.testsRun,
+              ...(progress.totalTests !== undefined && {totalTests: progress.totalTests}),
+              testsPassed: progress.testsPassed,
+              testsDiscarded: progress.testsDiscarded,
+              elapsedMs: progress.elapsedMs,
+              currentPhase: 'exploring'
+            }
+            if (progress.totalTests !== undefined) {
+              progressInfo.percentComplete = (progress.testsRun / progress.totalTests) * 100
+            }
+            checkOptions.onProgress!(progressInfo)
+          } catch (e) {
+            if (effectiveVerbosity >= Verbosity.Normal) {
+              console.error('Progress callback error:', e)
+            }
+          }
+        }
+      } : undefined
     )
 
     const endTime = Date.now()
     const executionTimeMs = endTime - startTime
+
+    // Report final progress (Explorer now calls progress callback during exploration,
+    // but we also report final state to ensure last update is sent)
+    if (checkOptions.onProgress !== undefined) {
+      const finalProgress: ProgressInfo = {
+        testsRun: explorationResult.testsRun,
+        totalTests: explorationBudget.maxTests,
+        testsPassed: explorationResult.outcome === 'passed'
+          ? explorationResult.testsRun - explorationResult.skipped
+          : 0,
+        testsDiscarded: explorationResult.skipped,
+        elapsedMs: Date.now() - startTime,
+        currentPhase: 'exploring'
+      }
+      if (explorationBudget.maxTests > 0) {
+        finalProgress.percentComplete = (explorationResult.testsRun / explorationBudget.maxTests) * 100
+      }
+      try {
+        checkOptions.onProgress(finalProgress)
+      } catch (e) {
+        if (effectiveVerbosity >= Verbosity.Normal) {
+          console.error('Progress callback error:', e)
+        }
+      }
+    }
 
     // Helper function to calculate statistics
     const calculateStatistics = (
@@ -527,14 +723,18 @@ export class FluentCheck<
       skipped: number,
       executionTimeMs: number,
       counterexampleFound: boolean,
-      labels?: Record<string, number>
+      executionTimeBreakdown: { exploration: number; shrinking: number },
+      labels?: Record<string, number>,
+      detailedStats?: import('./strategies/Explorer.js').DetailedExplorationStats,
+      shrinkingStats?: import('./statistics.js').ShrinkingStatistics
     ): FluentStatistics => {
       const stats: FluentStatistics = {
         testsRun,
         // testsPassed counts tests where property held (excluding discarded and counterexample if any)
         testsPassed: counterexampleFound ? testsRun - skipped - 1 : testsRun - skipped,
         testsDiscarded: skipped,
-        executionTimeMs
+        executionTimeMs,
+        executionTimeBreakdown
       }
 
       // Calculate label percentages if labels are present
@@ -550,6 +750,33 @@ export class FluentCheck<
         // If no tests run, percentages remain undefined (don't set explicitly)
       }
 
+      // Add detailed statistics if available
+      if (detailedStats !== undefined) {
+        // Only include arbitraryStats if detailed statistics were enabled
+        if (detailedStats.arbitraryStats !== undefined) {
+          stats.arbitraryStats = detailedStats.arbitraryStats
+        }
+        // Events and targets are always tracked (independent of detailed statistics)
+        if (detailedStats.events !== undefined) {
+          stats.events = detailedStats.events
+          if (testsRun > 0) {
+            const eventPercentages: Record<string, number> = {}
+            for (const [event, count] of Object.entries(detailedStats.events)) {
+              eventPercentages[event] = (count / testsRun) * 100
+            }
+            stats.eventPercentages = eventPercentages
+          }
+        }
+        if (detailedStats.targets !== undefined) {
+          stats.targets = detailedStats.targets
+        }
+      }
+
+      // Add shrinking statistics if available
+      if (shrinkingStats !== undefined) {
+        stats.shrinking = shrinkingStats
+      }
+
       return stats
     }
 
@@ -557,7 +784,9 @@ export class FluentCheck<
     if (explorationResult.outcome === 'passed') {
       // Extract witness values if available (for exists scenarios)
       if (scenario.hasExistential && explorationResult.witness !== undefined) {
+        verboseLog('Shrinking witness...')
         // Shrink the witness to find the minimal satisfying values
+        const shrinkStartTime = Date.now()
         const shrinkResult = shrinker.shrinkWitness(
           explorationResult.witness,
           executableScenario,
@@ -566,6 +795,8 @@ export class FluentCheck<
           sampler,
           shrinkBudget
         )
+        const shrinkEndTime = Date.now()
+        const shrinkTimeMs = shrinkEndTime - shrinkStartTime
 
         // Filter to only include existential quantifiers' values
         const existentialNames = new Set(
@@ -581,49 +812,109 @@ export class FluentCheck<
           }
         }
 
-        return new FluentResult<Rec>(
+        // Build shrinking statistics for witness
+        const witnessShrinkingStats: import('./statistics.js').ShrinkingStatistics = {
+          candidatesTested: shrinkResult.attempts,
+          roundsCompleted: shrinkResult.roundsCompleted ?? shrinkResult.rounds,
+          improvementsMade: shrinkResult.rounds
+        }
+
+        const result = new FluentResult<Rec>(
           true,
           example as Rec,
           calculateStatistics(
             explorationResult.testsRun,
             explorationResult.skipped,
-            executionTimeMs,
+            executionTimeMs + shrinkTimeMs,
             false,
-            explorationResult.labels
+            {exploration: executionTimeMs, shrinking: shrinkTimeMs},
+            explorationResult.labels,
+            explorationResult.detailedStats,
+            witnessShrinkingStats
           ),
           randomGenerator.seed,
           explorationResult.skipped
         )
+
+        // Log statistics if requested
+        if (checkOptions.logStatistics === true) {
+          const format = effectiveVerbosity >= Verbosity.Verbose ? 'text' : 'text'
+          const formatted = FluentReporter.formatStatistics(result.statistics, {
+            format,
+            detailed: effectiveVerbosity >= Verbosity.Verbose
+          })
+          if (effectiveVerbosity >= Verbosity.Quiet) {
+            console.log('\n' + formatted)
+          }
+        }
+
+        return result
       }
 
       // For forall-only scenarios that pass, return empty example
-      return new FluentResult<Rec>(
+      const result = new FluentResult<Rec>(
         true,
         {} as Rec,
         // eslint-disable-next-line max-len
-        calculateStatistics(explorationResult.testsRun, explorationResult.skipped, executionTimeMs, false, explorationResult.labels),
+        calculateStatistics(explorationResult.testsRun, explorationResult.skipped, executionTimeMs, false, {exploration: executionTimeMs, shrinking: 0}, explorationResult.labels, explorationResult.detailedStats),
         randomGenerator.seed,
         explorationResult.skipped
       )
+
+      // Log statistics if requested
+      if (checkOptions.logStatistics === true) {
+        const format = effectiveVerbosity >= Verbosity.Verbose ? 'text' : 'text'
+        const formatted = FluentReporter.formatStatistics(result.statistics, {
+          format,
+          detailed: effectiveVerbosity >= Verbosity.Verbose
+        })
+        // Only log if not Quiet mode
+        if (effectiveVerbosity > Verbosity.Quiet) {
+          console.log('\n' + formatted)
+        }
+      }
+
+      return result
     }
 
     if (explorationResult.outcome === 'exhausted') {
       // For forall-only scenarios, exhausted budget without counterexample is a (incomplete) pass.
       // For scenarios with exists, exhausted budget means no witness found.
       const satisfiable = !scenario.hasExistential
-      return new FluentResult<Rec>(
+      const result = new FluentResult<Rec>(
         satisfiable,
         {} as Rec,
         // eslint-disable-next-line max-len
-        calculateStatistics(explorationResult.testsRun, explorationResult.skipped, executionTimeMs, false, explorationResult.labels),
+        calculateStatistics(explorationResult.testsRun, explorationResult.skipped, executionTimeMs, false, {exploration: executionTimeMs, shrinking: 0}, explorationResult.labels, explorationResult.detailedStats),
         randomGenerator.seed,
         explorationResult.skipped
       )
+
+      // Log statistics if requested
+      if (checkOptions.logStatistics === true) {
+        const format = effectiveVerbosity >= Verbosity.Verbose ? 'text' : 'text'
+        const formatted = FluentReporter.formatStatistics(result.statistics, {
+          format,
+          detailed: effectiveVerbosity >= Verbosity.Verbose
+        })
+        // Only log if not Quiet mode
+        if (effectiveVerbosity > Verbosity.Quiet) {
+          console.log('\n' + formatted)
+        }
+      }
+
+      return result
     }
 
     // Found a counterexample - apply shrinking
     const counterexample = explorationResult.counterexample
 
+    // Shrinking phase
+    verboseLog('Shrinking counterexample...')
+    debugLog(`Shrink budget: ${shrinkBudget.maxAttempts} attempts, ${shrinkBudget.maxRounds} rounds`)
+    debugLog(`Counterexample: ${JSON.stringify(FluentCheck.unwrapFluentPick(counterexample))}`)
+
+    const shrinkStartTime = Date.now()
     const shrinkResult = shrinker.shrink(
       counterexample,
       executableScenario,
@@ -632,21 +923,52 @@ export class FluentCheck<
       sampler,
       shrinkBudget
     )
+    const shrinkEndTime = Date.now()
+    const shrinkTimeMs = shrinkEndTime - shrinkStartTime
+
+    debugLog(`Shrinking complete: ${shrinkResult.rounds} rounds, ${shrinkResult.attempts} attempts`)
+    debugLog(`Minimized counterexample: ${JSON.stringify(FluentCheck.unwrapFluentPick(shrinkResult.minimized))}`)
+
+    // Build shrinking statistics
+    const shrinkingStats: import('./statistics.js').ShrinkingStatistics = {
+      candidatesTested: shrinkResult.attempts,
+      roundsCompleted: shrinkResult.roundsCompleted ?? shrinkResult.rounds,
+      improvementsMade: shrinkResult.rounds
+    }
+
+    const totalTimeMs = executionTimeMs + shrinkTimeMs
 
     // Convert shrunk counterexample to FluentResult
-    return new FluentResult<Rec>(
+    const result = new FluentResult<Rec>(
       false,
       FluentCheck.unwrapFluentPick(shrinkResult.minimized) as Rec,
       calculateStatistics(
         explorationResult.testsRun,
         explorationResult.skipped,
-        executionTimeMs,
+        totalTimeMs,
         true,
-        explorationResult.labels
+        {exploration: executionTimeMs, shrinking: shrinkTimeMs},
+        explorationResult.labels,
+        explorationResult.detailedStats,
+        shrinkingStats
       ),
       randomGenerator.seed,
       explorationResult.skipped
     )
+
+    // Log statistics if requested
+    if (checkOptions.logStatistics === true) {
+      const format = effectiveVerbosity >= Verbosity.Verbose ? 'text' : 'text'
+      const formatted = FluentReporter.formatStatistics(result.statistics, {
+        format,
+        detailed: effectiveVerbosity >= Verbosity.Verbose
+      })
+      if (effectiveVerbosity >= Verbosity.Quiet) {
+        console.log('\n' + formatted)
+      }
+    }
+
+    return result
   }
 
   /**
