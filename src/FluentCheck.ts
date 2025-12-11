@@ -9,6 +9,9 @@ import {
   type GivenNode,
   type WhenNode,
   type ThenNode,
+  type ClassifyNode,
+  type LabelNode,
+  type CollectNode,
   createScenario
 } from './Scenario.js'
 import type {ExplorationBudget} from './strategies/Explorer.js'
@@ -288,6 +291,68 @@ export class FluentCheck<
     return new FluentCheckAssert(this, f)
   }
 
+  /**
+   * Classifies test cases by a predicate. When the predicate returns true,
+   * the label is counted in the statistics.
+   *
+   * @param predicate - Function that returns true when the test case matches this classification
+   * @param label - Label string to count when predicate is true
+   * @returns A new FluentCheck instance with the classification node added
+   *
+   * @example
+   * ```typescript
+   * fc.scenario()
+   *   .forall('xs', fc.array(fc.integer()))
+   *   .classify(({xs}) => xs.length === 0, 'empty')
+   *   .classify(({xs}) => xs.length < 5, 'small')
+   *   .then(({xs}) => xs.sort().length === xs.length)
+   *   .check()
+   * ```
+   */
+  classify(predicate: (args: Rec) => boolean, classificationLabel: string): FluentCheckClassify<Rec, ParentRec> {
+    return new FluentCheckClassify(this, predicate, classificationLabel)
+  }
+
+  /**
+   * Dynamically labels test cases. The function is evaluated for each test case
+   * and the returned string is used as a label and counted.
+   *
+   * @param fn - Function that returns a label string for each test case
+   * @returns A new FluentCheck instance with the label node added
+   *
+   * @example
+   * ```typescript
+   * fc.scenario()
+   *   .forall('x', fc.integer(-100, 100))
+   *   .label(({x}) => x < 0 ? 'negative' : x > 0 ? 'positive' : 'zero')
+   *   .then(({x}) => Math.abs(x) >= 0)
+   *   .check()
+   * ```
+   */
+  label(fn: (args: Rec) => string): FluentCheckLabel<Rec, ParentRec> {
+    return new FluentCheckLabel(this, fn)
+  }
+
+  /**
+   * Collects values from test cases. The function is evaluated for each test case
+   * and the returned value (string or number) is used as a label and counted.
+   *
+   * @param fn - Function that returns a value (string or number) for each test case
+   * @returns A new FluentCheck instance with the collect node added
+   *
+   * @example
+   * ```typescript
+   * fc.scenario()
+   *   .forall('xs', fc.array(fc.integer()))
+   *   .collect(({xs}) => xs.length)
+   *   .then(({xs}) => true)
+   *   .check()
+   * ```
+   */
+  collect(fn: (args: Rec) => string | number): FluentCheckCollect<Rec, ParentRec> {
+    return new FluentCheckCollect(this, fn)
+  }
+
   withGenerator(
     generator: (seed: number) => () => number,
     seed?: number
@@ -394,14 +459,32 @@ export class FluentCheck<
       testsRun: number,
       skipped: number,
       executionTimeMs: number,
-      counterexampleFound: boolean
-    ): FluentStatistics => ({
-      testsRun,
-      // testsPassed counts tests where property held (excluding discarded and counterexample if any)
-      testsPassed: counterexampleFound ? testsRun - skipped - 1 : testsRun - skipped,
-      testsDiscarded: skipped,
-      executionTimeMs
-    })
+      counterexampleFound: boolean,
+      labels?: Record<string, number>
+    ): FluentStatistics => {
+      const stats: FluentStatistics = {
+        testsRun,
+        // testsPassed counts tests where property held (excluding discarded and counterexample if any)
+        testsPassed: counterexampleFound ? testsRun - skipped - 1 : testsRun - skipped,
+        testsDiscarded: skipped,
+        executionTimeMs
+      }
+
+      // Calculate label percentages if labels are present
+      if (labels !== undefined && Object.keys(labels).length > 0) {
+        stats.labels = labels
+        if (testsRun > 0) {
+          const labelPercentages: Record<string, number> = {}
+          for (const [label, count] of Object.entries(labels)) {
+            labelPercentages[label] = (count / testsRun) * 100
+          }
+          stats.labelPercentages = labelPercentages
+        }
+        // If no tests run, percentages remain undefined (don't set explicitly)
+      }
+
+      return stats
+    }
 
     // Handle exploration result
     if (explorationResult.outcome === 'passed') {
@@ -434,7 +517,13 @@ export class FluentCheck<
         return new FluentResult<Rec>(
           true,
           example as Rec,
-          calculateStatistics(explorationResult.testsRun, explorationResult.skipped, executionTimeMs, false),
+          calculateStatistics(
+            explorationResult.testsRun,
+            explorationResult.skipped,
+            executionTimeMs,
+            false,
+            explorationResult.labels
+          ),
           randomGenerator.seed,
           explorationResult.skipped
         )
@@ -444,7 +533,7 @@ export class FluentCheck<
       return new FluentResult<Rec>(
         true,
         {} as Rec,
-        calculateStatistics(explorationResult.testsRun, explorationResult.skipped, executionTimeMs, false),
+        calculateStatistics(explorationResult.testsRun, explorationResult.skipped, executionTimeMs, false, explorationResult.labels),
         randomGenerator.seed,
         explorationResult.skipped
       )
@@ -457,7 +546,7 @@ export class FluentCheck<
       return new FluentResult<Rec>(
         satisfiable,
         {} as Rec,
-        calculateStatistics(explorationResult.testsRun, explorationResult.skipped, executionTimeMs, false),
+        calculateStatistics(explorationResult.testsRun, explorationResult.skipped, executionTimeMs, false, explorationResult.labels),
         randomGenerator.seed,
         explorationResult.skipped
       )
@@ -479,7 +568,13 @@ export class FluentCheck<
     return new FluentResult<Rec>(
       false,
       FluentCheck.unwrapFluentPick(shrinkResult.minimized) as Rec,
-      calculateStatistics(explorationResult.testsRun, explorationResult.skipped, executionTimeMs, true),
+          calculateStatistics(
+            explorationResult.testsRun,
+            explorationResult.skipped,
+            executionTimeMs,
+            true,
+            explorationResult.labels
+          ),
       randomGenerator.seed,
       explorationResult.skipped
     )
@@ -745,5 +840,58 @@ class FluentCheckGenerator<Rec extends ParentRec, ParentRec extends {}>
     readonly seed?: number
   ) {
     super(parent)
+  }
+}
+
+class FluentCheckClassify<Rec extends ParentRec, ParentRec extends {}>
+  extends FluentCheck<Rec, ParentRec> {
+  constructor(
+    protected override readonly parent: FluentCheck<ParentRec, any>,
+    public readonly predicate: (args: Rec) => boolean,
+    public readonly classificationLabel: string
+  ) {
+    super(parent)
+  }
+
+  protected override toScenarioNode(): ClassifyNode<Rec> {
+    return {
+      type: 'classify',
+      predicate: this.predicate,
+      label: this.classificationLabel
+    }
+  }
+}
+
+class FluentCheckLabel<Rec extends ParentRec, ParentRec extends {}>
+  extends FluentCheck<Rec, ParentRec> {
+  constructor(
+    protected override readonly parent: FluentCheck<ParentRec, any>,
+    public readonly fn: (args: Rec) => string
+  ) {
+    super(parent)
+  }
+
+  protected override toScenarioNode(): LabelNode<Rec> {
+    return {
+      type: 'label',
+      fn: this.fn
+    }
+  }
+}
+
+class FluentCheckCollect<Rec extends ParentRec, ParentRec extends {}>
+  extends FluentCheck<Rec, ParentRec> {
+  constructor(
+    protected override readonly parent: FluentCheck<ParentRec, any>,
+    public readonly fn: (args: Rec) => string | number
+  ) {
+    super(parent)
+  }
+
+  protected override toScenarioNode(): CollectNode<Rec> {
+    return {
+      type: 'collect',
+      fn: this.fn
+    }
   }
 }

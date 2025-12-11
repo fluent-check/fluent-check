@@ -137,4 +137,8 @@ export interface FluentStatistics {
   testsDiscarded: number
   /** Total execution time in milliseconds */
   executionTimeMs: number
+  /** Label counts for test case classifications (optional) */
+  labels?: Record<string, number>
+  /** Label percentages (0-100) for test case classifications (optional) */
+  labelPercentages?: Record<string, number>
 }
