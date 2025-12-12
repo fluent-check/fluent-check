@@ -1,4 +1,6 @@
-import {BetaBinomialDistribution, IntegerDistribution} from '../src/statistics'
+import {BetaBinomialDistribution, IntegerDistribution, type ArbitraryStatistics, type TargetStatistics, type ShrinkingStatistics} from '../src/statistics'
+import {DefaultStatisticsAggregator, type StatisticsAggregationInput} from '../src/statisticsAggregator'
+import type {DetailedExplorationStats} from '../src/strategies/Explorer'
 import * as fc from '../src/index'
 import {it} from 'mocha'
 import {expect} from 'chai'
@@ -547,6 +549,118 @@ describe('Statistics tests', () => {
         expect(result.statistics.testsPassed).to.equal(sampleSize)
         expect(result.statistics.testsDiscarded).to.equal(0)
       })
+    })
+  })
+
+  describe('DefaultStatisticsAggregator', () => {
+    const aggregator = new DefaultStatisticsAggregator()
+
+    it('computes testsPassed and testsDiscarded for satisfiable results', () => {
+      const input: StatisticsAggregationInput = {
+        testsRun: 100,
+        skipped: 30,
+        executionTimeMs: 42,
+        counterexampleFound: false,
+        executionTimeBreakdown: {exploration: 40, shrinking: 2}
+      }
+
+      const stats = aggregator.aggregate(input)
+
+      expect(stats.testsRun).to.equal(100)
+      expect(stats.testsDiscarded).to.equal(30)
+      expect(stats.testsPassed).to.equal(70)
+      expect(stats.testsRun).to.equal(stats.testsPassed + stats.testsDiscarded)
+    })
+
+    it('computes invariants for unsatisfiable results', () => {
+      const input: StatisticsAggregationInput = {
+        testsRun: 10,
+        skipped: 2,
+        executionTimeMs: 5,
+        counterexampleFound: true,
+        executionTimeBreakdown: {exploration: 5, shrinking: 0}
+      }
+
+      const stats = aggregator.aggregate(input)
+
+      expect(stats.testsRun).to.equal(10)
+      expect(stats.testsDiscarded).to.equal(2)
+      expect(stats.testsPassed).to.equal(7)
+      expect(stats.testsRun).to.equal(stats.testsPassed + stats.testsDiscarded + 1)
+    })
+
+    it('computes label and event percentages when data is present', () => {
+      const detailedStats: DetailedExplorationStats = {
+        events: {
+          error: 4,
+          success: 6
+        }
+      }
+      const input: StatisticsAggregationInput = {
+        testsRun: 10,
+        skipped: 0,
+        executionTimeMs: 0,
+        counterexampleFound: false,
+        executionTimeBreakdown: {exploration: 0, shrinking: 0},
+        labels: {
+          small: 7,
+          large: 3
+        },
+        detailedStats
+      }
+
+      const stats = aggregator.aggregate(input)
+
+      expect(stats.labels).to.deep.equal({small: 7, large: 3})
+      expect(stats.labelPercentages).to.deep.equal({small: 70, large: 30})
+      expect(stats.events).to.deep.equal({error: 4, success: 6})
+      expect(stats.eventPercentages).to.deep.equal({error: 40, success: 60})
+    })
+
+    it('passes through detailed and shrinking statistics', () => {
+      const arbitraryStats: Record<string, ArbitraryStatistics> = {
+        x: {
+          samplesGenerated: 10,
+          uniqueValues: 3,
+          cornerCases: {
+            tested: [0],
+            total: 1
+          }
+        }
+      }
+      const targets: Record<string, TargetStatistics> = {
+        default: {
+          best: 42,
+          observations: 5,
+          mean: 21
+        }
+      }
+      const detailedStats: DetailedExplorationStats = {
+        arbitraryStats,
+        events: {hit: 2},
+        targets
+      }
+      const shrinkingStats: ShrinkingStatistics = {
+        candidatesTested: 5,
+        roundsCompleted: 3,
+        improvementsMade: 2
+      }
+      const input: StatisticsAggregationInput = {
+        testsRun: 20,
+        skipped: 0,
+        executionTimeMs: 10,
+        counterexampleFound: false,
+        executionTimeBreakdown: {exploration: 10, shrinking: 0},
+        detailedStats,
+        shrinkingStats
+      }
+
+      const stats = aggregator.aggregate(input)
+
+      expect(stats.arbitraryStats).to.equal(arbitraryStats)
+      expect(stats.events).to.deep.equal({hit: 2})
+      expect(stats.targets).to.equal(targets)
+      expect(stats.shrinking).to.deep.equal(shrinkingStats)
     })
   })
 })

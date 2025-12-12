@@ -18,7 +18,7 @@
 - [x] 2.1 Extract current statistics aggregation logic from `FluentCheck.check()` into `DefaultStatisticsAggregator.aggregate`
 - [x] 2.2 Replace inline statistics construction with a single call to the aggregator
 - [x] 2.3 Ensure `FluentStatistics` shape and semantics (testsRun, testsPassed, testsDiscarded, labels, events, targets, shrinking) are unchanged
-- [ ] 2.4 Add unit tests for `DefaultStatisticsAggregator` to validate aggregation behavior in isolation
+- [x] 2.4 Add unit tests for `DefaultStatisticsAggregator` to validate aggregation behavior in isolation
 
 ## 3. Wire Progress Reporting into FluentCheck
 
@@ -56,21 +56,21 @@
 
 - [x] 6.1 Keep `CheckOptions` shape backwards compatible:
   - `logStatistics`, `verbose`, `onProgress`, `progressInterval`, and `logger` MUST maintain their semantics
-- [ ] 6.2 Optionally introduce advanced, low-level hooks (e.g., `progressReporterFactory`, `resultReporterFactory`) without breaking existing options
-- [ ] 6.3 Ensure public API surface does NOT expose engine internals (Explorer, Shrinker) beyond what is already documented
-- [ ] 6.4 Add documentation for new abstractions and how they map to existing options
+- [x] 6.2 Optionally introduce advanced, low-level hooks (e.g., `progressReporterFactory`, `resultReporterFactory`) without breaking existing options
+- [x] 6.3 Ensure public API surface does NOT expose engine internals (Explorer, Shrinker) beyond what is already documented
+- [x] 6.4 Add documentation for new abstractions and how they map to existing options
 
 ## 7. Documentation and Examples
 
-- [ ] 7.1 Update reporting documentation to describe:
+- [x] 7.1 Update reporting documentation to describe:
   - `StatisticsAggregator` role
   - `ProgressReporter` and `ResultReporter` patterns
   - How verbosity and `logStatistics` map to reporters
-- [ ] 7.2 Add examples for:
-  - [ ] 7.2.1 Using `check()` purely as a data API (no progress, no logging)
-  - [ ] 7.2.2 Custom progress reporting (e.g., integrating with a test runner’s progress UI)
-  - [ ] 7.2.3 Custom result reporting (e.g., exporting JSON stats to a file or metrics system)
-- [ ] 7.3 Document how to replace `DefaultStatisticsAggregator` for experimental statistics behavior
+- [x] 7.2 Add examples for:
+  - [x] 7.2.1 Using `check()` purely as a data API (no progress, no logging)
+  - [x] 7.2.2 Custom progress reporting (e.g., integrating with a test runner’s progress UI)
+  - [x] 7.2.3 Custom result reporting (e.g., exporting JSON stats to a file or metrics system)
+- [x] 7.3 Document how to replace `DefaultStatisticsAggregator` for experimental statistics behavior
 
 ## 8. Validation
 
@@ -78,7 +78,7 @@
   - Basic `check()` and `checkCoverage()` flows
   - Detailed statistics, events, targets, and histograms
   - Verbosity modes (Quiet, Normal, Verbose, Debug)
-- [ ] 8.2 Add targeted tests for:
-  - [ ] 8.2.1 `StatisticsAggregator` invariants
-  - [ ] 8.2.2 `ProgressReporter` throttling and error handling
-  - [ ] 8.2.3 `ResultReporter` behavior under different verbosity/logger combinations
+- [x] 8.2 Add targeted tests for:
+  - [x] 8.2.1 `StatisticsAggregator` invariants
+  - [x] 8.2.2 `ProgressReporter` throttling and error handling
+  - [x] 8.2.3 `ResultReporter` behavior under different verbosity/logger combinations

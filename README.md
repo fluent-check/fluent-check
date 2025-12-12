@@ -644,6 +644,7 @@ For more details on each feature, check out our detailed documentation:
 - [Quantifiers](docs/quantifiers.md)
 - [Given-When-Then Pattern](docs/given-when-then-pattern.md)
 - [Statistical Confidence](docs/statistical-confidence.md)
+- [Reporting and Progress](docs/reporting.md)
 - [Test Case Classification](docs/test-case-classification.md) (coming soon)
 - [Smart Shrinking](docs/smart-shrinking.md)
 - [Customizable Strategies](docs/customizable-strategies.md)

@@ -201,6 +201,30 @@ export interface CheckOptions {
   progressInterval?: number
   /** Custom logger for structured output */
   logger?: Logger
+  /**
+   * Advanced: custom statistics aggregator.
+   * Defaults to `DefaultStatisticsAggregator` when not provided.
+   */
+  statisticsAggregator?: StatisticsAggregator
+  /**
+   * Advanced: factory for customizing progress reporting.
+   * If provided, this takes precedence over the built-in mapping from CheckOptions to ProgressReporter.
+   */
+  progressReporterFactory?: (params: {
+    options: CheckOptions
+    logger?: Logger
+    defaultFactory: (options: CheckOptions, logger?: Logger) => ProgressReporter
+  }) => ProgressReporter
+  /**
+   * Advanced: factory for customizing result reporting.
+   * If provided, this takes precedence over the built-in mapping from CheckOptions to ResultReporter.
+   */
+  resultReporterFactory?: (params: {
+    options: CheckOptions
+    effectiveVerbosity: Verbosity
+    logger?: Logger
+    defaultFactory: (options: CheckOptions, effectiveVerbosity: Verbosity, logger?: Logger) => ResultReporter
+  }) => ResultReporter
 }
 
 export class FluentResult<Rec extends {} = {}> {
@@ -651,7 +675,8 @@ export class FluentCheck<
       checkOptions.logger
     )
 
-    const statisticsAggregator: StatisticsAggregator = new DefaultStatisticsAggregator()
+    const statisticsAggregator: StatisticsAggregator =
+      checkOptions.statisticsAggregator ?? new DefaultStatisticsAggregator()
     const progressReporter = this.#createProgressReporter(checkOptions, logging.logger)
     const resultReporter: ResultReporter<Rec> = this.#createResultReporter(
       checkOptions,
@@ -939,15 +964,34 @@ export class FluentCheck<
     checkOptions: CheckOptions,
     logger?: Logger
   ): ProgressReporter {
-    const DEFAULT_PROGRESS_INTERVAL = 100
-    const DEFAULT_PROGRESS_TIME_INTERVAL_MS = 1000
-    if (checkOptions.onProgress === undefined) {
-      return new NoopProgressReporter()
+    const defaultFactory = (options: CheckOptions, factoryLogger?: Logger): ProgressReporter => {
+      const DEFAULT_PROGRESS_INTERVAL = 100
+      const DEFAULT_PROGRESS_TIME_INTERVAL_MS = 1000
+      if (options.onProgress === undefined) {
+        return new NoopProgressReporter()
+      }
+
+      const base = new CallbackProgressReporter(options.onProgress, factoryLogger)
+      const progressInterval = options.progressInterval ?? DEFAULT_PROGRESS_INTERVAL
+      return new ThrottlingProgressReporter(base, progressInterval, DEFAULT_PROGRESS_TIME_INTERVAL_MS)
     }
 
-    const base = new CallbackProgressReporter(checkOptions.onProgress, logger)
-    const progressInterval = checkOptions.progressInterval ?? DEFAULT_PROGRESS_INTERVAL
-    return new ThrottlingProgressReporter(base, progressInterval, DEFAULT_PROGRESS_TIME_INTERVAL_MS)
+    if (checkOptions.progressReporterFactory !== undefined) {
+      const params: {
+        options: CheckOptions
+        logger?: Logger
+        defaultFactory: (options: CheckOptions, logger?: Logger) => ProgressReporter
+      } = {
+        options: checkOptions,
+        defaultFactory
+      }
+      if (logger !== undefined) {
+        params.logger = logger
+      }
+      return checkOptions.progressReporterFactory(params)
+    }
+
+    return defaultFactory(checkOptions, logger)
   }
 
   #createResultReporter(
@@ -955,16 +999,41 @@ export class FluentCheck<
     effectiveVerbosity: Verbosity,
     logger?: Logger
   ): ResultReporter<Rec> {
-    if (checkOptions.logStatistics !== true) {
-      return new NoopResultReporter<Rec>()
+    const defaultFactory = (
+      options: CheckOptions,
+      factoryVerbosity: Verbosity,
+      factoryLogger?: Logger
+    ): ResultReporter<Rec> => {
+      if (options.logStatistics !== true) {
+        return new NoopResultReporter<Rec>()
+      }
+      if (factoryVerbosity === Verbosity.Quiet) {
+        return new NoopResultReporter<Rec>()
+      }
+      if (factoryLogger !== undefined) {
+        return new LoggerStatisticsReporter<Rec>(factoryLogger, factoryVerbosity)
+      }
+      return new ConsoleStatisticsReporter<Rec>(factoryVerbosity)
     }
-    if (effectiveVerbosity === Verbosity.Quiet) {
-      return new NoopResultReporter<Rec>()
+
+    if (checkOptions.resultReporterFactory !== undefined) {
+      const params: {
+        options: CheckOptions
+        effectiveVerbosity: Verbosity
+        logger?: Logger
+        defaultFactory: (options: CheckOptions, effectiveVerbosity: Verbosity, logger?: Logger) => ResultReporter<Rec>
+      } = {
+        options: checkOptions,
+        effectiveVerbosity,
+        defaultFactory
+      }
+      if (logger !== undefined) {
+        params.logger = logger
+      }
+      return checkOptions.resultReporterFactory(params) as ResultReporter<Rec>
     }
-    if (logger !== undefined) {
-      return new LoggerStatisticsReporter<Rec>(logger, effectiveVerbosity)
-    }
-    return new ConsoleStatisticsReporter<Rec>(effectiveVerbosity)
+
+    return defaultFactory(checkOptions, effectiveVerbosity, logger)
   }
 
   /**
