@@ -24,3 +24,18 @@ export {buildStatisticsInput, toShrinkingStatistics} from './buildStatisticsInpu
 export {extractExistentialWitness} from './extractExistentialWitness.js'
 
 export {unwrapBoundTestCase} from './unwrapBoundTestCase.js'
+
+export type {ProgressInfo, CheckOptions} from './CheckOptions.js'
+
+export type {ExecutionConfig} from './runCheck.js'
+export {
+  prepareCheckExecution,
+  runExploration,
+  emitFinalProgress,
+  resolveOutcome,
+  buildResult,
+  buildPropertyFunction,
+  runCheck
+} from './runCheck.js'
+
+export {PreconditionFailure, pre} from './preconditions.js'

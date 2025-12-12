@@ -6,7 +6,7 @@ import type {Sampler} from '../strategies/Sampler.js'
 import type {StatisticsContext, Verbosity, Logger} from '../statistics.js'
 import type {StatisticsAggregator} from '../statisticsAggregator.js'
 import type {ProgressReporter, ResultReporter} from '../reporting.js'
-import type {CheckOptions} from '../FluentCheck.js'
+import type {CheckOptions} from './CheckOptions.js'
 
 /**
  * Execution logging facade.

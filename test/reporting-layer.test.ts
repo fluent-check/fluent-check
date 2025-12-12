@@ -63,7 +63,7 @@ describe('Reporting layer', () => {
       const originalNow = Date.now
       try {
         // Keep time constant so throttling is driven purely by testsRun
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
         ;(Date as any).now = () => 1000
 
         const base: Omit<ProgressInfo, 'testsRun'> = {
@@ -79,7 +79,7 @@ describe('Reporting layer', () => {
         reporter.onProgress({testsRun: 19, ...base})
         reporter.onProgress({testsRun: 21, ...base})
       } finally {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
         ;(Date as any).now = originalNow
       }
 
@@ -135,14 +135,14 @@ describe('Reporting layer', () => {
       const originalLog = console.log
       const calls: unknown[][] = []
       try {
-        // eslint-disable-next-line no-console
+
         console.log = (...args: unknown[]) => {
           calls.push(args)
         }
 
         reporter.onComplete(result)
       } finally {
-        // eslint-disable-next-line no-console
+
         console.log = originalLog
       }
 
@@ -156,14 +156,14 @@ describe('Reporting layer', () => {
       const originalLog = console.log
       const calls: unknown[][] = []
       try {
-        // eslint-disable-next-line no-console
+
         console.log = (...args: unknown[]) => {
           calls.push(args)
         }
 
         reporter.onComplete(result)
       } finally {
-        // eslint-disable-next-line no-console
+
         console.log = originalLog
       }
 

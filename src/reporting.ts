@@ -1,5 +1,6 @@
 import {FluentReporter} from './FluentReporter.js'
-import type {FluentResult, ProgressInfo} from './FluentCheck.js'
+import type {FluentResult} from './FluentResult.js'
+import type {ProgressInfo} from './check/CheckOptions.js'
 import {Verbosity, type Logger} from './statistics.js'
 
 export interface ProgressReporter {
