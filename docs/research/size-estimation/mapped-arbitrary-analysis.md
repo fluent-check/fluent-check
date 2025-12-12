@@ -722,36 +722,150 @@ holds when $|C_g|$ is computed with respect to the intermediate `arb.map(f)`.
 
 ## Empirical Validation Summary
 
-The recommendations in this document require empirical validation through Monte Carlo simulations before implementation. Unlike the filter arbitrary analysis (where assumptions were validated in [PR #463](https://github.com/fluent-check/fluent-check/pull/463)), the mapped arbitrary estimator has not yet been validated.
+All recommendations in this document are now enforced by the Monte Carlo suite introduced in [PR #468](https://github.com/fluent-check/fluent-check/pull/468). Run the simulations with:
 
-### Key Questions Requiring Validation
+```bash
+npm run simulate:mapped-arbitrary
+```
 
-| Question | Simulation | Status |
-|----------|------------|--------|
-| Is the fraction estimator accurate for moderate codomain ratios? | Simulation 1 | 🔬 Pending |
-| Is $k = 20\sqrt{n}$ sufficient for reliable estimation? | Simulation 2 | 🔬 Pending |
-| How does the estimator degrade for unbalanced functions? | Simulation 3 | 🔬 Pending |
-| Is fraction estimator better than birthday paradox? | Simulation 4 | 🔬 Pending |
-| What's the optimal enumeration threshold? | Simulation 5 | 🔬 Pending |
-| Do edge cases (constant, bijective) work correctly? | Simulation 6 | 🔬 Pending |
-| Does chained map composition propagate errors acceptably? | Simulation 7 | 🔬 Pending |
-| Does uniform sampling matter for cluster/step functions? | Simulation 8 | 🔬 Pending |
+> **Current status (run on `pr-468@500f53e`, January 2025):** the suite fails in 4/8 simulations. The failures are informative—they quantify where the estimator breaks down and guide remediation.
 
-### Validation Priority
+### Latest Findings
 
-**High priority** (must validate before v1):
-1. Simulation 1 (Fraction Estimator Accuracy) — core algorithm correctness
-2. Simulation 6 (Edge Cases) — boundary behavior
-3. Simulation 4 (Birthday Comparison) — validates design decision
-4. Simulation 8 (Cluster Mapping) — validates uniform sampling requirement
+#### Q1: Is the fraction estimator accurate for moderate codomain ratios?
 
-**Medium priority** (validate during v1 development):
-5. Simulation 2 (Sample Size) — configuration tuning
-6. Simulation 5 (Enumeration Threshold) — configuration tuning
+**No.** Once we require the spec’s `<20% error & ≥80% Wilson coverage` guarantees, every configuration with $m \leq 0.7n$ fails. Representative numbers (mean relative error; coverage in parentheses):
 
-**Lower priority** (can validate after v1):
-7. Simulation 3 (Balanced vs Unbalanced) — robustness analysis
-8. Simulation 7 (Chained Maps) — composition behavior
+| $m/n$ | $k=500$ | $k=1000$ | $k=2000$ |
+|-------|---------|----------|----------|
+| 0.1 | 685% (0%) | 532% (0%) | 332% (0%) |
+| 0.3 | 207% (0%) | 183% (0%) | 142% (0%) |
+| 0.5 | 90% (0%)  | 81% (0%)  | 65% (0%) |
+| 0.7 | 37% (0%)  | 32% (0%)  | 22% (0%) |
+| 0.9 | 8% (0%)   | 4.8% (0%) | **1.1% (71.5%)** |
+
+Coverage collapses because the Wilson interval assumes unsaturated sampling; once $d \approx m$, the interval shrinks instead of widening.
+
+#### Q2: Is $k = 20\sqrt{n}$ sufficient?
+
+**Only when the codomain is already “large”.** For $n = 10\,000$ (hence $k = 2\,000$), the fraction of trials within 20% error is ~0% for $m/n \leq 0.7$, and only rises to 100% once $m/n = 0.9$. Even doubling the sample (40√n) barely helps until $m$ is extremely close to $n$. In other words: the sample-size rule is not the limiting factor; the estimator itself is.
+
+#### Q3: How does the estimator behave for unbalanced functions?
+
+The bias is dominated by the effective codomain size, not the skew. Highly skewed mappings still collapse to the same saturation failure when $m$ is small; when $m$ is large, the estimator is tolerant.
+
+#### Q4: Fraction vs. birthday paradox estimator?
+
+Running both estimators across the same grid shows the fraction estimator wins only **20%** of the time, and the birthday estimator never “explodes” (because $d \ll k$ in these scenarios). The ostensible advantage of the fraction estimator therefore disappears unless we deliberately stay in the $m \gg k$ regime.
+
+#### Q5: Optimal enumeration threshold?
+
+Enumeration is exact and linear in $n$, while sampling time is nearly constant but produces unusable hints for small codomains. The new simulations reinforce an aggressive enumeration threshold (~1 000 elements) until we can detect saturation dynamically.
+
+#### Q6: Edge cases (constant, bijective)?
+
+Deterministic cases behave as expected:
+
+| Function | True M | Mean Estimate | Ratio |
+|----------|--------|---------------|-------|
+| Identity | 10 000 | 9 757 | 0.98× |
+| Near-bijective | 9 999 | 9 755 | 0.98× |
+| Constant | 1 | 20 | 20× |
+| Binary | 2 | 40 | 20× |
+| Sqrt-collapse | 100 | 1 987 | 19.9× |
+
+The overestimation for constant/binary mappings is unavoidable: $\hat{m} = \frac{m}{k} \cdot n$ once $d = m$.
+
+#### Q7: Does chaining maps make things worse?
+
+Not materially. Chained maps stay bounded—the dominant error still comes from the innermost codomain saturating the sample.
+
+#### Q8: Does uniform sampling matter for cluster/step functions?
+
+Uniform sampling itself still produces **687%–1900%** relative error for cluster sizes 10–1 000 (because those codomains are small). Biased sampling is even worse, but the baseline already violates the spec, so the uniform-vs-biased distinction is moot until the estimator changes.
+
+### Key Limitations (updated)
+
+1. **Saturation dominates:** As soon as $m \lesssim k$, estimates inflate by 2×–20× and Wilson coverage collapses to ~0%.
+2. **Sample-size tuning cannot help:** Increasing $k$ merely delays saturation; it does not restore the assumed $d/k \approx m/n$ relationship.
+3. **CI semantics break:** The Wilson bound was derived for unconstrained Bernoulli trials. When $d$ is capped by $m$, the interval shrinks toward $d$ instead of expanding, so it never covers the truth.
+4. **Design implication:** `size()` must either (a) detect saturation and refuse to guess, or (b) switch to an alternate estimator/enumeration when the codomain is suspected to be small.
+
+### Decision Implications
+
+- **Do not ship the current `size()` plan as-is.** It will routinely return 5×–20× overestimates while claiming 95% confidence.
+- **Treat `d/k` as a saturation detector.** When $d/k \rightarrow 1$ the estimator is invalid; return “unknown” or fall back to enumeration.
+- **Raise the visibility of enumeration.** For most `MappedArbitrary` instances used in practice (finite enums, tagged unions, lookups), exact counting is still feasible and preferable.
+- **Reframe documentation.** Instead of promising a “hint,” state the precise conditions where the hint is trustworthy and surface the failure probability to users.
+
+## Alternate Estimators and Mitigation Options
+
+The simulations show that a single fraction-based estimator cannot cover the entire design space. We need a toolkit of strategies and a dispatch policy.
+
+### 1. Deterministic Enumeration (Status: Recommended Default)
+
+- **When to use:** If the upstream arbitrary has `size().type === 'exact'` and `value ≤ ENUMERATION_THRESHOLD`.
+- **Action:** Materialize all domain values, apply `map`, and deduplicate. This produces the ground truth and satisfies Specs 1 & 6 immediately.
+- **Next step:** Raise the threshold to at least **1 000** (as suggested by Simulation 5) once `hashCode`/`equals` (#464) lands, otherwise default to ~250 elements to keep `JSON.stringify` costs bounded.
+
+### 2. Saturation-Aware Fraction Estimator
+
+- **Idea:** Keep the current estimator but guard it with `saturation = d / k`. If `saturation ≥ 0.4` (empirically where error >50%), report:  
+  `EstimatedSize { type: 'distinct-count-hint', value: undefined, reason: 'codomain saturated; fell back to enumeration threshold' }`.
+- **Benefit:** Preserves the estimator for the one regime where it works ($m \gg k$) while avoiding misleading numbers elsewhere.
+
+### 3. Birthday / Capture–Recapture Hybrid
+
+- **Formula:** $\hat{m}_{\text{birthday}} = \frac{k^2}{2(k-d)}$; when combined with Horvitz–Thompson weighting we can tolerate higher saturation.
+- **Guard rails:** Only run when `d ≤ k - 3` (to avoid division-by-zero) and surface the variance estimate from the delta method.
+- **Why bother:** In the current grid the birthday estimator produced lower RMSE in 80% of cases without exploding, so offering it as an optional strategy (perhaps behind `estimationType: 'population-inference'`) is reasonable.
+
+### 4. Coverage-Based Estimators (Good–Turing / Chao1)
+
+- **Approach:** Use the count of singletons/doubletons to extrapolate unseen mass:  
+  $\hat{m}_{\text{Chao1}} = d + \frac{f_1^2}{2 f_2}$ (where $f_1$ is the number of values seen once, $f_2$ twice).  
+- **Pros:** Works better when the codomain is small but not tiny, because it explicitly models missing mass.
+- **Cons:** Needs raw frequency histograms, so we must store counts instead of just “seen/not seen.”
+- **Plan:** Prototype once `hashCode`/`equals` exist so frequency tables are cheap.
+
+### 5. Hash-Based Sketches (HyperLogLog / LogLog-Beta)
+
+- **Context:** HyperLogLog (HLL) provides ~1.04/√m relative error with small memory. It excels when $m$ is large and the mapped values can be hashed inexpensively.
+- **Requirements:** Efficient hashing (#464), deterministic seeds, and ability to merge sketches.
+- **Use case:** Large codomain arbitraries where enumeration is impossible but we can tolerate ±2% error (a regime the current estimator handles, but HLL would provide statistical guarantees and well-behaved confidence intervals).
+
+### 6. Adaptive Sampling
+
+- **Mechanism:** Start with a cheap sample size (e.g., 200). If `d/k` is low, progressively increase $k$ toward $20\sqrt{n}`. If saturation rises, abort and switch to enumeration/coverage estimator.
+- **Outcome:** Avoids spending the full sampling budget on cases that are doomed anyway and gives us a principled way to decline an estimate.
+
+These options are not mutually exclusive. A practical plan could be:
+
+1. **Enumerate** whenever `n ≤ ENUMERATION_THRESHOLD`.
+2. **Adaptive sample** for the rest; bail out if saturation is detected.
+3. **If still unsaturated**, choose between:
+   - Fraction estimator (fast, no extra memory)
+   - Birthday estimator (if `d ≤ k - 3`)
+   - HLL (if hashing is available and the caller opts in)
+4. **If saturated**, return an `EstimatedSize` with `estimationType: 'infeasible'` so downstream logic can react (e.g., reduce chaining depth or narrow the arbitrary).
+
+## Next Steps
+
+1. **Document reality today**  
+   - Update user-facing docs / README to say `size()` is disabled for mapped arbitraries until saturation-safe estimators ship.  
+   - Expose the simulation summary (CSV + console output) in the PR so reviewers can reproduce the failure.
+
+2. **Decide on the fallback tree**  
+   - Choose thresholds for enumeration vs. sampling.  
+   - Agree on what to return when saturation is detected (`ExactSize`, `EstimatedSize` with `reason`, or an error).
+
+3. **Prototype alternate estimators**  
+   - Build a spike branch that plugs the birthday estimator and Chao1 into the simulation harness.  
+   - Once #464 is available, implement HLL or frequency-based estimators to compare empirically.
+
+4. **Keep the validation suite red until resolved**  
+   - The failure is the signal; do not relax assertions.  
+   - Treat “all simulations pass” as a gate for re-enabling `MappedArbitrary.size()`.
 
 ---
 
@@ -768,80 +882,33 @@ The following table summarizes all recommendations from this analysis, prioritiz
 | **Correctness** | Always enforce `value >= d` (observed distinct count) as lower bound. | 🟠 High | You can never have fewer distinct elements than you observed |
 | **Type System** | Add `estimationType` field to distinguish `'distinct-count-hint'` vs `'population-inference'`. | 🟡 Medium | Enables future optimizations for combining estimates |
 | **Documentation** | Explicitly document: "Size is a heuristic hint. Do not rely on it for logic validation." | 🟡 Medium | Prevents user confusion about precision guarantees |
-| **Testing** | Run Simulations 1, 4, 6, 8 before v1 implementation. | 🟡 Medium | Validates core algorithm assumptions |
+| **Correctness** | Add saturation detection: if `d/k ≥ 0.4`, fall back to enumeration or “unknown” estimate. | 🔴 Critical | Prevents 5×–20× overestimates reported by Simulation 1 |
+| **Correctness** | Prefer enumeration whenever `n ≤ 1000` until #464 lands. | 🔴 Critical | Only enumerated paths currently meet the spec |
+| **Testing** | Simulation suite now enforced; **currently failing** (Sim 1,2,4,8). Keep it red until estimator choice is resolved. | 🟡 Medium | Prevents silent regressions / document drift |
 | **Future** | Consider HyperLogLog only if `HashSet` memory becomes a bottleneck (unlikely for $k = 2000$). | 🟢 Low | Current approach is simpler and sufficient |
 | **Future** | Consider birthday-paradox estimator as experimental alternative. | 🟢 Low | Higher variance, division-by-zero edge cases |
-
-### Implementation Checklist
-
-```
-Dependencies:
-[ ] Coordinate with #464 (hashCode/equals) - preferred approach
-[ ] OR implement fallback stringify mitigations if #464 not ready
-
-Performance:
-[ ] size() is lazy (computed on first call, not instantiation)
-[ ] size() result is cached per instance
-[ ] Use hashCode()/equals() from #464 for deduplication (preferred)
-[ ] OR (fallback): stableStringify has length limit (default: 1000 chars)
-[ ] OR (fallback): stableStringify has depth limit (default: 10 levels)
-[ ] OR (fallback): stableStringify falls back to hashing for large objects
-
-Correctness:
-[ ] sampleCodomain uses sampleUniform(), not biased sample()
-[ ] Estimate value is always >= observed distinct count d
-[ ] CI lower bound is always >= d
-[ ] CI upper bound is always <= domain size n
-
-Type System:
-[ ] EstimatedSize includes optional estimationType field
-[ ] MappedArbitrary.size() sets estimationType: 'distinct-count-hint'
-
-Documentation:
-[ ] JSDoc on size() explains heuristic nature
-[ ] README mentions size() limitations for mapped arbitraries
-```
-
----
-
-## Next Steps
-
-### Dependencies
-- [ ] **Coordinate with [#464](https://github.com/fluent-check/fluent-check/issues/464)** — `hashCode`/`equals` provides the ideal deduplication mechanism
-  - If #464 lands first: use `hashCode()`/`equals()` for `sampleCodomain`
-  - If this lands first: implement fallback stringify mitigations, refactor when #464 lands
-- [ ] Provide input to **Spike 3** in #464 regarding `MappedArbitrary` identity derivation
-
-### Pre-Implementation Validation
-- [ ] Implement validation simulations in `test/simulations/mapped-arbitrary-validation.ts`
-- [ ] Run Simulation 1 (Fraction Estimator) to validate core algorithm
-- [ ] Run Simulation 6 (Edge Cases) to validate boundary behavior
-- [ ] Run Simulation 4 (Birthday Comparison) to confirm design decision
-- [ ] Run Simulation 8 (Cluster Mapping) to validate uniform sampling requirement
-
-### Implementation (Critical Path)
-- [ ] Add `sampleUniform()` method to base `Arbitrary` class (bypasses PBT edge-case bias)
-- [ ] Implement deduplication using #464's `hashCode()`/`equals()` (or fallback stringify)
-- [ ] Implement lazy, cached `MappedArbitrary.size()` with validated parameters
-- [ ] Add `estimationType: 'distinct-count-hint'` to returned `EstimatedSize`
-
-### Configuration Tuning
-- [ ] Tune `ENUMERATION_THRESHOLD` based on Simulation 5 results
-- [ ] Tune sample size formula based on Simulation 2 results
-
-### Documentation & Polish
-- [ ] Document validation results in this file (like PR #463 for filter arbitrary)
-- [ ] Add JSDoc explaining heuristic nature of `size()`
-- [ ] Consider HPD intervals if normal approximation CI has poor coverage
 
 ---
 
 ## Appendix: Validation of Assumptions through Simulation
 
-The following Monte Carlo simulations are proposed to empirically validate the mathematical assumptions and estimator recommendations.
+The following Monte Carlo simulations empirically validate the mathematical assumptions and estimator recommendations.
 
-> **Implementation:** Create in `test/simulations/mapped-arbitrary-validation.ts`
-> **Goal:** Provide empirical evidence to support (or falsify) the mathematical assumptions before implementation.
+> **Implementation:** [`test/simulations/mapped-arbitrary-validation.ts`](../../test/simulations/mapped-arbitrary-validation.ts)
+> **Run:** `npm run simulate:mapped-arbitrary`
+> **Results:** See [Empirical Validation Summary](#empirical-validation-summary) above.
+
+### Core Estimator Functions
+
+The simulation file implements the estimators described in this document:
+
+| Function | Description | Implementation |
+|----------|-------------|----------------|
+| `fractionEstimate(d, k, n)` | Fraction estimator: $\hat{m} = \frac{d}{k} \cdot n$ | [Line 74](../../test/simulations/mapped-arbitrary-validation.ts#L74) |
+| `birthdayEstimate(d, k)` | Birthday paradox: $\hat{m} = \frac{k^2}{2(k-d)}$ | [Line 82](../../test/simulations/mapped-arbitrary-validation.ts#L82) |
+| `wilsonScoreCI(d, k, n)` | Wilson score confidence interval | [Line 91](../../test/simulations/mapped-arbitrary-validation.ts#L91) |
+| `sampleDistinctCount(n, k, f, rng)` | Simulate uniform sampling | [Line 131](../../test/simulations/mapped-arbitrary-validation.ts#L131) |
+| `sampleDistinctCountBiased(...)` | Simulate biased (PBT-style) sampling | [Line 149](../../test/simulations/mapped-arbitrary-validation.ts#L149) |
 
 ### Simulation Strategy
 
@@ -861,718 +928,146 @@ Each simulation follows the pattern:
 
 ### Simulation 1: Fraction Estimator Accuracy
 
-**Hypothesis**: The fraction estimator $\hat{m} = \frac{d}{k} \cdot n$ provides accurate estimates for moderate codomain ratios.
+> **Implementation:** [`simulateFractionEstimator()`](../../test/simulations/mapped-arbitrary-validation.ts#L186)
+
+**Hypothesis**: $\hat{m} = \frac{d}{k} \cdot n$ provides accurate estimates for moderate codomain ratios.
 
 **Validates**: Assumption A4 (Fraction Estimator Validity)
 
-**Setup**:
-```typescript
-interface FractionEstimatorParams {
-  domainSizes: number[]         // e.g., [100, 1000, 10000]
-  codomainRatios: number[]      // m/n ratios, e.g., [0.01, 0.1, 0.3, 0.5, 0.7, 0.9, 0.99]
-  sampleSizes: number[]         // e.g., [50, 100, 500, 1000, 2000]
-  numTrials: number             // e.g., 10000
-}
-```
+**Pass criteria**: < 20% relative error for ratios 0.1–0.9; CI coverage ≥ 80%
 
-**Algorithm**:
-```typescript
-function simulateFractionEstimator(params: FractionEstimatorParams): EstimatorResults {
-  const results: EstimatorResults = {}
-  
-  for (const n of params.domainSizes) {
-    for (const ratio of params.codomainRatios) {
-      const trueM = Math.round(n * ratio)  // Ground truth codomain size
-      
-      for (const k of params.sampleSizes) {
-        let sumError = 0, sumSquaredError = 0
-        let sumEstimate = 0
-        let coverageCount = 0
-        
-        for (let trial = 0; trial < params.numTrials; trial++) {
-          // Simulate: sample k values from domain, track distinct codomain values
-          // Using modular function f(x) = x % trueM as balanced mapping
-          const seen = new Set<number>()
-          for (let i = 0; i < k; i++) {
-            const domainValue = Math.floor(Math.random() * n)
-            const codomainValue = domainValue % trueM  // Balanced mapping
-            seen.add(codomainValue)
-          }
-          const d = seen.size
-          
-          // Fraction estimate
-          const estimate = (d / k) * n
-          
-          // Compute CI (Wilson score interval for proportion, scaled)
-          const pHat = d / k
-          const z = 1.96
-          const denominator = 1 + z * z / k
-          const center = (pHat + z * z / (2 * k)) / denominator
-          const margin = z * Math.sqrt((pHat * (1 - pHat) + z * z / (4 * k)) / k) / denominator
-          const ciLow = Math.max(d, n * (center - margin))
-          const ciHigh = Math.min(n, n * (center + margin))
-          
-          // Accumulate metrics
-          const error = estimate - trueM
-          sumError += error
-          sumSquaredError += error * error
-          sumEstimate += estimate
-          
-          if (ciLow <= trueM && trueM <= ciHigh) coverageCount++
-        }
-        
-        const numTrials = params.numTrials
-        results[`n=${n},ratio=${ratio},k=${k}`] = {
-          trueM,
-          meanEstimate: sumEstimate / numTrials,
-          bias: sumError / numTrials,
-          mse: sumSquaredError / numTrials,
-          rmse: Math.sqrt(sumSquaredError / numTrials),
-          relativeError: Math.abs(sumError / numTrials) / trueM,
-          coverage: coverageCount / numTrials
-        }
-      }
-    }
-  }
-  return results
-}
-```
-
-**Expected Outcome**:
-- Low bias (< 10%) for codomain ratios 0.1–0.9
-- Higher bias for extreme ratios (< 0.05 or > 0.95)
-- RMSE decreases as sample size increases
-- Coverage should be ≈95% for 95% CI
-
-**What Would Falsify**:
-- Systematic bias > 20% for moderate codomain ratios
-- Coverage significantly below 90%
-- No improvement in accuracy as sample size increases
+**Falsifies if**: Systematic bias > 20% for moderate ratios, or coverage < 80%
 
 ---
 
 ### Simulation 2: Sample Size Adequacy
 
-**Hypothesis**: Sample size $k = \min(k_{\max}, 20\sqrt{n})$ provides adequate accuracy.
+> **Implementation:** [`validateSampleSizeFormula()`](../../test/simulations/mapped-arbitrary-validation.ts#L240)
+
+**Hypothesis**: $k = \min(k_{\max}, 20\sqrt{n})$ provides adequate accuracy.
 
 **Validates**: Assumption A5 (Sample Size Sufficiency)
 
-**Setup**:
-```typescript
-interface SampleSizeParams {
-  domainSizes: number[]         // e.g., [100, 1000, 10000, 100000]
-  codomainRatios: number[]      // e.g., [0.1, 0.5, 0.9]
-  sampleSizeMultipliers: number[]  // Multipliers of sqrt(n), e.g., [5, 10, 20, 50, 100]
-  kMax: number                  // e.g., 2000
-  numTrials: number             // e.g., 5000
-  targetAccuracy: number        // e.g., 0.1 (10% relative error)
-}
-```
+**Pass criteria**: > 70% of estimates within 20% error at $k = 20\sqrt{n}$
 
-**Algorithm**:
-```typescript
-function validateSampleSizeFormula(params: SampleSizeParams): SampleSizeResults {
-  const results: SampleSizeResults = {}
-  
-  for (const n of params.domainSizes) {
-    for (const ratio of params.codomainRatios) {
-      const trueM = Math.round(n * ratio)
-      
-      for (const multiplier of params.sampleSizeMultipliers) {
-        const k = Math.min(params.kMax, Math.round(multiplier * Math.sqrt(n)))
-        
-        let achievedAccuracy = 0
-        let sumRelativeError = 0
-        
-        for (let trial = 0; trial < params.numTrials; trial++) {
-          // Same simulation as above
-          const seen = new Set<number>()
-          for (let i = 0; i < k; i++) {
-            const domainValue = Math.floor(Math.random() * n)
-            seen.add(domainValue % trueM)
-          }
-          const d = seen.size
-          const estimate = (d / k) * n
-          
-          const relativeError = Math.abs(estimate - trueM) / trueM
-          sumRelativeError += relativeError
-          if (relativeError <= params.targetAccuracy) achievedAccuracy++
-        }
-        
-        results[`n=${n},ratio=${ratio},mult=${multiplier}`] = {
-          k,
-          kFormula: `${multiplier}*sqrt(${n})`,
-          meanRelativeError: sumRelativeError / params.numTrials,
-          accuracyRate: achievedAccuracy / params.numTrials  // % within target
-        }
-      }
-    }
-  }
-  return results
-}
-```
-
-**Expected Outcome**:
-- At $k = 20\sqrt{n}$, accuracy rate should be > 80%
-- Accuracy should plateau (diminishing returns beyond a certain $k$)
-- For very small codomains, accuracy limited by codomain size, not sample size
-
-**What Would Falsify**:
-- $k = 20\sqrt{n}$ achieves < 60% accuracy rate
-- No plateau observed (would suggest unbounded sample size needed)
+**Falsifies if**: < 60% accuracy rate, or no plateau observed
 
 ---
 
 ### Simulation 3: Balanced vs Unbalanced Functions
 
-**Hypothesis**: The fraction estimator degrades gracefully for unbalanced functions (non-uniform pre-image sizes).
+> **Implementation:** [`simulateUnbalancedFunctions()`](../../test/simulations/mapped-arbitrary-validation.ts#L293)
+
+**Hypothesis**: The estimator degrades gracefully for unbalanced functions (non-uniform pre-image sizes).
 
 **Validates**: Robustness of A4 under violation of uniform codomain assumption
 
-**Setup**:
-```typescript
-interface BalancednessParams {
-  domainSize: number           // e.g., 10000
-  codomainSize: number         // e.g., 100
-  skewFactors: number[]        // e.g., [1, 2, 5, 10] (1 = balanced, 10 = highly skewed)
-  sampleSize: number           // e.g., 1000
-  numTrials: number            // e.g., 10000
-}
+For highly skewed maps, the estimator approximates "effective codomain size" (perplexity) rather than literal count—reasonable behavior for a heuristic.
 
-// Skew factor k means: codomain value 0 has k^m weight, value 1 has k^(m-1), etc.
-// This creates exponentially unbalanced pre-images
-```
+**Pass criteria**: Graceful degradation; no catastrophic failures
 
-**Algorithm**:
-```typescript
-function simulateUnbalancedFunctions(params: BalancednessParams): BalancednessResults {
-  const results: BalancednessResults = {}
-  const { domainSize: n, codomainSize: m, sampleSize: k } = params
-  
-  for (const skew of params.skewFactors) {
-    // Create mapping probabilities (exponential decay with skew factor)
-    const weights = Array.from({ length: m }, (_, i) => Math.pow(skew, m - 1 - i))
-    const totalWeight = weights.reduce((a, b) => a + b, 0)
-    const probs = weights.map(w => w / totalWeight)
-    const cumulativeProbs = probs.reduce((acc, p, i) => {
-      acc.push((acc[i - 1] || 0) + p)
-      return acc
-    }, [] as number[])
-    
-    let sumEstimate = 0, sumSquaredError = 0
-    
-    for (let trial = 0; trial < params.numTrials; trial++) {
-      // Sample according to skewed distribution
-      const seen = new Set<number>()
-      for (let i = 0; i < k; i++) {
-        const r = Math.random()
-        const codomainValue = cumulativeProbs.findIndex(cp => r <= cp)
-        seen.add(codomainValue)
-      }
-      const d = seen.size
-      const estimate = (d / k) * n
-      
-      sumEstimate += estimate
-      sumSquaredError += (estimate - m) * (estimate - m)
-    }
-    
-    // Calculate "effective" codomain size (entropy-based)
-    const entropy = -probs.reduce((h, p) => h + (p > 0 ? p * Math.log2(p) : 0), 0)
-    const effectiveM = Math.pow(2, entropy)  // Perplexity
-    
-    results[`skew=${skew}`] = {
-      trueM: m,
-      effectiveM: Math.round(effectiveM),
-      meanEstimate: sumEstimate / params.numTrials,
-      rmse: Math.sqrt(sumSquaredError / params.numTrials),
-      bias: (sumEstimate / params.numTrials) - m,
-      biasToEffective: (sumEstimate / params.numTrials) - effectiveM
-    }
-  }
-  return results
-}
-```
-
-**Expected Outcome**:
-- For balanced functions (skew=1), estimate ≈ true $m$
-- For highly skewed functions, estimate ≈ "effective" codomain size (perplexity), which is smaller than true $m$
-- Degradation should be gradual, not catastrophic
-
-> **Interpretation:** For highly skewed maps, the estimator approximates an "effective codomain size" rather than the literal number of possible outputs. This is actually reasonable behavior — if 99% of samples hit only 10% of the codomain, knowing there are theoretically more values is less useful than knowing "effectively about this many distinct values are reachable with typical sampling."
-
-**What Would Falsify**:
-- Catastrophic failure (estimate off by orders of magnitude) for moderate skew
-- Estimate systematically worse than trivial bounds
+**Falsifies if**: Estimate off by orders of magnitude for moderate skew
 
 ---
 
 ### Simulation 4: Birthday Paradox Estimator Comparison
 
-**Hypothesis**: The birthday paradox estimator $\hat{m} = \frac{k^2}{2(k-d)}$ is less robust than the fraction estimator.
+> **Implementation:** [`compareBirthdayVsFraction()`](../../test/simulations/mapped-arbitrary-validation.ts#L361)
 
-**Validates**: Design decision to use fraction estimator as default (Section 2.2)
+**Hypothesis**: Birthday paradox estimator $\hat{m} = \frac{k^2}{2(k-d)}$ is less robust than fraction estimator.
 
-**Setup**:
-```typescript
-interface BirthdayComparisonParams {
-  domainSizes: number[]         // e.g., [1000, 10000]
-  codomainRatios: number[]      // e.g., [0.01, 0.1, 0.5, 0.9, 0.99]
-  sampleSizes: number[]         // e.g., [50, 100, 200, 500]
-  numTrials: number             // e.g., 10000
-}
-```
+**Validates**: Design decision to use fraction estimator as default
 
-**Algorithm**:
-```typescript
-function compareBirthdayVsFraction(params: BirthdayComparisonParams): ComparisonResults {
-  const results: ComparisonResults = {}
-  
-  for (const n of params.domainSizes) {
-    for (const ratio of params.codomainRatios) {
-      const trueM = Math.round(n * ratio)
-      
-      for (const k of params.sampleSizes) {
-        let fractionMSE = 0, birthdayMSE = 0
-        let birthdayExploded = 0  // Count of d === k (division by zero)
-        let birthdayUnstable = 0  // Count of (k - d) <= 2 (highly unstable)
-        
-        for (let trial = 0; trial < params.numTrials; trial++) {
-          const seen = new Set<number>()
-          for (let i = 0; i < k; i++) {
-            seen.add(Math.floor(Math.random() * n) % trueM)
-          }
-          const d = seen.size
-          
-          // Fraction estimate
-          const fractionEst = (d / k) * n
-          fractionMSE += (fractionEst - trueM) ** 2
-          
-          // Birthday estimate
-          if (d === k) {
-            birthdayExploded++
-            birthdayMSE += (n - trueM) ** 2  // Worst case error
-          } else {
-            const birthdayEst = (k * k) / (2 * (k - d))
-            if (k - d <= 2) birthdayUnstable++
-            birthdayMSE += (birthdayEst - trueM) ** 2
-          }
-        }
-        
-        const numTrials = params.numTrials
-        results[`n=${n},ratio=${ratio},k=${k}`] = {
-          trueM,
-          fractionRMSE: Math.sqrt(fractionMSE / numTrials),
-          birthdayRMSE: Math.sqrt(birthdayMSE / numTrials),
-          birthdayExplodedRate: birthdayExploded / numTrials,
-          birthdayUnstableRate: birthdayUnstable / numTrials,
-          fractionBetter: fractionMSE < birthdayMSE
-        }
-      }
-    }
-  }
-  return results
-}
-```
+**Pass criteria**: Fraction ≤ Birthday RMSE in ≥ 60% of cases
 
-**Expected Outcome**:
-- Birthday estimator should explode (d=k) frequently for large codomains (ratio > 0.9)
-- Birthday RMSE should be higher than fraction RMSE in most cases
-- Birthday should only be competitive for small codomains with many samples
-
-**What Would Falsify**:
-- Birthday estimator consistently outperforming fraction estimator
-- Low explosion/instability rates across all parameters
+**Falsifies if**: Birthday consistently outperforms fraction
 
 ---
 
 ### Simulation 5: Enumeration Threshold Trade-off
 
+> **Implementation:** [`analyzeEnumerationThreshold()`](../../test/simulations/mapped-arbitrary-validation.ts#L429)
+
 **Hypothesis**: Enumeration threshold of 5,000–10,000 provides good accuracy/performance trade-off.
 
-**Validates**: Configuration decision (Section 1.1, `ENUMERATION_THRESHOLD`)
+**Validates**: Configuration decision (`ENUMERATION_THRESHOLD`)
 
-**Setup**:
-```typescript
-interface ThresholdParams {
-  domainSizes: number[]         // e.g., [100, 500, 1000, 5000, 10000, 50000]
-  codomainRatios: number[]      // e.g., [0.1, 0.5]
-  sampleSize: number            // e.g., 1000
-  numTrials: number             // e.g., 1000
-}
-```
+**Pass criteria**: Identifiable crossover point exists; sampling error < 15% for $n > 5000$
 
-**Algorithm**:
-```typescript
-function analyzeEnumerationThreshold(params: ThresholdParams): ThresholdResults {
-  const results: ThresholdResults = {}
-  
-  for (const n of params.domainSizes) {
-    for (const ratio of params.codomainRatios) {
-      const trueM = Math.round(n * ratio)
-      
-      // Time enumeration
-      const enumStart = performance.now()
-      const enumerated = new Set<number>()
-      for (let x = 0; x < n; x++) {
-        enumerated.add(x % trueM)
-      }
-      const enumTime = performance.now() - enumStart
-      const enumResult = enumerated.size  // Always exact
-      
-      // Time sampling estimation
-      const sampleStart = performance.now()
-      let sumEstimate = 0
-      for (let trial = 0; trial < params.numTrials; trial++) {
-        const seen = new Set<number>()
-        for (let i = 0; i < params.sampleSize; i++) {
-          seen.add(Math.floor(Math.random() * n) % trueM)
-        }
-        sumEstimate += (seen.size / params.sampleSize) * n
-      }
-      const sampleTime = performance.now() - sampleStart
-      const sampleResult = sumEstimate / params.numTrials
-      
-      results[`n=${n},ratio=${ratio}`] = {
-        trueM,
-        enumTime,
-        enumResult,
-        sampleTime: sampleTime / params.numTrials,  // Per-trial time
-        sampleResult: Math.round(sampleResult),
-        sampleError: Math.abs(sampleResult - trueM) / trueM,
-        enumSpeedup: sampleTime / (enumTime * params.numTrials)
-      }
-    }
-  }
-  return results
-}
-```
-
-**Expected Outcome**:
-- Enumeration faster than sampling for $n < 5000$
-- Sampling error acceptable (< 15%) for $n > 5000$
-- Clear crossover point where sampling becomes preferred
-
-**What Would Falsify**:
-- Enumeration still faster at $n = 50000$
-- Sampling error unacceptable (> 30%) at threshold boundary
+**Falsifies if**: Enumeration still faster at $n = 50000$, or sampling error > 30%
 
 ---
 
 ### Simulation 6: Edge Cases and Pathological Functions
 
+> **Implementation:** [`validateEdgeCases()`](../../test/simulations/mapped-arbitrary-validation.ts#L487)
+
 **Hypothesis**: The estimator handles edge cases gracefully.
 
-**Test Cases**:
+| Case | Function | Expected $m$ |
+|------|----------|--------------|
+| Constant | $f(x) = 42$ | 1 |
+| Identity | $f(x) = x$ | $n$ |
+| Binary | $f(x) = x \bmod 2$ | 2 |
+| Near-bijective | $f(0) = f(1) = 0$, else $f(x) = x$ | $n - 1$ |
+| Sqrt-collapse | $f(x) = x \bmod \sqrt{n}$ | $\sqrt{n}$ |
 
-| Case | Function | Expected |
-|------|----------|----------|
-| Constant | $f(x) = 42$ | $m = 1$ |
-| Identity (bijective) | $f(x) = x$ | $m = n$ |
-| Binary | $f(x) = x \% 2$ | $m = 2$ |
-| Near-bijective | $f(x) = x$ except $f(0) = f(1) = 0$ | $m = n - 1$ |
-| Highly collapsing | $f(x) = x \% \sqrt{n}$ | $m = \sqrt{n}$ |
+**Identity case**: For $n = 10000$, $k = 1000$: expected $d \approx n(1 - e^{-k/n}) \approx 951$, giving $\hat{m} \approx 9510$ (~5% error). Acceptable for heuristic use.
 
-**Algorithm**:
-```typescript
-function validateEdgeCases(): EdgeCaseResults {
-  const n = 10000
-  const k = 1000
-  const numTrials = 10000
-  
-  const cases = [
-    { name: 'constant', fn: () => 42, trueM: 1 },
-    { name: 'identity', fn: (x: number) => x, trueM: n },
-    { name: 'binary', fn: (x: number) => x % 2, trueM: 2 },
-    { name: 'near-bijective', fn: (x: number) => x === 1 ? 0 : x, trueM: n - 1 },
-    { name: 'sqrt-collapse', fn: (x: number) => x % Math.floor(Math.sqrt(n)), trueM: Math.floor(Math.sqrt(n)) },
-  ]
-  
-  return cases.map(({ name, fn, trueM }) => {
-    let sumEstimate = 0
-    let minD = Infinity, maxD = -Infinity
-    
-    for (let trial = 0; trial < numTrials; trial++) {
-      const seen = new Set<number>()
-      for (let i = 0; i < k; i++) {
-        const x = Math.floor(Math.random() * n)
-        seen.add(fn(x))
-      }
-      const d = seen.size
-      minD = Math.min(minD, d)
-      maxD = Math.max(maxD, d)
-      sumEstimate += (d / k) * n
-    }
-    
-    return {
-      name,
-      trueM,
-      meanEstimate: Math.round(sumEstimate / numTrials),
-      dRange: [minD, maxD],
-      relativeError: Math.abs((sumEstimate / numTrials) - trueM) / trueM,
-      // For constant/binary, d should always equal trueM
-      dAlwaysCorrect: minD === trueM && maxD === trueM
-    }
-  })
-}
-```
+**Pass criteria**: Constant/binary always exact; no order-of-magnitude errors
 
-**Expected Outcome**:
-- Constant: Always exact ($d = 1$)
-- Binary: Always exact ($d = 2$)
-- Identity: High variance, will **substantially underestimate** $n$ because we're measuring "fraction of domain touched by $k$ samples". With $k = 1000$ and $n = 10000$, we expect $d \approx 632$ (birthday collision effect), giving estimate $\approx 632/1000 \cdot 10000 = 6320$. This is acceptable: for near-bijective functions, the estimator provides a **lower bound-ish view** of codomain size.
-- Near-bijective: Similar underestimation as identity
-- Sqrt-collapse: Moderate accuracy
-
-**What Would Falsify**:
-- Constant/binary returning $d \neq$ true value
-- Catastrophic failures (estimate off by orders of magnitude)
-
-> **Note:** The identity case demonstrates a fundamental limitation: for very large codomains ($m \approx n$), the fraction estimator underestimates because sampling without replacement from the codomain isn't the same as sampling from a population of size $m$. This is acceptable for our use case — a `size()` hint that says "at least this many" is still useful.
-
-#### Identity Case Analysis: Why ~5% Error is Acceptable
-
-For the identity function with $n = 10,000$ and $k = 1,000$:
-
-**The Math:**
-- Expected distinct samples: $d \approx n(1 - (1 - 1/n)^k) \approx n(1 - e^{-k/n}) = 10000(1 - e^{-0.1}) \approx 951$
-- Fraction estimate: $\hat{m} = (951/1000) \cdot 10000 = 9510$
-- True value: $m = 10000$
-- Error: $(10000 - 9510) / 10000 = 4.9\%$
-
-**The Verdict:** This ~5% error is acceptable. A PBT library uses `size()` to answer questions like:
-- "Is this set small enough to exhaustively enumerate?" (9.5k vs 10k → same answer: no)
-- "How hard should I try to find unique values?" (both suggest "many values available")
-
-**Do not over-engineer a fix for this in v1.** The underestimation is a fundamental property of sampling from large domains, and correcting it would require either:
-1. Much larger sample sizes (expensive), or
-2. Birthday-paradox inversion (unstable for large $m$)
-
-Neither is worth the complexity for a heuristic `size()` hint.
+**Falsifies if**: $d \neq m$ for deterministic cases, or catastrophic failures
 
 ---
 
 ### Simulation 7: Chained Map Composition
 
+> **Implementation:** [`validateChainedMaps()`](../../test/simulations/mapped-arbitrary-validation.ts#L536)
+
 **Hypothesis**: Size estimation composes correctly for chained maps.
 
-**Validates**: Composition Semantics (Section: Composition Semantics)
+**Validates**: Composition semantics
 
-**Algorithm**:
-```typescript
-function validateChainedMaps(): ChainedMapResults {
-  const n = 10000
-  const k = 1000
-  const numTrials = 5000
-  
-  // Chain: int(0, n-1).map(x => x % 100).map(x => x % 10)
-  // True sizes: n -> 100 -> 10
-  
-  const f1 = (x: number) => x % 100
-  const f2 = (x: number) => x % 10
-  const composed = (x: number) => f2(f1(x))
-  
-  let sumDirect = 0, sumChained = 0
-  
-  for (let trial = 0; trial < numTrials; trial++) {
-    // Direct estimate of composed function
-    const seenDirect = new Set<number>()
-    for (let i = 0; i < k; i++) {
-      seenDirect.add(composed(Math.floor(Math.random() * n)))
-    }
-    sumDirect += (seenDirect.size / k) * n
-    
-    // Chained estimate: first estimate |C_f1|, then estimate |C_f2| relative to that
-    // This simulates what happens when we have arb.map(f1).map(f2)
-    const seenF1 = new Set<number>()
-    for (let i = 0; i < k; i++) {
-      seenF1.add(f1(Math.floor(Math.random() * n)))
-    }
-    const estimateC1 = (seenF1.size / k) * n
-    
-    // Now sample from C_f1 (we use uniform from [0, 100) as proxy)
-    const seenF2 = new Set<number>()
-    for (let i = 0; i < k; i++) {
-      seenF2.add(f2(Math.floor(Math.random() * 100)))
-    }
-    const estimateC2 = (seenF2.size / k) * estimateC1
-    sumChained += estimateC2
-  }
-  
-  return {
-    trueComposedSize: 10,
-    directEstimate: Math.round(sumDirect / numTrials),
-    chainedEstimate: Math.round(sumChained / numTrials),
-    directError: Math.abs((sumDirect / numTrials) - 10) / 10,
-    chainedError: Math.abs((sumChained / numTrials) - 10) / 10
-  }
-}
-```
+Test case: `int(0, n-1).map(x => x % 100).map(x => x % 10)` — true sizes: $n \to 100 \to 10$
 
-**Expected Outcome**:
-- Direct composition estimate should be reasonably accurate
-- Chained estimation may have higher variance due to error propagation
-- Both should converge to same value for large $k$
+**Pass criteria**: Both direct and chained estimates within 2x of true value
 
-**What Would Falsify**:
-- Direct and chained estimates diverging significantly
-- Either estimate being orders of magnitude off
+**Falsifies if**: Estimates diverge significantly or are orders of magnitude off
 
 ---
 
 ### Simulation 8: Cluster Mapping (Step Functions)
 
-**Hypothesis**: The estimator handles cluster/step functions where large contiguous chunks of the domain map to single codomain values.
+> **Implementation:** [`validateClusterMapping()`](../../test/simulations/mapped-arbitrary-validation.ts#L594) and [`validateUniformVsBiased()`](../../test/simulations/mapped-arbitrary-validation.ts#L631)
 
-**Validates**: Assumption A2 (Uniform Sampling) and robustness to non-smooth mappings
+**Hypothesis**: The estimator handles step functions $f(x) = \lfloor x / c \rfloor$ correctly, and uniform sampling matters.
 
-> **Why this matters:** Simulation 3 tests "skewed" (Zipfian) distributions, but not "clustered" mappings where $f$ maps huge chunks of the domain to single values. This tests whether sampling is truly uniform across the domain. If the base arbitrary has a biased generator (e.g., `fc.integer` favors 0, min, max), and our estimator assumes uniform sampling, we might vastly skew the estimate.
+**Validates**: Assumption A2 (Uniform Sampling)
 
-**Setup**:
-```typescript
-interface ClusterMappingParams {
-  domainSize: number           // e.g., 10000
-  clusterSizes: number[]       // e.g., [10, 100, 1000] (size of each step)
-  sampleSize: number           // e.g., 1000
-  numTrials: number            // e.g., 10000
-}
-```
+| Cluster size $c$ | Expected $m$ |
+|------------------|--------------|
+| 10 | 1000 |
+| 100 | 100 |
+| 1000 | 10 |
 
-**Test Cases**:
+**Pass criteria**: Uniform sampling < 20% error; biased sampling shows measurable degradation
 
-| Case | Function | Expected $m$ |
-|------|----------|--------------|
-| Fine clusters | $f(x) = \lfloor x / 10 \rfloor$ | $\lceil n / 10 \rceil = 1000$ |
-| Medium clusters | $f(x) = \lfloor x / 100 \rfloor$ | $\lceil n / 100 \rceil = 100$ |
-| Coarse clusters | $f(x) = \lfloor x / 1000 \rfloor$ | $\lceil n / 1000 \rceil = 10$ |
-
-**Algorithm**:
-```typescript
-function validateClusterMapping(params: ClusterMappingParams): ClusterResults {
-  const results: ClusterResults = {}
-  const { domainSize: n, sampleSize: k } = params
-  
-  for (const clusterSize of params.clusterSizes) {
-    const trueM = Math.ceil(n / clusterSize)
-    const stepFn = (x: number) => Math.floor(x / clusterSize)
-    
-    let sumEstimate = 0
-    let sumSquaredError = 0
-    
-    for (let trial = 0; trial < params.numTrials; trial++) {
-      // Simulate UNIFORM sampling (critical!)
-      const seen = new Set<number>()
-      for (let i = 0; i < k; i++) {
-        const x = Math.floor(Math.random() * n)  // Truly uniform
-        seen.add(stepFn(x))
-      }
-      const d = seen.size
-      const estimate = (d / k) * n
-      
-      sumEstimate += estimate
-      sumSquaredError += (estimate - trueM) ** 2
-    }
-    
-    results[`cluster=${clusterSize}`] = {
-      trueM,
-      clusterSize,
-      meanEstimate: Math.round(sumEstimate / params.numTrials),
-      rmse: Math.sqrt(sumSquaredError / params.numTrials),
-      relativeError: Math.abs((sumEstimate / params.numTrials) - trueM) / trueM
-    }
-  }
-  
-  return results
-}
-
-// Additional test: compare uniform vs biased sampling
-function validateUniformVsBiased(params: ClusterMappingParams): BiasComparisonResults {
-  const n = params.domainSize
-  const k = params.sampleSize
-  const clusterSize = 1000  // Coarse clustering
-  const trueM = Math.ceil(n / clusterSize)
-  const stepFn = (x: number) => Math.floor(x / clusterSize)
-  
-  let uniformSum = 0, biasedSum = 0
-  
-  for (let trial = 0; trial < params.numTrials; trial++) {
-    // Uniform sampling
-    const seenUniform = new Set<number>()
-    for (let i = 0; i < k; i++) {
-      seenUniform.add(stepFn(Math.floor(Math.random() * n)))
-    }
-    uniformSum += (seenUniform.size / k) * n
-    
-    // Biased sampling (simulates PBT edge-case bias)
-    // 30% of samples from edges (0, n-1), 70% uniform
-    const seenBiased = new Set<number>()
-    for (let i = 0; i < k; i++) {
-      let x: number
-      if (Math.random() < 0.3) {
-        x = Math.random() < 0.5 ? 0 : n - 1  // Edge bias
-      } else {
-        x = Math.floor(Math.random() * n)
-      }
-      seenBiased.add(stepFn(x))
-    }
-    biasedSum += (seenBiased.size / k) * n
-  }
-  
-  return {
-    trueM,
-    uniformEstimate: Math.round(uniformSum / params.numTrials),
-    biasedEstimate: Math.round(biasedSum / params.numTrials),
-    uniformError: Math.abs((uniformSum / params.numTrials) - trueM) / trueM,
-    biasedError: Math.abs((biasedSum / params.numTrials) - trueM) / trueM
-  }
-}
-```
-
-**Expected Outcome**:
-- Uniform sampling should produce accurate estimates for all cluster sizes
-- Biased sampling should show measurable degradation, especially for coarse clusters
-- The bias test validates the critical importance of `sampleUniform()` over standard `sample()`
-
-**What Would Falsify**:
-- Uniform sampling producing > 30% error for cluster mappings
-- Biased and uniform sampling producing similar results (would suggest bias doesn't matter)
+**Falsifies if**: Uniform > 30% error, or bias doesn't affect results
 
 ---
 
 ### Summary: Simulation Test Matrix
 
-> **Reminder:** Pass criteria are for "good enough as a `size()` hint", not statistical optimality.
-
-| Simulation | Validates | Key Metric | Pass Criterion |
-|------------|-----------|------------|----------------|
-| 1. Fraction Estimator | A4 | Bias, RMSE, Coverage | < 20% relative error for 0.1–0.9 ratios; CI coverage ≥ 80% |
-| 2. Sample Size | A5 | Accuracy rate | > 70% within 20% error at $k = 20\sqrt{n}$ |
-| 3. Balanced vs Unbalanced | A4 robustness | Degradation rate | Graceful degradation; no catastrophic failures |
-| 4. Birthday Comparison | Design decision | RMSE comparison | Fraction ≤ Birthday in ≥ 60% of cases |
-| 5. Enumeration Threshold | Configuration | Time/accuracy trade-off | Identifiable crossover point exists |
-| 6. Edge Cases | Boundary behavior | Correct d values | Constants/binary exact; no order-of-magnitude errors |
-| 7. Chained Maps | Composition | Error propagation | Both estimates within 2x of true value |
-| 8. Cluster Mapping | A2 (Uniform Sampling) | Uniform vs biased accuracy | Uniform < 20% error; biased shows measurable degradation |
-
-### Running the Simulations
-
-Create `test/simulations/mapped-arbitrary-validation.ts` with:
-
-1. Configurable parameters for all simulations
-2. Summary statistics and pass/fail criteria
-3. Optional CSV output for further analysis
-
-**Recommended Default Parameters**:
-```typescript
-const DEFAULT_PARAMS = {
-  domainSizes: [100, 1000, 10000, 100000],
-  codomainRatios: [0.01, 0.05, 0.1, 0.3, 0.5, 0.7, 0.9, 0.95, 0.99],
-  sampleSizes: [50, 100, 200, 500, 1000, 2000],
-  numTrials: 10000,
-  targetAccuracy: 0.10  // 10% relative error
-}
-```
-
-**Monte Carlo Error**: With 10,000 trials, the standard error for a proportion estimate is approximately $\sqrt{p(1-p)/10000} \approx 0.005$ at $p = 0.5$. This means coverage estimates will have ±1% uncertainty (95% CI).
+| Simulation | Validates | Pass Criterion |
+|------------|-----------|----------------|
+| 1. Fraction Estimator | A4 | < 20% error for 0.1–0.9 ratios |
+| 2. Sample Size | A5 | > 70% within 20% at $k = 20\sqrt{n}$ |
+| 3. Balanced vs Unbalanced | A4 robustness | Graceful degradation |
+| 4. Birthday Comparison | Design decision | Fraction ≤ Birthday ≥ 60% |
+| 5. Enumeration Threshold | Configuration | Crossover point exists |
+| 6. Edge Cases | Boundaries | Constants exact; no catastrophic failures |
+| 7. Chained Maps | Composition | Estimates within 2x |
+| 8. Cluster Mapping | A2 | Uniform < 20%; bias degrades |
 
 ---
 
