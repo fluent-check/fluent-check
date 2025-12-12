@@ -13,6 +13,8 @@ import type {ExecutableScenario, ExecutableQuantifier} from '../ExecutableScenar
 import {PreconditionFailure} from '../FluentCheck.js'
 import type {Sampler} from './Sampler.js'
 import type {BoundTestCase} from './types.js'
+import type {StatisticsContext} from '../statistics.js'
+import {runWithStatisticsContext} from '../statistics.js'
 
 /**
  * Budget constraints for exploration.
@@ -28,6 +30,18 @@ export interface ExplorationBudget {
    * If set, exploration MAY stop early when exceeded.
    */
   readonly maxTime?: number
+}
+
+/**
+ * Detailed statistics from exploration (optional).
+ */
+export interface DetailedExplorationStats {
+  /** Per-arbitrary statistics (only when detailed statistics enabled) */
+  arbitraryStats?: Record<string, import('../statistics.js').ArbitraryStatistics>
+  /** Event counts (if any events were recorded) */
+  events?: Record<string, number>
+  /** Target statistics (if any targets were recorded) */
+  targets?: Record<string, import('../statistics.js').TargetStatistics>
 }
 
 /**
@@ -53,6 +67,8 @@ export interface ExplorationPassed<Rec extends {} = {}> {
   readonly witness?: BoundTestCase<Rec>
   /** Label counts for test case classifications (optional) */
   readonly labels?: Record<string, number>
+  /** Detailed statistics (optional, when detailed statistics are enabled) */
+  readonly detailedStats?: DetailedExplorationStats
 }
 
 /**
@@ -65,6 +81,8 @@ export interface ExplorationFailed<Rec extends {}> {
   readonly skipped: number
   /** Label counts for test case classifications (optional) */
   readonly labels?: Record<string, number>
+  /** Detailed statistics (optional, when detailed statistics are enabled) */
+  readonly detailedStats?: DetailedExplorationStats
 }
 
 /**
@@ -77,6 +95,8 @@ export interface ExplorationExhausted {
   readonly skipped: number
   /** Label counts for test case classifications (optional) */
   readonly labels?: Record<string, number>
+  /** Detailed statistics (optional, when detailed statistics are enabled) */
+  readonly detailedStats?: DetailedExplorationStats
 }
 
 type PropertyEvaluation = 'passed' | 'failed' | 'skipped'
@@ -98,6 +118,10 @@ interface TraversalContext<Rec extends {}> {
   readonly hasExistential: boolean
   readonly outcomes: TraversalOutcomeBuilder<Rec>
   readonly results: ExplorationResultBuilder<Rec>
+  readonly statisticsContext?: StatisticsContext | undefined
+  readonly executableScenario: ExecutableScenario<Rec>
+  readonly detailedStatisticsEnabled?: boolean
+  readonly progressCallback?: ProgressCallback
 }
 
 type TraversalOutcome<Rec extends {}> =
@@ -191,6 +215,17 @@ type TestCaseEvaluator<Rec extends {}> =
   (testCase: BoundTestCase<Rec>, state: ExplorationState) => PropertyEvaluation
 
 /**
+ * Progress callback function type for reporting exploration progress.
+ */
+export type ProgressCallback = (info: {
+  testsRun: number
+  testsPassed: number
+  testsDiscarded: number
+  totalTests?: number
+  elapsedMs: number
+}) => void
+
+/**
  * Interface for exploring the search space of a property test scenario.
  */
 export interface Explorer<Rec extends {}> {
@@ -198,7 +233,10 @@ export interface Explorer<Rec extends {}> {
     scenario: ExecutableScenario<Rec> | Scenario<Rec>,
     property: (testCase: Rec) => boolean,
     sampler: Sampler,
-    budget: ExplorationBudget
+    budget: ExplorationBudget,
+    statisticsContext?: StatisticsContext,
+    detailedStatisticsEnabled?: boolean,
+    progressCallback?: ProgressCallback
   ): ExplorationResult<Rec>
 }
 
@@ -210,12 +248,14 @@ export abstract class AbstractExplorer<Rec extends {}> implements Explorer<Rec> 
     scenario: ExecutableScenario<Rec> | Scenario<Rec>,
     property: (testCase: Rec) => boolean,
     sampler: Sampler,
-    budget: ExplorationBudget
+    budget: ExplorationBudget,
+    statisticsContext?: StatisticsContext,
+    detailedStatisticsEnabled = false,
+    progressCallback?: ProgressCallback
   ): ExplorationResult<Rec> {
     const executableScenario = this.toExecutableScenario(scenario)
     const quantifiers = executableScenario.quantifiers
     const samples = this.generateSamples(quantifiers, sampler, budget.maxTests)
-    const evaluator = this.createEvaluator(executableScenario.nodes, property)
 
     const state: ExplorationState = {
       testsRun: 0,
@@ -224,6 +264,8 @@ export abstract class AbstractExplorer<Rec extends {}> implements Explorer<Rec> 
       startTime: Date.now(),
       labels: new Map<string, number>()
     }
+
+    const evaluator = this.createEvaluator(executableScenario.nodes, property, statisticsContext, progressCallback, state, budget)
 
     const outcomes = new TraversalOutcomeBuilder<Rec>()
     const results = new ExplorationResultBuilder<Rec>(state)
@@ -236,7 +278,11 @@ export abstract class AbstractExplorer<Rec extends {}> implements Explorer<Rec> 
       state,
       hasExistential: executableScenario.hasExistential,
       outcomes,
-      results
+      results,
+      ...(statisticsContext !== undefined && {statisticsContext}),
+      executableScenario,
+      detailedStatisticsEnabled,
+      ...(progressCallback !== undefined && {progressCallback})
     }
 
     const outcome = this.traverse(0, {} as BoundTestCase<Rec>, ctx)
@@ -304,21 +350,59 @@ export abstract class AbstractExplorer<Rec extends {}> implements Explorer<Rec> 
   }
 
   protected toExplorationResult(outcome: TraversalOutcome<Rec>, ctx: TraversalContext<Rec>): ExplorationResult<Rec> {
-    switch (outcome.kind) {
-      case 'pass':
-        return ctx.results.passed(outcome.witness)
-      case 'fail':
-        return ctx.results.failed(outcome.counterexample)
-      case 'inconclusive':
-        return ctx.state.budgetExceeded || ctx.hasExistential || outcome.budgetExceeded
-          ? ctx.results.exhausted()
-          : ctx.results.passed()
+    // Build detailed stats if context is available
+    // Statistics inclusion rules:
+    // - arbitraryStats: Only included if detailedStatisticsEnabled is true
+    // - events: Always included if any events were recorded (independent of detailedStatisticsEnabled)
+    // - targets: Always included if any targets were recorded (independent of detailedStatisticsEnabled)
+    // This allows events/targets to work without detailed statistics overhead
+    let detailedStats: DetailedExplorationStats | undefined = undefined
+    if (ctx.statisticsContext !== undefined) {
+      const eventCounts = ctx.statisticsContext.getEventCounts()
+      const targetStats = ctx.statisticsContext.getTargetStatistics()
+      const arbitraryStats = ctx.statisticsContext.getArbitraryStatistics()
+
+      const stats: DetailedExplorationStats = {}
+      if (ctx.detailedStatisticsEnabled === true) {
+        // Include arbitraryStats even if empty (for consistency when detailed stats enabled)
+        stats.arbitraryStats = arbitraryStats
+      }
+      if (Object.keys(eventCounts).length > 0) {
+        stats.events = eventCounts
+      }
+      if (Object.keys(targetStats).length > 0) {
+        stats.targets = targetStats
+      }
+
+      // Only set detailedStats if there's at least one stat
+      if (Object.keys(stats).length > 0) {
+        detailedStats = stats
+      }
     }
+
+    const baseResult = (() => {
+      switch (outcome.kind) {
+        case 'pass':
+          return ctx.results.passed(outcome.witness)
+        case 'fail':
+          return ctx.results.failed(outcome.counterexample)
+        case 'inconclusive':
+          return ctx.state.budgetExceeded || ctx.hasExistential || outcome.budgetExceeded
+            ? ctx.results.exhausted()
+            : ctx.results.passed()
+      }
+    })()
+
+    return detailedStats !== undefined ? {...baseResult, detailedStats} : baseResult
   }
 
   protected createEvaluator(
     nodes: readonly ScenarioNode<Rec>[],
-    property: (testCase: Rec) => boolean
+    property: (testCase: Rec) => boolean,
+    statisticsContext?: StatisticsContext,
+    progressCallback?: ProgressCallback,
+    state?: ExplorationState,
+    budget?: ExplorationBudget
   ): TestCaseEvaluator<Rec> {
     const classificationNodes = nodes.filter(
       (node): node is ClassifyNode<Rec> | LabelNode<Rec> | CollectNode<Rec> | CoverNode<Rec> | CoverTableNode<Rec> =>
@@ -327,35 +411,84 @@ export abstract class AbstractExplorer<Rec extends {}> implements Explorer<Rec> 
     )
     const hasThenNodes = nodes.some(node => node.type === 'then')
 
-    if (!hasThenNodes) {
-      return (testCase: BoundTestCase<Rec>, state: ExplorationState) => {
-        state.testsRun += 1
-        // Evaluate classifications before property evaluation (so discarded tests are still classified)
-        this.evaluateClassifications(testCase, classificationNodes, state)
+    const callProgressCallback = (evalState: ExplorationState, lastResult?: PropertyEvaluation) => {
+      if (progressCallback !== undefined && state !== undefined && budget !== undefined) {
         try {
-          return property(this.unwrapTestCase(testCase)) ? 'passed' : 'failed'
+          // Calculate testsPassed: testsRun - skipped - (1 if last test failed, 0 otherwise)
+          // We track this approximately - actual count requires tracking pass/fail separately
+          // For progress purposes, this approximation is sufficient
+          const testsPassed = Math.max(0, evalState.testsRun - evalState.skipped - (lastResult === 'failed' ? 1 : 0))
+          progressCallback({
+            testsRun: evalState.testsRun,
+            testsPassed,
+            testsDiscarded: evalState.skipped,
+            totalTests: budget.maxTests,
+            elapsedMs: Date.now() - evalState.startTime
+          })
+        } catch (_e) {
+          // Progress callback errors should not stop execution
+          // Logging would require verbosity context, so we silently continue
+        }
+      }
+    }
+
+    if (!hasThenNodes) {
+      return (testCase: BoundTestCase<Rec>, evalState: ExplorationState) => {
+        evalState.testsRun += 1
+
+        const runTest = () => {
+          // Evaluate classifications before property evaluation (so discarded tests are still classified)
+          this.evaluateClassifications(testCase, classificationNodes, evalState)
+          try {
+            const unwrapped = this.unwrapTestCase(testCase)
+            const result = property(unwrapped) ? 'passed' : 'failed'
+            callProgressCallback(evalState, result)
+            return result
+          } catch (e) {
+            if (this.isPreconditionFailure(e)) {
+              evalState.skipped += 1
+              callProgressCallback(evalState, 'skipped')
+              return 'skipped'
+            }
+            throw e
+          }
+        }
+
+        if (statisticsContext !== undefined) {
+          statisticsContext.setTestCaseIndex(evalState.testsRun)
+          return runWithStatisticsContext(statisticsContext, runTest)
+        } else {
+          return runTest()
+        }
+      }
+    }
+
+    return (testCase: BoundTestCase<Rec>, evalState: ExplorationState) => {
+      evalState.testsRun += 1
+
+      const runTest = () => {
+        // Evaluate classifications before scenario evaluation (so discarded tests are still classified)
+        this.evaluateClassifications(testCase, classificationNodes, evalState)
+        try {
+          // Context is already set above, evaluateScenarioNodes will use it
+          const result = this.evaluateScenarioNodes(testCase, nodes) ? 'passed' : 'failed'
+          callProgressCallback(evalState, result)
+          return result
         } catch (e) {
           if (this.isPreconditionFailure(e)) {
-            state.skipped += 1
+            evalState.skipped += 1
+            callProgressCallback(evalState, 'skipped')
             return 'skipped'
           }
           throw e
         }
       }
-    }
 
-    return (testCase: BoundTestCase<Rec>, state: ExplorationState) => {
-      state.testsRun += 1
-      // Evaluate classifications before scenario evaluation (so discarded tests are still classified)
-      this.evaluateClassifications(testCase, classificationNodes, state)
-      try {
-        return this.evaluateScenarioNodes(testCase, nodes) ? 'passed' : 'failed'
-      } catch (e) {
-        if (this.isPreconditionFailure(e)) {
-          state.skipped += 1
-          return 'skipped'
-        }
-        throw e
+      if (statisticsContext !== undefined) {
+        statisticsContext.setTestCaseIndex(evalState.testsRun)
+        return runWithStatisticsContext(statisticsContext, runTest)
+      } else {
+        return runTest()
       }
     }
   }
@@ -433,6 +566,7 @@ export abstract class AbstractExplorer<Rec extends {}> implements Explorer<Rec> 
           node.predicate(record)
           break
         case 'then':
+          // Context should already be set by the evaluator before this method is called
           if (!node.predicate(record)) {
             return false
           }
@@ -474,7 +608,12 @@ export abstract class AbstractExplorer<Rec extends {}> implements Explorer<Rec> 
     const perQuantifier = Math.max(1, Math.floor(maxTests ** (1 / quantifierCount)))
 
     for (const q of quantifiers) {
-      samples.set(q.name, q.sample(sampler, perQuantifier))
+      const quantifierSamples = q.sample(sampler, perQuantifier)
+      samples.set(q.name, quantifierSamples)
+
+      // Track statistics if context is available (passed via explore method)
+      // Note: We'll track samples during traversal, not here during generation
+      // This is a placeholder for future enhancement
     }
 
     return samples
@@ -523,69 +662,75 @@ export class NestedLoopExplorer<Rec extends {}> extends AbstractExplorer<Rec> {
 
 class NestedLoopSemantics<Rec extends {}> implements QuantifierSemantics<Rec> {
   exists(frame: QuantifierFrame<Rec>, next: TraverseNext<Rec>): TraversalOutcome<Rec> {
-    const quantifierSamples = this.samplesFor(frame)
     let sawBudgetLimit = false
 
-    for (const sample of quantifierSamples) {
-      const newTestCase = this.bindSample(frame, sample)
-      const outcome = next(frame.index + 1, newTestCase, frame.ctx)
-
+    const result = this.forEachSample(frame, next, (outcome, testCase) => {
       if (outcome.kind === 'pass') {
-        return frame.ctx.outcomes.pass(outcome.witness ?? newTestCase)
+        return frame.ctx.outcomes.pass(outcome.witness ?? testCase)
       }
+      if (outcome.kind === 'inconclusive' && outcome.budgetExceeded) {
+        sawBudgetLimit = true
+        return 'break'
+      }
+      return 'continue'
+    })
 
-      if (outcome.kind === 'inconclusive') {
-        if (outcome.budgetExceeded) {
-          sawBudgetLimit = true
-          break
-        }
-        continue
+    if (result !== 'break' && result !== 'continue') return result
+    return frame.ctx.outcomes.inconclusive(sawBudgetLimit)
+  }
+
+  forall(frame: QuantifierFrame<Rec>, next: TraverseNext<Rec>): TraversalOutcome<Rec> {
+    let sawBudgetLimit = false
+    let allPassed = true
+    let lastWitness: BoundTestCase<Rec> | undefined
+    const hasInnerExists = this.hasInnerExistential(frame.ctx.quantifiers, frame.index + 1)
+
+    const result = this.forEachSample(frame, next, (outcome, testCase) => {
+      if (outcome.kind === 'fail') {
+        return frame.ctx.outcomes.fail(outcome.counterexample)
       }
-      // fail - try next sample
+      if (outcome.kind === 'pass') {
+        if (outcome.witness !== undefined) lastWitness = outcome.witness
+        return 'continue'
+      }
+      if (outcome.budgetExceeded) {
+        sawBudgetLimit = true
+        allPassed = false
+        return 'break'
+      }
+      if (hasInnerExists) {
+        return frame.ctx.outcomes.fail(testCase)
+      }
+      allPassed = false
+      return 'continue'
+    })
+
+    if (result !== 'break' && result !== 'continue') return result
+
+    if (allPassed && this.samplesFor(frame).length > 0) {
+      return frame.ctx.outcomes.pass(lastWitness)
     }
 
     return frame.ctx.outcomes.inconclusive(sawBudgetLimit)
   }
 
-  forall(frame: QuantifierFrame<Rec>, next: TraverseNext<Rec>): TraversalOutcome<Rec> {
-    const quantifierSamples = this.samplesFor(frame)
-    const hasInnerExists = this.hasInnerExistential(frame.ctx.quantifiers, frame.index + 1)
-
-    let allPassed = true
-    let lastWitness: BoundTestCase<Rec> | undefined
-    let sawBudgetLimit = false
-
-    for (const sample of quantifierSamples) {
+  private forEachSample(
+    frame: QuantifierFrame<Rec>,
+    next: TraverseNext<Rec>,
+    visitor: (
+      outcome: TraversalOutcome<Rec>,
+      testCase: BoundTestCase<Rec>
+    ) => TraversalOutcome<Rec> | 'continue' | 'break'
+  ): TraversalOutcome<Rec> | 'break' | 'continue' {
+    const samples = this.samplesFor(frame)
+    for (const sample of samples) {
+      this.trackSampleStatistics(frame, sample)
       const newTestCase = this.bindSample(frame, sample)
       const outcome = next(frame.index + 1, newTestCase, frame.ctx)
-
-      if (outcome.kind === 'fail') {
-        return frame.ctx.outcomes.fail(outcome.counterexample)
-      }
-
-      if (outcome.kind === 'pass') {
-        if (outcome.witness !== undefined) lastWitness = outcome.witness
-        continue
-      }
-
-      if (outcome.budgetExceeded) {
-        sawBudgetLimit = true
-        allPassed = false
-        break
-      }
-
-      if (hasInnerExists) {
-        return frame.ctx.outcomes.fail(newTestCase)
-      }
-
-      allPassed = false
+      const result = visitor(outcome, newTestCase)
+      if (result !== 'continue') return result
     }
-
-    if (allPassed && quantifierSamples.length > 0) {
-      return frame.ctx.outcomes.pass(lastWitness)
-    }
-
-    return frame.ctx.outcomes.inconclusive(sawBudgetLimit)
+    return 'continue'
   }
 
   private samplesFor(frame: QuantifierFrame<Rec>): readonly FluentPick<unknown>[] {
@@ -601,6 +746,54 @@ class NestedLoopSemantics<Rec extends {}> implements QuantifierSemantics<Rec> {
 
   private hasInnerExistential(quantifiers: readonly ExecutableQuantifier[], startIndex: number) {
     return quantifiers.slice(startIndex).some(q => q.type === 'exists')
+  }
+
+  /**
+   * Track statistics for a sample value.
+   * This helper method eliminates code duplication between exists() and forall().
+   */
+  private trackSampleStatistics(
+    frame: QuantifierFrame<Rec>,
+    sample: FluentPick<unknown>
+  ): void {
+    if (frame.ctx.statisticsContext === undefined || frame.ctx.detailedStatisticsEnabled !== true) {
+      return
+    }
+
+    const collector = frame.ctx.statisticsContext.getCollector(frame.quantifier.name)
+
+    // Get arbitrary from scenario nodes (for corner cases).
+    // Note: ExecutableQuantifier doesn't contain the original Arbitrary, so we must
+    // look it up from the nodes array. The quantifier should always exist in nodes
+    // since ExecutableScenario is created from Scenario which includes quantifier nodes.
+    const quantifierNode = frame.ctx.executableScenario.nodes.find(
+      (n): n is import('../Scenario.js').QuantifierNode =>
+        (n.type === 'forall' || n.type === 'exists') && n.name === frame.quantifier.name
+    )
+
+    if (quantifierNode !== undefined) {
+      collector.recordSample(sample.value, quantifierNode.arbitrary)
+    } else {
+      // Fallback: record sample without corner case checking.
+      // This should be rare - only if quantifier node is missing from nodes array.
+      collector.recordSample(sample.value, {
+        cornerCases: () => [],
+        hashCode: () => (a: unknown) => typeof a === 'number' ? a | 0 : 0,
+        equals: () => (a: unknown, b: unknown) => a === b
+      })
+    }
+
+    // Track numeric values for distribution
+    if (typeof sample.value === 'number' && Number.isFinite(sample.value)) {
+      collector.recordNumericValue(sample.value)
+    }
+
+    // Track array/string lengths separately
+    if (Array.isArray(sample.value)) {
+      collector.recordArrayLength(sample.value.length)
+    } else if (typeof sample.value === 'string') {
+      collector.recordStringLength(sample.value.length)
+    }
   }
 }
 

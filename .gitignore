@@ -22,3 +22,6 @@ docs/papers/*.bbl
 docs/papers/*.fls
 docs/papers/*.fdb_latexmk
 docs/papers/*.synctex.gz
+
+.gemini/
+gha-creds-*.json

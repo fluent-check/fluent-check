@@ -1,4 +1,6 @@
 import jstat from 'jstat'
+import {AsyncLocalStorage} from 'node:async_hooks'
+import {stringify} from './arbitraries/util.js'
 
 /**
  * A probability distribution (https://en.wikipedia.org/wiki/Probability_distribution).
@@ -197,6 +199,128 @@ export interface CoverageResult {
 }
 
 /**
+ * Verbosity levels for test output.
+ */
+export enum Verbosity {
+  /** No output except thrown errors */
+  Quiet = 0,
+  /** Default; counterexamples and coverage failures only */
+  Normal = 1,
+  /** Progress updates, statistics summary, and all classifications */
+  Verbose = 2,
+  /** All verbose output plus internal state and generation details */
+  Debug = 3
+}
+
+export type LogLevel = 'debug' | 'info' | 'warn' | 'error'
+
+export interface LogEntry {
+  level: LogLevel
+  message: string
+  data?: Record<string, unknown>
+}
+
+export interface Logger {
+  log: (entry: LogEntry) => void
+}
+
+/**
+ * Statistics for a single arbitrary's generated values.
+ */
+export interface ArbitraryStatistics {
+  /**
+   * Number of values generated for this arbitrary.
+   * Note: This counts all samples generated during traversal, which may be
+   * higher than testsRun when preconditions filter samples. For nested quantifiers,
+   * this reflects the actual sampling frequency (inner quantifiers may have higher counts).
+   */
+  samplesGenerated: number
+  /** Number of distinct values generated */
+  uniqueValues: number
+  /** Corner cases that were tested */
+  cornerCases: {
+    /** Array of corner case values that were generated */
+    tested: unknown[]
+    /** Total number of corner cases available for this arbitrary */
+    total: number
+  }
+  /** Distribution statistics for numeric arbitraries (optional) */
+  distribution?: DistributionStatistics
+  /** Histogram bins for numeric arbitraries (optional) */
+  distributionHistogram?: HistogramBin[]
+  /** Array length statistics for array arbitraries (optional) */
+  arrayLengths?: LengthStatistics
+  /** Histogram bins for array lengths (optional) */
+  arrayLengthHistogram?: HistogramBin[]
+  /** String length statistics for string arbitraries (optional) */
+  stringLengths?: LengthStatistics
+  /** Histogram bins for string lengths (optional) */
+  stringLengthHistogram?: HistogramBin[]
+}
+
+/**
+ * Distribution statistics for numeric values.
+ */
+export interface DistributionStatistics {
+  /** Minimum value generated */
+  min: number
+  /** Maximum value generated */
+  max: number
+  /** Arithmetic mean of generated values */
+  mean: number
+  /** Estimated median value (50th percentile) */
+  median: number
+  /** Estimated first quartile (25th percentile) */
+  q1: number
+  /** Estimated third quartile (75th percentile) */
+  q3: number
+  /** Sample standard deviation */
+  stdDev: number
+  /** Number of observations */
+  count: number
+}
+
+/**
+ * Length statistics for arrays or strings (subset of DistributionStatistics).
+ */
+export type LengthStatistics = Pick<DistributionStatistics, 'min' | 'max' | 'mean' | 'median' | 'count'>
+
+/**
+ * Histogram bin representation for formatted output.
+ */
+export interface HistogramBin {
+  label: string
+  start: number
+  end: number
+  count: number
+  percentage: number
+}
+
+/**
+ * Statistics for target observations.
+ */
+export interface TargetStatistics {
+  /** The maximum observation value seen */
+  best: number
+  /** Number of observations recorded */
+  observations: number
+  /** Mean of all observations */
+  mean: number
+}
+
+/**
+ * Statistics for shrinking operations.
+ */
+export interface ShrinkingStatistics {
+  /** Number of shrink candidates evaluated */
+  candidatesTested: number
+  /** Number of shrinking iterations completed */
+  roundsCompleted: number
+  /** Number of times a smaller counterexample was found */
+  improvementsMade: number
+}
+
+/**
  * Basic execution statistics for property-based tests.
  */
 export interface FluentStatistics {
@@ -208,10 +332,732 @@ export interface FluentStatistics {
   testsDiscarded: number
   /** Total execution time in milliseconds */
   executionTimeMs: number
+  /** Breakdown of execution time by phase (optional) */
+  executionTimeBreakdown?: {
+    exploration: number
+    shrinking: number
+  }
   /** Label counts for test case classifications (optional) */
   labels?: Record<string, number>
   /** Label percentages (0-100) for test case classifications (optional) */
   labelPercentages?: Record<string, number>
   /** Coverage verification results (optional) */
   coverageResults?: CoverageResult[]
+  /** Per-arbitrary statistics (optional, requires withDetailedStatistics()) */
+  arbitraryStats?: Record<string, ArbitraryStatistics>
+  /** Event counts (optional, tracked when fc.event() is used) */
+  events?: Record<string, number>
+  /** Event percentages (0-100) (optional, tracked when fc.event() is used) */
+  eventPercentages?: Record<string, number>
+  /** Target statistics (optional, tracked when fc.target() is used) */
+  targets?: Record<string, TargetStatistics>
+  /** Shrinking statistics (optional) */
+  shrinking?: ShrinkingStatistics
+}
+
+/**
+ * Streaming mean and variance calculator using Welford's online algorithm.
+ * O(1) memory, numerically stable.
+ */
+export class StreamingMeanVariance {
+  private count = 0
+  private mean = 0
+  private m2 = 0 // Sum of squares of differences from mean
+
+  /**
+   * Add a value to the stream.
+   */
+  add(value: number): void {
+    this.count++
+    const delta = value - this.mean
+    this.mean += delta / this.count
+    const delta2 = value - this.mean
+    this.m2 += delta * delta2
+  }
+
+  /**
+   * Get the current mean.
+   */
+  getMean(): number {
+    return this.mean
+  }
+
+  /**
+   * Get the current variance (population variance).
+   */
+  getVariance(): number {
+    if (this.count < 2) return 0
+    return this.m2 / this.count
+  }
+
+  /**
+   * Get the current sample variance (Bessel's correction).
+   */
+  getSampleVariance(): number {
+    if (this.count < 2) return 0
+    return this.m2 / (this.count - 1)
+  }
+
+  /**
+   * Get the current standard deviation (sample).
+   */
+  getStdDev(): number {
+    return Math.sqrt(this.getSampleVariance())
+  }
+
+  /**
+   * Get the number of values added.
+   */
+  getCount(): number {
+    return this.count
+  }
+
+  /**
+   * Reset the calculator.
+   */
+  reset(): void {
+    this.count = 0
+    this.mean = 0
+    this.m2 = 0
+  }
+}
+
+/**
+ * Streaming min/max tracker.
+ * O(1) memory.
+ */
+export class StreamingMinMax {
+  private min: number | undefined = undefined
+  private max: number | undefined = undefined
+
+  /**
+   * Add a value to the stream.
+   */
+  add(value: number): void {
+    if (this.min === undefined || value < this.min) {
+      this.min = value
+    }
+    if (this.max === undefined || value > this.max) {
+      this.max = value
+    }
+  }
+
+  /**
+   * Get the minimum value seen.
+   */
+  getMin(): number | undefined {
+    return this.min
+  }
+
+  /**
+   * Get the maximum value seen.
+   */
+  getMax(): number | undefined {
+    return this.max
+  }
+
+  /**
+   * Reset the tracker.
+   */
+  reset(): void {
+    this.min = undefined
+    this.max = undefined
+  }
+}
+
+/**
+ * Default buffer sizes for quantile estimation and histogram sampling.
+ */
+export const DEFAULT_QUANTILE_BUFFER_SIZE = 100
+export const DEFAULT_HISTOGRAM_SAMPLE_SIZE = 200
+export const DEFAULT_HISTOGRAM_BINS = 10
+
+/**
+ * Streaming quantile estimator using the P² algorithm for q1/median/q3 with
+ * an initial exact phase. Maintains a bounded reservoir for histogram output.
+ */
+export class StreamingQuantiles {
+  private readonly probs = [0, 0.25, 0.5, 0.75, 1]
+  private readonly dn = [0, 0.25, 0.5, 0.75, 1]
+  private count = 0
+  private readonly initial: number[] = []
+  private q: number[] = []
+  private n: number[] = []
+  private np: number[] = []
+  private readonly reservoir: number[] = []
+  private readonly reservoirSize: number
+
+  constructor(reservoirSize = DEFAULT_HISTOGRAM_SAMPLE_SIZE) {
+    this.reservoirSize = reservoirSize
+  }
+
+  add(value: number): void {
+    this.count++
+    this.addToReservoir(value)
+
+    if (this.count <= 5) {
+      this.initial.push(value)
+      if (this.count === 5) {
+        this.initial.sort((a, b) => a - b)
+        this.q = [...this.initial]
+        this.n = [1, 2, 3, 4, 5]
+        this.np = this.probs.map(p => 1 + p * (this.count - 1))
+      }
+      return
+    }
+
+    let k: number
+    if (value < this.q[0]!) {
+      this.q[0] = value
+      k = 0
+    } else if (value >= this.q[4]!) {
+      this.q[4] = value
+      k = 3
+    } else {
+      k = 0
+      while (k < 3 && value >= this.q[k + 1]!) k++
+    }
+
+    for (let i = k + 1; i < 5; i++) {
+      this.n[i]! += 1
+    }
+    for (let i = 0; i < 5; i++) {
+      this.np[i]! += this.dn[i]!
+    }
+
+    for (let i = 1; i <= 3; i++) {
+      const d = this.np[i]! - this.n[i]!
+      const di = Math.sign(d)
+      if (di !== 0 && this.canAdjustMarker(i, di)) {
+        const qNew = this.parabolic(i, di)
+        if (qNew > this.q[i - 1]! && qNew < this.q[i + 1]!) {
+          this.q[i] = qNew
+        } else {
+          this.q[i] = this.linear(i, di)
+        }
+        this.n[i]! += di
+      }
+    }
+  }
+
+  getQuantile(p: number): number {
+    if (p < 0 || p > 1) {
+      throw new Error(`Quantile must be between 0 and 1, got ${p}`)
+    }
+    if (this.count === 0) return NaN
+    if (this.count <= 5) {
+      const values = [...this.initial].sort((a, b) => a - b)
+      const index = p * (values.length - 1)
+      const lower = Math.floor(index)
+      const upper = Math.ceil(index)
+      if (lower === upper) return values[lower]!
+      const weight = index - lower
+      return values[lower]! * (1 - weight) + values[upper]! * weight
+    }
+
+    if (p <= 0) return this.q[0]!
+    if (p >= 1) return this.q[4]!
+
+    const idx = this.probs.findIndex(prob => prob >= p)
+    if (idx === -1 || idx === 0) return this.q[0]!
+    const lowerProb = this.probs[idx - 1]!
+    const upperProb = this.probs[idx]!
+    const lowerQ = this.q[idx - 1]!
+    const upperQ = this.q[idx]!
+    const weight = (p - lowerProb) / (upperProb - lowerProb)
+    return lowerQ * (1 - weight) + upperQ * weight
+  }
+
+  getMedian(): number {
+    return this.getQuantile(0.5)
+  }
+
+  getQ1(): number {
+    return this.getQuantile(0.25)
+  }
+
+  getQ3(): number {
+    return this.getQuantile(0.75)
+  }
+
+  getCount(): number {
+    return this.count
+  }
+
+  getSampleValues(): number[] {
+    return [...this.reservoir]
+  }
+
+  reset(): void {
+    this.count = 0
+    this.initial.length = 0
+    this.q.length = 0
+    this.n.length = 0
+    this.np.length = 0
+    this.reservoir.length = 0
+  }
+
+  private canAdjustMarker(i: number, di: number): boolean {
+    const forwardGap = this.n[i + 1]! - this.n[i]!
+    const backwardGap = this.n[i - 1]! - this.n[i]!
+    return (di > 0 && forwardGap > 1) || (di < 0 && backwardGap < -1)
+  }
+
+  private parabolic(i: number, di: number): number {
+    const qi = this.q[i]!
+    const qiPlus = this.q[i + 1]!
+    const qiMinus = this.q[i - 1]!
+    const niPlus = this.n[i + 1]!
+    const ni = this.n[i]!
+    const niMinus = this.n[i - 1]!
+
+    const numerator =
+      di * (ni - niMinus + di) * (qiPlus - qi) / (niPlus - ni) +
+      di * (niPlus - ni - di) * (qi - qiMinus) / (ni - niMinus)
+
+    const denominator = niPlus - niMinus
+    if (denominator === 0) {
+      return qi
+    }
+    return qi + numerator / denominator
+  }
+
+  private linear(i: number, di: number): number {
+    const nextIndex = i + di
+    const deltaN = this.n[nextIndex]! - this.n[i]!
+    if (deltaN === 0) return this.q[i]!
+    return this.q[i]! + di * (this.q[nextIndex]! - this.q[i]!) / deltaN
+  }
+
+  private addToReservoir(value: number): void {
+    if (this.reservoir.length < this.reservoirSize) {
+      this.reservoir.push(value)
+      return
+    }
+
+    const idx = Math.floor(Math.random() * this.count)
+    if (idx < this.reservoirSize) {
+      this.reservoir[idx] = value
+    }
+  }
+}
+
+/**
+ * Distribution tracker combining all streaming algorithms.
+ * Provides a single interface for tracking numeric distributions.
+ */
+export class DistributionTracker {
+  private readonly meanVariance: StreamingMeanVariance
+  private readonly minMax: StreamingMinMax
+  private readonly quantiles: StreamingQuantiles
+
+  constructor(
+    maxQuantileBufferSize = DEFAULT_QUANTILE_BUFFER_SIZE,
+    private readonly histogramSampleSize = DEFAULT_HISTOGRAM_SAMPLE_SIZE
+  ) {
+    this.meanVariance = new StreamingMeanVariance()
+    this.minMax = new StreamingMinMax()
+    this.quantiles = new StreamingQuantiles(Math.max(maxQuantileBufferSize, this.histogramSampleSize))
+  }
+
+  /**
+   * Add a value to the distribution.
+   */
+  add(value: number): void {
+    this.meanVariance.add(value)
+    this.minMax.add(value)
+    this.quantiles.add(value)
+  }
+
+  /**
+   * Get complete distribution statistics.
+   */
+  getStatistics(): DistributionStatistics {
+    const min = this.minMax.getMin()
+    const max = this.minMax.getMax()
+    const count = this.meanVariance.getCount()
+
+    if (min === undefined || max === undefined || count === 0) {
+      throw new Error('Cannot get statistics: no values added')
+    }
+
+    return {
+      min,
+      max,
+      mean: this.meanVariance.getMean(),
+      median: this.quantiles.getMedian(),
+      q1: this.quantiles.getQ1(),
+      q3: this.quantiles.getQ3(),
+      stdDev: this.meanVariance.getStdDev(),
+      count
+    }
+  }
+
+  getHistogram(binCount = DEFAULT_HISTOGRAM_BINS): HistogramBin[] {
+    const samples = this.quantiles.getSampleValues()
+    if (samples.length === 0) return []
+
+    const min = Math.min(...samples)
+    const max = Math.max(...samples)
+    if (min === max) {
+      return [{
+        label: `${min}`,
+        start: min,
+        end: max,
+        count: samples.length,
+        percentage: 100
+      }]
+    }
+
+    const binSize = (max - min) / binCount
+    const bins: HistogramBin[] = []
+    for (let i = 0; i < binCount; i++) {
+      const start = min + i * binSize
+      const end = i === binCount - 1 ? max : start + binSize
+      bins.push({label: `${start.toFixed(2)}-${end.toFixed(2)}`, start, end, count: 0, percentage: 0})
+    }
+
+    for (const value of samples) {
+      let idx = Math.floor((value - min) / binSize)
+      if (idx >= binCount) idx = binCount - 1
+      bins[idx]!.count += 1
+    }
+
+    for (const bin of bins) {
+      bin.percentage = (bin.count / samples.length) * 100
+    }
+
+    return bins
+  }
+
+  /**
+   * Get the number of values added.
+   */
+  getCount(): number {
+    return this.meanVariance.getCount()
+  }
+
+  /**
+   * Reset all trackers.
+   */
+  reset(): void {
+    this.meanVariance.reset()
+    this.minMax.reset()
+    this.quantiles.reset()
+  }
+}
+
+/**
+ * Interface for arbitrary-like objects passed to statistics collector.
+ */
+interface ArbitraryLike {
+  cornerCases(): unknown[]
+  hashCode(): (a: unknown) => number
+  equals(): (a: unknown, b: unknown) => boolean
+}
+
+/**
+ * Extract length statistics from a distribution tracker.
+ */
+function toLengthStatistics(tracker: DistributionTracker): LengthStatistics {
+  const stats = tracker.getStatistics()
+  return {
+    min: stats.min,
+    max: stats.max,
+    mean: stats.mean,
+    median: stats.median,
+    count: stats.count
+  }
+}
+
+/**
+ * Collector for per-arbitrary statistics.
+ */
+export class ArbitraryStatisticsCollector {
+  private samplesGenerated = 0
+  private readonly uniqueValuesBuckets = new Map<number, unknown[]>()
+  private uniqueValuesCount = 0
+  private readonly cornerCasesTested: unknown[] = []
+  private cornerCasesTotal = 0
+  private distributionTracker?: DistributionTracker
+  private arrayLengthTracker?: DistributionTracker
+  private stringLengthTracker?: DistributionTracker
+
+  /**
+   * Record that a sample was generated.
+   */
+  recordSample(value: unknown, arbitrary: ArbitraryLike): void {
+    this.samplesGenerated++
+
+    const hashFn = arbitrary.hashCode()
+    const eqFn = arbitrary.equals()
+    const h = hashFn(value)
+
+    // Check for existence in bucket
+    const bucket = this.uniqueValuesBuckets.get(h)
+    const isUnique = bucket === undefined
+      ? (this.uniqueValuesBuckets.set(h, [value]), true)
+      : !bucket.some(v => eqFn(v, value)) && (bucket.push(value), true)
+
+    if (isUnique) {
+      this.uniqueValuesCount++
+      this.checkCornerCase(value, arbitrary)
+    }
+  }
+
+  private checkCornerCase(value: unknown, arbitrary: ArbitraryLike): void {
+    const cornerCases = arbitrary.cornerCases()
+    this.cornerCasesTotal = cornerCases.length
+    const valueStr = stringify(value)
+
+    for (const cornerCase of cornerCases) {
+      if (stringify(cornerCase) === valueStr) {
+        this.cornerCasesTested.push(value)
+        break
+      }
+    }
+  }
+
+  /** Record a numeric value for distribution tracking. */
+  recordNumericValue(value: number): void {
+    this.distributionTracker ??= new DistributionTracker()
+    this.distributionTracker.add(value)
+  }
+
+  /** Record an array length value for tracking. */
+  recordArrayLength(length: number): void {
+    this.arrayLengthTracker ??= new DistributionTracker()
+    this.arrayLengthTracker.add(length)
+  }
+
+  /** Record a string length value for tracking. */
+  recordStringLength(length: number): void {
+    this.stringLengthTracker ??= new DistributionTracker()
+    this.stringLengthTracker.add(length)
+  }
+
+  /** Get the collected statistics. */
+  getStatistics(): ArbitraryStatistics {
+    const stats: ArbitraryStatistics = {
+      samplesGenerated: this.samplesGenerated,
+      uniqueValues: this.uniqueValuesCount,
+      cornerCases: {tested: this.cornerCasesTested, total: this.cornerCasesTotal}
+    }
+
+    if (this.distributionTracker !== undefined && this.distributionTracker.getCount() > 0) {
+      stats.distribution = this.distributionTracker.getStatistics()
+      const histogram = this.distributionTracker.getHistogram()
+      if (histogram.length > 0) {
+        stats.distributionHistogram = histogram
+      }
+    }
+    if (this.arrayLengthTracker !== undefined && this.arrayLengthTracker.getCount() > 0) {
+      stats.arrayLengths = toLengthStatistics(this.arrayLengthTracker)
+      const histogram = this.arrayLengthTracker.getHistogram()
+      if (histogram.length > 0) {
+        stats.arrayLengthHistogram = histogram
+      }
+    }
+    if (this.stringLengthTracker !== undefined && this.stringLengthTracker.getCount() > 0) {
+      stats.stringLengths = toLengthStatistics(this.stringLengthTracker)
+      const histogram = this.stringLengthTracker.getHistogram()
+      if (histogram.length > 0) {
+        stats.stringLengthHistogram = histogram
+      }
+    }
+
+    return stats
+  }
+
+  /** Reset the collector. */
+  reset(): void {
+    this.samplesGenerated = 0
+    this.uniqueValuesBuckets.clear()
+    this.uniqueValuesCount = 0
+    this.cornerCasesTested.length = 0
+    this.cornerCasesTotal = 0
+    this.distributionTracker?.reset()
+    this.arrayLengthTracker?.reset()
+    this.stringLengthTracker?.reset()
+  }
+}
+
+/**
+ * Context for collecting detailed statistics during test execution.
+ */
+export class StatisticsContext {
+  constructor(
+    private readonly options: {
+      verbosity?: Verbosity
+      logger?: Logger
+    } = {}
+  ) {}
+
+  private readonly arbitraryCollectors = new Map<string, ArbitraryStatisticsCollector>()
+  private readonly eventCounts = new Map<string, Set<number>>() // Set of test case indices per event
+  private readonly targetTrackers = new Map<string, DistributionTracker>()
+  private currentTestCaseIndex = 0
+
+  /**
+   * Get or create a collector for a quantifier.
+   */
+  getCollector(quantifierName: string): ArbitraryStatisticsCollector {
+    let collector = this.arbitraryCollectors.get(quantifierName)
+    if (collector === undefined) {
+      collector = new ArbitraryStatisticsCollector()
+      this.arbitraryCollectors.set(quantifierName, collector)
+    }
+    return collector
+  }
+
+  /**
+   * Record an event for the current test case.
+   */
+  recordEvent(name: string, testCaseIndex: number, payload?: unknown): void {
+    let testCases = this.eventCounts.get(name)
+    if (testCases === undefined) {
+      testCases = new Set<number>()
+      this.eventCounts.set(name, testCases)
+    }
+    testCases.add(testCaseIndex)
+
+    if (this.shouldLog(Verbosity.Debug)) {
+      this.log('debug', 'event', {name, payload, testCaseIndex})
+    }
+  }
+
+  /**
+   * Record a target observation.
+   */
+  recordTarget(label: string, observation: number): void {
+    let tracker = this.targetTrackers.get(label)
+    if (tracker === undefined) {
+      tracker = new DistributionTracker()
+      this.targetTrackers.set(label, tracker)
+    }
+    tracker.add(observation)
+  }
+
+  /**
+   * Set the current test case index (for event deduplication).
+   */
+  setTestCaseIndex(index: number): void {
+    this.currentTestCaseIndex = index
+  }
+
+  /**
+   * Get the current test case index.
+   */
+  getTestCaseIndex(): number {
+    return this.currentTestCaseIndex
+  }
+
+  /**
+   * Log an invalid target observation when verbosity allows it.
+   */
+  logInvalidTarget(label: string, observation: number): void {
+    if (!this.shouldLog(Verbosity.Normal)) return
+    this.log('warn', 'Invalid target observation ignored', {label, observation})
+  }
+
+  /**
+   * Get event counts (number of test cases with each event).
+   */
+  getEventCounts(): Record<string, number> {
+    const counts: Record<string, number> = {}
+    for (const [name, testCases] of this.eventCounts.entries()) {
+      counts[name] = testCases.size
+    }
+    return counts
+  }
+
+  /**
+   * Get target statistics.
+   */
+  getTargetStatistics(): Record<string, TargetStatistics> {
+    const stats: Record<string, TargetStatistics> = {}
+    for (const [label, tracker] of this.targetTrackers.entries()) {
+      const distStats = tracker.getStatistics()
+      stats[label] = {
+        best: distStats.max,
+        observations: distStats.count,
+        mean: distStats.mean
+      }
+    }
+    return stats
+  }
+
+  /**
+   * Get all arbitrary statistics.
+   * Returns empty object if no collectors exist (when detailed statistics disabled).
+   */
+  getArbitraryStatistics(): Record<string, ArbitraryStatistics> {
+    const stats: Record<string, ArbitraryStatistics> = {}
+    for (const [name, collector] of this.arbitraryCollectors.entries()) {
+      stats[name] = collector.getStatistics()
+    }
+    return stats
+  }
+
+  /**
+   * Reset the context.
+   */
+  reset(): void {
+    this.arbitraryCollectors.clear()
+    this.eventCounts.clear()
+    this.targetTrackers.clear()
+    this.currentTestCaseIndex = 0
+  }
+
+  private shouldLog(requiredVerbosity: Verbosity): boolean {
+    const verbosity = this.options.verbosity ?? Verbosity.Normal
+    return verbosity >= requiredVerbosity && verbosity !== Verbosity.Quiet
+  }
+
+  private log(level: LogLevel, message: string, data?: Record<string, unknown>): void {
+    if (!this.shouldLog(level === 'debug' ? Verbosity.Debug : Verbosity.Normal)) return
+    const entry: LogEntry = {level, message, ...(data !== undefined && {data})}
+    if (this.options.logger !== undefined) {
+      this.options.logger.log(entry)
+    } else {
+      // Fallback to console with minimal formatting
+      const payload = data !== undefined ? JSON.stringify(data) : ''
+      switch (level) {
+        case 'warn':
+          console.warn(message, payload)
+          break
+        case 'error':
+          console.error(message, payload)
+          break
+        case 'debug':
+          console.debug(`[DEBUG] ${message}`, payload)
+          break
+        default:
+          console.log(message, payload)
+      }
+    }
+  }
+}
+
+/**
+ * Global context storage for fc.event() and fc.target() access.
+ * Uses AsyncLocalStorage for context propagation in async environments.
+ */
+const statisticsContextStorage = new AsyncLocalStorage<StatisticsContext>()
+
+/**
+ * Get the current statistics context (for internal use).
+ */
+export function getCurrentStatisticsContext(): StatisticsContext | undefined {
+  return statisticsContextStorage.getStore()
+}
+
+/**
+ * Run a callback with a statistics context.
+ */
+export function runWithStatisticsContext<T>(
+  context: StatisticsContext,
+  callback: () => T
+): T {
+  return statisticsContextStorage.run(context, callback)
 }

@@ -588,6 +588,54 @@ console.log(result.statistics.labels)          // { small: ~50, large: ~50 }
 - Understand the distribution of generated test data
 - Ensure balanced testing across different input types
 
+### Detailed Statistics
+
+FluentCheck can collect and report comprehensive execution statistics, helping you understand the quality and coverage of your tests.
+
+#### Enabling Statistics
+
+Use `.withDetailedStatistics()` to track distribution data, corner case coverage, and more:
+
+```typescript
+fc.scenario()
+  .config(fc.strategy().withDetailedStatistics())
+  .forall('age', fc.integer(0, 120))
+  .forall('name', fc.string())
+  .then(({age, name}) => processUser(age, name))
+  .check({ logStatistics: true }); // Prints report to console
+```
+
+#### Event Tracking
+
+Track custom events to verify that your tests are hitting interesting logic branches:
+
+```typescript
+fc.scenario()
+  .forall('data', fc.array(fc.integer()))
+  .then(({data}) => {
+    if (data.length === 0) fc.event('empty');
+    if (new Set(data).size !== data.length) fc.event('has duplicates');
+    
+    return processData(data);
+  })
+  .check();
+```
+
+#### Optimization Targets
+
+Track numeric metrics to see what extremes your tests are reaching:
+
+```typescript
+fc.scenario()
+  .forall('graph', fc.graph())
+  .then(({graph}) => {
+    fc.target(graph.nodes.length, 'node count');
+    fc.target(graph.edges.length, 'edge count');
+    return isValid(graph);
+  })
+  .check();
+```
+
 ## Detailed Documentation
 
 For more details on each feature, check out our detailed documentation:

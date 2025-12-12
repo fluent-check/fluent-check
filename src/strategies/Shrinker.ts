@@ -99,6 +99,11 @@ export interface ShrinkResult<Rec extends {}> {
    * Number of successful shrink rounds (times we found a smaller counterexample).
    */
   readonly rounds: number
+
+  /**
+   * Number of shrinking iterations completed (total rounds attempted).
+   */
+  readonly roundsCompleted?: number
 }
 
 /**
@@ -213,6 +218,7 @@ export class PerArbitraryShrinker<Rec extends {}> implements Shrinker<Rec> {
     let current = {...input}
     let attempts = 0
     let rounds = 0
+    let roundsCompleted = 0
 
     const shrinkQuantifier = (quantifier: ExecutableQuantifier) => {
       const key = quantifier.name as keyof Rec
@@ -249,6 +255,7 @@ export class PerArbitraryShrinker<Rec extends {}> implements Shrinker<Rec> {
     }
 
     while (rounds < budget.maxRounds && attempts < budget.maxAttempts) {
+      roundsCompleted++
       let foundSmaller = false
 
       for (const quantifier of quantifiers) {
@@ -265,7 +272,8 @@ export class PerArbitraryShrinker<Rec extends {}> implements Shrinker<Rec> {
     return {
       minimized: current,
       attempts,
-      rounds
+      rounds,
+      roundsCompleted
     }
   }
 

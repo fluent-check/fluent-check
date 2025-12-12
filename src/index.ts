@@ -1,7 +1,8 @@
 import {FluentCheck, pre, PreconditionFailure} from './FluentCheck.js'
 import {FluentStrategyFactory} from './strategies/FluentStrategyFactory.js'
-export {expect} from './FluentReporter.js'
-export {pre, PreconditionFailure}
+export {expect, FluentReporter, type FormatStatisticsOptions} from './FluentReporter.js'
+export {pre, PreconditionFailure} from './FluentCheck.js'
+export {event, target, type ProgressInfo, type CheckOptions} from './FluentCheck.js'
 export {prop} from './FluentProperty.js'
 export type {FluentProperty} from './FluentProperty.js'
 export {strategies} from './strategies/presets.js'
@@ -52,6 +53,37 @@ export {
   type ShrinkBudget,
   type ShrinkResult
 } from './strategies/Shrinker.js'
+export {
+  Verbosity,
+  StreamingMeanVariance,
+  StreamingMinMax,
+  StreamingQuantiles,
+  DistributionTracker,
+  type Logger,
+  type LogEntry,
+  type LogLevel,
+  type FluentStatistics,
+  type ArbitraryStatistics,
+  type DistributionStatistics,
+  type LengthStatistics,
+  type TargetStatistics,
+  type ShrinkingStatistics
+} from './statistics.js'
+export {
+  DefaultStatisticsAggregator,
+  type StatisticsAggregator,
+  type StatisticsAggregationInput
+} from './statisticsAggregator.js'
+export {
+  type ProgressReporter,
+  type ResultReporter,
+  NoopProgressReporter,
+  CallbackProgressReporter,
+  ThrottlingProgressReporter,
+  NoopResultReporter,
+  ConsoleStatisticsReporter,
+  LoggerStatisticsReporter
+} from './reporting.js'
 export const scenario = () => new FluentCheck()
 export const strategy = () => new FluentStrategyFactory()
 export {
