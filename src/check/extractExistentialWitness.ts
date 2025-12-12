@@ -1,6 +1,5 @@
 import type {Scenario} from '../Scenario.js'
 import type {BoundTestCase} from '../strategies/types.js'
-import type {FluentPick} from '../arbitraries/index.js'
 
 /**
  * Extract only the existential quantifier values from a bound test case.
@@ -18,9 +17,9 @@ export function extractExistentialWitness<Rec extends {}>(
   )
 
   const example: Record<string, unknown> = {}
-  for (const [key, pick] of Object.entries(boundTestCase)) {
-    if (existentialNames.has(key)) {
-      example[key] = (pick as FluentPick<unknown>).value
+  for (const key in boundTestCase) {
+    if (Object.prototype.hasOwnProperty.call(boundTestCase, key) && existentialNames.has(key)) {
+      example[key] = boundTestCase[key].value
     }
   }
 

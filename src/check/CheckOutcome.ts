@@ -24,23 +24,19 @@ interface BaseOutcome<Rec extends {}> {
 export interface ForallPassOutcome<Rec extends {}> extends BaseOutcome<Rec> {
   readonly kind: 'forall-pass'
   readonly satisfiable: true
-  readonly example: Rec
 }
 
 export interface ExistsPassOutcome<Rec extends {}> extends BaseOutcome<Rec> {
   readonly kind: 'exists-pass'
   readonly satisfiable: true
-  readonly example: Rec
 }
 
 export interface ExhaustedOutcome<Rec extends {}> extends BaseOutcome<Rec> {
   readonly kind: 'exhausted'
   // satisfiable depends on hasExistential
-  readonly example: Rec
 }
 
 export interface FailedOutcome<Rec extends {}> extends BaseOutcome<Rec> {
   readonly kind: 'failed'
   readonly satisfiable: false
-  readonly example: Rec
 }

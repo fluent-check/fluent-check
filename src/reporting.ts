@@ -86,7 +86,7 @@ export interface ResultReporter<Rec extends {} = {}> {
 }
 
 export class NoopResultReporter<Rec extends {} = {}> implements ResultReporter<Rec> {
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+
   onComplete(_result: FluentResult<Rec>): void {
     // no-op
   }
