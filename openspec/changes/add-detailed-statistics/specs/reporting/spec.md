@@ -31,6 +31,7 @@ The system SHALL suppress all output in Quiet mode.
 - **THEN** no output SHALL be written to console during test execution
 - **AND** no progress updates SHALL be emitted
 - **AND** errors SHALL still be thrown on failure (but not logged)
+- **AND** enabling `logStatistics` SHALL NOT produce output (Quiet mode wins)
 
 ### Requirement: Normal Output
 

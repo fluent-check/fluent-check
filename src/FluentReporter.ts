@@ -1,5 +1,5 @@
 import type {FluentResult} from './FluentCheck.js'
-import type {FluentStatistics} from './statistics.js'
+import type {FluentStatistics, HistogramBin} from './statistics.js'
 
 export function expect<Rec extends {}>(result: FluentResult<Rec>): void | never {
   if (!result.satisfiable) {
@@ -70,10 +70,20 @@ export class FluentReporter extends Error {
   private static formatText(
     statistics: FluentStatistics,
     detailed: boolean,
-    _includeHistograms: boolean,
+    includeHistograms: boolean,
     maxLabelRows: number
   ): string {
     const lines: string[] = []
+    const renderHistogram = (bins?: HistogramBin[], heading?: string) => {
+      if (!includeHistograms || bins === undefined || bins.length === 0) return
+      const maxCount = Math.max(...bins.map(b => b.count))
+      if (heading !== undefined) lines.push(`    ${heading}:`)
+      for (const bin of bins) {
+        const width = maxCount === 0 ? 0 : Math.max(1, Math.round((bin.count / maxCount) * 20))
+        const bar = '█'.repeat(width)
+        lines.push(`      ${bin.label.padEnd(14)} ${bar} ${bin.percentage.toFixed(1)}%`)
+      }
+    }
 
     lines.push('Statistics:')
     lines.push(`  Tests run: ${statistics.testsRun}`)
@@ -99,6 +109,17 @@ export class FluentReporter extends Error {
       const remaining = Object.keys(statistics.labels).length - sortedLabels.length
       if (remaining > 0) {
         lines.push(`  ... and ${remaining} more`)
+      }
+
+      if (includeHistograms && sortedLabels.length > 0) {
+        const maxCount = Math.max(...sortedLabels.map(([, count]) => count))
+        lines.push('  Label histogram:')
+        for (const [label, count] of sortedLabels) {
+          const percentage = statistics.labelPercentages?.[label] ?? 0
+          const width = maxCount === 0 ? 0 : Math.max(1, Math.round((count / maxCount) * 20))
+          const bar = '█'.repeat(width)
+          lines.push(`    ${label}: ${bar} ${percentage.toFixed(1)}%`)
+        }
       }
     }
 
@@ -134,18 +155,21 @@ export class FluentReporter extends Error {
           lines.push(`      Q1: ${stats.distribution.q1.toFixed(2)}`)
           lines.push(`      Q3: ${stats.distribution.q3.toFixed(2)}`)
           lines.push(`      StdDev: ${stats.distribution.stdDev.toFixed(2)}`)
+          renderHistogram(stats.distributionHistogram, 'Histogram')
         }
 
         if (stats.arrayLengths !== undefined) {
           lines.push('    Array lengths:')
           lines.push(`      Min: ${stats.arrayLengths.min}, Max: ${stats.arrayLengths.max}`)
           lines.push(`      Mean: ${stats.arrayLengths.mean.toFixed(2)}, Median: ${stats.arrayLengths.median.toFixed(2)}`)
+          renderHistogram(stats.arrayLengthHistogram, 'Histogram')
         }
 
         if (stats.stringLengths !== undefined) {
           lines.push('    String lengths:')
           lines.push(`      Min: ${stats.stringLengths.min}, Max: ${stats.stringLengths.max}`)
           lines.push(`      Mean: ${stats.stringLengths.mean.toFixed(2)}, Median: ${stats.stringLengths.median.toFixed(2)}`)
+          renderHistogram(stats.stringLengthHistogram, 'Histogram')
         }
       }
     }
@@ -156,10 +180,22 @@ export class FluentReporter extends Error {
   private static formatMarkdown(
     statistics: FluentStatistics,
     detailed: boolean,
-    _includeHistograms: boolean,
+    includeHistograms: boolean,
     maxLabelRows: number
   ): string {
     const lines: string[] = []
+    const renderHistogram = (bins?: HistogramBin[]) => {
+      if (!includeHistograms || bins === undefined || bins.length === 0) return
+      lines.push('')
+      lines.push('```\nHistogram')
+      const maxCount = Math.max(...bins.map(b => b.count))
+      for (const bin of bins) {
+        const width = maxCount === 0 ? 0 : Math.max(1, Math.round((bin.count / maxCount) * 20))
+        const bar = '█'.repeat(width)
+        lines.push(`${bin.label.padEnd(14)} ${bar} ${bin.percentage.toFixed(1)}%`)
+      }
+      lines.push('```')
+    }
 
     lines.push('## Statistics')
     lines.push('')
@@ -195,6 +231,19 @@ export class FluentReporter extends Error {
         lines.push(`| ... and ${remaining} more | | |`)
       }
       lines.push('')
+
+      if (includeHistograms && sortedLabels.length > 0) {
+        const maxCount = Math.max(...sortedLabels.map(([, count]) => count))
+        lines.push('```\nLabel histogram')
+        for (const [label, count] of sortedLabels) {
+          const percentage = statistics.labelPercentages?.[label] ?? 0
+          const width = maxCount === 0 ? 0 : Math.max(1, Math.round((count / maxCount) * 20))
+          const bar = '█'.repeat(width)
+          lines.push(`${label}: ${bar} ${percentage.toFixed(1)}%`)
+        }
+        lines.push('```')
+        lines.push('')
+      }
     }
 
     if (statistics.events !== undefined && Object.keys(statistics.events).length > 0) {
@@ -237,6 +286,7 @@ export class FluentReporter extends Error {
           lines.push(`- Mean: ${stats.distribution.mean.toFixed(2)}, Median: ${stats.distribution.median.toFixed(2)}`)
           lines.push(`- Q1: ${stats.distribution.q1.toFixed(2)}, Q3: ${stats.distribution.q3.toFixed(2)}`)
           lines.push(`- StdDev: ${stats.distribution.stdDev.toFixed(2)}`)
+          renderHistogram(stats.distributionHistogram)
         }
 
         if (stats.arrayLengths !== undefined) {
@@ -244,6 +294,7 @@ export class FluentReporter extends Error {
           lines.push('**Array lengths:**')
           lines.push(`- Min: ${stats.arrayLengths.min}, Max: ${stats.arrayLengths.max}`)
           lines.push(`- Mean: ${stats.arrayLengths.mean.toFixed(2)}, Median: ${stats.arrayLengths.median.toFixed(2)}`)
+          renderHistogram(stats.arrayLengthHistogram)
         }
 
         if (stats.stringLengths !== undefined) {
@@ -251,6 +302,7 @@ export class FluentReporter extends Error {
           lines.push('**String lengths:**')
           lines.push(`- Min: ${stats.stringLengths.min}, Max: ${stats.stringLengths.max}`)
           lines.push(`- Mean: ${stats.stringLengths.mean.toFixed(2)}, Median: ${stats.stringLengths.median.toFixed(2)}`)
+          renderHistogram(stats.stringLengthHistogram)
         }
         lines.push('')
       }

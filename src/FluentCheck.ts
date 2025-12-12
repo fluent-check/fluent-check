@@ -25,7 +25,8 @@ import {
   wilsonScoreInterval,
   getCurrentStatisticsContext,
   StatisticsContext as StatisticsContextClass,
-  Verbosity
+  Verbosity,
+  type Logger
 } from './statistics.js'
 
 type PickResult<V> = BoundTestCase<Record<string, V>>
@@ -111,13 +112,13 @@ export function pre(condition: boolean, message?: string): asserts condition {
  *   .check()
  * ```
  */
-export function event(name: string): void {
+export function event(name: string, payload?: unknown): void {
   const context = getCurrentStatisticsContext()
   if (context === undefined) {
     throw new Error('fc.event() can only be called within a property function (.then() callback)')
   }
   const testCaseIndex = context.getTestCaseIndex()
-  context.recordEvent(name, testCaseIndex)
+  context.recordEvent(name, testCaseIndex, payload)
 }
 
 /**
@@ -144,7 +145,7 @@ export function target(observation: number, label = 'default'): void {
     throw new Error('fc.target() can only be called within a property function (.then() callback)')
   }
   if (!Number.isFinite(observation)) {
-    // Log warning if verbosity >= Normal (not implemented yet)
+    context.logInvalidTarget(label, observation)
     return
   }
   context.recordTarget(label, observation)
@@ -182,6 +183,8 @@ export interface CheckOptions {
   onProgress?: (progress: ProgressInfo) => void
   /** Progress update interval (default: 100 tests or 1000ms) */
   progressInterval?: number
+  /** Custom logger for structured output */
+  logger?: Logger
 }
 
 export class FluentResult<Rec extends {} = {}> {
@@ -602,9 +605,7 @@ export class FluentCheck<
       maxTests: factory.configuration.sampleSize ?? 1000
     }
 
-    // Create statistics context for events/targets (always needed) and detailed stats (if enabled)
-    // Events and targets work independently of detailed statistics
-    const statisticsContext = new StatisticsContextClass()
+    // Determine detailed stats flag early for later use
     const detailedStatisticsEnabled = factory.getDetailedStatistics()
 
     // Build property function from scenario's then nodes
@@ -618,6 +619,37 @@ export class FluentCheck<
     // Handle verbose shortcut
     const effectiveVerbosity = checkOptions.verbose === true ? Verbosity.Verbose : verbosity
 
+    const userLogger = checkOptions.logger
+    const shouldLogVerbosity = (min: Verbosity) =>
+      effectiveVerbosity >= min && effectiveVerbosity !== Verbosity.Quiet
+    const log = (
+      level: 'debug' | 'info' | 'warn' | 'error',
+      message: string,
+      data?: Record<string, unknown>,
+      minVerbosity: Verbosity = Verbosity.Normal
+    ) => {
+      if (!shouldLogVerbosity(minVerbosity)) return
+      const entry = {level, message, ...(data !== undefined && {data})}
+      if (userLogger !== undefined) {
+        userLogger.log(entry)
+        return
+      }
+      const payload = data !== undefined ? JSON.stringify(data) : ''
+      switch (level) {
+        case 'warn':
+          console.warn(message, payload)
+          break
+        case 'error':
+          console.error(message, payload)
+          break
+        case 'debug':
+          console.debug(`[DEBUG] ${message}`, payload)
+          break
+        default:
+          console.log(message, payload)
+      }
+    }
+
     // Progress tracking
     const DEFAULT_PROGRESS_INTERVAL = 100 // Default: update every 100 tests
     const DEFAULT_PROGRESS_TIME_INTERVAL_MS = 1000 // Default: update every 1 second
@@ -628,17 +660,36 @@ export class FluentCheck<
     let lastProgressTime = startTime
 
     // Verbose output helper
-    const verboseLog = (message: string) => {
-      if (effectiveVerbosity >= Verbosity.Verbose) {
-        console.log(message)
-      }
-    }
+    const verboseLog = (message: string, data?: Record<string, unknown>) =>
+      log('info', message, data, Verbosity.Verbose)
 
     // Debug output helper
-    const debugLog = (message: string) => {
-      if (effectiveVerbosity >= Verbosity.Debug) {
-        console.log(`[DEBUG] ${message}`)
+    const debugLog = (message: string, data?: Record<string, unknown>) =>
+      log('debug', message, data, Verbosity.Debug)
+
+    const emitStatistics = (statistics: FluentStatistics) => {
+      if (checkOptions.logStatistics !== true) return
+      if (effectiveVerbosity === Verbosity.Quiet) return
+
+      if (userLogger !== undefined) {
+        userLogger.log({
+          level: 'info',
+          message: 'statistics',
+          data: {
+            statistics,
+            detailed: effectiveVerbosity >= Verbosity.Verbose,
+            includeHistograms: effectiveVerbosity >= Verbosity.Debug
+          }
+        })
+        return
       }
+
+      const formatted = FluentReporter.formatStatistics(statistics, {
+        format: 'text',
+        detailed: effectiveVerbosity >= Verbosity.Verbose,
+        includeHistograms: effectiveVerbosity >= Verbosity.Debug
+      })
+      console.log('\n' + formatted)
     }
 
     verboseLog(`Starting exploration with ${explorationBudget.maxTests} max tests...`)
@@ -648,6 +699,11 @@ export class FluentCheck<
     // Explore the search space
     // Always pass statistics context (for events/targets), even if detailed stats disabled
     // Pass progress callback wrapper that respects interval settings
+    const statisticsContext = new StatisticsContextClass({
+      verbosity: effectiveVerbosity,
+      ...(userLogger !== undefined ? {logger: userLogger} : {})
+    })
+
     const explorationResult = explorer.explore(
       executableScenario,
       property,
@@ -684,9 +740,7 @@ export class FluentCheck<
               onProgress(progressInfo)
             }
           } catch (e) {
-            if (effectiveVerbosity >= Verbosity.Normal) {
-              console.error('Progress callback error:', e)
-            }
+            log('error', 'Progress callback error', {error: e instanceof Error ? e.message : String(e)})
           }
         }
       } : undefined
@@ -714,9 +768,7 @@ export class FluentCheck<
       try {
         checkOptions.onProgress(finalProgress)
       } catch (e) {
-        if (effectiveVerbosity >= Verbosity.Normal) {
-          console.error('Progress callback error:', e)
-        }
+        log('error', 'Progress callback error', {error: e instanceof Error ? e.message : String(e)})
       }
     }
 
@@ -839,17 +891,7 @@ export class FluentCheck<
           explorationResult.skipped
         )
 
-        // Log statistics if requested
-        if (checkOptions.logStatistics === true) {
-          const format = effectiveVerbosity >= Verbosity.Verbose ? 'text' : 'text'
-          const formatted = FluentReporter.formatStatistics(result.statistics, {
-            format,
-            detailed: effectiveVerbosity >= Verbosity.Verbose
-          })
-          if (effectiveVerbosity >= Verbosity.Quiet) {
-            console.log('\n' + formatted)
-          }
-        }
+        emitStatistics(result.statistics)
 
         return result
       }
@@ -864,18 +906,7 @@ export class FluentCheck<
         explorationResult.skipped
       )
 
-      // Log statistics if requested
-      if (checkOptions.logStatistics === true) {
-        const format = effectiveVerbosity >= Verbosity.Verbose ? 'text' : 'text'
-        const formatted = FluentReporter.formatStatistics(result.statistics, {
-          format,
-          detailed: effectiveVerbosity >= Verbosity.Verbose
-        })
-        // Only log if not Quiet mode
-        if (effectiveVerbosity > Verbosity.Quiet) {
-          console.log('\n' + formatted)
-        }
-      }
+      emitStatistics(result.statistics)
 
       return result
     }
@@ -893,18 +924,7 @@ export class FluentCheck<
         explorationResult.skipped
       )
 
-      // Log statistics if requested
-      if (checkOptions.logStatistics === true) {
-        const format = effectiveVerbosity >= Verbosity.Verbose ? 'text' : 'text'
-        const formatted = FluentReporter.formatStatistics(result.statistics, {
-          format,
-          detailed: effectiveVerbosity >= Verbosity.Verbose
-        })
-        // Only log if not Quiet mode
-        if (effectiveVerbosity > Verbosity.Quiet) {
-          console.log('\n' + formatted)
-        }
-      }
+      emitStatistics(result.statistics)
 
       return result
     }
@@ -959,17 +979,7 @@ export class FluentCheck<
       explorationResult.skipped
     )
 
-    // Log statistics if requested
-    if (checkOptions.logStatistics === true) {
-      const format = effectiveVerbosity >= Verbosity.Verbose ? 'text' : 'text'
-      const formatted = FluentReporter.formatStatistics(result.statistics, {
-        format,
-        detailed: effectiveVerbosity >= Verbosity.Verbose
-      })
-      if (effectiveVerbosity >= Verbosity.Quiet) {
-        console.log('\n' + formatted)
-      }
-    }
+    emitStatistics(result.statistics)
 
     return result
   }

@@ -1,7 +1,7 @@
 import * as fc from '../src/index'
 import {it, describe, beforeEach, afterEach} from 'mocha'
 import {expect} from 'chai'
-import {Verbosity, FluentReporter, type ArbitraryStatistics, type FluentStatistics} from '../src/index'
+import {Verbosity, FluentReporter, type ArbitraryStatistics, type FluentStatistics, type Logger, type LogEntry} from '../src/index'
 
 // Helper to create a scenario with detailed statistics
 function detailedScenario(sampleSize = 100) {
@@ -20,18 +20,35 @@ function getArbitraryStats(result: {statistics: FluentStatistics}, name: string)
   return stats
 }
 
+function createTestLogger(): { logger: Logger; entries: LogEntry[] } {
+  const entries: LogEntry[] = []
+  const logger: Logger = {
+    log: (entry) => { entries.push(entry) }
+  }
+  return {logger, entries}
+}
+
 // Console capture helper for verbosity tests
 let capturedLogs: string[] = []
 let originalConsoleLog: typeof console.log
+let originalConsoleDebug: typeof console.debug
+let originalConsoleWarn: typeof console.warn
 
 function captureConsole() {
   capturedLogs = []
   originalConsoleLog = console.log
-  console.log = (...args: unknown[]) => capturedLogs.push(args.join(' '))
+  originalConsoleDebug = console.debug
+  originalConsoleWarn = console.warn
+  const handler = (...args: unknown[]) => capturedLogs.push(args.join(' '))
+  console.log = handler
+  console.debug = handler
+  console.warn = handler
 }
 
 function restoreConsole() {
   console.log = originalConsoleLog
+  console.debug = originalConsoleDebug
+  console.warn = originalConsoleWarn
 }
 
 describe('Detailed Statistics', () => {
@@ -181,6 +198,23 @@ describe('Detailed Statistics', () => {
       expect(result.statistics.events).to.exist
       expect(result.statistics.arbitraryStats).to.be.undefined
     })
+
+    it('should include payloads in debug output', () => {
+      const {logger, entries} = createTestLogger()
+      fc.scenario()
+        .config(fc.strategy().withVerbosity(Verbosity.Debug).withSampleSize(5))
+        .forall('x', fc.integer())
+        .then(({x}) => {
+          fc.event('payload', {x})
+          return true
+        })
+        .check({logger})
+
+      expect(entries.some(e => {
+        const payload = e.data !== undefined && 'payload' in e.data ? (e.data as Record<string, unknown>)['payload'] : undefined
+        return e.level === 'debug' && e.message === 'event' && payload !== undefined
+      })).to.be.true
+    })
   })
 
   describe('fc.target()', () => {
@@ -229,6 +263,7 @@ describe('Detailed Statistics', () => {
     })
 
     it('should ignore invalid target observations (NaN, Infinity)', () => {
+      const {logger} = createTestLogger()
       const result = basicScenario(50)
         .forall('x', fc.integer(0, 10))
         .then(({x}) => {
@@ -237,7 +272,7 @@ describe('Detailed Statistics', () => {
           fc.target(Infinity, 'invalid2')
           return true
         })
-        .check()
+        .check({logger})
 
       const targets = result.statistics.targets!
       expect(targets['valid']).to.exist
@@ -260,6 +295,24 @@ describe('Detailed Statistics', () => {
 
       expect(result.statistics.targets).to.exist
       expect(result.statistics.arbitraryStats).to.be.undefined
+    })
+
+    it('should log warnings for invalid observations', () => {
+      const {logger, entries} = createTestLogger()
+
+      basicScenario(10)
+        .forall('x', fc.integer())
+        .then(() => {
+          fc.target(Number.NaN, 'invalid')
+          return true
+        })
+        .check({logger})
+
+      expect(entries.some((e: LogEntry) => {
+        const isWarn = e.level === 'warn'
+        const hasMessage = typeof e.message === 'string' && e.message.includes('Invalid target')
+        return Boolean(isWarn && hasMessage)
+      })).to.be.true
     })
   })
 
@@ -363,6 +416,17 @@ describe('Detailed Statistics', () => {
 
       expect(capturedLogs.some(log => log.includes('[DEBUG]'))).to.be.true
     })
+
+    it('should suppress logger output in Quiet mode', () => {
+      const {logger, entries} = createTestLogger()
+      fc.scenario()
+        .config(fc.strategy().withVerbosity(Verbosity.Quiet).withSampleSize(10))
+        .forall('x', fc.integer())
+        .then(() => true)
+        .check({logStatistics: true, logger})
+
+      expect(entries).to.have.length(0)
+    })
   })
 
   describe('formatStatistics()', () => {
@@ -398,6 +462,22 @@ describe('Detailed Statistics', () => {
 
       const formatted = FluentReporter.formatStatistics(result.statistics, {format: 'text', maxLabelRows: 10})
       expect(formatted).to.include('... and')
+    })
+
+    it('should include histograms when requested', () => {
+      const result = detailedScenario(120)
+        .forall('x', fc.integer(0, 20))
+        .then(() => true)
+        .check()
+
+      const formatted = FluentReporter.formatStatistics(result.statistics, {
+        format: 'text',
+        detailed: true,
+        includeHistograms: true
+      })
+
+      expect(formatted).to.include('Histogram')
+      expect(formatted).to.include('█')
     })
   })
 

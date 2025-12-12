@@ -212,6 +212,18 @@ export enum Verbosity {
   Debug = 3
 }
 
+export type LogLevel = 'debug' | 'info' | 'warn' | 'error'
+
+export interface LogEntry {
+  level: LogLevel
+  message: string
+  data?: Record<string, unknown>
+}
+
+export interface Logger {
+  log: (entry: LogEntry) => void
+}
+
 /**
  * Statistics for a single arbitrary's generated values.
  */
@@ -234,10 +246,16 @@ export interface ArbitraryStatistics {
   }
   /** Distribution statistics for numeric arbitraries (optional) */
   distribution?: DistributionStatistics
+  /** Histogram bins for numeric arbitraries (optional) */
+  distributionHistogram?: HistogramBin[]
   /** Array length statistics for array arbitraries (optional) */
   arrayLengths?: LengthStatistics
+  /** Histogram bins for array lengths (optional) */
+  arrayLengthHistogram?: HistogramBin[]
   /** String length statistics for string arbitraries (optional) */
   stringLengths?: LengthStatistics
+  /** Histogram bins for string lengths (optional) */
+  stringLengthHistogram?: HistogramBin[]
 }
 
 /**
@@ -266,6 +284,17 @@ export interface DistributionStatistics {
  * Length statistics for arrays or strings (subset of DistributionStatistics).
  */
 export type LengthStatistics = Pick<DistributionStatistics, 'min' | 'max' | 'mean' | 'median' | 'count'>
+
+/**
+ * Histogram bin representation for formatted output.
+ */
+export interface HistogramBin {
+  label: string
+  start: number
+  end: number
+  count: number
+  percentage: number
+}
 
 /**
  * Statistics for target observations.
@@ -437,116 +466,179 @@ export class StreamingMinMax {
 }
 
 /**
- * Default buffer size for streaming quantile estimation.
- * For samples <= this size, exact quantiles are computed.
- * For larger samples, approximate quantiles using a fixed-size buffer.
+ * Default buffer sizes for quantile estimation and histogram sampling.
  */
 export const DEFAULT_QUANTILE_BUFFER_SIZE = 100
+export const DEFAULT_HISTOGRAM_SAMPLE_SIZE = 200
+export const DEFAULT_HISTOGRAM_BINS = 10
 
 /**
- * Streaming quantile estimator using a simplified approach.
- *
- * For small samples (n <= DEFAULT_QUANTILE_BUFFER_SIZE), stores all values and computes exact quantiles.
- * For large samples, uses a fixed-size buffer with approximate quantiles via random replacement.
- *
- * Limitations:
- * - The random replacement strategy for large samples provides approximate quantiles
- *   but may not be as accurate as more sophisticated algorithms (e.g., P² algorithm).
- * - For production use with very large samples, consider implementing a more advanced
- *   streaming quantile algorithm if higher accuracy is required.
- *
- * The current implementation prioritizes simplicity and O(k) memory usage over
- * optimal accuracy for large samples.
+ * Streaming quantile estimator using the P² algorithm for q1/median/q3 with
+ * an initial exact phase. Maintains a bounded reservoir for histogram output.
  */
 export class StreamingQuantiles {
-  private readonly values: number[] = []
-  private readonly maxBufferSize: number
-  private sorted = false
+  private readonly probs = [0, 0.25, 0.5, 0.75, 1]
+  private readonly dn = [0, 0.25, 0.5, 0.75, 1]
+  private count = 0
+  private readonly initial: number[] = []
+  private q: number[] = []
+  private n: number[] = []
+  private np: number[] = []
+  private readonly reservoir: number[] = []
+  private readonly reservoirSize: number
 
-  constructor(maxBufferSize = DEFAULT_QUANTILE_BUFFER_SIZE) {
-    this.maxBufferSize = maxBufferSize
+  constructor(reservoirSize = DEFAULT_HISTOGRAM_SAMPLE_SIZE) {
+    this.reservoirSize = reservoirSize
   }
 
-  /**
-   * Add a value to the stream.
-   */
   add(value: number): void {
-    if (this.values.length < this.maxBufferSize) {
-      this.values.push(value)
-      this.sorted = false
+    this.count++
+    this.addToReservoir(value)
+
+    if (this.count <= 5) {
+      this.initial.push(value)
+      if (this.count === 5) {
+        this.initial.sort((a, b) => a - b)
+        this.q = [...this.initial]
+        this.n = [1, 2, 3, 4, 5]
+        this.np = this.probs.map(p => 1 + p * (this.count - 1))
+      }
+      return
+    }
+
+    let k: number
+    if (value < this.q[0]!) {
+      this.q[0] = value
+      k = 0
+    } else if (value >= this.q[4]!) {
+      this.q[4] = value
+      k = 3
     } else {
-      // For large samples, use reservoir sampling or approximate quantiles
-      // For now, we'll use a simple approach: replace a random element
-      const index = Math.floor(Math.random() * this.maxBufferSize)
-      this.values[index] = value
-      this.sorted = false
+      k = 0
+      while (k < 3 && value >= this.q[k + 1]!) k++
+    }
+
+    for (let i = k + 1; i < 5; i++) {
+      this.n[i]! += 1
+    }
+    for (let i = 0; i < 5; i++) {
+      this.np[i]! += this.dn[i]!
+    }
+
+    for (let i = 1; i <= 3; i++) {
+      const d = this.np[i]! - this.n[i]!
+      const di = Math.sign(d)
+      if (di !== 0 && this.canAdjustMarker(i, di)) {
+        const qNew = this.parabolic(i, di)
+        if (qNew > this.q[i - 1]! && qNew < this.q[i + 1]!) {
+          this.q[i] = qNew
+        } else {
+          this.q[i] = this.linear(i, di)
+        }
+        this.n[i]! += di
+      }
     }
   }
 
-  /**
-   * Get a quantile estimate (0.0 to 1.0).
-   */
   getQuantile(p: number): number {
     if (p < 0 || p > 1) {
       throw new Error(`Quantile must be between 0 and 1, got ${p}`)
     }
-    if (this.values.length === 0) {
-      return NaN
+    if (this.count === 0) return NaN
+    if (this.count <= 5) {
+      const values = [...this.initial].sort((a, b) => a - b)
+      const index = p * (values.length - 1)
+      const lower = Math.floor(index)
+      const upper = Math.ceil(index)
+      if (lower === upper) return values[lower]!
+      const weight = index - lower
+      return values[lower]! * (1 - weight) + values[upper]! * weight
     }
-    if (!this.sorted) {
-      this.values.sort((a, b) => a - b)
-      this.sorted = true
-    }
-    if (this.values.length === 1) {
-      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-      return this.values[0]!
-    }
-    const index = p * (this.values.length - 1)
-    const lower = Math.floor(index)
-    const upper = Math.ceil(index)
-    if (lower === upper) {
-      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-      return this.values[lower]!
-    }
-    const weight = index - lower
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    return this.values[lower]! * (1 - weight) + this.values[upper]! * weight
+
+    if (p <= 0) return this.q[0]!
+    if (p >= 1) return this.q[4]!
+
+    const idx = this.probs.findIndex(prob => prob >= p)
+    if (idx === -1 || idx === 0) return this.q[0]!
+    const lowerProb = this.probs[idx - 1]!
+    const upperProb = this.probs[idx]!
+    const lowerQ = this.q[idx - 1]!
+    const upperQ = this.q[idx]!
+    const weight = (p - lowerProb) / (upperProb - lowerProb)
+    return lowerQ * (1 - weight) + upperQ * weight
   }
 
-  /**
-   * Get the median (50th percentile).
-   */
   getMedian(): number {
     return this.getQuantile(0.5)
   }
 
-  /**
-   * Get the first quartile (25th percentile).
-   */
   getQ1(): number {
     return this.getQuantile(0.25)
   }
 
-  /**
-   * Get the third quartile (75th percentile).
-   */
   getQ3(): number {
     return this.getQuantile(0.75)
   }
 
-  /**
-   * Get the number of values added.
-   */
   getCount(): number {
-    return this.values.length
+    return this.count
   }
 
-  /**
-   * Reset the estimator.
-   */
+  getSampleValues(): number[] {
+    return [...this.reservoir]
+  }
+
   reset(): void {
-    this.values.length = 0
-    this.sorted = false
+    this.count = 0
+    this.initial.length = 0
+    this.q.length = 0
+    this.n.length = 0
+    this.np.length = 0
+    this.reservoir.length = 0
+  }
+
+  private canAdjustMarker(i: number, di: number): boolean {
+    const forwardGap = this.n[i + 1]! - this.n[i]!
+    const backwardGap = this.n[i - 1]! - this.n[i]!
+    return (di > 0 && forwardGap > 1) || (di < 0 && backwardGap < -1)
+  }
+
+  private parabolic(i: number, di: number): number {
+    const qi = this.q[i]!
+    const qiPlus = this.q[i + 1]!
+    const qiMinus = this.q[i - 1]!
+    const niPlus = this.n[i + 1]!
+    const ni = this.n[i]!
+    const niMinus = this.n[i - 1]!
+
+    const numerator =
+      di * (ni - niMinus + di) * (qiPlus - qi) / (niPlus - ni) +
+      di * (niPlus - ni - di) * (qi - qiMinus) / (ni - niMinus)
+
+    const denominator = niPlus - niMinus
+    if (denominator === 0) {
+      return qi
+    }
+    return qi + numerator / denominator
+  }
+
+  private linear(i: number, di: number): number {
+    const nextIndex = i + di
+    const deltaN = this.n[nextIndex]! - this.n[i]!
+    if (deltaN === 0) return this.q[i]!
+    return this.q[i]! + di * (this.q[nextIndex]! - this.q[i]!) / deltaN
+  }
+
+  private addToReservoir(value: number): void {
+    if (this.reservoir.length < this.reservoirSize) {
+      this.reservoir.push(value)
+      return
+    }
+
+    const idx = Math.floor(Math.random() * this.count)
+    if (idx < this.reservoirSize) {
+      this.reservoir[idx] = value
+    }
   }
 }
 
@@ -559,10 +651,13 @@ export class DistributionTracker {
   private readonly minMax: StreamingMinMax
   private readonly quantiles: StreamingQuantiles
 
-  constructor(maxQuantileBufferSize = DEFAULT_QUANTILE_BUFFER_SIZE) {
+  constructor(
+    maxQuantileBufferSize = DEFAULT_QUANTILE_BUFFER_SIZE,
+    private readonly histogramSampleSize = DEFAULT_HISTOGRAM_SAMPLE_SIZE
+  ) {
     this.meanVariance = new StreamingMeanVariance()
     this.minMax = new StreamingMinMax()
-    this.quantiles = new StreamingQuantiles(maxQuantileBufferSize)
+    this.quantiles = new StreamingQuantiles(Math.max(maxQuantileBufferSize, this.histogramSampleSize))
   }
 
   /**
@@ -596,6 +691,43 @@ export class DistributionTracker {
       stdDev: this.meanVariance.getStdDev(),
       count
     }
+  }
+
+  getHistogram(binCount = DEFAULT_HISTOGRAM_BINS): HistogramBin[] {
+    const samples = this.quantiles.getSampleValues()
+    if (samples.length === 0) return []
+
+    const min = Math.min(...samples)
+    const max = Math.max(...samples)
+    if (min === max) {
+      return [{
+        label: `${min}`,
+        start: min,
+        end: max,
+        count: samples.length,
+        percentage: 100
+      }]
+    }
+
+    const binSize = (max - min) / binCount
+    const bins: HistogramBin[] = []
+    for (let i = 0; i < binCount; i++) {
+      const start = min + i * binSize
+      const end = i === binCount - 1 ? max : start + binSize
+      bins.push({label: `${start.toFixed(2)}-${end.toFixed(2)}`, start, end, count: 0, percentage: 0})
+    }
+
+    for (const value of samples) {
+      let idx = Math.floor((value - min) / binSize)
+      if (idx >= binCount) idx = binCount - 1
+      bins[idx]!.count += 1
+    }
+
+    for (const bin of bins) {
+      bin.percentage = (bin.count / samples.length) * 100
+    }
+
+    return bins
   }
 
   /**
@@ -714,12 +846,24 @@ export class ArbitraryStatisticsCollector {
 
     if (this.distributionTracker !== undefined && this.distributionTracker.getCount() > 0) {
       stats.distribution = this.distributionTracker.getStatistics()
+      const histogram = this.distributionTracker.getHistogram()
+      if (histogram.length > 0) {
+        stats.distributionHistogram = histogram
+      }
     }
     if (this.arrayLengthTracker !== undefined && this.arrayLengthTracker.getCount() > 0) {
       stats.arrayLengths = toLengthStatistics(this.arrayLengthTracker)
+      const histogram = this.arrayLengthTracker.getHistogram()
+      if (histogram.length > 0) {
+        stats.arrayLengthHistogram = histogram
+      }
     }
     if (this.stringLengthTracker !== undefined && this.stringLengthTracker.getCount() > 0) {
       stats.stringLengths = toLengthStatistics(this.stringLengthTracker)
+      const histogram = this.stringLengthTracker.getHistogram()
+      if (histogram.length > 0) {
+        stats.stringLengthHistogram = histogram
+      }
     }
 
     return stats
@@ -742,6 +886,13 @@ export class ArbitraryStatisticsCollector {
  * Context for collecting detailed statistics during test execution.
  */
 export class StatisticsContext {
+  constructor(
+    private readonly options: {
+      verbosity?: Verbosity
+      logger?: Logger
+    } = {}
+  ) {}
+
   private readonly arbitraryCollectors = new Map<string, ArbitraryStatisticsCollector>()
   private readonly eventCounts = new Map<string, Set<number>>() // Set of test case indices per event
   private readonly targetTrackers = new Map<string, DistributionTracker>()
@@ -762,23 +913,23 @@ export class StatisticsContext {
   /**
    * Record an event for the current test case.
    */
-  recordEvent(name: string, testCaseIndex: number): void {
+  recordEvent(name: string, testCaseIndex: number, payload?: unknown): void {
     let testCases = this.eventCounts.get(name)
     if (testCases === undefined) {
       testCases = new Set<number>()
       this.eventCounts.set(name, testCases)
     }
     testCases.add(testCaseIndex)
+
+    if (this.shouldLog(Verbosity.Debug)) {
+      this.log('debug', 'event', {name, payload, testCaseIndex})
+    }
   }
 
   /**
    * Record a target observation.
    */
   recordTarget(label: string, observation: number): void {
-    if (!Number.isFinite(observation)) {
-      // Invalid observation - would log warning in actual implementation
-      return
-    }
     let tracker = this.targetTrackers.get(label)
     if (tracker === undefined) {
       tracker = new DistributionTracker()
@@ -799,6 +950,14 @@ export class StatisticsContext {
    */
   getTestCaseIndex(): number {
     return this.currentTestCaseIndex
+  }
+
+  /**
+   * Log an invalid target observation when verbosity allows it.
+   */
+  logInvalidTarget(label: string, observation: number): void {
+    if (!this.shouldLog(Verbosity.Normal)) return
+    this.log('warn', 'Invalid target observation ignored', {label, observation})
   }
 
   /**
@@ -848,6 +1007,35 @@ export class StatisticsContext {
     this.eventCounts.clear()
     this.targetTrackers.clear()
     this.currentTestCaseIndex = 0
+  }
+
+  private shouldLog(requiredVerbosity: Verbosity): boolean {
+    const verbosity = this.options.verbosity ?? Verbosity.Normal
+    return verbosity >= requiredVerbosity && verbosity !== Verbosity.Quiet
+  }
+
+  private log(level: LogLevel, message: string, data?: Record<string, unknown>): void {
+    if (!this.shouldLog(level === 'debug' ? Verbosity.Debug : Verbosity.Normal)) return
+    const entry: LogEntry = {level, message, ...(data !== undefined && {data})}
+    if (this.options.logger !== undefined) {
+      this.options.logger.log(entry)
+    } else {
+      // Fallback to console with minimal formatting
+      const payload = data !== undefined ? JSON.stringify(data) : ''
+      switch (level) {
+        case 'warn':
+          console.warn(message, payload)
+          break
+        case 'error':
+          console.error(message, payload)
+          break
+        case 'debug':
+          console.debug(`[DEBUG] ${message}`, payload)
+          break
+        default:
+          console.log(message, payload)
+      }
+    }
   }
 }
 

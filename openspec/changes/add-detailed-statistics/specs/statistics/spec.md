@@ -165,6 +165,12 @@ The system SHALL use streaming algorithms for quantile estimation to avoid stori
 - **THEN** the system MAY store all values and compute exact quantiles
 - **AND** accuracy requirements do not apply (exact values are returned)
 
+#### Scenario: Quantile estimator implementation
+- **WHEN** implementing streaming quantiles for n > DEFAULT_QUANTILE_BUFFER_SIZE
+- **THEN** the estimator SHALL use an algorithm with documented error bounds (e.g., P² or calibrated reservoir sampling)
+- **AND** the configuration (buffer size/markers) SHALL be sufficient to meet the accuracy requirements for median and quartiles
+- **AND** the estimator SHALL avoid unbounded error from naive random replacement buffers
+
 #### Scenario: Streaming mean and variance
 - **WHEN** distribution statistics are calculated
 - **THEN** mean and standard deviation SHALL be calculated using Welford's online algorithm

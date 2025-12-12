@@ -174,6 +174,15 @@
 - [x] 11.11 Document performance implications and when to enable detailed statistics
 - [x] 11.12 Document histogram interpretation
 
+## Phase 12: Follow-ups from review
+
+- [x] 12.1 Ensure `logStatistics` respects `Verbosity.Quiet` (no output in Quiet mode)
+- [x] 12.2 Implement histogram generation and honor `includeHistograms` in text/markdown formatting
+- [x] 12.3 Update streaming quantile estimator to meet stated accuracy bounds (use P² or calibrated reservoir)
+- [x] 12.4 Log warnings for invalid `fc.target` observations per verbosity rules
+- [x] 12.5 Support event payloads in debug-level output
+- [x] 12.6 Add `logger` option to `.check()` and route all output through it
+
 ## Notes
 
 - Events and targets work independently of `withDetailedStatistics()` - they are always tracked when used
