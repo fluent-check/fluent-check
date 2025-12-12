@@ -617,6 +617,33 @@ export class FluentCheck<
   }
 
   check(options?: CheckOptions): FluentResult<Rec> {
+    const execution = this.#prepareCheckExecution(options)
+
+    const {explorationResult, executionTimeMs} = this.#runExploration(execution)
+
+    this.#emitFinalProgress(
+      execution.progressReporter,
+      explorationResult,
+      execution.explorationBudget,
+      execution.startTime
+    )
+
+    const result = this.#buildResultFromExploration(
+      execution.scenario,
+      execution.executableScenario,
+      explorationResult,
+      executionTimeMs,
+      execution
+    )
+
+    execution.resultReporter.onComplete(result)
+
+    return result
+  }
+
+  #prepareCheckExecution(
+    options?: CheckOptions
+  ) {
     const path = this.pathFromRoot()
     const root = path[0] as FluentCheck<any, any>
 
@@ -667,9 +694,7 @@ export class FluentCheck<
       verbosity: Verbosity[effectiveVerbosity]
     })
 
-    // Explore the search space
     // Always pass statistics context (for events/targets), even if detailed stats disabled
-    // Pass progress callback wrapper that respects interval settings
     const statisticsContext = this.#buildStatisticsContext(
       effectiveVerbosity,
       checkOptions.logger
@@ -683,6 +708,56 @@ export class FluentCheck<
       effectiveVerbosity,
       logging.logger
     )
+
+    return {
+      scenario,
+      executableScenario,
+      factory,
+      explorer,
+      shrinker,
+      shrinkBudget,
+      sampler,
+      randomGenerator,
+      explorationBudget,
+      detailedStatisticsEnabled,
+      property,
+      startTime,
+      effectiveVerbosity,
+      logging,
+      statisticsContext,
+      statisticsAggregator,
+      progressReporter,
+      resultReporter,
+      checkOptions
+    }
+  }
+
+  #runExploration(
+    execution: {
+      executableScenario: unknown
+      property: (testCase: Rec) => boolean
+      sampler: unknown
+      explorationBudget: ExplorationBudget
+      statisticsContext: InstanceType<typeof StatisticsContextClass>
+      detailedStatisticsEnabled: boolean
+      explorer: unknown
+      progressReporter: ProgressReporter
+      checkOptions: CheckOptions
+      startTime: number
+    }
+  ): { explorationResult: ExplorationResult<Rec>; executionTimeMs: number } {
+    const {
+      executableScenario,
+      property,
+      sampler,
+      explorationBudget,
+      statisticsContext,
+      detailedStatisticsEnabled,
+      explorer,
+      progressReporter,
+      checkOptions,
+      startTime
+    } = execution
 
     const explorerProgressCallback = checkOptions.onProgress !== undefined
       ? (progress: {
@@ -709,7 +784,25 @@ export class FluentCheck<
       }
       : undefined
 
-    const explorationResult = explorer.explore(
+    const typedExplorer = explorer as {
+      explore: (
+        scenario: unknown,
+        property: (testCase: Rec) => boolean,
+        sampler: unknown,
+        budget: ExplorationBudget,
+        statisticsContext: InstanceType<typeof StatisticsContextClass>,
+        detailedStatisticsEnabled: boolean,
+        progressCallback?: (progress: {
+          testsRun: number
+          testsPassed: number
+          testsDiscarded: number
+          totalTests?: number
+          elapsedMs: number
+        }) => void
+      ) => ExplorationResult<Rec>
+    }
+
+    const explorationResult = typedExplorer.explore(
       executableScenario,
       property,
       sampler,
@@ -722,6 +815,15 @@ export class FluentCheck<
     const endTime = Date.now()
     const executionTimeMs = endTime - startTime
 
+    return {explorationResult, executionTimeMs}
+  }
+
+  #emitFinalProgress(
+    progressReporter: ProgressReporter,
+    explorationResult: ExplorationResult<Rec>,
+    explorationBudget: ExplorationBudget,
+    startTime: number
+  ) {
     const finalProgress: ProgressInfo = {
       testsRun: explorationResult.testsRun,
       totalTests: explorationBudget.maxTests,
@@ -736,15 +838,62 @@ export class FluentCheck<
       finalProgress.percentComplete = (explorationResult.testsRun / explorationBudget.maxTests) * 100
     }
     progressReporter.onFinal(finalProgress)
+  }
 
-    // Handle exploration result
+  #buildResultFromExploration(
+    scenario: Scenario<Rec>,
+    executableScenario: unknown,
+    explorationResult: ExplorationResult<Rec>,
+    explorationTimeMs: number,
+    execution: {
+      shrinker: unknown
+      shrinkBudget: unknown
+      explorer: unknown
+      sampler: unknown
+      statisticsAggregator: StatisticsAggregator
+      randomGenerator: { seed?: number }
+      logging: {
+        verbose: (message: string, data?: Record<string, unknown>) => void
+        debug: (message: string, data?: Record<string, unknown>) => void
+      }
+      property: (testCase: Rec) => boolean
+    }
+  ): FluentResult<Rec> {
+    const {
+      shrinker,
+      shrinkBudget,
+      explorer,
+      sampler,
+      statisticsAggregator,
+      randomGenerator,
+      logging,
+      property
+    } = execution
+
     if (explorationResult.outcome === 'passed') {
       // Extract witness values if available (for exists scenarios)
       if (scenario.hasExistential && explorationResult.witness !== undefined) {
         logging.verbose('Shrinking witness...')
+
+        const typedShrinker = shrinker as {
+          shrinkWitness: (
+            witness: BoundTestCase<Rec>,
+            executableScenario: unknown,
+            explorer: unknown,
+            property: (testCase: Rec) => boolean,
+            sampler: unknown,
+            budget: unknown
+          ) => {
+            minimized: BoundTestCase<Rec>
+            attempts: number
+            rounds: number
+            roundsCompleted?: number
+          }
+        }
+
         // Shrink the witness to find the minimal satisfying values
         const shrinkStartTime = Date.now()
-        const shrinkResult = shrinker.shrinkWitness(
+        const shrinkResult = typedShrinker.shrinkWitness(
           explorationResult.witness,
           executableScenario,
           explorer,
@@ -779,49 +928,41 @@ export class FluentCheck<
         const statisticsInput: StatisticsAggregationInput = {
           testsRun: explorationResult.testsRun,
           skipped: explorationResult.skipped,
-          executionTimeMs: executionTimeMs + shrinkTimeMs,
+          executionTimeMs: explorationTimeMs + shrinkTimeMs,
           counterexampleFound: false,
-          executionTimeBreakdown: {exploration: executionTimeMs, shrinking: shrinkTimeMs},
+          executionTimeBreakdown: {exploration: explorationTimeMs, shrinking: shrinkTimeMs},
           ...(explorationResult.labels !== undefined && {labels: explorationResult.labels}),
           ...(explorationResult.detailedStats !== undefined && {detailedStats: explorationResult.detailedStats}),
           shrinkingStats: witnessShrinkingStats
         }
 
-        const result = new FluentResult<Rec>(
+        return new FluentResult<Rec>(
           true,
           example as Rec,
           statisticsAggregator.aggregate(statisticsInput),
           randomGenerator.seed,
           explorationResult.skipped
         )
-
-        resultReporter.onComplete(result)
-
-        return result
       }
 
       // For forall-only scenarios that pass, return empty example
       const statisticsInput: StatisticsAggregationInput = {
         testsRun: explorationResult.testsRun,
         skipped: explorationResult.skipped,
-        executionTimeMs,
+        executionTimeMs: explorationTimeMs,
         counterexampleFound: false,
-        executionTimeBreakdown: {exploration: executionTimeMs, shrinking: 0},
+        executionTimeBreakdown: {exploration: explorationTimeMs, shrinking: 0},
         ...(explorationResult.labels !== undefined && {labels: explorationResult.labels}),
         ...(explorationResult.detailedStats !== undefined && {detailedStats: explorationResult.detailedStats})
       }
 
-      const result = new FluentResult<Rec>(
+      return new FluentResult<Rec>(
         true,
         {} as Rec,
         statisticsAggregator.aggregate(statisticsInput),
         randomGenerator.seed,
         explorationResult.skipped
       )
-
-      resultReporter.onComplete(result)
-
-      return result
     }
 
     if (explorationResult.outcome === 'exhausted') {
@@ -831,24 +972,20 @@ export class FluentCheck<
       const statisticsInput: StatisticsAggregationInput = {
         testsRun: explorationResult.testsRun,
         skipped: explorationResult.skipped,
-        executionTimeMs,
+        executionTimeMs: explorationTimeMs,
         counterexampleFound: false,
-        executionTimeBreakdown: {exploration: executionTimeMs, shrinking: 0},
+        executionTimeBreakdown: {exploration: explorationTimeMs, shrinking: 0},
         ...(explorationResult.labels !== undefined && {labels: explorationResult.labels}),
         ...(explorationResult.detailedStats !== undefined && {detailedStats: explorationResult.detailedStats})
       }
 
-      const result = new FluentResult<Rec>(
+      return new FluentResult<Rec>(
         satisfiable,
         {} as Rec,
         statisticsAggregator.aggregate(statisticsInput),
         randomGenerator.seed,
         explorationResult.skipped
       )
-
-      resultReporter.onComplete(result)
-
-      return result
     }
 
     // Found a counterexample - apply shrinking
@@ -856,11 +993,30 @@ export class FluentCheck<
 
     // Shrinking phase
     logging.verbose('Shrinking counterexample...')
-    logging.debug('Shrink budget', {attempts: shrinkBudget.maxAttempts, rounds: shrinkBudget.maxRounds})
+    logging.debug('Shrink budget', {
+      attempts: (execution.shrinkBudget as {maxAttempts: number}).maxAttempts,
+      rounds: (execution.shrinkBudget as {maxRounds: number}).maxRounds
+    })
     logging.debug('Counterexample', {counterexample: FluentCheck.unwrapFluentPick(counterexample)})
 
+    const typedShrinker = shrinker as {
+      shrink: (
+        counterexample: BoundTestCase<Rec>,
+        executableScenario: unknown,
+        explorer: unknown,
+        property: (testCase: Rec) => boolean,
+        sampler: unknown,
+        budget: unknown
+      ) => {
+        minimized: BoundTestCase<Rec>
+        attempts: number
+        rounds: number
+        roundsCompleted?: number
+      }
+    }
+
     const shrinkStartTime = Date.now()
-    const shrinkResult = shrinker.shrink(
+    const shrinkResult = typedShrinker.shrink(
       counterexample,
       executableScenario,
       explorer,
@@ -881,31 +1037,26 @@ export class FluentCheck<
       improvementsMade: shrinkResult.rounds
     }
 
-    const totalTimeMs = executionTimeMs + shrinkTimeMs
+    const totalTimeMs = explorationTimeMs + shrinkTimeMs
 
     const statisticsInput: StatisticsAggregationInput = {
       testsRun: explorationResult.testsRun,
       skipped: explorationResult.skipped,
       executionTimeMs: totalTimeMs,
       counterexampleFound: true,
-      executionTimeBreakdown: {exploration: executionTimeMs, shrinking: shrinkTimeMs},
+      executionTimeBreakdown: {exploration: explorationTimeMs, shrinking: shrinkTimeMs},
       ...(explorationResult.labels !== undefined && {labels: explorationResult.labels}),
       ...(explorationResult.detailedStats !== undefined && {detailedStats: explorationResult.detailedStats}),
       shrinkingStats
     }
 
-    // Convert shrunk counterexample to FluentResult
-    const result = new FluentResult<Rec>(
+    return new FluentResult<Rec>(
       false,
       FluentCheck.unwrapFluentPick(shrinkResult.minimized) as Rec,
       statisticsAggregator.aggregate(statisticsInput),
       randomGenerator.seed,
       explorationResult.skipped
     )
-
-    resultReporter.onComplete(result)
-
-    return result
   }
 
   #buildStatisticsContext(verbosity: Verbosity, logger?: Logger) {
