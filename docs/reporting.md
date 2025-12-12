@@ -95,8 +95,7 @@ interface ProgressInfo {
 The default mapping from `CheckOptions` to progress reporters is:
 
 - `onProgress` undefined → `NoopProgressReporter`
-- `onProgress` defined → `CallbackProgressReporter`
-- `progressInterval` defined → `ThrottlingProgressReporter` wrapping the callback reporter
+- `onProgress` defined → `ThrottlingProgressReporter` wrapping a `CallbackProgressReporter`. The update frequency is controlled by `progressInterval`.
 
 ```typescript
 // Simple textual progress updates
