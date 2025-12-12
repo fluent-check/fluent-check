@@ -99,7 +99,7 @@ declare module 'jstat' {
     skewness: typeof skewness
     kurtosis: typeof kurtosis
     percentile: typeof percentile
-    
+
     // Distributions
     beta: typeof beta
     centralF: typeof centralF

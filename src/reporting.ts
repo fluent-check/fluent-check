@@ -1,5 +1,6 @@
 import {FluentReporter} from './FluentReporter.js'
-import type {FluentResult, ProgressInfo} from './FluentCheck.js'
+import type {FluentResult} from './FluentResult.js'
+import type {ProgressInfo} from './check/CheckOptions.js'
 import {Verbosity, type Logger} from './statistics.js'
 
 export interface ProgressReporter {
@@ -86,7 +87,7 @@ export interface ResultReporter<Rec extends {} = {}> {
 }
 
 export class NoopResultReporter<Rec extends {} = {}> implements ResultReporter<Rec> {
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+
   onComplete(_result: FluentResult<Rec>): void {
     // no-op
   }
