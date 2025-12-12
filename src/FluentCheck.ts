@@ -28,6 +28,8 @@ import {
   Verbosity,
   type Logger
 } from './statistics.js'
+import type {DetailedExplorationStats, ExplorationResult} from './strategies/Explorer.js'
+import type {ShrinkingStatistics} from './statistics.js'
 
 type PickResult<V> = BoundTestCase<Record<string, V>>
 type ValueResult<V> = Record<string, V>
@@ -619,89 +621,32 @@ export class FluentCheck<
     // Handle verbose shortcut
     const effectiveVerbosity = checkOptions.verbose === true ? Verbosity.Verbose : verbosity
 
-    const userLogger = checkOptions.logger
-    const shouldLogVerbosity = (min: Verbosity) =>
-      effectiveVerbosity >= min && effectiveVerbosity !== Verbosity.Quiet
-    const log = (
-      level: 'debug' | 'info' | 'warn' | 'error',
-      message: string,
-      data?: Record<string, unknown>,
-      minVerbosity: Verbosity = Verbosity.Normal
-    ) => {
-      if (!shouldLogVerbosity(minVerbosity)) return
-      const entry = {level, message, ...(data !== undefined && {data})}
-      if (userLogger !== undefined) {
-        userLogger.log(entry)
-        return
-      }
-      const payload = data !== undefined ? JSON.stringify(data) : ''
-      switch (level) {
-        case 'warn':
-          console.warn(message, payload)
-          break
-        case 'error':
-          console.error(message, payload)
-          break
-        case 'debug':
-          console.debug(`[DEBUG] ${message}`, payload)
-          break
-        default:
-          console.log(message, payload)
-      }
-    }
+    const logging = this.#createLoggingHelpers(
+      effectiveVerbosity,
+      checkOptions.logStatistics === true,
+      checkOptions.logger
+    )
 
-    // Progress tracking
-    const DEFAULT_PROGRESS_INTERVAL = 100 // Default: update every 100 tests
-    const DEFAULT_PROGRESS_TIME_INTERVAL_MS = 1000 // Default: update every 1 second
-
-    let lastProgressUpdate = 0
-    const progressInterval = checkOptions.progressInterval ?? DEFAULT_PROGRESS_INTERVAL
-    const progressTimeInterval = DEFAULT_PROGRESS_TIME_INTERVAL_MS
-    let lastProgressTime = startTime
-
-    // Verbose output helper
-    const verboseLog = (message: string, data?: Record<string, unknown>) =>
-      log('info', message, data, Verbosity.Verbose)
-
-    // Debug output helper
-    const debugLog = (message: string, data?: Record<string, unknown>) =>
-      log('debug', message, data, Verbosity.Debug)
-
-    const emitStatistics = (statistics: FluentStatistics) => {
-      if (checkOptions.logStatistics !== true) return
-      if (effectiveVerbosity === Verbosity.Quiet) return
-
-      if (userLogger !== undefined) {
-        userLogger.log({
-          level: 'info',
-          message: 'statistics',
-          data: {
-            statistics,
-            detailed: effectiveVerbosity >= Verbosity.Verbose,
-            includeHistograms: effectiveVerbosity >= Verbosity.Debug
-          }
-        })
-        return
-      }
-
-      const formatted = FluentReporter.formatStatistics(statistics, {
-        format: 'text',
-        detailed: effectiveVerbosity >= Verbosity.Verbose,
-        includeHistograms: effectiveVerbosity >= Verbosity.Debug
-      })
-      console.log('\n' + formatted)
-    }
-
-    verboseLog(`Starting exploration with ${explorationBudget.maxTests} max tests...`)
-    debugLog(`RNG seed: ${randomGenerator.seed}`)
-    debugLog(`Strategy: detailedStats=${detailedStatisticsEnabled ? 'true' : 'false'}, verbosity=${Verbosity[effectiveVerbosity]}`)
+    logging.verbose(`Starting exploration with ${explorationBudget.maxTests} max tests...`)
+    logging.debug('RNG seed', {seed: randomGenerator.seed})
+    logging.debug('Strategy', {
+      detailedStats: detailedStatisticsEnabled,
+      verbosity: Verbosity[effectiveVerbosity]
+    })
 
     // Explore the search space
     // Always pass statistics context (for events/targets), even if detailed stats disabled
     // Pass progress callback wrapper that respects interval settings
-    const statisticsContext = new StatisticsContextClass({
-      verbosity: effectiveVerbosity,
-      ...(userLogger !== undefined ? {logger: userLogger} : {})
+    const statisticsContext = this.#buildStatisticsContext(
+      effectiveVerbosity,
+      checkOptions.logger
+    )
+
+    const progressHandlers = this.#createProgressHandlers({
+      checkOptions,
+      effectiveVerbosity,
+      startTime,
+      logging
     })
 
     const explorationResult = explorer.explore(
@@ -711,135 +656,19 @@ export class FluentCheck<
       explorationBudget,
       statisticsContext,
       detailedStatisticsEnabled,
-      checkOptions.onProgress !== undefined ? (progress) => {
-        // The Explorer's progress callback provides raw counts
-        // We wrap it to respect interval settings and format as ProgressInfo
-        const now = Date.now()
-        const shouldUpdate =
-          progress.testsRun - lastProgressUpdate >= progressInterval ||
-          now - lastProgressTime >= progressTimeInterval
-
-        if (shouldUpdate) {
-          lastProgressUpdate = progress.testsRun
-          lastProgressTime = now
-
-          try {
-            const progressInfo: ProgressInfo = {
-              testsRun: progress.testsRun,
-              ...(progress.totalTests !== undefined && {totalTests: progress.totalTests}),
-              testsPassed: progress.testsPassed,
-              testsDiscarded: progress.testsDiscarded,
-              elapsedMs: progress.elapsedMs,
-              currentPhase: 'exploring'
-            }
-            if (progress.totalTests !== undefined) {
-              progressInfo.percentComplete = (progress.testsRun / progress.totalTests) * 100
-            }
-            const onProgress = checkOptions.onProgress
-            if (onProgress !== undefined) {
-              onProgress(progressInfo)
-            }
-          } catch (e) {
-            log('error', 'Progress callback error', {error: e instanceof Error ? e.message : String(e)})
-          }
-        }
-      } : undefined
+      progressHandlers.explorerCallback
     )
 
     const endTime = Date.now()
     const executionTimeMs = endTime - startTime
 
-    // Report final progress (Explorer now calls progress callback during exploration,
-    // but we also report final state to ensure last update is sent)
-    if (checkOptions.onProgress !== undefined) {
-      const finalProgress: ProgressInfo = {
-        testsRun: explorationResult.testsRun,
-        totalTests: explorationBudget.maxTests,
-        testsPassed: explorationResult.outcome === 'passed'
-          ? explorationResult.testsRun - explorationResult.skipped
-          : 0,
-        testsDiscarded: explorationResult.skipped,
-        elapsedMs: Date.now() - startTime,
-        currentPhase: 'exploring'
-      }
-      if (explorationBudget.maxTests > 0) {
-        finalProgress.percentComplete = (explorationResult.testsRun / explorationBudget.maxTests) * 100
-      }
-      try {
-        checkOptions.onProgress(finalProgress)
-      } catch (e) {
-        log('error', 'Progress callback error', {error: e instanceof Error ? e.message : String(e)})
-      }
-    }
-
-    // Helper function to calculate statistics
-    const calculateStatistics = (
-      testsRun: number,
-      skipped: number,
-      executionTimeMs: number,
-      counterexampleFound: boolean,
-      executionTimeBreakdown: { exploration: number; shrinking: number },
-      labels?: Record<string, number>,
-      detailedStats?: import('./strategies/Explorer.js').DetailedExplorationStats,
-      shrinkingStats?: import('./statistics.js').ShrinkingStatistics
-    ): FluentStatistics => {
-      const stats: FluentStatistics = {
-        testsRun,
-        // testsPassed counts tests where property held (excluding discarded and counterexample if any)
-        testsPassed: counterexampleFound ? testsRun - skipped - 1 : testsRun - skipped,
-        testsDiscarded: skipped,
-        executionTimeMs,
-        executionTimeBreakdown
-      }
-
-      // Calculate label percentages if labels are present
-      if (labels !== undefined) {
-        stats.labels = labels
-        if (testsRun > 0) {
-          const labelPercentages: Record<string, number> = {}
-          for (const [label, count] of Object.entries(labels)) {
-            labelPercentages[label] = (count / testsRun) * 100
-          }
-          stats.labelPercentages = labelPercentages
-        }
-        // If no tests run, percentages remain undefined (don't set explicitly)
-      }
-
-      // Add detailed statistics if available
-      if (detailedStats !== undefined) {
-        // Only include arbitraryStats if detailed statistics were enabled
-        if (detailedStats.arbitraryStats !== undefined) {
-          stats.arbitraryStats = detailedStats.arbitraryStats
-        }
-        // Events and targets are always tracked (independent of detailed statistics)
-        if (detailedStats.events !== undefined) {
-          stats.events = detailedStats.events
-          if (testsRun > 0) {
-            const eventPercentages: Record<string, number> = {}
-            for (const [event, count] of Object.entries(detailedStats.events)) {
-              eventPercentages[event] = (count / testsRun) * 100
-            }
-            stats.eventPercentages = eventPercentages
-          }
-        }
-        if (detailedStats.targets !== undefined) {
-          stats.targets = detailedStats.targets
-        }
-      }
-
-      // Add shrinking statistics if available
-      if (shrinkingStats !== undefined) {
-        stats.shrinking = shrinkingStats
-      }
-
-      return stats
-    }
+    progressHandlers.emitFinalProgress(explorationResult, explorationBudget.maxTests)
 
     // Handle exploration result
     if (explorationResult.outcome === 'passed') {
       // Extract witness values if available (for exists scenarios)
       if (scenario.hasExistential && explorationResult.witness !== undefined) {
-        verboseLog('Shrinking witness...')
+        logging.verbose('Shrinking witness...')
         // Shrink the witness to find the minimal satisfying values
         const shrinkStartTime = Date.now()
         const shrinkResult = shrinker.shrinkWitness(
@@ -868,7 +697,7 @@ export class FluentCheck<
         }
 
         // Build shrinking statistics for witness
-        const witnessShrinkingStats: import('./statistics.js').ShrinkingStatistics = {
+        const witnessShrinkingStats: ShrinkingStatistics = {
           candidatesTested: shrinkResult.attempts,
           roundsCompleted: shrinkResult.roundsCompleted ?? shrinkResult.rounds,
           improvementsMade: shrinkResult.rounds
@@ -877,21 +706,21 @@ export class FluentCheck<
         const result = new FluentResult<Rec>(
           true,
           example as Rec,
-          calculateStatistics(
-            explorationResult.testsRun,
-            explorationResult.skipped,
-            executionTimeMs + shrinkTimeMs,
-            false,
-            {exploration: executionTimeMs, shrinking: shrinkTimeMs},
-            explorationResult.labels,
-            explorationResult.detailedStats,
-            witnessShrinkingStats
-          ),
+          this.#calculateStatistics({
+            testsRun: explorationResult.testsRun,
+            skipped: explorationResult.skipped,
+            executionTimeMs: executionTimeMs + shrinkTimeMs,
+            counterexampleFound: false,
+            executionTimeBreakdown: {exploration: executionTimeMs, shrinking: shrinkTimeMs},
+            ...(explorationResult.labels !== undefined && {labels: explorationResult.labels}),
+            ...(explorationResult.detailedStats !== undefined && {detailedStats: explorationResult.detailedStats}),
+            shrinkingStats: witnessShrinkingStats
+          }),
           randomGenerator.seed,
           explorationResult.skipped
         )
 
-        emitStatistics(result.statistics)
+        logging.emitStatistics(result.statistics)
 
         return result
       }
@@ -900,13 +729,20 @@ export class FluentCheck<
       const result = new FluentResult<Rec>(
         true,
         {} as Rec,
-        // eslint-disable-next-line max-len
-        calculateStatistics(explorationResult.testsRun, explorationResult.skipped, executionTimeMs, false, {exploration: executionTimeMs, shrinking: 0}, explorationResult.labels, explorationResult.detailedStats),
+        this.#calculateStatistics({
+          testsRun: explorationResult.testsRun,
+          skipped: explorationResult.skipped,
+          executionTimeMs,
+          counterexampleFound: false,
+          executionTimeBreakdown: {exploration: executionTimeMs, shrinking: 0},
+          ...(explorationResult.labels !== undefined && {labels: explorationResult.labels}),
+          ...(explorationResult.detailedStats !== undefined && {detailedStats: explorationResult.detailedStats})
+        }),
         randomGenerator.seed,
         explorationResult.skipped
       )
 
-      emitStatistics(result.statistics)
+      logging.emitStatistics(result.statistics)
 
       return result
     }
@@ -918,13 +754,20 @@ export class FluentCheck<
       const result = new FluentResult<Rec>(
         satisfiable,
         {} as Rec,
-        // eslint-disable-next-line max-len
-        calculateStatistics(explorationResult.testsRun, explorationResult.skipped, executionTimeMs, false, {exploration: executionTimeMs, shrinking: 0}, explorationResult.labels, explorationResult.detailedStats),
+        this.#calculateStatistics({
+          testsRun: explorationResult.testsRun,
+          skipped: explorationResult.skipped,
+          executionTimeMs,
+          counterexampleFound: false,
+          executionTimeBreakdown: {exploration: executionTimeMs, shrinking: 0},
+          ...(explorationResult.labels !== undefined && {labels: explorationResult.labels}),
+          ...(explorationResult.detailedStats !== undefined && {detailedStats: explorationResult.detailedStats})
+        }),
         randomGenerator.seed,
         explorationResult.skipped
       )
 
-      emitStatistics(result.statistics)
+      logging.emitStatistics(result.statistics)
 
       return result
     }
@@ -933,9 +776,9 @@ export class FluentCheck<
     const counterexample = explorationResult.counterexample
 
     // Shrinking phase
-    verboseLog('Shrinking counterexample...')
-    debugLog(`Shrink budget: ${shrinkBudget.maxAttempts} attempts, ${shrinkBudget.maxRounds} rounds`)
-    debugLog(`Counterexample: ${JSON.stringify(FluentCheck.unwrapFluentPick(counterexample))}`)
+    logging.verbose('Shrinking counterexample...')
+    logging.debug('Shrink budget', {attempts: shrinkBudget.maxAttempts, rounds: shrinkBudget.maxRounds})
+    logging.debug('Counterexample', {counterexample: FluentCheck.unwrapFluentPick(counterexample)})
 
     const shrinkStartTime = Date.now()
     const shrinkResult = shrinker.shrink(
@@ -949,11 +792,11 @@ export class FluentCheck<
     const shrinkEndTime = Date.now()
     const shrinkTimeMs = shrinkEndTime - shrinkStartTime
 
-    debugLog(`Shrinking complete: ${shrinkResult.rounds} rounds, ${shrinkResult.attempts} attempts`)
-    debugLog(`Minimized counterexample: ${JSON.stringify(FluentCheck.unwrapFluentPick(shrinkResult.minimized))}`)
+    logging.debug('Shrinking complete', {rounds: shrinkResult.rounds, attempts: shrinkResult.attempts})
+    logging.debug('Minimized counterexample', {counterexample: FluentCheck.unwrapFluentPick(shrinkResult.minimized)})
 
     // Build shrinking statistics
-    const shrinkingStats: import('./statistics.js').ShrinkingStatistics = {
+    const shrinkingStats: ShrinkingStatistics = {
       candidatesTested: shrinkResult.attempts,
       roundsCompleted: shrinkResult.roundsCompleted ?? shrinkResult.rounds,
       improvementsMade: shrinkResult.rounds
@@ -965,23 +808,264 @@ export class FluentCheck<
     const result = new FluentResult<Rec>(
       false,
       FluentCheck.unwrapFluentPick(shrinkResult.minimized) as Rec,
-      calculateStatistics(
-        explorationResult.testsRun,
-        explorationResult.skipped,
-        totalTimeMs,
-        true,
-        {exploration: executionTimeMs, shrinking: shrinkTimeMs},
-        explorationResult.labels,
-        explorationResult.detailedStats,
+      this.#calculateStatistics({
+        testsRun: explorationResult.testsRun,
+        skipped: explorationResult.skipped,
+        executionTimeMs: totalTimeMs,
+        counterexampleFound: true,
+        executionTimeBreakdown: {exploration: executionTimeMs, shrinking: shrinkTimeMs},
+        ...(explorationResult.labels !== undefined && {labels: explorationResult.labels}),
+        ...(explorationResult.detailedStats !== undefined && {detailedStats: explorationResult.detailedStats}),
         shrinkingStats
-      ),
+      }),
       randomGenerator.seed,
       explorationResult.skipped
     )
 
-    emitStatistics(result.statistics)
+    logging.emitStatistics(result.statistics)
 
     return result
+  }
+
+  #buildStatisticsContext(verbosity: Verbosity, logger?: Logger) {
+    return new StatisticsContextClass({
+      verbosity,
+      ...(logger !== undefined ? {logger} : {})
+    })
+  }
+
+  #createLoggingHelpers(
+    effectiveVerbosity: Verbosity,
+    logStatistics: boolean,
+    userLogger?: Logger
+  ) {
+    const shouldLogVerbosity = (min: Verbosity) =>
+      effectiveVerbosity >= min && effectiveVerbosity !== Verbosity.Quiet
+
+    const log = (
+      level: 'debug' | 'info' | 'warn' | 'error',
+      message: string,
+      data?: Record<string, unknown>,
+      minVerbosity: Verbosity = Verbosity.Normal
+    ) => {
+      if (!shouldLogVerbosity(minVerbosity)) return
+      const entry = {level, message, ...(data !== undefined && {data})}
+      if (userLogger !== undefined) {
+        userLogger.log(entry)
+        return
+      }
+      const payload = data !== undefined ? JSON.stringify(data) : ''
+      switch (level) {
+        case 'warn':
+          console.warn(message, payload)
+          break
+        case 'error':
+          console.error(message, payload)
+          break
+        case 'debug':
+          console.debug(`[DEBUG] ${message}`, payload)
+          break
+        default:
+          console.log(message, payload)
+      }
+    }
+
+    const emitStatistics = (statistics: FluentStatistics) => {
+      if (!logStatistics) return
+      if (effectiveVerbosity === Verbosity.Quiet) return
+
+      if (userLogger !== undefined) {
+        userLogger.log({
+          level: 'info',
+          message: 'statistics',
+          data: {
+            statistics,
+            detailed: effectiveVerbosity >= Verbosity.Verbose,
+            includeHistograms: effectiveVerbosity >= Verbosity.Debug
+          }
+        })
+        return
+      }
+
+      const formatted = FluentReporter.formatStatistics(statistics, {
+        format: 'text',
+        detailed: effectiveVerbosity >= Verbosity.Verbose,
+        includeHistograms: effectiveVerbosity >= Verbosity.Debug
+      })
+      console.log('\n' + formatted)
+    }
+
+    return {
+      log,
+      verbose: (message: string, data?: Record<string, unknown>) =>
+        log('info', message, data, Verbosity.Verbose),
+      debug: (message: string, data?: Record<string, unknown>) =>
+        log('debug', message, data, Verbosity.Debug),
+      emitStatistics
+    }
+  }
+
+  #createProgressHandlers(params: {
+    checkOptions: CheckOptions
+    effectiveVerbosity: Verbosity
+    startTime: number
+    logging: {
+      log: (
+        level: 'debug' | 'info' | 'warn' | 'error',
+        message: string,
+        data?: Record<string, unknown>,
+        minVerbosity?: Verbosity
+      ) => void
+    }
+  }) {
+    const {checkOptions, effectiveVerbosity, startTime, logging} = params
+    const DEFAULT_PROGRESS_INTERVAL = 100
+    const DEFAULT_PROGRESS_TIME_INTERVAL_MS = 1000
+
+    let lastProgressUpdate = 0
+    const progressInterval = checkOptions.progressInterval ?? DEFAULT_PROGRESS_INTERVAL
+    const progressTimeInterval = DEFAULT_PROGRESS_TIME_INTERVAL_MS
+    let lastProgressTime = startTime
+
+    const explorerCallback = checkOptions.onProgress !== undefined ? (progress: {
+      testsRun: number
+      testsPassed: number
+      testsDiscarded: number
+      totalTests?: number
+      elapsedMs: number
+    }) => {
+      const now = Date.now()
+      const shouldUpdate =
+        progress.testsRun - lastProgressUpdate >= progressInterval ||
+        now - lastProgressTime >= progressTimeInterval
+
+      if (!shouldUpdate) return
+      lastProgressUpdate = progress.testsRun
+      lastProgressTime = now
+
+      try {
+        const progressInfo: ProgressInfo = {
+          testsRun: progress.testsRun,
+          ...(progress.totalTests !== undefined && {totalTests: progress.totalTests}),
+          testsPassed: progress.testsPassed,
+          testsDiscarded: progress.testsDiscarded,
+          elapsedMs: progress.elapsedMs,
+          currentPhase: 'exploring'
+        }
+        if (progress.totalTests !== undefined) {
+          progressInfo.percentComplete = (progress.testsRun / progress.totalTests) * 100
+        }
+        const onProgress = checkOptions.onProgress
+        if (onProgress !== undefined) {
+          onProgress(progressInfo)
+        }
+      } catch (e) {
+        logging.log(
+          'error',
+          'Progress callback error',
+          {error: e instanceof Error ? e.message : String(e)},
+          Verbosity.Normal
+        )
+      }
+    } : undefined
+
+    const emitFinalProgress = (
+      explorationResult: ExplorationResult<Rec>,
+      maxTests: number
+    ) => {
+      if (checkOptions.onProgress === undefined) return
+      const finalProgress: ProgressInfo = {
+        testsRun: explorationResult.testsRun,
+        totalTests: maxTests,
+        testsPassed: explorationResult.outcome === 'passed'
+          ? explorationResult.testsRun - explorationResult.skipped
+          : 0,
+        testsDiscarded: explorationResult.skipped,
+        elapsedMs: Date.now() - startTime,
+        currentPhase: 'exploring'
+      }
+      if (maxTests > 0) {
+        finalProgress.percentComplete = (explorationResult.testsRun / maxTests) * 100
+      }
+      try {
+        checkOptions.onProgress(finalProgress)
+      } catch (e) {
+        logging.log(
+          'error',
+          'Progress callback error',
+          {error: e instanceof Error ? e.message : String(e)},
+          effectiveVerbosity
+        )
+      }
+    }
+
+    return {explorerCallback, emitFinalProgress}
+  }
+
+  #calculateStatistics(params: {
+    testsRun: number
+    skipped: number
+    executionTimeMs: number
+    counterexampleFound: boolean
+    executionTimeBreakdown: { exploration: number; shrinking: number }
+    labels?: Record<string, number>
+    detailedStats?: DetailedExplorationStats
+    shrinkingStats?: ShrinkingStatistics
+  }): FluentStatistics {
+    const {
+      testsRun,
+      skipped,
+      executionTimeMs,
+      counterexampleFound,
+      executionTimeBreakdown,
+      labels,
+      detailedStats,
+      shrinkingStats
+    } = params
+
+    const stats: FluentStatistics = {
+      testsRun,
+      testsPassed: counterexampleFound ? testsRun - skipped - 1 : testsRun - skipped,
+      testsDiscarded: skipped,
+      executionTimeMs,
+      executionTimeBreakdown
+    }
+
+    if (labels !== undefined) {
+      stats.labels = labels
+      if (testsRun > 0) {
+        const labelPercentages: Record<string, number> = {}
+        for (const [label, count] of Object.entries(labels)) {
+          labelPercentages[label] = (count / testsRun) * 100
+        }
+        stats.labelPercentages = labelPercentages
+      }
+    }
+
+    if (detailedStats !== undefined) {
+      if (detailedStats.arbitraryStats !== undefined) {
+        stats.arbitraryStats = detailedStats.arbitraryStats
+      }
+      if (detailedStats.events !== undefined) {
+        stats.events = detailedStats.events
+        if (testsRun > 0) {
+          const eventPercentages: Record<string, number> = {}
+          for (const [event, count] of Object.entries(detailedStats.events)) {
+            eventPercentages[event] = (count / testsRun) * 100
+          }
+          stats.eventPercentages = eventPercentages
+        }
+      }
+      if (detailedStats.targets !== undefined) {
+        stats.targets = detailedStats.targets
+      }
+    }
+
+    if (shrinkingStats !== undefined) {
+      stats.shrinking = shrinkingStats
+    }
+
+    return stats
   }
 
   /**
