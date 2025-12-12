@@ -69,6 +69,21 @@ export {
   type TargetStatistics,
   type ShrinkingStatistics
 } from './statistics.js'
+export {
+  DefaultStatisticsAggregator,
+  type StatisticsAggregator,
+  type StatisticsAggregationInput
+} from './statisticsAggregator.js'
+export {
+  type ProgressReporter,
+  type ResultReporter,
+  NoopProgressReporter,
+  CallbackProgressReporter,
+  ThrottlingProgressReporter,
+  NoopResultReporter,
+  ConsoleStatisticsReporter,
+  LoggerStatisticsReporter
+} from './reporting.js'
 export const scenario = () => new FluentCheck()
 export const strategy = () => new FluentStrategyFactory()
 export {

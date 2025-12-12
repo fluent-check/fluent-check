@@ -18,7 +18,6 @@ import {
 } from './Scenario.js'
 import type {ExplorationBudget} from './strategies/Explorer.js'
 import type {BoundTestCase} from './strategies/types.js'
-import {FluentReporter} from './FluentReporter.js'
 import {
   type FluentStatistics,
   type CoverageResult,
@@ -30,6 +29,21 @@ import {
 } from './statistics.js'
 import type {DetailedExplorationStats, ExplorationResult} from './strategies/Explorer.js'
 import type {ShrinkingStatistics} from './statistics.js'
+import {
+  DefaultStatisticsAggregator,
+  type StatisticsAggregationInput,
+  type StatisticsAggregator
+} from './statisticsAggregator.js'
+import {
+  CallbackProgressReporter,
+  ConsoleStatisticsReporter,
+  LoggerStatisticsReporter,
+  NoopProgressReporter,
+  NoopResultReporter,
+  ThrottlingProgressReporter,
+  type ProgressReporter,
+  type ResultReporter
+} from './reporting.js'
 
 type PickResult<V> = BoundTestCase<Record<string, V>>
 type ValueResult<V> = Record<string, V>
@@ -620,12 +634,7 @@ export class FluentCheck<
 
     // Handle verbose shortcut
     const effectiveVerbosity = checkOptions.verbose === true ? Verbosity.Verbose : verbosity
-
-    const logging = this.#createLoggingHelpers(
-      effectiveVerbosity,
-      checkOptions.logStatistics === true,
-      checkOptions.logger
-    )
+    const logging = this.#createExecutionLogger(effectiveVerbosity, checkOptions.logger)
 
     logging.verbose(`Starting exploration with ${explorationBudget.maxTests} max tests...`)
     logging.debug('RNG seed', {seed: randomGenerator.seed})
@@ -642,12 +651,38 @@ export class FluentCheck<
       checkOptions.logger
     )
 
-    const progressHandlers = this.#createProgressHandlers({
+    const statisticsAggregator: StatisticsAggregator = new DefaultStatisticsAggregator()
+    const progressReporter = this.#createProgressReporter(checkOptions, logging.logger)
+    const resultReporter: ResultReporter<Rec> = this.#createResultReporter(
       checkOptions,
       effectiveVerbosity,
-      startTime,
-      logging
-    })
+      logging.logger
+    )
+
+    const explorerProgressCallback = checkOptions.onProgress !== undefined
+      ? (progress: {
+        testsRun: number
+        testsPassed: number
+        testsDiscarded: number
+        totalTests?: number
+        elapsedMs: number
+      }) => {
+        const progressInfo: ProgressInfo = {
+          testsRun: progress.testsRun,
+          testsPassed: progress.testsPassed,
+          testsDiscarded: progress.testsDiscarded,
+          elapsedMs: progress.elapsedMs,
+          currentPhase: 'exploring',
+          ...(progress.totalTests !== undefined && {totalTests: progress.totalTests})
+        }
+
+        if (progress.totalTests !== undefined && progress.totalTests > 0) {
+          progressInfo.percentComplete = (progress.testsRun / progress.totalTests) * 100
+        }
+
+        progressReporter.onProgress(progressInfo)
+      }
+      : undefined
 
     const explorationResult = explorer.explore(
       executableScenario,
@@ -656,13 +691,26 @@ export class FluentCheck<
       explorationBudget,
       statisticsContext,
       detailedStatisticsEnabled,
-      progressHandlers.explorerCallback
+      explorerProgressCallback
     )
 
     const endTime = Date.now()
     const executionTimeMs = endTime - startTime
 
-    progressHandlers.emitFinalProgress(explorationResult, explorationBudget.maxTests)
+    const finalProgress: ProgressInfo = {
+      testsRun: explorationResult.testsRun,
+      totalTests: explorationBudget.maxTests,
+      testsPassed: explorationResult.outcome === 'passed'
+        ? explorationResult.testsRun - explorationResult.skipped
+        : 0,
+      testsDiscarded: explorationResult.skipped,
+      elapsedMs: Date.now() - startTime,
+      currentPhase: 'exploring'
+    }
+    if (explorationBudget.maxTests > 0) {
+      finalProgress.percentComplete = (explorationResult.testsRun / explorationBudget.maxTests) * 100
+    }
+    progressReporter.onFinal(finalProgress)
 
     // Handle exploration result
     if (explorationResult.outcome === 'passed') {
@@ -703,46 +751,50 @@ export class FluentCheck<
           improvementsMade: shrinkResult.rounds
         }
 
+        const statisticsInput: StatisticsAggregationInput = {
+          testsRun: explorationResult.testsRun,
+          skipped: explorationResult.skipped,
+          executionTimeMs: executionTimeMs + shrinkTimeMs,
+          counterexampleFound: false,
+          executionTimeBreakdown: {exploration: executionTimeMs, shrinking: shrinkTimeMs},
+          ...(explorationResult.labels !== undefined && {labels: explorationResult.labels}),
+          ...(explorationResult.detailedStats !== undefined && {detailedStats: explorationResult.detailedStats}),
+          shrinkingStats: witnessShrinkingStats
+        }
+
         const result = new FluentResult<Rec>(
           true,
           example as Rec,
-          this.#calculateStatistics({
-            testsRun: explorationResult.testsRun,
-            skipped: explorationResult.skipped,
-            executionTimeMs: executionTimeMs + shrinkTimeMs,
-            counterexampleFound: false,
-            executionTimeBreakdown: {exploration: executionTimeMs, shrinking: shrinkTimeMs},
-            ...(explorationResult.labels !== undefined && {labels: explorationResult.labels}),
-            ...(explorationResult.detailedStats !== undefined && {detailedStats: explorationResult.detailedStats}),
-            shrinkingStats: witnessShrinkingStats
-          }),
+          statisticsAggregator.aggregate(statisticsInput),
           randomGenerator.seed,
           explorationResult.skipped
         )
 
-        logging.emitStatistics(result.statistics)
+        resultReporter.onComplete(result)
 
         return result
       }
 
       // For forall-only scenarios that pass, return empty example
+      const statisticsInput: StatisticsAggregationInput = {
+        testsRun: explorationResult.testsRun,
+        skipped: explorationResult.skipped,
+        executionTimeMs,
+        counterexampleFound: false,
+        executionTimeBreakdown: {exploration: executionTimeMs, shrinking: 0},
+        ...(explorationResult.labels !== undefined && {labels: explorationResult.labels}),
+        ...(explorationResult.detailedStats !== undefined && {detailedStats: explorationResult.detailedStats})
+      }
+
       const result = new FluentResult<Rec>(
         true,
         {} as Rec,
-        this.#calculateStatistics({
-          testsRun: explorationResult.testsRun,
-          skipped: explorationResult.skipped,
-          executionTimeMs,
-          counterexampleFound: false,
-          executionTimeBreakdown: {exploration: executionTimeMs, shrinking: 0},
-          ...(explorationResult.labels !== undefined && {labels: explorationResult.labels}),
-          ...(explorationResult.detailedStats !== undefined && {detailedStats: explorationResult.detailedStats})
-        }),
+        statisticsAggregator.aggregate(statisticsInput),
         randomGenerator.seed,
         explorationResult.skipped
       )
 
-      logging.emitStatistics(result.statistics)
+      resultReporter.onComplete(result)
 
       return result
     }
@@ -751,23 +803,25 @@ export class FluentCheck<
       // For forall-only scenarios, exhausted budget without counterexample is a (incomplete) pass.
       // For scenarios with exists, exhausted budget means no witness found.
       const satisfiable = !scenario.hasExistential
+      const statisticsInput: StatisticsAggregationInput = {
+        testsRun: explorationResult.testsRun,
+        skipped: explorationResult.skipped,
+        executionTimeMs,
+        counterexampleFound: false,
+        executionTimeBreakdown: {exploration: executionTimeMs, shrinking: 0},
+        ...(explorationResult.labels !== undefined && {labels: explorationResult.labels}),
+        ...(explorationResult.detailedStats !== undefined && {detailedStats: explorationResult.detailedStats})
+      }
+
       const result = new FluentResult<Rec>(
         satisfiable,
         {} as Rec,
-        this.#calculateStatistics({
-          testsRun: explorationResult.testsRun,
-          skipped: explorationResult.skipped,
-          executionTimeMs,
-          counterexampleFound: false,
-          executionTimeBreakdown: {exploration: executionTimeMs, shrinking: 0},
-          ...(explorationResult.labels !== undefined && {labels: explorationResult.labels}),
-          ...(explorationResult.detailedStats !== undefined && {detailedStats: explorationResult.detailedStats})
-        }),
+        statisticsAggregator.aggregate(statisticsInput),
         randomGenerator.seed,
         explorationResult.skipped
       )
 
-      logging.emitStatistics(result.statistics)
+      resultReporter.onComplete(result)
 
       return result
     }
@@ -804,25 +858,27 @@ export class FluentCheck<
 
     const totalTimeMs = executionTimeMs + shrinkTimeMs
 
+    const statisticsInput: StatisticsAggregationInput = {
+      testsRun: explorationResult.testsRun,
+      skipped: explorationResult.skipped,
+      executionTimeMs: totalTimeMs,
+      counterexampleFound: true,
+      executionTimeBreakdown: {exploration: executionTimeMs, shrinking: shrinkTimeMs},
+      ...(explorationResult.labels !== undefined && {labels: explorationResult.labels}),
+      ...(explorationResult.detailedStats !== undefined && {detailedStats: explorationResult.detailedStats}),
+      shrinkingStats
+    }
+
     // Convert shrunk counterexample to FluentResult
     const result = new FluentResult<Rec>(
       false,
       FluentCheck.unwrapFluentPick(shrinkResult.minimized) as Rec,
-      this.#calculateStatistics({
-        testsRun: explorationResult.testsRun,
-        skipped: explorationResult.skipped,
-        executionTimeMs: totalTimeMs,
-        counterexampleFound: true,
-        executionTimeBreakdown: {exploration: executionTimeMs, shrinking: shrinkTimeMs},
-        ...(explorationResult.labels !== undefined && {labels: explorationResult.labels}),
-        ...(explorationResult.detailedStats !== undefined && {detailedStats: explorationResult.detailedStats}),
-        shrinkingStats
-      }),
+      statisticsAggregator.aggregate(statisticsInput),
       randomGenerator.seed,
       explorationResult.skipped
     )
 
-    logging.emitStatistics(result.statistics)
+    resultReporter.onComplete(result)
 
     return result
   }
@@ -834,9 +890,8 @@ export class FluentCheck<
     })
   }
 
-  #createLoggingHelpers(
+  #createExecutionLogger(
     effectiveVerbosity: Verbosity,
-    logStatistics: boolean,
     userLogger?: Logger
   ) {
     const shouldLogVerbosity = (min: Verbosity) =>
@@ -870,202 +925,46 @@ export class FluentCheck<
       }
     }
 
-    const emitStatistics = (statistics: FluentStatistics) => {
-      if (!logStatistics) return
-      if (effectiveVerbosity === Verbosity.Quiet) return
-
-      if (userLogger !== undefined) {
-        userLogger.log({
-          level: 'info',
-          message: 'statistics',
-          data: {
-            statistics,
-            detailed: effectiveVerbosity >= Verbosity.Verbose,
-            includeHistograms: effectiveVerbosity >= Verbosity.Debug
-          }
-        })
-        return
-      }
-
-      const formatted = FluentReporter.formatStatistics(statistics, {
-        format: 'text',
-        detailed: effectiveVerbosity >= Verbosity.Verbose,
-        includeHistograms: effectiveVerbosity >= Verbosity.Debug
-      })
-      console.log('\n' + formatted)
-    }
-
     return {
       log,
+      logger: userLogger,
       verbose: (message: string, data?: Record<string, unknown>) =>
         log('info', message, data, Verbosity.Verbose),
       debug: (message: string, data?: Record<string, unknown>) =>
-        log('debug', message, data, Verbosity.Debug),
-      emitStatistics
+        log('debug', message, data, Verbosity.Debug)
     }
   }
 
-  #createProgressHandlers(params: {
-    checkOptions: CheckOptions
-    effectiveVerbosity: Verbosity
-    startTime: number
-    logging: {
-      log: (
-        level: 'debug' | 'info' | 'warn' | 'error',
-        message: string,
-        data?: Record<string, unknown>,
-        minVerbosity?: Verbosity
-      ) => void
-    }
-  }) {
-    const {checkOptions, effectiveVerbosity, startTime, logging} = params
+  #createProgressReporter(
+    checkOptions: CheckOptions,
+    logger?: Logger
+  ): ProgressReporter {
     const DEFAULT_PROGRESS_INTERVAL = 100
     const DEFAULT_PROGRESS_TIME_INTERVAL_MS = 1000
-
-    let lastProgressUpdate = 0
-    const progressInterval = checkOptions.progressInterval ?? DEFAULT_PROGRESS_INTERVAL
-    const progressTimeInterval = DEFAULT_PROGRESS_TIME_INTERVAL_MS
-    let lastProgressTime = startTime
-
-    const explorerCallback = checkOptions.onProgress !== undefined ? (progress: {
-      testsRun: number
-      testsPassed: number
-      testsDiscarded: number
-      totalTests?: number
-      elapsedMs: number
-    }) => {
-      const now = Date.now()
-      const shouldUpdate =
-        progress.testsRun - lastProgressUpdate >= progressInterval ||
-        now - lastProgressTime >= progressTimeInterval
-
-      if (!shouldUpdate) return
-      lastProgressUpdate = progress.testsRun
-      lastProgressTime = now
-
-      try {
-        const progressInfo: ProgressInfo = {
-          testsRun: progress.testsRun,
-          ...(progress.totalTests !== undefined && {totalTests: progress.totalTests}),
-          testsPassed: progress.testsPassed,
-          testsDiscarded: progress.testsDiscarded,
-          elapsedMs: progress.elapsedMs,
-          currentPhase: 'exploring'
-        }
-        if (progress.totalTests !== undefined) {
-          progressInfo.percentComplete = (progress.testsRun / progress.totalTests) * 100
-        }
-        const onProgress = checkOptions.onProgress
-        if (onProgress !== undefined) {
-          onProgress(progressInfo)
-        }
-      } catch (e) {
-        logging.log(
-          'error',
-          'Progress callback error',
-          {error: e instanceof Error ? e.message : String(e)},
-          Verbosity.Normal
-        )
-      }
-    } : undefined
-
-    const emitFinalProgress = (
-      explorationResult: ExplorationResult<Rec>,
-      maxTests: number
-    ) => {
-      if (checkOptions.onProgress === undefined) return
-      const finalProgress: ProgressInfo = {
-        testsRun: explorationResult.testsRun,
-        totalTests: maxTests,
-        testsPassed: explorationResult.outcome === 'passed'
-          ? explorationResult.testsRun - explorationResult.skipped
-          : 0,
-        testsDiscarded: explorationResult.skipped,
-        elapsedMs: Date.now() - startTime,
-        currentPhase: 'exploring'
-      }
-      if (maxTests > 0) {
-        finalProgress.percentComplete = (explorationResult.testsRun / maxTests) * 100
-      }
-      try {
-        checkOptions.onProgress(finalProgress)
-      } catch (e) {
-        logging.log(
-          'error',
-          'Progress callback error',
-          {error: e instanceof Error ? e.message : String(e)},
-          effectiveVerbosity
-        )
-      }
+    if (checkOptions.onProgress === undefined) {
+      return new NoopProgressReporter()
     }
 
-    return {explorerCallback, emitFinalProgress}
+    const base = new CallbackProgressReporter(checkOptions.onProgress, logger)
+    const progressInterval = checkOptions.progressInterval ?? DEFAULT_PROGRESS_INTERVAL
+    return new ThrottlingProgressReporter(base, progressInterval, DEFAULT_PROGRESS_TIME_INTERVAL_MS)
   }
 
-  #calculateStatistics(params: {
-    testsRun: number
-    skipped: number
-    executionTimeMs: number
-    counterexampleFound: boolean
-    executionTimeBreakdown: { exploration: number; shrinking: number }
-    labels?: Record<string, number>
-    detailedStats?: DetailedExplorationStats
-    shrinkingStats?: ShrinkingStatistics
-  }): FluentStatistics {
-    const {
-      testsRun,
-      skipped,
-      executionTimeMs,
-      counterexampleFound,
-      executionTimeBreakdown,
-      labels,
-      detailedStats,
-      shrinkingStats
-    } = params
-
-    const stats: FluentStatistics = {
-      testsRun,
-      testsPassed: counterexampleFound ? testsRun - skipped - 1 : testsRun - skipped,
-      testsDiscarded: skipped,
-      executionTimeMs,
-      executionTimeBreakdown
+  #createResultReporter(
+    checkOptions: CheckOptions,
+    effectiveVerbosity: Verbosity,
+    logger?: Logger
+  ): ResultReporter<Rec> {
+    if (checkOptions.logStatistics !== true) {
+      return new NoopResultReporter<Rec>()
     }
-
-    if (labels !== undefined) {
-      stats.labels = labels
-      if (testsRun > 0) {
-        const labelPercentages: Record<string, number> = {}
-        for (const [label, count] of Object.entries(labels)) {
-          labelPercentages[label] = (count / testsRun) * 100
-        }
-        stats.labelPercentages = labelPercentages
-      }
+    if (effectiveVerbosity === Verbosity.Quiet) {
+      return new NoopResultReporter<Rec>()
     }
-
-    if (detailedStats !== undefined) {
-      if (detailedStats.arbitraryStats !== undefined) {
-        stats.arbitraryStats = detailedStats.arbitraryStats
-      }
-      if (detailedStats.events !== undefined) {
-        stats.events = detailedStats.events
-        if (testsRun > 0) {
-          const eventPercentages: Record<string, number> = {}
-          for (const [event, count] of Object.entries(detailedStats.events)) {
-            eventPercentages[event] = (count / testsRun) * 100
-          }
-          stats.eventPercentages = eventPercentages
-        }
-      }
-      if (detailedStats.targets !== undefined) {
-        stats.targets = detailedStats.targets
-      }
+    if (logger !== undefined) {
+      return new LoggerStatisticsReporter<Rec>(logger, effectiveVerbosity)
     }
-
-    if (shrinkingStats !== undefined) {
-      stats.shrinking = shrinkingStats
-    }
-
-    return stats
+    return new ConsoleStatisticsReporter<Rec>(effectiveVerbosity)
   }
 
   /**
