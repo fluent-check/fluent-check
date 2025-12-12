@@ -212,7 +212,7 @@ export interface CheckOptions {
    */
   progressReporterFactory?: (params: {
     options: CheckOptions
-    logger?: Logger
+    logger: Logger | undefined
     defaultFactory: (options: CheckOptions, logger?: Logger) => ProgressReporter
   }) => ProgressReporter
   /**
@@ -222,7 +222,7 @@ export interface CheckOptions {
   resultReporterFactory?: (params: {
     options: CheckOptions
     effectiveVerbosity: Verbosity
-    logger?: Logger
+    logger: Logger | undefined
     defaultFactory: (options: CheckOptions, effectiveVerbosity: Verbosity, logger?: Logger) => ResultReporter
   }) => ResultReporter
 }
@@ -977,18 +977,11 @@ export class FluentCheck<
     }
 
     if (checkOptions.progressReporterFactory !== undefined) {
-      const params: {
-        options: CheckOptions
-        logger?: Logger
-        defaultFactory: (options: CheckOptions, logger?: Logger) => ProgressReporter
-      } = {
+      return checkOptions.progressReporterFactory({
         options: checkOptions,
+        logger,
         defaultFactory
-      }
-      if (logger !== undefined) {
-        params.logger = logger
-      }
-      return checkOptions.progressReporterFactory(params)
+      })
     }
 
     return defaultFactory(checkOptions, logger)
@@ -1017,20 +1010,12 @@ export class FluentCheck<
     }
 
     if (checkOptions.resultReporterFactory !== undefined) {
-      const params: {
-        options: CheckOptions
-        effectiveVerbosity: Verbosity
-        logger?: Logger
-        defaultFactory: (options: CheckOptions, effectiveVerbosity: Verbosity, logger?: Logger) => ResultReporter<Rec>
-      } = {
+      return checkOptions.resultReporterFactory({
         options: checkOptions,
         effectiveVerbosity,
+        logger,
         defaultFactory
-      }
-      if (logger !== undefined) {
-        params.logger = logger
-      }
-      return checkOptions.resultReporterFactory(params) as ResultReporter<Rec>
+      }) as ResultReporter<Rec>
     }
 
     return defaultFactory(checkOptions, effectiveVerbosity, logger)

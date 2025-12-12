@@ -160,9 +160,11 @@ class MyAggregator implements fc.StatisticsAggregator {
     const stats = this.inner.aggregate(input)
     // Example: round percentages for display-only use
     if (stats.labelPercentages !== undefined) {
+      const roundedPercentages: Record<string, number> = {}
       for (const key of Object.keys(stats.labelPercentages)) {
-        stats.labelPercentages[key] = Math.round(stats.labelPercentages[key]!)
+        roundedPercentages[key] = Math.round(stats.labelPercentages[key]!)
       }
+      return {...stats, labelPercentages: roundedPercentages}
     }
     return stats
   }
@@ -221,4 +223,3 @@ These factories receive:
 - A `defaultFactory` function that reproduces FluentCheck’s built-in behavior
 
 This lets you layer additional behavior on top of the defaults or completely replace them, while keeping the core check orchestration unchanged.
-
