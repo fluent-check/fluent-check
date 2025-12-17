@@ -125,6 +125,5 @@ export {
   pair,
   nullable,
   optional,
-  ArbitrarySize,
   type Arbitrary
 } from './arbitraries/index.js'

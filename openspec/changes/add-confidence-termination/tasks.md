@@ -41,8 +41,39 @@
 - [x] 5.9 Test that shrinking still works with confidence-based termination
 - [x] 5.10 Verify performance overhead is acceptable (<5%)
 
-## 6. Documentation
+## 6. Evidence Suite: Statistical Foundation (Integers)
 
-- [ ] 6.1 Document confidence-based API in user guide
-- [ ] 6.2 Add examples for common confidence levels
-- [ ] 6.3 Explain Bayesian model in technical docs
+- [x] 6.1 Add seeded PRNG helper (mulberry32) if not already available
+- [x] 6.2 Add deterministic test: confidence finds rare bug that fixed samples miss (0.2% failure rate)
+- [x] 6.3 Add statistical test: confidence finds rare bugs more reliably across 100 trials
+- [x] 6.4 Add deterministic test: low confidence predicts undiscovered bugs (1% failure rate property)
+- [x] 6.5 Add statistical test: confidence calibration matches actual defect probability
+- [x] 6.6 Add deterministic test: adaptive test effort based on property complexity
+
+## 7. Evidence Suite: Real-World Scenarios (Complex Types)
+
+- [x] 7.1 Add test: User registration validation bug (Record with email, age, username, role)
+  - Property fails when email domain is 'test.com' AND role is 'admin' AND age > 65
+  - Demonstrate confidence-based testing finds rare field combination bugs
+  
+- [x] 7.2 Add test: API request validation bug (Nested Record with method, headers, body)
+  - Property fails when POST + body present + contentType undefined
+  - Demonstrate comprehensive exploration of nested structures
+  
+- [x] 7.3 Add test: Date range business logic bug (Date + timezone combinations)
+  - Property fails for Feb 29 + year-crossing + non-UTC timezone
+  - Demonstrate edge case discovery in temporal logic
+  
+- [x] 7.4 Add test: Configuration validation bug (Deeply nested Record)
+  - Property fails when sqlite + ssl + cache enabled + analytics enabled
+  - Demonstrate invalid combination detection in complex config spaces
+
+## 8. Documentation
+
+- [x] 8.1 Document confidence-based API in user guide
+- [x] 8.2 Add examples for common confidence levels
+- [x] 8.3 Explain Bayesian model in technical docs
+- [x] 8.4 Add evidence summary to docs/statistical-confidence.md
+  - Include comparison table (fixed vs confidence-based)
+  - Include real-world scenario examples
+  - Explain when to use confidence vs fixed sample size

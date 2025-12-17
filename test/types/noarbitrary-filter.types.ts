@@ -14,7 +14,7 @@ import {
   type EstimatedSizeArbitrary,
   type EstimatedSize,
 } from '../../src/arbitraries/index.js'
-import { type Expect, type Equal } from './test-utils.types.js'
+import {type Expect, type Equal} from './test-utils.types.js'
 
 // The key test: NoArbitrary.filter() should return EstimatedSizeArbitrary
 const filtered = NoArbitrary.filter(() => true)

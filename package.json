@@ -22,7 +22,12 @@
     "prepare": "husky && tsc",
     "coverage": "nyc mocha -reporter=min -r source-map-support",
     "profile:cpu": "./scripts/profile-cpu.sh",
-    "profile:heap": "./scripts/profile-heap.sh"
+    "profile:heap": "./scripts/profile-heap.sh",
+    "evidence:setup": "./scripts/evidence/setup-python.sh",
+    "evidence:generate": "npx tsx scripts/evidence/calibration.study.ts && npx tsx scripts/evidence/detection.study.ts && npx tsx scripts/evidence/efficiency.study.ts",
+    "evidence:analyze": "./scripts/evidence/run-analysis.sh",
+    "evidence": "npm run evidence:generate && npm run evidence:analyze",
+    "evidence:quick": "QUICK_MODE=1 npm run evidence:generate && npm run evidence:analyze"
   },
   "keywords": [
     "testing",
@@ -54,6 +59,7 @@
     "nyc": "^17.1.0",
     "source-map-support": "^0.5.21",
     "ts-node": "^10.9.2",
+    "tsx": "^4.21.0",
     "typescript-eslint": "^8.48.1"
   },
   "nyc": {
