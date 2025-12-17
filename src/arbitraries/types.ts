@@ -20,6 +20,54 @@ export type EstimatedSize = {
 
 export type ArbitrarySize = ExactSize | EstimatedSize
 
+// Forward declaration to avoid circular dependency
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
+type ArbitraryBase<A> = import('./internal.js').Arbitrary<A>
+
+/**
+ * An arbitrary that returns an exact size when `size()` is called.
+ *
+ * IMPORTANT: This is an interface (not a type alias with intersection) because
+ * TypeScript's interface inheritance properly overrides method return types,
+ * while intersection types do not. This ensures that calling `.size()` on an
+ * ExactSizeArbitrary returns `ExactSize`, not `ArbitrarySize`.
+ *
+ * @see https://github.com/microsoft/TypeScript/issues/16936 for related discussion
+ */
+export interface ExactSizeArbitrary<A> extends ArbitraryBase<A> {
+  size(): ExactSize
+  map<B>(
+    f: (a: A) => B,
+    shrinkHelper?: XOR<
+      {inverseMap: (b: NoInfer<B>) => A[]},
+      {canGenerate: (pick: FluentPick<NoInfer<B>>) => boolean}
+    >
+  ): ExactSizeArbitrary<B>
+  filter(f: (a: A) => boolean): EstimatedSizeArbitrary<A>
+  suchThat(f: (a: A) => boolean): EstimatedSizeArbitrary<A>
+}
+
+/**
+ * An arbitrary that returns an estimated size when `size()` is called.
+ *
+ * IMPORTANT: This is an interface (not a type alias with intersection) because
+ * TypeScript's interface inheritance properly overrides method return types.
+ * This ensures that calling `.size()` on an EstimatedSizeArbitrary returns
+ * `EstimatedSize`, not `ArbitrarySize`.
+ */
+export interface EstimatedSizeArbitrary<A> extends ArbitraryBase<A> {
+  size(): EstimatedSize
+  map<B>(
+    f: (a: A) => B,
+    shrinkHelper?: XOR<
+      {inverseMap: (b: NoInfer<B>) => A[]},
+      {canGenerate: (pick: FluentPick<NoInfer<B>>) => boolean}
+    >
+  ): EstimatedSizeArbitrary<B>
+  filter(f: (a: A) => boolean): EstimatedSizeArbitrary<A>
+  suchThat(f: (a: A) => boolean): EstimatedSizeArbitrary<A>
+}
+
 type Without<T, U> = { [P in Exclude<keyof T, keyof U>]?: never }
 export type XOR<T, U> = (T | U) extends object ? (Without<T, U> & U) | (Without<U, T> & T) : T | U
 

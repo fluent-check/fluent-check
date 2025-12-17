@@ -197,9 +197,9 @@ describe('Arbitrary Laws', () => {
       })
     })
 
-    describe('noArbitraryFilterIdentity', () => {
-      it('filter on NoArbitrary returns NoArbitrary', () => {
-        const result = compositionLaws.noArbitraryFilterIdentity()
+    describe('noArbitraryFilterProducesEmpty', () => {
+      it('filter on NoArbitrary produces no values and has estimated size', () => {
+        const result = compositionLaws.noArbitraryFilterProducesEmpty()
         expect(result.passed, result.message).to.be.true
       })
     })
@@ -272,7 +272,7 @@ describe('Arbitrary Laws', () => {
 
     it('NoArbitrary satisfies composition laws', () => {
       expect(compositionLaws.noArbitraryMapIdentity().passed).to.be.true
-      expect(compositionLaws.noArbitraryFilterIdentity().passed).to.be.true
+      expect(compositionLaws.noArbitraryFilterProducesEmpty().passed).to.be.true
     })
   })
 
