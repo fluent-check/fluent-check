@@ -177,6 +177,114 @@ export class FluentStrategyFactory<Rec extends StrategyBindings = StrategyBindin
   }
 
   /**
+   * Sets the target confidence level for early termination.
+   * When this confidence is reached, test execution will terminate early.
+   *
+   * @param level - Target confidence level (0 < level < 1), e.g., 0.99 for 99% confidence
+   * @returns This factory for method chaining
+   * @throws Error if level is not between 0 and 1
+   *
+   * @example
+   * ```typescript
+   * fc.scenario()
+   *   .config(fc.strategy().withConfidence(0.99))
+   *   .forall('x', fc.integer())
+   *   .then(({x}) => x * x >= 0)
+   *   .check()
+   * ```
+   */
+  withConfidence(level: number): this {
+    if (level <= 0 || level >= 1) {
+      throw new Error(`Confidence level must be between 0 and 1, got ${level}`)
+    }
+    this.configuration = {...this.configuration, targetConfidence: level}
+    return this
+  }
+
+  /**
+   * Sets the minimum confidence level before stopping.
+   * If sample size is reached but confidence is below this threshold,
+   * execution will continue until confidence is met (up to maxIterations).
+   *
+   * @param level - Minimum confidence level (0 < level < 1), e.g., 0.95 for 95% confidence
+   * @returns This factory for method chaining
+   * @throws Error if level is not between 0 and 1
+   *
+   * @example
+   * ```typescript
+   * fc.scenario()
+   *   .config(fc.strategy()
+   *     .withMinConfidence(0.95)
+   *     .withSampleSize(1000))
+   *   .forall('x', fc.integer())
+   *   .then(({x}) => x >= 0)
+   *   .check()
+   * ```
+   */
+  withMinConfidence(level: number): this {
+    if (level <= 0 || level >= 1) {
+      throw new Error(`Confidence level must be between 0 and 1, got ${level}`)
+    }
+    this.configuration = {...this.configuration, minConfidence: level}
+    return this
+  }
+
+  /**
+   * Sets the maximum number of iterations as a safety upper bound.
+   * This prevents infinite loops when using confidence-based termination.
+   *
+   * @param count - Maximum number of test iterations (must be > 0)
+   * @returns This factory for method chaining
+   * @throws Error if count is not positive
+   *
+   * @example
+   * ```typescript
+   * fc.scenario()
+   *   .config(fc.strategy()
+   *     .withConfidence(0.99)
+   *     .withMaxIterations(50000))
+   *   .forall('x', fc.integer())
+   *   .then(({x}) => x * x >= 0)
+   *   .check()
+   * ```
+   */
+  withMaxIterations(count: number): this {
+    if (count <= 0 || !Number.isInteger(count)) {
+      throw new Error(`Max iterations must be a positive integer, got ${count}`)
+    }
+    this.configuration = {...this.configuration, maxIterations: count}
+    return this
+  }
+
+  /**
+   * Sets the pass-rate threshold for confidence calculation.
+   * This threshold is used in the Bayesian confidence calculation to determine
+   * the confidence that the true pass rate exceeds this threshold.
+   *
+   * @param threshold - Pass rate threshold (0 < threshold < 1), e.g., 0.999 for 99.9% pass rate
+   * @returns This factory for method chaining
+   * @throws Error if threshold is not between 0 and 1
+   *
+   * @example
+   * ```typescript
+   * fc.scenario()
+   *   .config(fc.strategy()
+   *     .withConfidence(0.95)
+   *     .withPassRateThreshold(0.99))  // 95% confident that pass rate > 99%
+   *   .forall('x', fc.integer())
+   *   .then(({x}) => x * x >= 0)
+   *   .check()
+   * ```
+   */
+  withPassRateThreshold(threshold: number): this {
+    if (threshold <= 0 || threshold >= 1) {
+      throw new Error(`Pass rate threshold must be between 0 and 1, got ${threshold}`)
+    }
+    this.configuration = {...this.configuration, passRateThreshold: threshold}
+    return this
+  }
+
+  /**
    * Configures a custom shrinker factory.
    *
    * @param factory - Function that creates a Shrinker instance

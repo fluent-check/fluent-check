@@ -53,7 +53,19 @@ export function prepareCheckExecution<Rec extends {}>(
   const {sampler, randomGenerator} = factory.buildStandaloneSampler()
 
   const explorationBudget: ExplorationBudget = {
-    maxTests: factory.configuration.sampleSize ?? 1000
+    maxTests: factory.configuration.sampleSize ?? 1000,
+    ...(factory.configuration.targetConfidence !== undefined && {
+      targetConfidence: factory.configuration.targetConfidence
+    }),
+    ...(factory.configuration.minConfidence !== undefined && {
+      minConfidence: factory.configuration.minConfidence
+    }),
+    ...(factory.configuration.maxIterations !== undefined && {
+      maxIterations: factory.configuration.maxIterations
+    }),
+    ...(factory.configuration.passRateThreshold !== undefined && {
+      passRateThreshold: factory.configuration.passRateThreshold
+    })
   }
 
   // Determine detailed stats flag early for later use
@@ -253,7 +265,10 @@ function resolvePassedOutcome<Rec extends {}>(
         explorationResult,
         timeBreakdown: {exploration: explorationTimeMs, shrinking: shrinkResult.timeMs},
         counterexampleFound: false,
-        shrinkingStats: toShrinkingStatistics(shrinkResult.result)
+        shrinkingStats: toShrinkingStatistics(shrinkResult.result),
+        ...(context.explorationBudget.passRateThreshold !== undefined && {
+          passRateThreshold: context.explorationBudget.passRateThreshold
+        })
       })
     }
   }
@@ -266,7 +281,10 @@ function resolvePassedOutcome<Rec extends {}>(
     statisticsInput: buildStatisticsInput({
       explorationResult,
       timeBreakdown: {exploration: explorationTimeMs, shrinking: 0},
-      counterexampleFound: false
+      counterexampleFound: false,
+      ...(context.explorationBudget.passRateThreshold !== undefined && {
+        passRateThreshold: context.explorationBudget.passRateThreshold
+      })
     })
   }
 }
@@ -287,7 +305,10 @@ function resolveExhaustedOutcome<Rec extends {}>(
     statisticsInput: buildStatisticsInput({
       explorationResult,
       timeBreakdown: {exploration: explorationTimeMs, shrinking: 0},
-      counterexampleFound: false
+      counterexampleFound: false,
+      ...(context.explorationBudget.passRateThreshold !== undefined && {
+        passRateThreshold: context.explorationBudget.passRateThreshold
+      })
     })
   }
 }
@@ -334,7 +355,10 @@ function resolveFailedOutcome<Rec extends {}>(
       explorationResult,
       timeBreakdown: {exploration: explorationTimeMs, shrinking: shrinkResult.timeMs},
       counterexampleFound: true,
-      shrinkingStats: toShrinkingStatistics(shrinkResult.result)
+      shrinkingStats: toShrinkingStatistics(shrinkResult.result),
+      ...(context.explorationBudget.passRateThreshold !== undefined && {
+        passRateThreshold: context.explorationBudget.passRateThreshold
+      })
     })
   }
 }

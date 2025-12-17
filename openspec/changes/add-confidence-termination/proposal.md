@@ -18,18 +18,30 @@ Issue [#418](https://github.com/fluent-check/fluent-check/issues/418) proposes a
 
 - **Add `withConfidence(level)` to strategy builder** for target confidence
 - **Add `withMinConfidence(level)`** for minimum confidence threshold
+- **Add `withPassRateThreshold(threshold)`** to configure the pass-rate threshold for confidence calculation (default 0.999)
+- **Add `withMaxIterations(count)`** for safety upper bound
 - **Add `checkWithConfidence(level)` terminal method** for one-shot confidence checks
+  - **FIX**: Preserve full factory configuration (not just sampleSize)
 - **Add `confidence` and `credibleInterval` to FluentStatistics** output
 - **Implement Bayesian confidence calculation** using Beta distribution posterior
 
 ### API Design
 
 ```typescript
-// Run until 99% confident
+// Run until 99% confident (default: confidence that pass rate > 99.9%)
 fc.scenario()
   .config(fc.strategy()
     .withConfidence(0.99)
     .withMaxIterations(50000))
+  .forall('x', fc.integer())
+  .then(({x}) => x * x >= 0)
+  .check()
+
+// Configure custom pass-rate threshold
+fc.scenario()
+  .config(fc.strategy()
+    .withConfidence(0.95)
+    .withPassRateThreshold(0.99))  // Confidence that pass rate > 99%
   .forall('x', fc.integer())
   .then(({x}) => x * x >= 0)
   .check()
@@ -43,11 +55,12 @@ fc.scenario()
   .then(({x}) => x >= 0)
   .check()
 
-// One-shot terminal method
+// One-shot terminal method (preserves existing factory config)
 const result = fc.scenario()
+  .config(fc.strategy().withShrinking().withBias())
   .forall('x', fc.integer())
   .then(({x}) => x * x >= 0)
-  .checkWithConfidence(0.999)
+  .checkWithConfidence(0.999)  // Preserves shrinking and bias settings
 
 console.log(result.statistics.confidence)       // 0.9992
 console.log(result.statistics.testsRun)         // 6905 (variable)
@@ -58,14 +71,24 @@ console.log(result.statistics.credibleInterval) // [0.9995, 1.0]
 
 Using Beta distribution posterior:
 - Prior: Beta(1, 1) = Uniform (no prior knowledge)
-- After n successes, 0 failures: Beta(n+1, 1)
-- Confidence = P(p > threshold | data) where p is true pass rate
+- After n successes, m failures: Beta(n+1, m+1)
+- Confidence = P(p > passRateThreshold | data) where p is true pass rate
+- Default passRateThreshold = 0.999 (99.9% pass rate)
+- Users can configure threshold via `withPassRateThreshold(threshold)`
 
 ```typescript
-// Confidence that property holds with >99.9% probability
+// Confidence that property holds with >99.9% probability (default)
 const posterior = new BetaDistribution(successes + 1, failures + 1)
 const confidence = 1 - posterior.cdf(0.999)
+
+// Custom threshold: confidence that pass rate > 99%
+const confidence99 = 1 - posterior.cdf(0.99)
 ```
+
+**Semantics Clarification:**
+- `withConfidence(0.95)` means "terminate when 95% confident that pass rate > threshold"
+- `withPassRateThreshold(0.999)` means "calculate confidence assuming we need 99.9% pass rate"
+- These are independent: confidence level (termination) vs pass-rate threshold (calculation)
 
 ## Impact
 
@@ -94,8 +117,11 @@ const confidence = 1 - posterior.cdf(0.999)
 
 1. `withConfidence(0.99)` terminates when 99% confidence achieved
 2. `withMinConfidence(0.95)` continues if confidence below threshold
-3. Statistics output includes confidence and credible interval
-4. Performance overhead is minimal (<5%)
+3. `withPassRateThreshold(0.99)` affects confidence calculation (lower threshold = higher confidence for same data)
+4. `checkWithConfidence()` preserves all factory configuration (shrinking, bias, deduping, etc.)
+5. Statistics output includes confidence and credible interval
+6. Tests verify statistical guarantees (higher confidence requires more tests, threshold affects confidence)
+7. Performance overhead is minimal (<5%)
 
 ## Related Issues
 

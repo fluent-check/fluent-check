@@ -120,18 +120,67 @@ Statistical confidence calculations are particularly valuable for:
 
 ## Usage Examples
 
+### Basic Confidence-Based Termination
+
 ```typescript
-// Configure the testing strategy with a 99% confidence level
+// Run until 99% confident the property holds
 fc.scenario()
   .config(fc.strategy()
-    .withMaxIterations(1000)
-    .withConfidence(0.99))
+    .withConfidence(0.99)
+    .withMaxIterations(50000))
   .forall('x', fc.integer())
   .then(({x}) => x * x >= 0)
   .check()
 ```
 
 The framework will run tests until it achieves the specified confidence level, or reaches the maximum number of iterations.
+
+### Minimum Confidence Requirement
+
+```typescript
+// Continue past sample size if confidence too low
+fc.scenario()
+  .config(fc.strategy()
+    .withMinConfidence(0.95)
+    .withSampleSize(1000))
+  .forall('x', fc.integer())
+  .then(({x}) => x >= 0)
+  .check()
+```
+
+If the sample size is reached but confidence is below the minimum threshold, execution will continue until confidence is met (up to maxIterations).
+
+### Convenience Method
+
+```typescript
+// One-shot confidence check
+const result = fc.scenario()
+  .forall('x', fc.integer())
+  .then(({x}) => x * x >= 0)
+  .checkWithConfidence(0.999)
+
+console.log(result.statistics.confidence)       // 0.9992
+console.log(result.statistics.testsRun)         // 6905 (variable)
+console.log(result.statistics.credibleInterval) // [0.9995, 1.0]
+```
+
+### Accessing Confidence in Results
+
+All test results now include confidence statistics:
+
+```typescript
+const result = fc.scenario()
+  .forall('x', fc.integer())
+  .then(({x}) => x * x >= 0)
+  .check()
+
+// Confidence is always calculated (even without confidence-based termination)
+if (result.statistics.confidence !== undefined) {
+  console.log(`Confidence: ${(result.statistics.confidence * 100).toFixed(2)}%`)
+  const [lower, upper] = result.statistics.credibleInterval!
+  console.log(`95% credible interval: [${(lower * 100).toFixed(2)}%, ${(upper * 100).toFixed(2)}%]`)
+}
+```
 
 ## Mathematical Foundation
 
@@ -140,6 +189,27 @@ FluentCheck's statistical approach is based on Bayesian statistics, which allows
 1. **Prior distributions**: Initial assumptions about property satisfaction
 2. **Likelihood functions**: The probability of observing test results given a hypothesis
 3. **Posterior distributions**: Updated beliefs after observing test results
+
+### Bayesian Confidence Calculation
+
+FluentCheck calculates confidence using a Bayesian approach with a uniform prior:
+
+- **Prior**: Beta(1, 1) = Uniform distribution (no prior knowledge)
+- **Posterior**: After observing `n` successes and `m` failures, the posterior is Beta(n+1, m+1)
+- **Confidence**: P(p > threshold | data) where `p` is the true pass rate and `threshold` defaults to 0.999
+
+The confidence value represents the probability that the property holds with a pass rate greater than the threshold (default 99.9%). For example, a confidence of 0.95 means there's a 95% probability that the true pass rate exceeds 99.9%.
+
+### Credible Intervals
+
+The credible interval provides a range of plausible values for the true pass rate. A 95% credible interval means there's a 95% probability that the true pass rate falls within that range. This is calculated using the quantiles of the Beta distribution posterior:
+
+```typescript
+// After 1000 successes, 0 failures
+const [lower, upper] = calculateCredibleInterval(1000, 0, 0.95)
+// Returns approximately [0.997, 1.0]
+// Meaning: 95% probability that true pass rate is between 99.7% and 100%
+```
 
 The `IntegerDistribution` base class provides default implementations of key statistical functions:
 
@@ -202,6 +272,38 @@ FluentCheck's statistical toolkit includes:
 1. **Confidence intervals**: Estimating the range of possible satisfaction probabilities
 2. **Bayesian inference**: Updating beliefs about property satisfaction based on evidence
 3. **Statistical power analysis**: Determining the number of tests needed to detect failures with a given probability
+4. **Confidence-based termination**: Automatically stopping when sufficient confidence is achieved
+5. **Credible intervals**: Bayesian confidence intervals for the true pass rate
+
+### API Reference
+
+#### Strategy Configuration
+
+- `withConfidence(level: number)`: Set target confidence for early termination (0 < level < 1)
+- `withMinConfidence(level: number)`: Set minimum confidence before stopping (0 < level < 1)
+- `withMaxIterations(count: number)`: Set safety upper bound for iterations (must be positive integer)
+
+#### Terminal Methods
+
+- `checkWithConfidence(level: number, options?)`: Convenience method to check with target confidence
+
+#### Statistics Fields
+
+- `statistics.confidence?: number`: Bayesian confidence that property holds (0-1)
+- `statistics.credibleInterval?: [number, number]`: 95% credible interval for true pass rate
+
+### When to Use Confidence vs Sample Size
+
+- **Use sample size** (`withSampleSize()`) when:
+  - You want predictable test duration
+  - You're running in CI/CD with time constraints
+  - You need consistent behavior across runs
+
+- **Use confidence** (`withConfidence()`) when:
+  - You need quantifiable statistical guarantees
+  - Test duration can vary based on property complexity
+  - You're testing critical systems requiring high confidence
+  - You want to optimize test execution time (simple properties finish faster)
 
 ## Comparison with Other Frameworks
 
