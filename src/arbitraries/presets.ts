@@ -6,6 +6,7 @@
  */
 
 import type {Arbitrary} from './internal.js'
+import type {ExactSizeArbitrary} from './types.js'
 import {integer, array, tuple, union, constant, string as stringArb} from './index.js'
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -22,7 +23,7 @@ import {integer, array, tuple, union, constant, string as stringArb} from './ind
  * fc.positiveInt()  // 1, 42, 999999, ...
  * ```
  */
-export const positiveInt = (): Arbitrary<number> =>
+export const positiveInt = (): ExactSizeArbitrary<number> =>
   integer(1, Number.MAX_SAFE_INTEGER)
 
 /**
@@ -35,7 +36,7 @@ export const positiveInt = (): Arbitrary<number> =>
  * fc.negativeInt()  // -1, -42, -999999, ...
  * ```
  */
-export const negativeInt = (): Arbitrary<number> =>
+export const negativeInt = (): ExactSizeArbitrary<number> =>
   integer(Number.MIN_SAFE_INTEGER, -1)
 
 /**
@@ -62,7 +63,7 @@ export const nonZeroInt = (): Arbitrary<number> =>
  * fc.byte()  // 0, 127, 255, 42, ...
  * ```
  */
-export const byte = (): Arbitrary<number> =>
+export const byte = (): ExactSizeArbitrary<number> =>
   integer(0, 255)
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -81,7 +82,7 @@ export const byte = (): Arbitrary<number> =>
  * fc.nonEmptyString(10)    // strings with length 1-10
  * ```
  */
-export const nonEmptyString = (maxLength = 100): Arbitrary<string> =>
+export const nonEmptyString = (maxLength = 100): ExactSizeArbitrary<string> =>
   stringArb(1, maxLength)
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -101,8 +102,11 @@ export const nonEmptyString = (maxLength = 100): Arbitrary<string> =>
  * fc.nonEmptyArray(fc.string(), 5)      // ["a"], ["x", "y"], ...
  * ```
  */
-export const nonEmptyArray = <A>(arb: Arbitrary<A>, maxLength = 10): Arbitrary<A[]> =>
-  array(arb, 1, maxLength)
+export function nonEmptyArray<A>(arb: ExactSizeArbitrary<A>, maxLength?: number): ExactSizeArbitrary<A[]>
+export function nonEmptyArray<A>(arb: Arbitrary<A>, maxLength?: number): Arbitrary<A[]>
+export function nonEmptyArray<A>(arb: Arbitrary<A>, maxLength = 10): Arbitrary<A[]> {
+  return array(arb, 1, maxLength)
+}
 
 /**
  * Creates an arbitrary that generates 2-tuples (pairs) of the same type.
