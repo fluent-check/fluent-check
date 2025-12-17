@@ -75,13 +75,13 @@ export const set = <const A extends readonly unknown[]>(
 
 export const oneof = <const A extends readonly unknown[]>(elements: A): ExactSizeArbitrary<A[number]> => {
   if (elements.length === 0) return NoArbitrary
-  return integer(0, elements.length - 1).map((i): A[number] => {
+  return asExact(integer(0, elements.length - 1).map((i): A[number] => {
     const element = elements[i]
     if (element === undefined) {
       throw new Error(`Index ${i} out of bounds for oneof elements array`)
     }
     return element
-  })
+  }))
 }
 
 export const union = <A>(...arbitraries: Arbitrary<A>[]): Arbitrary<A> => {

@@ -48,16 +48,27 @@ def main():
         tn = (df['outcome'] == 'TN').sum()
         fp = (df['outcome'] == 'FP').sum()
     else:
-        # Compute outcomes from threshold_actually_met and bug_found
-        df['outcome'] = df.apply(lambda r: 
-            'TP' if r['threshold_actually_met'] and not r['bug_found'] else
-            'FN' if r['threshold_actually_met'] and r['bug_found'] else
-            'TN' if not r['threshold_actually_met'] and r['bug_found'] else
-            'FP', axis=1)
-        tp = (df['outcome'] == 'TP').sum()
-        fn = (df['outcome'] == 'FN').sum()
-        tn = (df['outcome'] == 'TN').sum()
-        fp = (df['outcome'] == 'FP').sum()
+        # Compute outcomes from threshold_actually_met, bug_found, and termination_reason
+        # Only classify trials that terminated via confidence or bug found
+        # Trials that hit maxIterations without either should be excluded
+        def classify_outcome(row):
+            if row['termination_reason'] == 'confidence':
+                # Claimed confidence
+                return 'TP' if row['threshold_actually_met'] else 'FP'
+            elif row['termination_reason'] == 'bugFound':
+                # Found bug
+                return 'TN' if not row['threshold_actually_met'] else 'FN'
+            else:
+                # Hit maxIterations or other non-conclusive termination - exclude
+                return None
+        
+        df['outcome'] = df.apply(classify_outcome, axis=1)
+        # Filter out None outcomes before counting
+        valid_df = df[df['outcome'].notna()]
+        tp = (valid_df['outcome'] == 'TP').sum()
+        fn = (valid_df['outcome'] == 'FN').sum()
+        tn = (valid_df['outcome'] == 'TN').sum()
+        fp = (valid_df['outcome'] == 'FP').sum()
     
     # Print confusion matrix
     print("Confusion Matrix:")

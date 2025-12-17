@@ -677,6 +677,7 @@ export abstract class AbstractExplorer<Rec extends {}> implements Explorer<Rec> 
   }
 
   protected isOutOfBudget(budget: ExplorationBudget, state: ExplorationState): boolean {
+    const MIN_TESTS_FOR_CONFIDENCE = 10
     // Check confidence periodically (every 100 tests or when maxTests reached)
     const shouldCheckConfidence = budget.targetConfidence !== undefined || budget.minConfidence !== undefined
     const confidenceCheckInterval = 100
@@ -684,9 +685,7 @@ export abstract class AbstractExplorer<Rec extends {}> implements Explorer<Rec> 
       (state.testsRun - state.lastConfidenceCheck >= confidenceCheckInterval || state.testsRun >= budget.maxTests)
 
     if (shouldCheckNow && state.testsRun > 0) {
-      // Need at least a few tests before checking confidence (minimum 10)
-      const minTestsForConfidence = 10
-      if (state.testsRun >= minTestsForConfidence) {
+      if (state.testsRun >= MIN_TESTS_FOR_CONFIDENCE) {
         const threshold = budget.passRateThreshold ?? 0.999
         const confidence = calculateBayesianConfidence(state.testsPassed, state.testsFailed, threshold)
 
@@ -709,8 +708,7 @@ export abstract class AbstractExplorer<Rec extends {}> implements Explorer<Rec> 
     if (state.testsRun >= budget.maxTests) {
       // If minConfidence is set and not met, continue (unless maxIterations reached)
       if (budget.minConfidence !== undefined) {
-        const minTestsForConfidence = 10
-        if (state.testsRun >= minTestsForConfidence) {
+        if (state.testsRun >= MIN_TESTS_FOR_CONFIDENCE) {
           const threshold = budget.passRateThreshold ?? 0.999
           const confidence = calculateBayesianConfidence(state.testsPassed, state.testsFailed, threshold)
           if (confidence < budget.minConfidence) {

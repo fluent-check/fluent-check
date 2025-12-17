@@ -93,7 +93,7 @@ def main():
     
     for _, row in results_df.iterrows():
         ci_str = format_ci(row['ci_lower'], row['ci_upper'])
-        expected_str = f"{row['expected_rate']:.3f}" if row['expected_rate'] is not None else "adaptive"
+        expected_str = f"{row['expected_rate']:.3f}" if pd.notna(row['expected_rate']) else "adaptive"
         print(f"{row['method']:<18} "
               f"{row['detection_rate']:<8.3f} "
               f"{expected_str:<10} "
@@ -131,7 +131,7 @@ def main():
     
     # Add expected detection rate markers for fixed methods
     for i, (_, row) in enumerate(results_df.iterrows()):
-        if row['expected_rate'] is not None:
+        if pd.notna(row['expected_rate']):
             ax.scatter([i], [row['expected_rate']], marker='_', s=200, 
                       color='red', zorder=5, linewidth=3)
     
