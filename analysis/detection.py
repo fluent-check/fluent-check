@@ -11,12 +11,13 @@ Methods compared:
 
 Generates:
 - Detection rate bar chart with confidence intervals
-- Tests-to-termination histogram
+- Tests-to-termination ECDF (cumulative distribution)
 - Summary statistics table
 """
 
 import pandas as pd
 import matplotlib.pyplot as plt
+import seaborn as sns
 import numpy as np
 from pathlib import Path
 from util import wilson_score_interval, format_ci, save_figure, compute_summary_stats
@@ -157,35 +158,43 @@ def main():
     output_path = OUTPUT_DIR / "detection_rates.png"
     save_figure(fig, output_path)
     
-    # Create histogram of tests-to-termination
-    fig, ax = plt.subplots(figsize=(14, 6))
+    # Create ECDF of tests-to-termination (much clearer than overlapping histograms)
+    fig, ax = plt.subplots(figsize=(12, 7))
     
-    # Use fewer methods in histogram for clarity
-    key_methods = [m for m in methods if 'fixed_100' in m or 'fixed_500' in m or 
-                   'confidence_0.95' in m or 'confidence_0.99' in m]
-    if not key_methods:
-        key_methods = methods[:4]  # Fallback to first 4
+    # Define colors and line styles for methods
+    method_styles = {
+        'fixed_50': {'color': '#ffbb78', 'linestyle': '-', 'linewidth': 1.5},
+        'fixed_100': {'color': '#ff7f0e', 'linestyle': '-', 'linewidth': 2},
+        'fixed_200': {'color': '#d62728', 'linestyle': '-', 'linewidth': 1.5},
+        'fixed_500': {'color': '#c49c94', 'linestyle': '-', 'linewidth': 2},
+        'fixed_1000': {'color': '#8c564b', 'linestyle': '-', 'linewidth': 1.5},
+        'confidence_0.90': {'color': '#98df8a', 'linestyle': '--', 'linewidth': 1.5},
+        'confidence_0.95': {'color': '#2ca02c', 'linestyle': '--', 'linewidth': 2.5},
+        'confidence_0.99': {'color': '#1f77b4', 'linestyle': '--', 'linewidth': 2.5},
+    }
     
-    hist_colors = ['#ff7f0e', '#d62728', '#2ca02c', '#1f77b4']
-    
-    for i, method in enumerate(key_methods):
+    for method in methods:
         group = df[df['method'] == method]
-        ax.hist(
-            group['tests_run'],
-            bins=30,
-            alpha=0.5,
+        style = method_styles.get(method, {'color': 'gray', 'linestyle': '-', 'linewidth': 1})
+        
+        # Plot ECDF
+        sns.ecdfplot(
+            data=group,
+            x='tests_run',
+            ax=ax,
             label=method.replace('_', ' '),
-            edgecolor='black',
-            color=hist_colors[i % len(hist_colors)]
+            **style
         )
     
     ax.set_xlabel('Tests Run Until Termination', fontsize=12)
-    ax.set_ylabel('Frequency', fontsize=12)
-    ax.set_title('Distribution of Tests-to-Termination by Method', fontsize=14)
-    ax.legend(loc='upper right', fontsize=10)
-    ax.grid(True, axis='y', alpha=0.3)
+    ax.set_ylabel('Cumulative Proportion of Trials', fontsize=12)
+    ax.set_title('Termination Speed: Cumulative Distribution by Method\n'
+                 '(Higher/left = faster termination)', fontsize=14)
+    ax.legend(loc='lower right', fontsize=9, title='Method')
+    ax.grid(True, alpha=0.3)
+    ax.set_xlim(left=0)
     
-    output_path = OUTPUT_DIR / "detection_histogram.png"
+    output_path = OUTPUT_DIR / "detection_ecdf.png"
     save_figure(fig, output_path)
     
     # Print insights

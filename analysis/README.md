@@ -79,7 +79,7 @@ npm run evidence:generate
 Figures are saved to `../docs/evidence/figures/`:
 - `calibration.png` - Calibration curve (predicted vs observed confidence)
 - `detection_rates.png` - Detection rate bar chart with error bars
-- `detection_histogram.png` - Tests-to-termination histogram
+- `detection_ecdf.png` - Tests-to-termination ECDF
 - `efficiency_boxplot.png` - Box plot comparing property types
 
 ## Dependencies

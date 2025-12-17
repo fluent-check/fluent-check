@@ -84,7 +84,7 @@ flowchart LR
 
 ## Data Flow
 
-### Phase 1: TypeScript → CSV (5-10 minutes)
+### Phase 1: TypeScript → CSV (~10 seconds)
 
 **Input**: FluentCheck scenarios with seeded RNG  
 **Process**: Run N trials (200-1000) per configuration  
@@ -201,7 +201,7 @@ TypeScript alternatives (Plotly, Vega-Lite) require significantly more setup for
 
 ### Why Separate from CI?
 
-- **Runtime**: 5-10 minutes is too slow for every PR
+- **Runtime**: ~15-30 seconds is acceptable for manual runs
 - **Determinism**: Evidence generation should be deliberate, not automated
 - **Versioning**: CSVs and PNGs are versioned artifacts, updated intentionally
 - **Focus**: CI validates correctness; evidence validates claims
@@ -230,7 +230,7 @@ docs/evidence/
 ├── figures/                # PNG plots (version-controlled)
 │   ├── calibration.png
 │   ├── detection_rates.png
-│   ├── detection_histogram.png
+│   ├── detection_ecdf.png
 │   └── efficiency_boxplot.png
 └── README.md               # Main evidence report
 

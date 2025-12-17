@@ -18,7 +18,7 @@ This creates a Python virtual environment and installs dependencies. **Only run 
 npm run evidence:quick
 ```
 
-- ⏱️ **Time**: ~1 minute
+- ⏱️ **Time**: ~5 seconds
 - 📊 **Samples**: 50-100 trials per study
 - 🎯 **Use for**: Testing, iteration, CI/CD
 
@@ -28,7 +28,7 @@ npm run evidence:quick
 npm run evidence
 ```
 
-- ⏱️ **Time**: ~5-10 minutes  
+- ⏱️ **Time**: ~15-30 seconds  
 - 📊 **Samples**: 200-1000 trials per study
 - 🎯 **Use for**: Final evidence, documentation
 
@@ -44,7 +44,7 @@ npm run evidence
 
 - `calibration.png` - Calibration curve
 - `detection_rates.png` - Detection rate comparison
-- `detection_histogram.png` - Tests-to-termination distribution
+- `detection_ecdf.png` - Tests-to-termination cumulative distribution
 - `efficiency_boxplot.png` - Efficiency comparison
 
 ### Report
@@ -190,12 +190,12 @@ After generating evidence:
 
 ## Performance Notes
 
-**Quick Mode** (~1 minute):
+**Quick Mode** (~5 seconds):
 - Calibration: 100 trials per confidence level (400 total)
 - Detection: 50 trials per method (250 total)
 - Efficiency: 50 trials per property (100 total)
 
-**Full Mode** (~5-10 minutes):
+**Full Mode** (~15-30 seconds):
 - Calibration: 1000 trials per confidence level (4000 total)
 - Detection: 500 trials per method (2500 total)
 - Efficiency: 200 trials per property (400 total)

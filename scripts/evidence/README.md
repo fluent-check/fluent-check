@@ -19,7 +19,7 @@ This installs Python dependencies in `analysis/.venv` using uv. Only needs to be
 npm run evidence:quick
 ```
 
-**Full mode** (1000 trials per study, ~5-10 minutes):
+**Full mode** (200-500 trials per config, ~15-30 seconds):
 ```bash
 npm run evidence
 ```
@@ -126,6 +126,6 @@ docs/evidence/
 └── figures/                # PNG visualizations (version-controlled)
     ├── calibration.png
     ├── detection_rates.png
-    ├── detection_histogram.png
+    ├── detection_ecdf.png
     └── efficiency_boxplot.png
 ```

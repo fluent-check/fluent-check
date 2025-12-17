@@ -110,8 +110,8 @@ def main():
         legend=False
     )
     
-    # Add swarm plot for individual points
-    sns.swarmplot(
+    # Add strip plot for individual points (handles dense data better than swarmplot)
+    sns.stripplot(
         data=plot_data,
         x='property_label',
         y='tests_run',

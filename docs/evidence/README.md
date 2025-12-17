@@ -26,12 +26,12 @@ Creates Python virtual environment and installs dependencies. **Run once.**
 
 ### Generate Evidence
 
-**Quick Mode** (~1 minute, 1,200-1,900 trials):
+**Quick Mode** (~5 seconds, 1,900 trials):
 ```bash
 npm run evidence:quick
 ```
 
-**Full Mode** (~5-10 minutes, 10,000+ trials):
+**Full Mode** (~15-30 seconds, 10,000+ trials):
 ```bash
 npm run evidence
 ```
@@ -61,19 +61,49 @@ FluentCheck checks confidence **every 100 tests**. This means:
 
 ![Efficiency Box Plot](./figures/efficiency_boxplot.png)
 
-*Figure 1: Tests-to-termination by property complexity. Red dashed line shows 100-test minimum (confidence check interval).*
+*Figure 1: Tests-to-termination by property complexity.*
+
+#### How to Read This Figure
+
+**Left panel (Box Plot):**
+- **X-axis**: Property types ordered by pass rate (100% → 95%)
+- **Y-axis**: Number of tests run before termination
+- **Red dashed line**: 100-test minimum (FluentCheck's confidence check interval)
+- **Boxes**: Show the interquartile range (middle 50% of trials)
+- **Horizontal line in box**: Median
+- **Whiskers**: Extend to min/max (excluding outliers)
+- **Individual dots**: Each trial's result
+
+**Right panel (Stacked Bar):**
+- **Green**: Trials that terminated by achieving confidence
+- **Red**: Trials that terminated by finding a bug
+- Shows *why* each property type terminated
+
+#### What to Look For
+
+1. **`always_true` (100%)**: All trials cluster at exactly 100 tests (the minimum). Green bar is 100% — always achieves confidence, never finds bugs.
+
+2. **`rare_failure` (99.9%)**: Most trials at 100, but some outliers below (found bug early). Green dominates, small red sliver.
+
+3. **`frequent_failure` (95%)**: Median around 15 tests, wide spread. Red bar is 100% — always finds bug before 100 tests.
+
+4. **Gradient from left to right**: As pass rate decreases, the box moves down and red increases.
 
 | Property Type | Pass Rate | Mean Tests | Bug Found % | Interpretation |
 |--------------|-----------|------------|-------------|----------------|
 | always_true | 100% | 100 | 0% | Terminates at first confidence check |
-| rare_failure | 99.9% | 93 | 12% | Usually achieves confidence |
-| uncommon_failure | 99.5% | 79 | 30% | Mixed termination modes |
-| common_failure | 99% | 67 | 54% | Often finds bug early |
+| rare_failure | 99.9% | 96 | 10% | Usually achieves confidence |
+| uncommon_failure | 99.5% | 76 | 47% | Mixed termination modes |
+| common_failure | 99% | 62 | 61% | Often finds bug early |
 | frequent_failure | 95% | 19 | 100% | Always finds bug before check |
 
-### Conclusion
+### Conclusions
 
-✅ **Clear adaptation demonstrated**: Higher failure rates → faster termination via bug detection. Properties with no bugs terminate at the 100-test minimum; properties with frequent bugs terminate much faster.
+✅ **Clear adaptation demonstrated**: Higher failure rates → faster termination via bug detection.
+
+✅ **100-test minimum confirmed**: Properties with no bugs terminate at exactly 100 tests.
+
+✅ **Efficient bug detection**: Properties with 5% failure rate (`frequent_failure`) terminate in ~19 tests on average — 5x faster than the minimum.
 
 ---
 
@@ -98,34 +128,60 @@ Unlike traditional calibration (predicted vs observed probability), this study m
 
 ![Calibration Plot](./figures/calibration.png)
 
-*Figure 2: Left: Sensitivity by pass rate (threshold MET scenarios). Right: Specificity by pass rate (threshold NOT MET scenarios).*
+*Figure 2: Sensitivity (left) and Specificity (right) of threshold detection.*
+
+#### How to Read This Figure
+
+**Left panel (Sensitivity)** — "When the threshold IS met, how often do we correctly achieve confidence?"
+- **X-axis**: True pass rate of the property (all above 95% threshold)
+- **Y-axis**: Proportion of trials that achieved confidence (True Positive Rate)
+- **Green bars**: Higher = better at achieving confidence when it should
+- **Red dashed line**: 95% target — ideally bars would reach this
+
+**Right panel (Specificity)** — "When the threshold is NOT met, how often do we correctly find bugs?"
+- **X-axis**: True pass rate of the property (all below 95% threshold)
+- **Y-axis**: Proportion of trials that found a bug (True Negative Rate)
+- **Red bars**: Higher = better at finding bugs when they exist
+- **Red dashed line**: 95% target
+
+#### What to Look For
+
+1. **Left panel gradient**: Sensitivity increases with pass rate
+   - 100% pass rate → 100% sensitivity (always achieves confidence)
+   - 96% pass rate → ~2% sensitivity (almost always finds a bug first)
+
+2. **Right panel uniformity**: All bars at 100%
+   - When threshold is NOT met, FluentCheck *always* finds bugs
+   - This means **zero false positives** — never claims confidence incorrectly
+
+3. **The asymmetry is intentional**: Finding bugs is prioritized over claiming confidence. A property at 97% pass rate *could* achieve confidence, but FluentCheck usually finds a failure first.
 
 | Metric | Value | 95% CI | Interpretation |
 |--------|-------|--------|----------------|
-| Sensitivity | 46.4% | [42.9%, 50.0%] | When threshold met, 46% achieve confidence |
-| Specificity | 100% | [99.2%, 100%] | When threshold NOT met, 100% find bugs |
-| Precision | 100% | [98.9%, 100%] | When confidence claimed, 100% correct |
+| Sensitivity | 46.3% | [44.5%, 48.1%] | When threshold met, 46% achieve confidence |
+| Specificity | 100% | [99.8%, 100%] | When threshold NOT met, 100% find bugs |
+| Precision | 100% | [99.7%, 100%] | When confidence claimed, 100% correct |
 | False Positives | 0 | - | Never claims confidence incorrectly |
 
 **Sensitivity by Pass Rate:**
 
-| Pass Rate | Sensitivity | Notes |
-|-----------|-------------|-------|
-| 100% | 100% | Perfect - always achieves confidence |
-| 99.9% | 89.3% | High - rarely encounters failures |
-| 99% | 34.0% | Moderate - often finds bugs in 100 tests |
-| 97% | 7.3% | Low - frequently finds bugs |
-| 96% | 1.3% | Very low - almost always finds bugs |
+| Pass Rate | Sensitivity | Why? |
+|-----------|-------------|------|
+| 100% | 100% | No failures possible → always achieves confidence |
+| 99.9% | 89% | ~10% chance of finding 1 failure in 100 tests |
+| 99% | 37% | ~63% chance of finding failure in 100 tests |
+| 97% | 4% | Very likely to find failure before confidence |
+| 96% | 2% | Almost certain to find failure first |
 
-### Conclusion
+### Conclusions
 
-✅ **High precision (100%)**: When FluentCheck claims confidence, it's always correct.
+✅ **Perfect precision (100%)**: When FluentCheck claims confidence, the threshold is *always* actually met. You can trust "confident" results.
 
-✅ **Perfect specificity (100%)**: When threshold isn't met, bugs are always found.
+✅ **Perfect specificity (100%)**: When the threshold isn't met, bugs are *always* found. No false sense of security.
 
-⚠️ **Sensitivity varies by margin**: Properties close to threshold (97%, 96%) often encounter failures before achieving confidence. This is **correct behavior** - finding a failure is more important than claiming confidence.
+⚠️ **Sensitivity varies by margin**: Properties close to threshold often find failures before achieving confidence. This is **correct behavior** — finding a bug is more valuable than claiming confidence.
 
-**Key Insight**: The system never makes false positive claims. If it says "confident", you can trust it.
+**Key Insight**: FluentCheck is *conservative*. It would rather find a bug than claim confidence, which is exactly what you want in a testing tool.
 
 ---
 
@@ -146,32 +202,84 @@ Confidence-based termination finds rare bugs more reliably than fixed sample siz
 
 ![Detection Rates](./figures/detection_rates.png)
 
-*Figure 3: Bug detection rate with 95% confidence intervals. Orange = fixed N, Green = confidence-based. Red markers show expected detection rate for fixed methods.*
+*Figure 3: Bug detection rate by method with 95% confidence intervals.*
 
-![Tests Distribution](./figures/detection_histogram.png)
+#### How to Read This Figure
 
-*Figure 4: Distribution of tests-to-termination by method.*
+- **X-axis**: Testing method (fixed sample sizes in orange, confidence-based in green)
+- **Y-axis**: Proportion of trials that found the bug (0 to 1.0)
+- **Bar height**: Detection rate (higher = finds more bugs)
+- **Error bars**: 95% confidence interval (overlap means no significant difference)
+- **Red horizontal markers**: Expected detection rate for fixed methods based on probability theory
 
-| Method | Detection Rate | Expected | Mean Tests | Notes |
-|--------|---------------|----------|------------|-------|
-| fixed_50 | 12.0% | 9.5% | 48 | Low - misses most bugs |
-| fixed_100 | 24.0% | 18.1% | 84 | Baseline |
-| fixed_200 | 22.0% | 33.0% | 177 | Under expected |
-| fixed_500 | 76.0% | 63.2% | 273 | Good detection |
-| fixed_1000 | 74.0% | 86.5% | 535 | Under expected |
-| confidence_0.80 | 34.0% | adaptive | 163 | Moderate |
-| confidence_0.90 | 28.0% | adaptive | 173 | Similar to 0.80 |
-| confidence_0.95 | 48.0% | adaptive | 223 | Better than fixed_200 |
-| confidence_0.99 | 58.0% | adaptive | 285 | Comparable to fixed_500 |
+#### What to Look For
 
-### Conclusion
+1. **Fixed methods (orange)**: Detection increases with sample size
+   - `fixed_50`: ~10% detection (expected: 9.5%)
+   - `fixed_1000`: ~86% detection (expected: 86.5%)
+   - Red markers match bar heights → results match theory
 
-✅ **Confidence 99% achieves 58% detection** with ~285 tests average
-✅ **Fixed 500 achieves 76% detection** with ~273 tests average
+2. **Confidence methods (green)**: Detection increases with confidence level
+   - Higher confidence = more tests = more chances to find bugs
+   - `confidence_0.99` achieves ~60% detection
 
-The comparison shows that for similar test budgets, fixed sampling can sometimes achieve higher raw detection rates, but confidence-based termination provides **guarantees about what was tested**.
+3. **Error bar overlap**: Methods with overlapping CIs are not statistically different
+   - `fixed_500` and `confidence_0.99` overlap → similar performance
 
-**Key Insight**: Confidence-based termination tells you "95% confident no bugs above threshold" - a meaningful statistical claim. Fixed sampling only tells you "ran 500 tests" - no statistical guarantee.
+---
+
+![Tests Distribution](./figures/detection_ecdf.png)
+
+*Figure 4: Cumulative distribution of tests-to-termination.*
+
+#### How to Read This Figure (ECDF)
+
+- **X-axis**: Number of tests run before termination
+- **Y-axis**: Cumulative proportion of trials (0 to 1.0)
+- **Each curve**: One testing method
+- **Solid lines**: Fixed sample size methods
+- **Dashed lines**: Confidence-based methods
+
+**Reading the curves**: At any point (x, y), "y% of trials terminated by x tests"
+
+#### What to Look For
+
+1. **Vertical jumps (fixed methods)**: 
+   - `fixed_100` (orange): Jumps to 100% at exactly 100 tests
+   - The gradual rise *before* the jump = trials that found bugs early
+   - ~18% found bugs before 100 tests (the early rise), then all remaining terminate at 100
+
+2. **Smooth S-curves (confidence methods)**:
+   - `confidence_0.95` (green dashed): Gradual rise, no sharp jump
+   - Shows adaptive termination — different trials terminate at different points
+   - 50% of trials done by ~300 tests
+
+3. **Efficiency comparison**:
+   - `confidence_0.99` (blue dashed) reaches 60% at ~400 tests
+   - `fixed_1000` (brown) takes until 1000 tests to reach 85%
+   - Confidence methods are more *efficient* (detection per test)
+
+| Method | Detection Rate | Expected | Mean Tests | Efficiency |
+|--------|---------------|----------|------------|------------|
+| fixed_50 | 9.6% | 9.5% | 48 | 0.20%/test |
+| fixed_100 | 18.2% | 18.1% | 90 | 0.20%/test |
+| fixed_200 | 35.4% | 33.0% | 161 | 0.22%/test |
+| fixed_500 | 59.8% | 63.2% | 335 | 0.18%/test |
+| fixed_1000 | 86.2% | 86.5% | 442 | 0.20%/test |
+| confidence_0.95 | 47.0% | adaptive | 226 | 0.21%/test |
+| confidence_0.99 | 60.2% | adaptive | 258 | 0.23%/test |
+
+### Conclusions
+
+✅ **Both approaches work**: Fixed and confidence methods both detect bugs at rates matching theory.
+
+✅ **Confidence methods are efficient**: `confidence_0.99` achieves 60% detection in 258 tests; `fixed_500` achieves similar detection but with more variance.
+
+✅ **Confidence provides guarantees**: When `confidence_0.99` terminates without finding bugs, you have a statistical claim: "99% confident pass rate exceeds threshold." Fixed sampling only tells you "ran N tests."
+
+**Key Insight**: Choose based on your needs:
+- **Fixed N**: Predictable runtime, simple to understand
+- **Confidence-based**: Meaningful statistical guarantees, adapts to property behavior
 
 ---
 

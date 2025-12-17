@@ -32,7 +32,7 @@ This undermines trust in the confidence-based termination feature. To establish 
   - Modified: `test/confidence.test.ts` (remove theatrical evidence section)
   - Modified: `package.json` (add `npm run evidence` scripts)
 - **Dependencies**: Adds Python toolchain (uv, matplotlib, seaborn, pandas) for analysis
-- **CI/CD**: Evidence generation is manual (not in CI) due to ~5-10 minute runtime
+- **CI/CD**: Evidence generation is manual (not in CI) to keep CI fast
 - **Breaking changes**: None (evidence is documentation, not API)
 
 ## Rationale

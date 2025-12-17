@@ -405,6 +405,23 @@ See [`src/statistics.ts`](../src/statistics.ts) for full implementation.
 
 ---
 
+## Empirical Evidence
+
+These claims are backed by reproducible experiments. See the **[Evidence Documentation](./evidence/README.md)** for:
+
+- **Efficiency Study**: Demonstrates adaptive termination — properties with bugs terminate faster
+- **Calibration Study**: Shows 100% precision — when confidence is claimed, it's always correct
+- **Detection Study**: Compares bug detection rates vs fixed sample sizes
+
+Run the evidence suite yourself:
+
+```bash
+npm run evidence        # Full mode (~15-30 seconds)
+npm run evidence:quick  # Quick mode (~5 seconds)
+```
+
+---
+
 ## Comparison with Other Frameworks
 
 Most property testing frameworks (QuickCheck, Hypothesis, fast-check) use fixed sample sizes:

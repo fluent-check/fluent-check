@@ -13,10 +13,10 @@ This directory contains raw experimental data from confidence-based termination 
 ## Data Generation
 
 ```bash
-# Quick mode (~1 minute)
+# Quick mode (~5 seconds)
 QUICK_MODE=1 npm run evidence:generate
 
-# Full mode (~5-10 minutes)
+# Full mode (~15-30 seconds)
 npm run evidence:generate
 ```
 
