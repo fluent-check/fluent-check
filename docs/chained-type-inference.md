@@ -69,30 +69,19 @@ This guarantees that:
 ```typescript
 export class FluentCheck<Rec extends ParentRec, ParentRec extends {}> {
   constructor(
-    public strategy: FluentStrategy = new FluentStrategyFactory().defaultStrategy().build(),
     protected readonly parent: FluentCheck<ParentRec, any> | undefined = undefined
   ) {}
 
   // Core methods that maintain and extend type information
-  forall<K extends string, A>(name: K, a: Arbitrary<A>): FluentCheck<Rec & Record<K, A>, Rec> {
-    return new FluentCheckUniversal(this, name, a, this.strategy)
-  }
+  forall<K extends string, A>(name: K, a: Arbitrary<A>): FluentCheck<Rec & Record<K, A>, Rec>
 
-  exists<K extends string, A>(name: K, a: Arbitrary<A>): FluentCheck<Rec & Record<K, A>, Rec> {
-    return new FluentCheckExistential(this, name, a, this.strategy)
-  }
+  exists<K extends string, A>(name: K, a: Arbitrary<A>): FluentCheck<Rec & Record<K, A>, Rec>
 
   // Given methods for computing derived values
-  given<K extends string, V>(name: K, v: V | ((args: Rec) => V)): FluentCheckGiven<K, V, Rec & Record<K, V>, Rec> {
-    return v instanceof Function ?
-      new FluentCheckGivenMutable(this, name, v, this.strategy) :
-      new FluentCheckGivenConstant<K, V, Rec & Record<K, V>, Rec>(this, name, v, this.strategy)
-  }
+  given<K extends string, V>(name: K, v: V | ((args: Rec) => V)): FluentCheckGiven<K, V, Rec & Record<K, V>, Rec>
 
   // Property definition with inferred types
-  then(f: (arg: Rec) => boolean): FluentCheckAssert<Rec, ParentRec> {
-    return new FluentCheckAssert(this, f, this.strategy)
-  }
+  then(f: (arg: Rec) => boolean): FluentCheckAssert<Rec, ParentRec>
 }
 ```
 
@@ -101,7 +90,7 @@ The type parameters `<Rec extends ParentRec, ParentRec extends {}>` track:
 1. `Rec`: The current record type, which gets extended with each `.forall()` or `.given()` call
 2. `ParentRec`: The parent record type for handling nested scenarios and type safety
 
-The `.forall()` method extends the record type with each new arbitrary by returning a new `FluentCheckUniversal` instance:
+The `.forall()` method extends the record type with each new arbitrary:
 
 ```typescript
 // When called like this:
@@ -109,123 +98,78 @@ fc.scenario()
   .forall('x', fc.integer())
   .forall('y', fc.string())
 
-// The type becomes: 
+// The type becomes:
 // FluentCheck<{x: number} & {y: string}, {x: number}>
 ```
 
-FluentCheck uses specialized subclasses for different quantifiers:
+### 2.3 Scenario AST: Type-Safe Structure
+
+The scenario structure captures type information in the AST:
 
 ```typescript
-// Abstract base for quantifiers
-abstract class FluentCheckQuantifier<K extends string, A, Rec extends ParentRec & Record<K, A>, ParentRec extends {}>
-  extends FluentCheck<Rec, ParentRec> {
-  abstract breakValue: boolean  // false for universal, true for existential
+// Quantifier nodes in the Scenario AST
+export interface ForallNode<A = unknown> {
+  readonly type: 'forall'
+  readonly name: string
+  readonly arbitrary: Arbitrary<A>
 }
 
-// Universal quantifier (forall) - breaks when property fails
-class FluentCheckUniversal<K extends string, A, Rec extends ParentRec & Record<K, A>, ParentRec extends {}>
-  extends FluentCheckQuantifier<K, A, Rec, ParentRec> {
-  breakValue = false
+export interface ExistsNode<A = unknown> {
+  readonly type: 'exists'
+  readonly name: string
+  readonly arbitrary: Arbitrary<A>
 }
 
-// Existential quantifier (exists) - breaks when property succeeds
-class FluentCheckExistential<K extends string, A, Rec extends ParentRec & Record<K, A>, ParentRec extends {}>
-  extends FluentCheckQuantifier<K, A, Rec, ParentRec> {
-  breakValue = true
+// The Scenario preserves quantifier information
+export interface Scenario<Rec extends {} = {}> {
+  readonly nodes: readonly ScenarioNode<Rec>[]
+  readonly quantifiers: readonly QuantifierNode[]
+  readonly hasExistential: boolean
+  readonly searchSpaceSize: number
 }
 ```
 
-### 2.3 Strategy Boundary: Where Types Are Currently Erased
-
-The execution strategy (`FluentStrategy`) is responsible for:
-
-- Tracking arbitraries registered by quantifiers.
-- Producing `FluentPick<A>` samples for a given name.
-- Managing shrinking and bias.
-
-At runtime, the strategy works with *names* (strings) and picks, not directly with `Rec`. Today, its internal store is:
+When compiled to `ExecutableScenario`, quantifier operations are extracted:
 
 ```typescript
-// Runtime shape: map from arbitrary name to its state
-export type FluentStrategyArbitrary<A> = {
-  pickNum: number
-  arbitrary: Arbitrary<A>
-  cache?: FluentPick<A>[]
-  collection?: FluentPick<A>[]
-}
-
-export type StrategyArbitraries = Record<string, FluentStrategyArbitrary<unknown>>
-```
-
-Quantifiers connect `Rec` and the strategy like this:
-
-```typescript
-abstract class FluentCheckQuantifier<K extends string, A, Rec extends ParentRec & Record<K, A>, ParentRec extends {}>
-  extends FluentCheck<Rec, ParentRec> {
-
-  constructor(
-    protected override readonly parent: FluentCheck<ParentRec, any>,
-    public readonly name: K,
-    public readonly a: Arbitrary<A>,
-    strategy: FluentStrategy
-  ) {
-    super(strategy, parent)
-    // Registers the arbitrary for later sampling
-    this.strategy.addArbitrary(this.name, a)
-  }
-
-  protected override run(
-    testCase: WrapFluentPick<Rec>,
-    callback: (arg: WrapFluentPick<Rec>) => FluentResult,
-    partial: FluentResult | undefined = undefined,
-    depth = 0,
-    accumulatedSkips = 0
-  ): FluentResult {
-    this.strategy.configArbitrary(this.name, partial, depth)
-    // ...
-    while (this.strategy.hasInput(this.name)) {
-      testCase[this.name] = this.strategy.getInput(this.name)
-      const result = callback(testCase)
-      // ...
-    }
-    // ...
-  }
+export interface ExecutableQuantifier<A = unknown> {
+  readonly name: string
+  readonly type: 'forall' | 'exists'
+  sample(sampler: Sampler, count: number): FluentPick<A>[]
+  sampleWithBias(sampler: Sampler, count: number): FluentPick<A>[]
+  shrink(pick: FluentPick<A>, sampler: Sampler, count: number): FluentPick<A>[]
+  isShrunken(candidate: FluentPick<A>, current: FluentPick<A>): boolean
 }
 ```
 
-From the type system’s perspective:
+### 2.4 Strategy Bindings: Type Boundary
+
+The strategy factory and sampler work with type-erased bindings at runtime:
+
+```typescript
+// Runtime shape: map from quantifier name to pick values
+export type BoundTestCase<Rec> = {
+  [K in keyof Rec]: FluentPick<Rec[K]>
+}
+```
+
+From the type system's perspective:
 
 - `FluentCheck` knows that `Rec` contains `K: A`.
-- `FluentStrategyInterface` exposes generics on `hasInput<K>` / `getInput<K, A>`.
-- But the **internal map** `StrategyArbitraries` does not tie the key `K` to a concrete `A` – it uses `unknown` as an existential.
-
-This is the main “type erasure” point: the mapping from names to value types is preserved in `Rec`, but not reflected in the strategy’s internal store. The `refactor-strategy-bindings` OpenSpec change proposes to fix this by making `FluentStrategy` generic over a `Bindings` record that mirrors the quantifier part of `Rec`.
+- The `Scenario` and `ExecutableScenario` preserve the type relationship.
+- At runtime, `BoundTestCase<Rec>` maintains the type mapping from names to values.
+- The `Explorer` and `Shrinker` work with generic `Rec` type parameters.
 
 ## Gaps and Future Improvements
 
 Even with the current design, there are a few intentional "escape hatches" where type information is erased. These are the main places we want to improve to provide a **complete advanced type experience**.
 
-### 1. Strategy Bindings Not Tied to `Rec`
-
-- **Current state**
-  - `StrategyArbitraries = Record<string, FluentStrategyArbitrary<unknown>>`
-  - `FluentStrategy` is monomorphic; it does not track which name is bound to which value type.
-  - Quantifiers know `K: A` at the type level, but the strategy’s internal map does not.
-- **Impact**
-  - Inside the strategy and mixins, we must treat arbitrary state as existential (`unknown`) and rely on API generics rather than the map’s type.
-- **Planned fix**
-  - `refactor-strategy-bindings` change:
-    - Introduce `type StrategyBindings = Record<string, unknown>`.
-    - Make `FluentStrategy<B extends StrategyBindings>` and `StrategyArbitraries<B> = { [K in keyof B]: FluentStrategyArbitrary<B[K]> }`.
-    - Thread a `Binds` type parameter through `FluentCheck` so quantifiers extend both `Rec` and `Binds` in lockstep.
-
-### 2. FluentCheck Parent/Recursion Typing Uses `any`
+### 1. FluentCheck Parent/Recursion Typing Uses `any`
 
 - **Current state**
   - Parent references and path tracking use `any`:
     ```ts
     constructor(
-      public strategy: FluentStrategy = new FluentStrategyFactory().defaultStrategy().build(),
       protected readonly parent: FluentCheck<ParentRec, any> | undefined = undefined
     ) {}
 
@@ -241,10 +185,9 @@ Even with the current design, there are a few intentional "escape hatches" where
   - Internal helpers like `pathFromRoot` and `preliminaries` can’t express the exact `Rec`/`ParentRec` relationships.
   - It doesn’t affect user-facing types, but it limits compiler help inside the engine.
 - **Future direction**
-  - Once strategy bindings are made generic, revisit `FluentCheck`’s recursive typing and introduce a third type parameter for bindings.
   - Replace `any` in parent references and `pathFromRoot` with a dedicated base type (e.g. `FluentCheckBase`) or a constrained generic that preserves more structure.
 
-### 3. `FluentCheck.check` Callback Uses `WrapFluentPick<any>`
+### 2. `FluentCheck.check` Callback Uses `WrapFluentPick<any>`
 
 - **Current state**
   - The `check` method accepts a callback typed with `any`:
@@ -267,7 +210,7 @@ Even with the current design, there are a few intentional "escape hatches" where
     ```
   - This will likely require small adjustments in templates/tests to use `Rec` consistently.
 
-### 4. `FluentPick` Original Value Uses `any`
+### 3. `FluentPick` Original Value Uses `any`
 
 - **Current state**
   - `FluentPick` erases the type of the original value:
@@ -291,7 +234,7 @@ Even with the current design, there are a few intentional "escape hatches" where
     ```
   - Gradually update arbitraries that preserve originals (`O = V`) vs. those that transform them (`O` differs from `V`).
 
-### 5. Bridges That Use `Record<string, unknown>`
+### 4. Bridges That Use `Record<string, unknown>`
 
 - **Current state**
   - Several bridging layers (especially `FluentProperty` and templates) use loose records:
@@ -322,7 +265,7 @@ Even with the current design, there are a few intentional "escape hatches" where
 
 ---
 
-These gaps do **not** affect the user-facing type guarantees for `Rec` (what you see in `.then(({ x, y }) => …)`), but they are the primary areas where the internal implementation still falls back to `any`/`unknown`. The active OpenSpec change `refactor-strategy-bindings` addresses the largest structural gap (strategy bindings), and follow-up changes can progressively tighten the others without changing the public API.
+These gaps do **not** affect the user-facing type guarantees for `Rec` (what you see in `.then(({ x, y }) => …)`), but they are the primary areas where the internal implementation still falls back to `any`/`unknown`. Future changes can progressively tighten these without affecting the public API.
 
 ## Type Composition
 

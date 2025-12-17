@@ -50,61 +50,59 @@ it('finds if addition has an inverse', () => {
 
 ## Implementation Details
 
-The implementation distinguishes between universal and existential quantifiers using specialized classes that extend a common base:
+### Scenario AST
+
+Quantifiers are represented as nodes in the Scenario AST:
 
 ```typescript
-abstract class FluentCheckQuantifier<K extends string, A, Rec extends ParentRec & Record<K, A>, ParentRec extends {}>
-  extends FluentCheck<Rec, ParentRec> {
-
-  constructor(
-    protected readonly parent: FluentCheck<ParentRec, any>,
-    public readonly name: K,
-    public readonly a: Arbitrary<A>,
-    strategy: FluentStrategy) {
-    super(strategy, parent)
-    this.strategy.addArbitrary(this.name, a)
-  }
-
-  protected run(
-    testCase: WrapFluentPick<Rec>,
-    callback: (arg: WrapFluentPick<Rec>) => FluentResult,
-    partial: FluentResult | undefined = undefined,
-    depth = 0): FluentResult {
-
-    this.strategy.configArbitrary(this.name, partial, depth)
-
-    while (this.strategy.hasInput(this.name)) {
-      testCase[this.name] = this.strategy.getInput(this.name)
-      const result = callback(testCase)
-      if (result.satisfiable === this.breakValue) {
-        result.addExample(this.name, testCase[this.name])
-        return this.run(testCase, callback, result, depth + 1)  // Shrinking loop
-      }
-    }
-
-    return partial ?? new FluentResult(!this.breakValue)
-  }
-
-  abstract breakValue: boolean
+export interface ForallNode<A = unknown> {
+  readonly type: 'forall'
+  readonly name: string
+  readonly arbitrary: Arbitrary<A>
 }
 
-class FluentCheckUniversal<K extends string, A, Rec extends ParentRec & Record<K, A>, ParentRec extends {}>
-  extends FluentCheckQuantifier<K, A, Rec, ParentRec> {
-  breakValue = false  // Stops when property fails (found counterexample)
+export interface ExistsNode<A = unknown> {
+  readonly type: 'exists'
+  readonly name: string
+  readonly arbitrary: Arbitrary<A>
 }
 
-class FluentCheckExistential<K extends string, A, Rec extends ParentRec & Record<K, A>, ParentRec extends {}>
-  extends FluentCheckQuantifier<K, A, Rec, ParentRec> {
-  breakValue = true   // Stops when property succeeds (found witness)
+export type QuantifierNode<A = unknown> = ForallNode<A> | ExistsNode<A>
+```
+
+### ExecutableQuantifier
+
+When a Scenario is compiled into an ExecutableScenario, quantifiers become executable:
+
+```typescript
+export interface ExecutableQuantifier<A = unknown> {
+  readonly name: string
+  readonly type: 'forall' | 'exists'
+  sample(sampler: Sampler, count: number): FluentPick<A>[]
+  sampleWithBias(sampler: Sampler, count: number): FluentPick<A>[]
+  shrink(pick: FluentPick<A>, sampler: Sampler, count: number): FluentPick<A>[]
+  isShrunken(candidate: FluentPick<A>, current: FluentPick<A>): boolean
 }
 ```
 
-For universal properties, the search stops when a counterexample is found (when `result.satisfiable === false`). For existential properties, the search stops when an example satisfying the property is found (when `result.satisfiable === true`).
+### Quantifier Semantics
 
-The implementation inherits from a common base class `FluentCheckQuantifier` but differs in the critical `breakValue` property:
+The `Explorer` interprets quantifiers using the `QuantifierSemantics` pattern:
 
-1. `FluentCheckUniversal.breakValue = false` - Keep searching until a counterexample is found
-2. `FluentCheckExistential.breakValue = true` - Keep searching until a satisfying example is found
+```typescript
+interface QuantifierSemantics<Rec extends {}> {
+  exists(frame: QuantifierFrame<Rec>, next: TraverseNext<Rec>): TraversalOutcome<Rec>
+  forall(frame: QuantifierFrame<Rec>, next: TraverseNext<Rec>): TraversalOutcome<Rec>
+}
+```
+
+For universal properties (`forall`):
+- All samples must pass the property
+- Stops when a counterexample is found
+
+For existential properties (`exists`):
+- At least one sample must pass the property
+- Stops when a witness is found
 
 ## Result Reporting
 

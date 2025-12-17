@@ -11,155 +11,288 @@ Different testing scenarios require different approaches to test generation and 
 3. **Implement specialized strategies**: Create domain-specific testing approaches
 4. **Reuse strategies**: Apply the same strategy across multiple tests
 
-## Implementation Details
+## Architecture Overview
 
-FluentCheck implements strategies through a flexible class hierarchy with mixin-based composition:
+FluentCheck's strategy system is built on a modular, component-based architecture that separates concerns into distinct layers:
 
-### Base Strategy
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                     PUBLIC API LAYER                            │
+│  (FluentCheck, scenario(), prop(), FluentProperty)              │
+└──────────────────────────────┬──────────────────────────────────┘
+                               │
+┌──────────────────────────────▼──────────────────────────────────┐
+│                    AST & SCENARIO LAYER                         │
+│  (Scenario, ScenarioNode, ExecutableScenario, Quantifier)       │
+│  - Immutable declarative structure                              │
+│  - Compiled into executable form                                │
+└──────────────────────────────┬──────────────────────────────────┘
+                               │
+┌──────────────────────────────▼──────────────────────────────────┐
+│                   STRATEGY ORCHESTRATION LAYER                  │
+│         (FluentStrategy, FluentStrategyFactory)                 │
+│  - Composition of Sampler, Explorer, Shrinker                   │
+│  - Configuration and factory pattern                            │
+└──────────────────────────────┬──────────────────────────────────┘
+                               │
+        ┌──────────────────────┼──────────────────────┐
+        │                      │                      │
+┌───────▼────────┐  ┌──────────▼────────┐  ┌────────▼─────────┐
+│   EXPLORATION   │  │    SAMPLING      │  │   SHRINKING      │
+│   (Explorer)    │  │  (Sampler +      │  │  (Shrinker)      │
+│                 │  │  Decorators)     │  │                  │
+│ - NestedLoop    │  │                  │  │ - PerArbitrary   │
+│   Explorer      │  │ Base:            │  │ - NoOp           │
+│                 │  │ - RandomSampler  │  │                  │
+│ - Search space  │  │                  │  │ - Budget-based   │
+│   traversal     │  │ Decorators:      │  │   iteration      │
+│ - Quantifier    │  │ - BiasedSampler  │  │ - Re-verifies    │
+│   semantics     │  │ - CachedSampler  │  │   nested         │
+│ - Budget        │  │ - Deduping       │  │   quantifiers    │
+│   control       │  │   Sampler        │  │                  │
+└─────────────────┘  └──────────────────┘  └──────────────────┘
+```
+
+## Core Components
+
+### Sampler Interface
+
+The `Sampler` interface separates value generation from execution control, enabling composable sampling strategies through the decorator pattern:
 
 ```typescript
-export type FluentConfig = { sampleSize?: number, shrinkSize?: number }
-
-export interface FluentStrategyInterface {
-  hasInput: <K extends string>(arbitraryName: K) => boolean
-  getInput: <K extends string, A>(arbitraryName: K) => FluentPick<A>
-  handleResult: () => void
-}
-
-export class FluentStrategy implements FluentStrategyInterface {
-  public arbitraries: StrategyArbitraries = {}
-  public randomGenerator = new FluentRandomGenerator()
-  
-  constructor(public readonly configuration: FluentConfig) {
-    this.configuration.sampleSize = this.configuration.sampleSize ?? 1000;
-    this.configuration.shrinkSize = this.configuration.shrinkSize ?? 500;
-  }
-  
-  addArbitrary<K extends string, A>(arbitraryName: K, a: Arbitrary<A>) {
-    this.arbitraries[arbitraryName] = {arbitrary: a, pickNum: 0, collection: []}
-    this.setArbitraryCache(arbitraryName)
-  }
-
-  configArbitrary<K extends string>(arbitraryName: K, partial: FluentResult | undefined, depth: number) {
-    // Configure arbitrary for testing, including shrinking on subsequent iterations
-  }
-
-  buildArbitraryCollection<A>(arbitrary: Arbitrary<A>, sampleSize?: number): FluentPick<A>[]
-  isDedupable(): boolean { return false }
-  setArbitraryCache<K extends string>(_arbitraryName: K) {}
-  shrink<K extends string>(_name: K, _partial: FluentResult | undefined) {}
+export interface Sampler {
+  sample<A>(arbitrary: Arbitrary<A>, count: number): FluentPick<A>[]
+  sampleWithBias<A>(arbitrary: Arbitrary<A>, count: number): FluentPick<A>[]
+  sampleUnique<A>(arbitrary: Arbitrary<A>, count: number): FluentPick<A>[]
+  getGenerator(): () => number
 }
 ```
 
-### Mixin-Based Composition
-
-FluentCheck uses TypeScript mixins to compose strategy behaviors:
+**Base Implementation:**
 
 ```typescript
-// Random sampling mixin
-export function Random<TBase extends MixinStrategy>(Base: TBase) {
-  return class extends Base implements FluentStrategyInterface {
-    hasInput<K extends string>(arbitraryName: K): boolean {
-      return this.arbitraries[arbitraryName] !== undefined &&
-        this.arbitraries[arbitraryName].pickNum < this.arbitraries[arbitraryName].collection.length
-    }
-
-    getInput<K extends string, A>(arbitraryName: K): FluentPick<A> {
-      return this.arbitraries[arbitraryName].collection[this.arbitraries[arbitraryName].pickNum++]
-    }
-
-    handleResult() {}
+export class RandomSampler implements Sampler {
+  constructor(config: SamplerConfig = {}) {
+    this.generator = resolveGenerator(config)
   }
-}
 
-// Shrinking mixin
-export function Shrinkable<TBase extends MixinStrategy>(Base: TBase) {
-  return class extends Base {
-    shrink<K extends string>(arbitraryName: K, partial: FluentResult) {
-      const shrinkedArbitrary = this.arbitraries[arbitraryName].arbitrary.shrink(partial.example[arbitraryName])
-      this.arbitraries[arbitraryName].collection = this.buildArbitraryCollection(shrinkedArbitrary,
-        this.configuration.shrinkSize!)
-    }
+  sample<A>(arbitrary: Arbitrary<A>, count: number): FluentPick<A>[] {
+    return arbitrary.sample(count, this.generator)
   }
-}
 
-// Deduplication mixin
-export function Dedupable<TBase extends MixinStrategy>(Base: TBase) {
-  return class extends Base {
-    isDedupable() { return true }
+  sampleWithBias<A>(arbitrary: Arbitrary<A>, count: number): FluentPick<A>[] {
+    return arbitrary.sampleWithBias(count, this.generator)
   }
-}
 
-// Caching mixin
-export function Cached<TBase extends MixinStrategy>(Base: TBase) {
-  return class extends Base {
-    setArbitraryCache<K extends string>(arbitraryName: K) {
-      this.arbitraries[arbitraryName].cache = this.buildArbitraryCollection(this.arbitraries[arbitraryName].arbitrary)
-    }
-  }
-}
-
-// Biased sampling mixin
-export function Biased<TBase extends MixinStrategy>(Base: TBase) {
-  return class extends Base {
-    buildArbitraryCollection<A>(arbitrary: Arbitrary<A>, sampleSize?: number): FluentPick<A>[] {
-      return this.isDedupable() ? 
-        arbitrary.sampleUniqueWithBias(sampleSize!, this.randomGenerator.generator) :
-        arbitrary.sampleWithBias(sampleSize!, this.randomGenerator.generator)
-    }
+  sampleUnique<A>(arbitrary: Arbitrary<A>, count: number): FluentPick<A>[] {
+    return arbitrary.sampleUnique(count, [], this.generator)
   }
 }
 ```
 
-### Factory Pattern
+**Sampler Decorators:**
 
-The factory composes these mixins to build strategies:
+FluentCheck uses the decorator pattern to compose sampling behaviors:
 
 ```typescript
-export class FluentStrategyFactory {
-  private strategy: new (config: FluentConfig) => FluentStrategy = FluentStrategy
+// Bias toward corner cases
+export class BiasedSampler implements Sampler {
+  constructor(private readonly baseSampler: Sampler) {}
+
+  sample<A>(arbitrary: Arbitrary<A>, count: number): FluentPick<A>[] {
+    return this.baseSampler.sampleWithBias(arbitrary, count)
+  }
+  // ...
+}
+
+// Cache samples for reuse
+export class CachedSampler implements Sampler {
+  private readonly cache = new Map<Arbitrary<unknown>, FluentPick<unknown>[]>()
+  constructor(private readonly baseSampler: Sampler) {}
+  // ...
+}
+
+// Ensure unique samples
+export class DedupingSampler implements Sampler {
+  constructor(private readonly baseSampler: Sampler) {}
+
+  sample<A>(arbitrary: Arbitrary<A>, count: number): FluentPick<A>[] {
+    return this.baseSampler.sampleUnique(arbitrary, count)
+  }
+  // ...
+}
+```
+
+### Explorer Interface
+
+The `Explorer` interface handles search space traversal with pluggable quantifier semantics:
+
+```typescript
+export interface Explorer<Rec extends {}> {
+  explore(
+    scenario: ExecutableScenario<Rec> | Scenario<Rec>,
+    property: (testCase: Rec) => boolean,
+    sampler: Sampler,
+    budget: ExplorationBudget
+  ): ExplorationResult<Rec>
+}
+
+export interface ExplorationBudget {
+  readonly maxTests: number
+  readonly maxTime?: number
+}
+
+export type ExplorationResult<Rec extends {}> =
+  | ExplorationPassed<Rec>
+  | ExplorationFailed<Rec>
+  | ExplorationExhausted
+```
+
+**NestedLoopExplorer** implements the traditional property testing approach:
+
+```typescript
+export class NestedLoopExplorer<Rec extends {}> extends AbstractExplorer<Rec> {
+  protected quantifierSemantics(): QuantifierSemantics<Rec> {
+    return new NestedLoopSemantics<Rec>()
+  }
+}
+```
+
+### Shrinker Interface
+
+The `Shrinker` interface handles counterexample minimization, with the Explorer dependency allowing re-verification of nested quantifiers:
+
+```typescript
+export interface Shrinker<Rec extends {}> {
+  shrink(
+    counterexample: BoundTestCase<Rec>,
+    scenario: ExecutableScenario<Rec>,
+    explorer: Explorer<Rec>,
+    property: (testCase: Rec) => boolean,
+    sampler: Sampler,
+    budget: ShrinkBudget
+  ): ShrinkResult<Rec>
+
+  shrinkWitness(
+    witness: BoundTestCase<Rec>,
+    scenario: ExecutableScenario<Rec>,
+    explorer: Explorer<Rec>,
+    property: (testCase: Rec) => boolean,
+    sampler: Sampler,
+    budget: ShrinkBudget
+  ): ShrinkResult<Rec>
+}
+
+export interface ShrinkBudget {
+  readonly maxAttempts: number
+  readonly maxRounds: number
+}
+```
+
+**Available Shrinkers:**
+
+- `PerArbitraryShrinker`: Shrinks each quantifier's value independently (default when enabled)
+- `NoOpShrinker`: Performs no shrinking (for faster execution)
+
+### Scenario AST
+
+The `Scenario` type represents an immutable AST of a property test:
+
+```typescript
+export interface Scenario<Rec extends {} = {}> {
+  readonly nodes: readonly ScenarioNode<Rec>[]
+  readonly quantifiers: readonly QuantifierNode[]
+  readonly hasExistential: boolean
+  readonly searchSpaceSize: number
+}
+
+export type ScenarioNode<Rec extends {} = {}> =
+  | QuantifierNode       // forall or exists
+  | GivenNode<Rec>       // derived values
+  | WhenNode<Rec>        // side effects
+  | ThenNode<Rec>        // assertions
+```
+
+**ExecutableScenario** is the compiled, runtime-ready form:
+
+```typescript
+export interface ExecutableScenario<Rec extends {} = {}> {
+  readonly nodes: readonly ScenarioNode<Rec>[]
+  readonly quantifiers: readonly ExecutableQuantifier[]
+  readonly hasExistential: boolean
+  readonly searchSpaceSize: number
+}
+
+export interface ExecutableQuantifier<A = unknown> {
+  readonly name: string
+  readonly type: 'forall' | 'exists'
+  sample(sampler: Sampler, count: number): FluentPick<A>[]
+  sampleWithBias(sampler: Sampler, count: number): FluentPick<A>[]
+  shrink(pick: FluentPick<A>, sampler: Sampler, count: number): FluentPick<A>[]
+  isShrunken(candidate: FluentPick<A>, current: FluentPick<A>): boolean
+}
+```
+
+## Factory Pattern
+
+The `FluentStrategyFactory` composes all components:
+
+```typescript
+export class FluentStrategyFactory<Rec extends StrategyBindings = StrategyBindings> {
   public configuration: FluentConfig = {sampleSize: 1000}
 
-  withSampleSize(sampleSize: number) {
-    this.configuration = {...this.configuration, sampleSize}
-    return this
+  // Sampler configuration
+  private samplerConfig = {
+    deduping: false,
+    biased: false,
+    cached: false
   }
 
-  withoutReplacement() {
-    this.strategy = Dedupable(this.strategy)
-    return this
-  }
+  // Component factories
+  private explorerFactory: <R>() => Explorer<R> = () => new NestedLoopExplorer()
+  private shrinkerFactory: <R>() => Shrinker<R> = () => new NoOpShrinker()
 
-  withBias() {
-    this.strategy = Biased(this.strategy)
-    return this
-  }
-
-  usingCache() {
-    this.strategy = Cached(this.strategy)
-    return this
-  }
-
-  withRandomSampling() {
-    this.strategy = Random(this.strategy)
-    return this
-  }
+  withSampleSize(sampleSize: number) { /* ... */ }
+  withoutReplacement() { this.samplerConfig.deduping = true; return this }
+  withBias() { this.samplerConfig.biased = true; return this }
+  usingCache() { this.samplerConfig.cached = true; return this }
 
   withShrinking(shrinkSize = 500) {
     this.configuration = {...this.configuration, shrinkSize}
-    this.strategy = Shrinkable(this.strategy)
+    this.enableShrinking = true
+    this.shrinkerFactory = () => new PerArbitraryShrinker()
+    return this
+  }
+
+  withExplorer(factory: <R>() => Explorer<R>) {
+    this.explorerFactory = factory
+    return this
+  }
+
+  withShrinker(factory: <R>() => Shrinker<R>) {
+    this.shrinkerFactory = factory
+    this.enableShrinking = true
     return this
   }
 
   defaultStrategy() {
-    this.configuration = {...this.configuration, shrinkSize: 500}
-    this.strategy = Shrinkable(Cached(Biased(Dedupable(Random(this.strategy)))))
+    this.samplerConfig = { deduping: true, biased: true, cached: true }
+    this.withPerArbitraryShrinking(500)
     return this
   }
 
-  build(): FluentStrategy {
-    return new this.strategy(this.configuration)
+  // Build composed sampler using decorator pattern
+  private buildSampler(randomGenerator: FluentRandomGenerator): Sampler {
+    let sampler: Sampler = new RandomSampler({generator: randomGenerator.generator})
+    if (this.samplerConfig.deduping) sampler = new DedupingSampler(sampler)
+    if (this.samplerConfig.biased) sampler = new BiasedSampler(sampler)
+    if (this.samplerConfig.cached) sampler = new CachedSampler(sampler)
+    return sampler
   }
+
+  build(): FluentStrategy<Rec> { /* ... */ }
+  buildExplorer(): Explorer<Rec> { return this.explorerFactory() }
+  buildShrinker(): Shrinker<Rec> { return this.shrinkerFactory() }
 }
 ```
 
@@ -179,16 +312,8 @@ export class FluentRandomGenerator {
     this.prng = rngBuilder(this.seed)
   }
 
-  initialize() {
-    this.prng = defaultGenerator(this.seed)
-  }
-
   get generator(): () => number {
     return this.prng
-  }
-
-  private getRandomSeed(): number {
-    return Math.floor(Math.random() * Number.MAX_SAFE_INTEGER)
   }
 }
 ```
@@ -198,43 +323,31 @@ This allows users to:
 - Provide a custom random number generator
 - Control the distribution of random values
 
-## Strategy Integration with FluentCheck
+## Lazy Strategy Execution
 
-Strategies are configured at the **scenario level**, but the concrete
-`FluentStrategy` instance is created lazily when the scenario is executed
-via `.check()` or `.assert()`.
+Strategies are configured at the **scenario level**, but components are created lazily when the scenario is executed via `.check()` or `.assert()`.
 
-Conceptually:
+### Execution Flow
 
-- During chaining (`scenario()`, `config()`, `withGenerator()`, `forall`,
-  `exists`, `given`, `when`, `then`), FluentCheck builds a description of
-  the scenario:
-  - Which arbitraries are bound to which names.
-  - Which derived values and side effects run before assertions.
-  - Which strategy factory and RNG configuration should be used.
-- When `.check()` is called:
-  - FluentCheck walks the chain from root to leaf.
-  - Resolves the **last** configured `FluentStrategyFactory` and
-    RNG settings (`withGenerator`).
-  - Builds a single `FluentStrategy` instance from that factory.
-  - Registers all quantifiers’ arbitraries in the strategy.
-  - Uses the strategy to drive sampling and shrinking.
+1. **Builder Phase** - constructing a description of the scenario:
+   - Quantifiers (`name`, `Arbitrary<A>`, kind)
+   - Givens / whens / assertions
+   - Configuration (`config`, `withGenerator`)
 
-At the API level you still configure strategies the same way:
+2. **Execution Phase** - when `check()` is called:
+   - Resolve execution configuration (last `strategyFactory`, RNG settings)
+   - Build concrete instances:
+     - `Sampler` with configured decorators
+     - `Explorer` for search space traversal
+     - `Shrinker` for counterexample minimization
+   - Compile `Scenario` AST into `ExecutableScenario`
+   - Execute exploration and shrinking
 
-```typescript
-export class FluentCheck<Rec extends ParentRec, ParentRec extends {}> {
-  config(strategy: FluentStrategyFactory): this {
-    // store the factory to be used at check-time
-    // (actual FluentStrategy instance is built lazily in .check())
-    // ...
-    return this
-  }
-}
-```
+### Key Benefits
 
-The important difference is that strategy instantiation now happens once,
-right before execution, rather than when the scenario is constructed.
+- **Separation of concerns**: Scenario definition is decoupled from execution
+- **Single source of truth**: Strategy components share the same RNG instance
+- **Flexibility**: Multiple execution strategies can interpret the same scenario
 
 ## Strategy Presets
 
@@ -398,57 +511,143 @@ This is particularly valuable for:
 - Ensuring consistent test behavior across environments
 - Debugging property tests
 
-## Available Strategy Mixins
+## Available Configuration Options
 
-FluentCheck provides these composable strategy mixins:
+FluentCheck provides these composable strategy configurations:
 
-| Mixin | Method | Description |
-|-------|--------|-------------|
-| **Random** | `withRandomSampling()` | Basic random sampling from arbitraries |
-| **Dedupable** | `withoutReplacement()` | Avoids testing duplicate values |
-| **Biased** | `withBias()` | Prioritizes corner cases in sampling |
-| **Cached** | `usingCache()` | Caches generated samples for reuse |
-| **Shrinkable** | `withShrinking(n)` | Enables shrinking with configurable sample size |
+### Sampler Decorators
 
-The **default strategy** combines all these mixins for comprehensive testing.
+| Decorator | Method | Description |
+|-----------|--------|-------------|
+| **DedupingSampler** | `withoutReplacement()` | Avoids testing duplicate values |
+| **BiasedSampler** | `withBias()` | Prioritizes corner cases in sampling |
+| **CachedSampler** | `usingCache()` | Caches generated samples for reuse |
+
+### Explorer Options
+
+| Explorer | Method | Description |
+|----------|--------|-------------|
+| **NestedLoopExplorer** | `withNestedExploration()` | Traditional nested-loop traversal (default) |
+| Custom | `withExplorer(factory)` | Plug in custom exploration strategy |
+
+### Shrinker Options
+
+| Shrinker | Method | Description |
+|----------|--------|-------------|
+| **PerArbitraryShrinker** | `withShrinking(n)` | Shrinks each quantifier independently |
+| **NoOpShrinker** | `withoutShrinking()` | Disables shrinking for speed |
+| Custom | `withShrinker(factory)` | Plug in custom shrinking strategy |
+
+The **default strategy** combines deduping, biased sampling, caching, and per-arbitrary shrinking.
 
 ## Advanced Strategy Features
 
-FluentCheck's strategy system includes:
+FluentCheck's modular strategy system enables:
 
-1. **Adaptive sampling**: Focusing on more promising or problematic regions of the input space
-2. **Coverage-guided testing**: Adjusting strategies based on code coverage
-3. **Parallel execution**: Distributing test execution across multiple threads
-4. **Custom generators**: Supporting alternative random number generators
+1. **Pluggable exploration**: Replace the default `NestedLoopExplorer` with custom exploration strategies
+2. **Custom shrinking**: Implement alternative shrinking algorithms (e.g., delta debugging)
+3. **Quantifier semantics**: The `QuantifierSemantics` policy pattern allows different handling of `forall`/`exists`
+4. **Budget control**: Configure test limits (`maxTests`) and time limits (`maxTime`) for exploration
+5. **Custom generators**: Support alternative random number generators for specialized distributions
 
-## Custom Strategy Implementation
+## Custom Component Implementation
 
-Users can create entirely custom strategies by implementing the `FluentStrategyInterface` or extending existing strategies:
+### Custom Explorer
+
+Implement the `Explorer` interface to create custom exploration strategies:
 
 ```typescript
-class MyCustomStrategy extends FluentStrategy {
-  hasInput<K extends string>(arbitraryName: K): boolean {
-    // Custom logic for determining when to stop generating test cases
-    return this.customStoppingCondition();
+export class MyCustomExplorer<Rec extends {}> implements Explorer<Rec> {
+  explore(
+    scenario: ExecutableScenario<Rec>,
+    property: (testCase: Rec) => boolean,
+    sampler: Sampler,
+    budget: ExplorationBudget
+  ): ExplorationResult<Rec> {
+    // Custom exploration logic
+    // Use sampler to generate values from quantifiers
+    // Return ExplorationPassed, ExplorationFailed, or ExplorationExhausted
+  }
+}
+
+// Use with factory
+const strategy = new FluentStrategyFactory()
+  .withExplorer(() => new MyCustomExplorer())
+  .build()
+```
+
+### Custom Shrinker
+
+Implement the `Shrinker` interface to create custom shrinking strategies:
+
+```typescript
+export class MyCustomShrinker<Rec extends {}> implements Shrinker<Rec> {
+  shrink(
+    counterexample: BoundTestCase<Rec>,
+    scenario: ExecutableScenario<Rec>,
+    explorer: Explorer<Rec>,
+    property: (testCase: Rec) => boolean,
+    sampler: Sampler,
+    budget: ShrinkBudget
+  ): ShrinkResult<Rec> {
+    // Custom shrinking logic
+    // Use explorer to re-verify nested quantifiers
+    // Return ShrinkResult with minimized counterexample
   }
 
-  getInput<K extends string, A>(arbitraryName: K): FluentPick<A> {
-    // Custom logic for generating test cases
-    return this.customGenerationLogic(arbitraryName);
+  shrinkWitness(/* ... */): ShrinkResult<Rec> {
+    // Shrink witnesses for existential quantifiers
+  }
+}
+
+// Use with factory
+const strategy = new FluentStrategyFactory()
+  .withShrinker(() => new MyCustomShrinker())
+  .build()
+```
+
+### Custom Sampler Decorator
+
+Create a new sampler decorator by implementing the `Sampler` interface:
+
+```typescript
+export class MyCustomSampler implements Sampler {
+  constructor(private readonly baseSampler: Sampler) {}
+
+  sample<A>(arbitrary: Arbitrary<A>, count: number): FluentPick<A>[] {
+    // Custom sampling logic
+    // Can delegate to baseSampler and modify results
+    return this.baseSampler.sample(arbitrary, count)
   }
 
-  handleResult() {
-    // Custom logic for processing test results
-    this.customResultHandling();
+  sampleWithBias<A>(arbitrary: Arbitrary<A>, count: number): FluentPick<A>[] {
+    return this.baseSampler.sampleWithBias(arbitrary, count)
+  }
+
+  sampleUnique<A>(arbitrary: Arbitrary<A>, count: number): FluentPick<A>[] {
+    return this.baseSampler.sampleUnique(arbitrary, count)
+  }
+
+  getGenerator(): () => number {
+    return this.baseSampler.getGenerator()
   }
 }
 ```
 
 ## Comparison with Other Frameworks
 
-While most property testing frameworks offer basic configuration options, FluentCheck's strategy system provides a more comprehensive and extensible approach to test strategy customization, allowing for domain-specific testing approaches and sophisticated test generation algorithms. 
+FluentCheck's component-based architecture provides advantages over monolithic strategy systems:
 
-For example, while FastCheck allows setting maximum test count and seed, FluentCheck's strategies can implement complex decision logic about:
-- When to stop testing
-- How to prioritize different parts of the input space
-- How to adapt testing based on previous results 
+| Feature | FluentCheck | Other Frameworks |
+|---------|-------------|------------------|
+| **Sampling** | Composable decorators | Often fixed algorithms |
+| **Exploration** | Pluggable `Explorer` interface | Usually hard-coded |
+| **Shrinking** | Separate `Shrinker` with Explorer re-verification | Often coupled to generation |
+| **Scenario AST** | Immutable, inspectable structure | Usually hidden implementation |
+| **Quantifiers** | First-class `forall`/`exists` with nested semantics | Often limited to single quantifier |
+
+This separation of concerns enables:
+- Independent testing of each component
+- Easy addition of new exploration or shrinking algorithms
+- Holistic scenario analysis before execution
+- Clear responsibility boundaries
