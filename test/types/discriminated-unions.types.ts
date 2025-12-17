@@ -123,43 +123,9 @@ const oneofArb: ExactSizeArbitrary<'a' | 'b' | 'c'> = oneof(['a', 'b', 'c'] as c
 const charArb: ExactSizeArbitrary<string> = char()
 const stringArb: ExactSizeArbitrary<string> = string(1, 10)
 
-// ============================================================================
-// Test: ExactSizeArbitrary.size() returns ExactSize (not ArbitrarySize)
-// ============================================================================
-
-const integerSize = integer(0, 100).size()
-type _T11 = Expect<Equal<typeof integerSize, ExactSize>>
-
-const booleanSize = boolean().size()
-type _T11b = Expect<Equal<typeof booleanSize, ExactSize>>
-
-// ============================================================================
-// Test: filter() returns EstimatedSizeArbitrary
-// ============================================================================
-
-// Filtered arbitrary returns EstimatedSizeArbitrary
-const filteredArb = integer(0, 100).filter(n => n > 50)
-type _T12a = Expect<Equal<typeof filteredArb, EstimatedSizeArbitrary<number>>>
-
-// And its size() returns EstimatedSize
-const filteredSize = filteredArb.size()
-type _T12 = Expect<Equal<typeof filteredSize, EstimatedSize>>
-
-// ============================================================================
-// Test: map() preserves size type
-// ============================================================================
-
-// Mapped exact arbitrary returns ExactSizeArbitrary
-const mappedExact = integer(0, 100).map(n => n * 2)
-type _T13a = Expect<Equal<typeof mappedExact, ExactSizeArbitrary<number>>>
-
-// And its size() returns ExactSize
-const mappedSize = mappedExact.size()
-type _T13 = Expect<Equal<typeof mappedSize, ExactSize>>
-
-// Mapped estimated arbitrary returns EstimatedSizeArbitrary
-const mappedEstimated = integer(0, 100).filter(n => n > 50).map(n => n * 2)
-type _T13b = Expect<Equal<typeof mappedEstimated, EstimatedSizeArbitrary<number>>>
+// NoArbitrary is ExactSizeArbitrary<never>
+const noArb: ExactSizeArbitrary<never> = NoArbitrary
+type _T11 = Expect<Equal<typeof noArb, ExactSizeArbitrary<never>>>
 
 // ============================================================================
 // Test: array() with estimated input returns Arbitrary, not ExactSizeArbitrary
@@ -175,17 +141,6 @@ const arrayOfFiltered: Arbitrary<number[]> = array(filteredIntArb, 1, 5)
 
 // @ts-expect-error: array of filtered arbitrary is NOT ExactSizeArbitrary
 const _badArrayType: ExactSizeArbitrary<number[]> = array(filteredIntArb, 1, 5)
-
-// ============================================================================
-// Test: NoArbitrary is ExactSizeArbitrary<never>
-// ============================================================================
-
-const noArb: ExactSizeArbitrary<never> = NoArbitrary
-type _T14 = Expect<Equal<typeof noArb, ExactSizeArbitrary<never>>>
-
-// NoArbitrary.size() returns ExactSize
-const noSize = NoArbitrary.size()
-type _T14b = Expect<Equal<typeof noSize, ExactSize>>
 
 // ============================================================================
 // Test: ExactSizeArbitrary is assignable to Arbitrary
@@ -206,6 +161,47 @@ type _T16 = Expect<Equal<ReturnType<ExactSizeMethod>, ExactSize>>
 // Test that EstimatedSizeArbitrary.size() is declared to return EstimatedSize
 type EstimatedSizeMethod = EstimatedSizeArbitrary<number>['size']
 type _T17 = Expect<Equal<ReturnType<EstimatedSizeMethod>, EstimatedSize>>
+
+// ============================================================================
+// Test: CORE FEATURE - .size() returns the correct type at call sites
+// ============================================================================
+
+// This is the key test: calling .size() on ExactSizeArbitrary returns ExactSize
+const intSize = integer(0, 100).size()
+type _T18 = Expect<Equal<typeof intSize, ExactSize>>
+
+const boolSize = boolean().size()
+type _T19 = Expect<Equal<typeof boolSize, ExactSize>>
+
+// And .size() on EstimatedSizeArbitrary returns EstimatedSize
+const filteredSize = integer(0, 100).filter(n => n > 50).size()
+type _T20 = Expect<Equal<typeof filteredSize, EstimatedSize>>
+
+// ============================================================================
+// Test: map() preserves size type
+// ============================================================================
+
+const mappedExact = integer(0, 100).map(n => n * 2)
+type _T21 = Expect<Equal<typeof mappedExact, ExactSizeArbitrary<number>>>
+
+const mappedExactSize = mappedExact.size()
+type _T22 = Expect<Equal<typeof mappedExactSize, ExactSize>>
+
+const mappedEstimated = integer(0, 100).filter(n => n > 50).map(n => n * 2)
+type _T23 = Expect<Equal<typeof mappedEstimated, EstimatedSizeArbitrary<number>>>
+
+const mappedEstimatedSize = mappedEstimated.size()
+type _T24 = Expect<Equal<typeof mappedEstimatedSize, EstimatedSize>>
+
+// ============================================================================
+// Test: filter() changes exact to estimated
+// ============================================================================
+
+const exactBeforeFilter = integer(0, 100)
+type _T25 = Expect<Equal<typeof exactBeforeFilter, ExactSizeArbitrary<number>>>
+
+const estimatedAfterFilter = exactBeforeFilter.filter(n => n > 50)
+type _T26 = Expect<Equal<typeof estimatedAfterFilter, EstimatedSizeArbitrary<number>>>
 
 // ============================================================================
 // Test: Accessing fields on union requires narrowing

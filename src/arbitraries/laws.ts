@@ -236,7 +236,9 @@ export const compositionLaws = {
   noArbitraryFilterIdentity: (): LawResult => {
     const law = 'compositionLaws.noArbitraryFilterIdentity'
     const filtered = NoArbitrary.filter(() => true)
-    if (filtered !== NoArbitrary) {
+    // NoArbitrary.filter() returns itself (special case - still exact size 0)
+    // Type assertion needed because interface says filter() returns EstimatedSizeArbitrary
+    if ((filtered as unknown) !== NoArbitrary) {
       return fail(law, 'filter on NoArbitrary did not return NoArbitrary')
     }
     return pass(law)

@@ -27,11 +27,14 @@ type ArbitraryBase<A> = import('./internal.js').Arbitrary<A>
 /**
  * An arbitrary that returns an exact size when `size()` is called.
  *
- * This type is compatible with `Arbitrary<A>` but provides more specific
- * return types for `size()`, `map()`, `filter()`, and `suchThat()`.
- * This allows TypeScript to know that the size is exact without requiring type narrowing.
+ * IMPORTANT: This is an interface (not a type alias with intersection) because
+ * TypeScript's interface inheritance properly overrides method return types,
+ * while intersection types do not. This ensures that calling `.size()` on an
+ * ExactSizeArbitrary returns `ExactSize`, not `ArbitrarySize`.
+ *
+ * @see https://github.com/microsoft/TypeScript/issues/16936 for related discussion
  */
-export type ExactSizeArbitrary<A> = ArbitraryBase<A> & {
+export interface ExactSizeArbitrary<A> extends ArbitraryBase<A> {
   size(): ExactSize
   map<B>(
     f: (a: A) => B,
@@ -47,11 +50,12 @@ export type ExactSizeArbitrary<A> = ArbitraryBase<A> & {
 /**
  * An arbitrary that returns an estimated size when `size()` is called.
  *
- * This type is compatible with `Arbitrary<A>` but provides more specific
- * return types for `size()`, `map()`, `filter()`, and `suchThat()`.
- * This indicates that the size is an estimate with a credible interval.
+ * IMPORTANT: This is an interface (not a type alias with intersection) because
+ * TypeScript's interface inheritance properly overrides method return types.
+ * This ensures that calling `.size()` on an EstimatedSizeArbitrary returns
+ * `EstimatedSize`, not `ArbitrarySize`.
  */
-export type EstimatedSizeArbitrary<A> = ArbitraryBase<A> & {
+export interface EstimatedSizeArbitrary<A> extends ArbitraryBase<A> {
   size(): EstimatedSize
   map<B>(
     f: (a: A) => B,

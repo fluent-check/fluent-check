@@ -12,7 +12,7 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 
 import {FluentCheck} from '../../src/FluentCheck.js'
-import {integer, type Arbitrary} from '../../src/arbitraries/index.js'
+import {integer, type Arbitrary, type ExactSizeArbitrary} from '../../src/arbitraries/index.js'
 import {type Expect, type Equal, type Extends, type IsUnknown} from './test-utils.types.js'
 
 // ============================================================================
@@ -81,13 +81,13 @@ type _T4b = Expect<Equal<IsUnknown<ChainedConstRec['b']>, false>>
 // ============================================================================
 
 const mapToString = integer(0, 100).map(n => String(n))
-type _T5 = Expect<Equal<typeof mapToString, Arbitrary<string>>>
+type _T5 = Expect<Equal<typeof mapToString, ExactSizeArbitrary<string>>>
 
 const mapToBool = integer(0, 100).map(n => n > 50)
-type _T6 = Expect<Equal<typeof mapToBool, Arbitrary<boolean>>>
+type _T6 = Expect<Equal<typeof mapToBool, ExactSizeArbitrary<boolean>>>
 
 const mapToTuple = integer(0, 10).map(n => [n, n * 2] as const)
-type _T7 = Expect<Equal<typeof mapToTuple, Arbitrary<readonly [number, number]>>>
+type _T7 = Expect<Equal<typeof mapToTuple, ExactSizeArbitrary<readonly [number, number]>>>
 
 // ============================================================================
 // Test: map() with shrinkHelper - B still from f, NOT from helper
@@ -98,14 +98,14 @@ const mapWithInverse = integer(0, 100).map(
   n => n > 50,
   {inverseMap: b => b ? [75] : [25]}
 )
-type _T8 = Expect<Equal<typeof mapWithInverse, Arbitrary<boolean>>>
+type _T8 = Expect<Equal<typeof mapWithInverse, ExactSizeArbitrary<boolean>>>
 
 // With canGenerate: B should be number (from Math.abs), not from canGenerate
 const mapWithCanGenerate = integer(-100, 100).map(
   n => Math.abs(n),
   {canGenerate: pick => pick.value >= 0}
 )
-type _T9 = Expect<Equal<typeof mapWithCanGenerate, Arbitrary<number>>>
+type _T9 = Expect<Equal<typeof mapWithCanGenerate, ExactSizeArbitrary<number>>>
 
 // ============================================================================
 // Test: forall + given composition
