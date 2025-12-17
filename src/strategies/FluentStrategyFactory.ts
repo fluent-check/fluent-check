@@ -416,6 +416,29 @@ export class FluentStrategyFactory<Rec extends StrategyBindings = StrategyBindin
   }
 
   /**
+   * Creates a deep clone of this factory with all configuration settings.
+   * Useful for preserving factory state when creating modified copies.
+   */
+  clone(): FluentStrategyFactory<Rec> {
+    const cloned = new FluentStrategyFactory<Rec>()
+    
+    // Copy public configuration
+    cloned.configuration = {...this.configuration}
+    
+    // Copy private fields
+    cloned.samplerConfig = {...this.samplerConfig}
+    cloned.enableShrinking = this.enableShrinking
+    cloned.rngBuilder = this.rngBuilder
+    cloned.rngSeed = this.rngSeed
+    cloned.explorerFactory = this.explorerFactory
+    cloned.shrinkerFactory = this.shrinkerFactory
+    cloned.detailedStatistics = this.detailedStatistics
+    cloned.verbosity = this.verbosity
+    
+    return cloned
+  }
+
+  /**
    * Builds and returns the FluentStrategy with a specified configuration.
    */
   build(): FluentStrategy<Rec> {

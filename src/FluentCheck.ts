@@ -341,7 +341,7 @@ export class FluentCheck<
     // Clone the existing factory if it exists, otherwise create a new one
     const baseFactory = baseConfig.strategyFactory as FluentStrategyFactory<Rec> | undefined
     const factory = baseFactory !== undefined
-      ? this.#cloneFactory(baseFactory)
+      ? baseFactory.clone()
       : new FluentStrategyFactory<Rec>()
 
     // Configure with confidence target (only override confidence-related settings)
@@ -360,51 +360,6 @@ export class FluentCheck<
     return runCheck(scenario, executionConfig, options)
   }
 
-  /**
-   * Clone a factory to preserve all configuration settings.
-   * This is a deep clone helper for checkWithConfidence.
-   */
-  #cloneFactory<T extends {}>(source: FluentStrategyFactory<T>): FluentStrategyFactory<T> {
-    const clone = new FluentStrategyFactory<T>()
-
-    // Copy all configuration
-    clone.configuration = {...source.configuration}
-
-    // Use reflection to copy internal flags and configuration
-    // Note: This accesses private fields via type assertion for cloning purposes
-    const src = source as any
-    const dst = clone as any
-
-    // Copy sampler configuration
-    if (src.samplerConfig !== undefined && src.samplerConfig !== null) {
-      dst.samplerConfig = {...src.samplerConfig}
-    }
-
-    // Copy shrinking configuration
-    dst.enableShrinking = src.enableShrinking
-
-    // Copy RNG configuration
-    if (src.rngBuilder !== undefined && src.rngBuilder !== null) {
-      dst.rngBuilder = src.rngBuilder
-      dst.rngSeed = src.rngSeed
-    }
-
-    // Copy explorer factory
-    if (src.explorerFactory !== undefined && src.explorerFactory !== null) {
-      dst.explorerFactory = src.explorerFactory
-    }
-
-    // Copy shrinker factory
-    if (src.shrinkerFactory !== undefined && src.shrinkerFactory !== null) {
-      dst.shrinkerFactory = src.shrinkerFactory
-    }
-
-    // Copy statistics flags
-    dst.detailedStatistics = src.detailedStatistics
-    dst.verbosity = src.verbosity
-
-    return clone
-  }
 
   /**
    * Check the property and verify coverage requirements.
