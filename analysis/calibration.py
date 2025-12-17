@@ -42,11 +42,12 @@ def main():
     has_outcome = 'outcome' in df.columns
     
     if has_outcome:
-        # Use pre-computed outcomes
-        tp = (df['outcome'] == 'TP').sum()
-        fn = (df['outcome'] == 'FN').sum()
-        tn = (df['outcome'] == 'TN').sum()
-        fp = (df['outcome'] == 'FP').sum()
+        # Use pre-computed outcomes (filter out any None/NaN outcomes)
+        valid_df = df[df['outcome'].notna()]
+        tp = (valid_df['outcome'] == 'TP').sum()
+        fn = (valid_df['outcome'] == 'FN').sum()
+        tn = (valid_df['outcome'] == 'TN').sum()
+        fp = (valid_df['outcome'] == 'FP').sum()
     else:
         # Compute outcomes from threshold_actually_met, bug_found, and termination_reason
         # Only classify trials that terminated via confidence or bug found
@@ -79,16 +80,17 @@ def main():
     print(f"        Not Met:     FP={fp:<6}      TN={tn:<6}")
     print("=" * 60)
     
-    # Calculate metrics
+    # Calculate metrics (using only valid trials that reached a conclusion)
     total_met = tp + fn
     total_not_met = tn + fp
     total_confidence = tp + fp
     total_bug = tn + fn
+    total_valid = tp + tn + fp + fn
     
     sensitivity = tp / total_met if total_met > 0 else 0
     specificity = tn / total_not_met if total_not_met > 0 else 0
     precision = tp / total_confidence if total_confidence > 0 else 0
-    accuracy = (tp + tn) / len(df)
+    accuracy = (tp + tn) / total_valid if total_valid > 0 else 0
     
     # Wilson score CIs for metrics
     sens_ci = wilson_score_interval(tp, total_met, 0.95) if total_met > 0 else (0, 0)
@@ -106,15 +108,15 @@ def main():
     print(f"Accuracy:          {accuracy:.1%}")
     print("-" * 60)
     
-    # Breakdown by pass rate
+    # Breakdown by pass rate (using only valid trials)
     print(f"\nBreakdown by True Pass Rate:")
     print("=" * 90)
     print(f"{'Pass Rate':<12} {'N':<6} {'TP':<6} {'FN':<6} {'TN':<6} {'FP':<6} {'Sensitivity':<15} {'Specificity':<15}")
     print("-" * 90)
     
     results_by_rate = []
-    for rate in sorted(df['true_pass_rate'].unique(), reverse=True):
-        group = df[df['true_pass_rate'] == rate]
+    for rate in sorted(valid_df['true_pass_rate'].unique(), reverse=True):
+        group = valid_df[valid_df['true_pass_rate'] == rate]
         n = len(group)
         g_tp = (group['outcome'] == 'TP').sum()
         g_fn = (group['outcome'] == 'FN').sum()
