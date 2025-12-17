@@ -654,9 +654,17 @@ describe('Arbitrary tests', () => {
       expect(fc.empty().sampleWithBias().length).to.eq(0)
     })
 
-    it('should remain no arbitrary when compose with map, and filter', () => {
+    it('should remain no arbitrary when composed with map', () => {
       expect(fc.empty().map(a => a)).to.eq(fc.empty())
-      expect(fc.empty().filter(_ => true)).to.eq(fc.empty())
+    })
+
+    it('filter on empty should produce empty results (but not be NoArbitrary)', () => {
+      // NoArbitrary.filter() returns FilteredArbitrary for type soundness
+      // (filter() must return EstimatedSizeArbitrary per the interface)
+      const filtered = fc.empty().filter(_ => true)
+      expect(filtered).to.not.eq(fc.empty())  // Different object
+      expect(filtered.sample(10)).to.deep.eq([])  // But produces no values
+      expect(filtered.size().type).to.eq('estimated')  // Type soundness
     })
 
     it('should always be satisfiable due to vacuous truth in universal assertions', () => {

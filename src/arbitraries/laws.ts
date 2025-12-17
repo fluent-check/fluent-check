@@ -231,16 +231,32 @@ export const compositionLaws = {
   },
 
   /**
-   * Filter on NoArbitrary returns NoArbitrary.
+   * Filter on NoArbitrary produces no values (size estimate approaches 0).
+   *
+   * Note: NoArbitrary.filter() returns a FilteredArbitrary, NOT NoArbitrary itself.
+   * This is required for type soundness: the ExactSizeArbitrary interface declares
+   * filter() returns EstimatedSizeArbitrary, and FilteredArbitrary satisfies this.
    */
-  noArbitraryFilterIdentity: (): LawResult => {
-    const law = 'compositionLaws.noArbitraryFilterIdentity'
+  noArbitraryFilterProducesEmpty: (): LawResult => {
+    const law = 'compositionLaws.noArbitraryFilterProducesEmpty'
     const filtered = NoArbitrary.filter(() => true)
-    // NoArbitrary.filter() returns itself (special case - still exact size 0)
-    // Type assertion needed because interface says filter() returns EstimatedSizeArbitrary
-    if ((filtered as unknown) !== NoArbitrary) {
-      return fail(law, 'filter on NoArbitrary did not return NoArbitrary')
+
+    // The filtered arbitrary should produce no values
+    const sample = filtered.sample(10)
+    if (sample.length !== 0) {
+      return fail(law, `filter on NoArbitrary produced ${sample.length} values, expected 0`)
     }
+
+    // The size should indicate empty (estimated size converging to 0)
+    const size = filtered.size()
+    if (size.type !== 'estimated') {
+      return fail(law, `filter on NoArbitrary has size type '${size.type}', expected 'estimated'`)
+    }
+    // After filtering an empty arbitrary, the estimated size should be very small
+    if (size.value > 1) {
+      return fail(law, `filter on NoArbitrary has estimated size ${size.value}, expected ~0`)
+    }
+
     return pass(law)
   },
 
@@ -251,7 +267,7 @@ export const compositionLaws = {
   all: <T>(arb: Arbitrary<T>, predicate: (t: T) => boolean): LawResult[] => [
     compositionLaws.filterRespectsPredicate(arb, predicate),
     compositionLaws.noArbitraryMapIdentity(),
-    compositionLaws.noArbitraryFilterIdentity(),
+    compositionLaws.noArbitraryFilterProducesEmpty(),
   ]
 }
 
@@ -314,7 +330,7 @@ export const arbitraryLaws = {
     } else {
       // Still run NoArbitrary laws
       results.push(compositionLaws.noArbitraryMapIdentity())
-      results.push(compositionLaws.noArbitraryFilterIdentity())
+      results.push(compositionLaws.noArbitraryFilterProducesEmpty())
     }
 
     return results
