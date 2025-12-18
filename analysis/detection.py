@@ -83,7 +83,7 @@ def main():
         detection_per_ms = bugs_found / total_time_ms if total_time_ms > 0 else 0
         
         # Time to first detection (only for trials that found bugs)
-        bug_trials = group[group['bug_found'] == True]
+        bug_trials = group[group['bug_found']]
         mean_time_to_detection = bug_trials['elapsed_micros'].mean() / 1000 if len(bug_trials) > 0 else np.nan
         
         # Expected detection for fixed methods: 1 - (1-p)^n
