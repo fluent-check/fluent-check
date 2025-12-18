@@ -21,7 +21,7 @@ import seaborn as sns
 import numpy as np
 from pathlib import Path
 from util import (
-    wilson_score_interval, format_ci, save_figure, compute_summary_stats,
+    wilson_score_interval, format_ci, save_figure,
     chi_squared_test, cohens_h, effect_size_interpretation, odds_ratio,
     power_analysis_proportion
 )
