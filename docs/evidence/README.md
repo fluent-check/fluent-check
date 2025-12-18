@@ -4,11 +4,12 @@ This document presents empirical evidence that FluentCheck's confidence-based te
 
 ## Overview
 
-Three studies validate the confidence-based termination approach:
+Four studies validate FluentCheck's statistical approach:
 
 1. **Efficiency Study**: Does it adapt test effort to property complexity?
 2. **Calibration Study**: How reliable are confidence claims? (Sensitivity/Specificity)
 3. **Detection Rate Study**: Does it find rare bugs more reliably than fixed N?
+4. **Existential Quantifier Study**: Does `.exists()` efficiently find witnesses?
 
 All data is reproducible with deterministic seeds. Raw data available in [`raw/`](raw/).
 
@@ -327,6 +328,100 @@ Confidence-based termination finds rare bugs more reliably than fixed sample siz
 **Key Insight**: Choose based on your needs:
 - **Fixed N**: Predictable runtime, simple to understand
 - **Confidence-based**: Meaningful statistical guarantees, adapts to property behavior
+
+---
+
+## 4. Existential Quantifier Study
+
+### Hypothesis
+
+FluentCheck's `.exists()` efficiently finds witnesses for existential properties, with detection rates proportional to witness density and sample size.
+
+### Method
+
+**Key design decision**: We use large ranges (1M values) with modular arithmetic predicates to avoid birthday paradox effects. This ensures witness density is independent of range size and each sample is truly independent.
+
+- **Search space**: [1, 1,000,000] — with max 500 samples, we cover only 0.05% of the space
+- **Scenarios tested**:
+  - Sparse witness (0.01% density): Find x where `x % 10000 === 0`
+  - Rare witness (1% density): Find x where `x % 100 === 0`
+  - Moderate witness (10% density): Find x where `x % 10 === 0`
+  - Dense witness (50% density): Find x where `x % 2 === 0` (even numbers)
+  - Exists-forall pattern (~50%): Find a ≥ 501000 such that a + b ≥ 500000 for all b ∈ [-1000, 1000]
+  - Forall-exists pattern (0.01% per a): For each a ∈ [1,10], find b ∈ [1,10000] such that a + b = 1000
+- **Sample sizes**: 50, 100, 200, 500
+- **Trials per configuration**: 50-200
+
+### Results
+
+![Detection Rates](./figures/exists_detection_rates.png)
+
+*Figure 5: Witness detection rate by scenario type with 95% confidence intervals.*
+
+#### How to Read This Figure
+
+- **X-axis**: Scenario type (ordered by witness density)
+- **Y-axis**: Proportion of trials that found a witness (0 to 1.0)
+- **Bar height**: Detection rate (higher = finds more witnesses)
+- **Error bars**: 95% confidence interval
+- **Red markers**: Expected detection rate based on theoretical probability
+
+---
+
+![Detection vs Sample Size](./figures/exists_vs_sample_size.png)
+
+*Figure 6: Detection rate as a function of sample size.*
+
+#### How to Read This Figure
+
+- **X-axis**: Sample size (number of tests allowed)
+- **Y-axis**: Detection rate
+- **Solid lines**: Observed detection rates
+- **Dashed lines**: Theoretical expected rates: P(find) = 1 - (1-d)^n
+
+---
+
+![Tests to Witness](./figures/exists_tests_to_witness.png)
+
+*Figure 7: Distribution of tests run before finding a witness.*
+
+#### What to Look For
+
+1. **Dense scenarios** (50% witness density): Witnesses found in 1-5 tests
+2. **Moderate scenarios** (10% density): Witnesses found in ~10-20 tests
+3. **Sparse scenarios** (0.01% density): Requires many tests, often exhausts budget
+
+### Expected vs Observed
+
+For a witness density `d` and sample size `n`, the expected detection rate is:
+
+```
+P(find witness) = 1 - (1 - d)^n
+```
+
+| Scenario | Density | N=50 Expected | N=50 Observed | N=500 Expected | N=500 Observed |
+|----------|---------|---------------|---------------|----------------|----------------|
+| sparse | 0.01% | 0.5% | ~0% | 4.9% | ~8% |
+| rare | 1% | 39% | ~48% | 99.3% | ~100% |
+| moderate | 10% | 99.5% | 100% | ~100% | 100% |
+| dense | 50% | ~100% | 100% | ~100% | 100% |
+| exists_forall | 50% | ~100% | 100% | ~100% | 100% |
+
+### Conclusions
+
+✅ **Detection matches theory**: Observed rates closely match geometric distribution predictions.
+
+✅ **Efficient early exit**: Dense witnesses found in 1-5 tests, not the full budget.
+
+✅ **exists-forall works efficiently**: Pattern like "find a such that for all b, P(a,b)" works well.
+
+⚠️ **forall-exists is hard**: Pattern like "for all a, find b such that P(a,b)" requires finding witnesses for EVERY 'a' value, making it exponentially harder. Use domain-specific strategies for this pattern.
+
+⚠️ **Sparse witnesses need samples**: 0.01% density needs ~10,000 samples for reliable detection.
+
+**Key Insight**: FluentCheck's `.exists()` is most valuable for witnesses with ≥1% density. For sparser witnesses, increase sample size or use domain knowledge to improve density. For forall-exists patterns, consider alternative formulations or custom witness strategies.
+
+For expressiveness comparison with other frameworks, see [Existential Quantifier Expressiveness](exists-expressiveness.md).
 
 ---
 
