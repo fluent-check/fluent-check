@@ -279,7 +279,7 @@ def main():
     
     total_time = df['elapsed_micros'].sum() / 1000  # ms
     total_tests = df['tests_run'].sum()
-    total_bugs = df[df['bug_found'] == True]['bug_found'].count()
+    total_bugs = df['bug_found'].sum()
     
     print(f"  Total time spent: {total_time:.2f} ms")
     print(f"  Total tests run: {total_tests}")
