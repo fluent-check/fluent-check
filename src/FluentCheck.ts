@@ -1,5 +1,5 @@
 import {type Arbitrary} from './arbitraries/index.js'
-import {type FluentStrategyFactory} from './strategies/FluentStrategyFactory.js'
+import {FluentStrategyFactory} from './strategies/FluentStrategyFactory.js'
 import {
   type Scenario,
   type ScenarioNode,
@@ -306,6 +306,60 @@ export class FluentCheck<
     const executionConfig = this.#resolveExecutionConfig(this.pathFromRoot())
     return runCheck(scenario, executionConfig, options)
   }
+
+  /**
+   * Check the property with a target confidence level.
+   * Executes tests until the specified confidence level is achieved.
+   *
+   * @param level - Target confidence level (0 < level < 1), e.g., 0.99 for 99% confidence
+   * @param options - Optional configuration
+   * @returns A FluentResult with confidence statistics
+   * @throws Error if level is not between 0 and 1
+   *
+   * @example
+   * ```typescript
+   * const result = fc.scenario()
+   *   .forall('x', fc.integer())
+   *   .then(({x}) => x * x >= 0)
+   *   .checkWithConfidence(0.999)
+   *
+   * console.log(result.statistics.confidence)       // 0.9992
+   * console.log(result.statistics.testsRun)         // 6905 (variable)
+   * console.log(result.statistics.credibleInterval) // [0.9995, 1.0]
+   * ```
+   */
+  checkWithConfidence(level: number, options?: CheckOptions): FluentResult<Rec> {
+    if (level <= 0 || level >= 1) {
+      throw new Error(`Confidence level must be between 0 and 1, got ${level}`)
+    }
+
+    // Build scenario and execute with the configured factory
+    const scenario = this.buildScenario()
+    const path = this.pathFromRoot()
+    const baseConfig = this.#resolveExecutionConfig(path)
+
+    // Clone the existing factory if it exists, otherwise create a new one
+    const baseFactory = baseConfig.strategyFactory as FluentStrategyFactory<Rec> | undefined
+    const factory = baseFactory !== undefined
+      ? baseFactory.clone()
+      : new FluentStrategyFactory<Rec>()
+
+    // Configure with confidence target (only override confidence-related settings)
+    factory.withConfidence(level)
+
+    // Use a reasonable default for maxIterations (10x sample size or 50000, whichever is smaller)
+    const sampleSize = factory.configuration.sampleSize ?? 1000
+    const maxIterations = Math.min(sampleSize * 10, 50000)
+    factory.withMaxIterations(maxIterations)
+
+    const executionConfig: ExecutionConfig = {
+      ...baseConfig,
+      strategyFactory: factory
+    }
+
+    return runCheck(scenario, executionConfig, options)
+  }
+
 
   /**
    * Check the property and verify coverage requirements.

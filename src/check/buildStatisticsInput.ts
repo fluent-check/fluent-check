@@ -9,6 +9,7 @@ export interface StatisticsInputParams {
   readonly timeBreakdown: ExecutionTimeBreakdown
   readonly counterexampleFound: boolean
   readonly shrinkingStats?: ShrinkingStatistics
+  readonly passRateThreshold?: number
 }
 
 /**
@@ -17,7 +18,7 @@ export interface StatisticsInputParams {
  * This centralizes the repeated spreading pattern that was in 4 places.
  */
 export function buildStatisticsInput(params: StatisticsInputParams): StatisticsAggregationInput {
-  const {explorationResult, timeBreakdown, counterexampleFound, shrinkingStats} = params
+  const {explorationResult, timeBreakdown, counterexampleFound, shrinkingStats, passRateThreshold} = params
 
   return {
     testsRun: explorationResult.testsRun,
@@ -27,7 +28,8 @@ export function buildStatisticsInput(params: StatisticsInputParams): StatisticsA
     executionTimeBreakdown: timeBreakdown,
     ...(explorationResult.labels !== undefined && {labels: explorationResult.labels}),
     ...(explorationResult.detailedStats !== undefined && {detailedStats: explorationResult.detailedStats}),
-    ...(shrinkingStats !== undefined && {shrinkingStats})
+    ...(shrinkingStats !== undefined && {shrinkingStats}),
+    ...(passRateThreshold !== undefined && {passRateThreshold})
   }
 }
 

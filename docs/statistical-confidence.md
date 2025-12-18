@@ -1,208 +1,438 @@
-# Statistical Confidence Calculation
+# Statistical Confidence in Property Testing
 
-FluentCheck integrates sophisticated statistical methods to quantify the confidence level in test results, going beyond simple pass/fail outcomes common in other testing frameworks.
+FluentCheck provides statistical confidence calculations that go beyond simple pass/fail outcomes. Instead of running a fixed number of tests and hoping for the best, you get quantifiable confidence in your results.
 
-## Design Philosophy
+## The Problem with Fixed Sample Sizes
 
-Property-based testing involves sampling from potentially enormous input spaces. Without statistical rigor, it's difficult to know how much confidence to place in test results. FluentCheck addresses this by:
+Traditional property testing runs a fixed number of tests (e.g., 100) regardless of:
+- Property complexity
+- How many tests have passed/failed
+- Your confidence requirements
 
-1. Providing statistical models to quantify confidence in test results
-2. Supporting distributions for realistic sampling of complex domains
-3. Allowing users to specify required confidence levels
+This means:
+- **Simple properties** waste time running unnecessary tests
+- **Complex properties** may need more tests than provided
+- **No statistical guarantee** about what you've proven
 
-## Implementation Details
+## How Confidence-Based Testing Works
 
-FluentCheck implements various probability distributions to model test outcomes and calculate confidence levels. The code is based on sound statistical principles, using the `jstat` library for mathematical functions:
+```mermaid
+flowchart LR
+    Start[Start Testing] --> RunTest[Run Test]
+    RunTest --> Pass{Pass?}
+    Pass -->|Yes| UpdateStats[Update Statistics]
+    Pass -->|No| BugFound[Bug Found - Stop]
+    UpdateStats --> CheckConf{Confidence<br/>Reached?}
+    CheckConf -->|No| CheckMax{Max Tests?}
+    CheckConf -->|Yes| ConfReached[Confidence Achieved]
+    CheckMax -->|No| RunTest
+    CheckMax -->|Yes| MaxReached[Max Tests Reached]
+```
+
+FluentCheck uses **Bayesian statistics** to calculate the probability that your property holds:
+- Starts with no assumptions (uniform prior)
+- Updates confidence after each test
+- Stops when target confidence is reached or bug is found
+
+**Example**: "95% confident the pass rate exceeds 99.9%" is a precise statistical statement, unlike "ran 100 tests."
+
+---
+
+## Quick Start
+
+### Basic Confidence-Based Termination
+
+```typescript
+import * as fc from 'fluent-check'
+
+// Run until 95% confident the property holds
+const result = fc.scenario()
+  .config(fc.strategy()
+    .withConfidence(0.95)
+    .withPassRateThreshold(0.999)
+    .withMaxIterations(10000))
+  .forall('x', fc.integer())
+  .then(({x}) => x * x >= 0)
+  .check()
+
+console.log(`Confidence: ${(result.statistics.confidence * 100).toFixed(1)}%`)
+console.log(`Tests run: ${result.statistics.testsRun}`)
+```
+
+### Convenience Method
+
+```typescript
+// Shorthand for confidence-based testing
+const result = fc.scenario()
+  .forall('x', fc.integer())
+  .then(({x}) => x * x >= 0)
+  .checkWithConfidence(0.99)
+
+// Result includes confidence statistics
+console.log(`Achieved ${(result.statistics.confidence * 100).toFixed(1)}% confidence`)
+console.log(`Credible interval: [${result.statistics.credibleInterval[0].toFixed(3)}, ${result.statistics.credibleInterval[1].toFixed(3)}]`)
+```
+
+### Minimum Confidence Requirement
+
+```typescript
+// Continue past sample size if confidence is too low
+fc.scenario()
+  .config(fc.strategy()
+    .withSampleSize(1000)
+    .withMinConfidence(0.95))
+  .forall('x', fc.integer())
+  .then(({x}) => x >= 0)
+  .check()
+```
+
+If 1000 tests run but confidence is below 95%, testing continues (up to `maxIterations`) until confidence is met.
+
+---
+
+## Empirical Evidence
+
+FluentCheck's confidence-based termination has been validated through comprehensive empirical studies. Full methodology and reproducible data available in [`docs/evidence/`](evidence/README.md).
+
+### Efficiency: Adapts to Property Complexity
+
+Confidence-based testing automatically adjusts test effort based on property characteristics:
+
+| Property Type | Pass Rate | Mean Tests | Termination |
+|--------------|-----------|------------|-------------|
+| always_true | 100% | 100 | Confidence at first check |
+| rare_failure | 99.9% | 93 | 12% find bugs, 88% achieve confidence |
+| common_failure | 99% | 67 | 54% find bugs before confidence |
+| frequent_failure | 95% | 19 | 100% find bugs quickly |
+
+**Key Finding**: Properties with more failures terminate faster via bug detection. Simple properties terminate at the minimum (100 tests), while complex properties get appropriate scrutiny.
+
+### Reliability: 100% Precision
+
+When FluentCheck claims confidence, it's always correct:
+
+| Metric | Value | Interpretation |
+|--------|-------|----------------|
+| **Precision** | 100% | When confidence claimed, threshold always met |
+| **Specificity** | 100% | When threshold not met, bugs always found |
+| **False Positives** | 0 | Never claims confidence incorrectly |
+
+**Key Finding**: The system never makes false positive claims. If it says "95% confident", you can trust it.
+
+### Detection Rate: Statistical Guarantees vs Fixed Samples
+
+Comparison of rare bug detection (0.2% failure rate):
+
+| Method | Detection Rate | Mean Tests | Statistical Claim |
+|--------|---------------|------------|-------------------|
+| fixed_100 | 24% | 84 | "Ran 100 tests" |
+| fixed_500 | 76% | 273 | "Ran 500 tests" |
+| confidence_0.95 | 48% | 223 | "95% confident pass rate > 99.9%" |
+| confidence_0.99 | 58% | 285 | "99% confident pass rate > 99.9%" |
+
+**Key Finding**: Fixed sampling can achieve higher raw detection rates, but confidence-based testing provides **statistical guarantees about what was tested**, not just "ran N tests."
+
+*See [`docs/evidence/README.md`](evidence/README.md) for full study details, figures, and reproducibility instructions.*
+
+---
+
+## API Reference
+
+### Strategy Configuration
+
+Configure confidence-based termination on your test strategy:
+
+#### `withConfidence(level: number)`
+
+Set target confidence for early termination.
+
+```typescript
+fc.strategy().withConfidence(0.95)
+```
+
+- **Parameter**: Confidence level between 0 and 1 (e.g., 0.95 = 95%)
+- **Behavior**: Stops testing when this confidence level is reached
+- **Default**: None (uses `sampleSize` instead)
+
+#### `withMinConfidence(level: number)`
+
+Set minimum confidence before stopping.
+
+```typescript
+fc.strategy().withMinConfidence(0.90).withSampleSize(1000)
+```
+
+- **Parameter**: Minimum confidence level between 0 and 1
+- **Behavior**: If `sampleSize` is reached but confidence is below this threshold, testing continues
+- **Use case**: Ensure minimum confidence even with fixed sample size
+
+#### `withPassRateThreshold(threshold: number)`
+
+Set the pass rate threshold for confidence calculation.
+
+```typescript
+fc.strategy().withPassRateThreshold(0.999)
+```
+
+- **Parameter**: Pass rate threshold between 0 and 1
+- **Default**: 0.999 (99.9%)
+- **Meaning**: Confidence = P(true_pass_rate > threshold | observed_data)
+
+For example, with threshold 0.999, confidence of 0.95 means "95% probability the true pass rate exceeds 99.9%."
+
+#### `withMaxIterations(count: number)`
+
+Set safety upper bound for iterations.
+
+```typescript
+fc.strategy().withMaxIterations(50000)
+```
+
+- **Parameter**: Maximum number of test iterations
+- **Behavior**: Prevents infinite loops in confidence-based testing
+- **Recommended**: Always set when using confidence-based termination
+
+### Terminal Methods
+
+#### `checkWithConfidence(level: number, options?)`
+
+Convenience method for confidence-based testing.
+
+```typescript
+const result = fc.scenario()
+  .forall('x', fc.integer())
+  .then(({x}) => x >= 0)
+  .checkWithConfidence(0.95, {maxIterations: 10000})
+```
+
+Equivalent to:
+```typescript
+fc.scenario()
+  .config(fc.strategy().withConfidence(0.95).withMaxIterations(10000))
+  .forall('x', fc.integer())
+  .then(({x}) => x >= 0)
+  .check()
+```
+
+### Result Statistics
+
+All test results include confidence statistics:
+
+#### `statistics.confidence?: number`
+
+Bayesian confidence that the property holds (0-1).
+
+```typescript
+if (result.statistics.confidence !== undefined) {
+  console.log(`${(result.statistics.confidence * 100).toFixed(1)}% confident`)
+}
+```
+
+- Represents P(pass_rate > threshold | observed_data)
+- Only present when tests were run (not when property fails immediately)
+
+#### `statistics.credibleInterval?: [number, number]`
+
+95% credible interval for the true pass rate.
+
+```typescript
+const [lower, upper] = result.statistics.credibleInterval
+console.log(`95% credible interval: [${(lower*100).toFixed(1)}%, ${(upper*100).toFixed(1)}%]`)
+```
+
+- Bayesian credible interval (not frequentist confidence interval)
+- Means: "95% probability the true pass rate falls in this range"
+
+---
+
+## When to Use Confidence vs Fixed Sample Size
+
+| Scenario | Recommendation | Reason |
+|----------|---------------|---------|
+| **CI/CD pipelines** | Fixed sample size | Predictable test duration |
+| **Time-constrained environments** | Fixed sample size | Must finish within time limit |
+| **Consistent benchmarks** | Fixed sample size | Same test count for comparison |
+| **Critical systems** | Confidence-based | Statistical guarantees required |
+| **Unknown property complexity** | Confidence-based | Adapts test effort appropriately |
+| **Complex types (records, nested)** | Confidence-based | Handles combinatorial explosion |
+| **Quantifiable risk assessment** | Confidence-based | "95% confident" vs "ran 100 tests" |
+
+### Decision Guide
+
+**Use confidence-based termination when:**
+- You need statistical guarantees ("95% confident the bug rate is < 0.1%")
+- Property complexity is variable or unknown
+- You want to optimize test execution (fast on simple, thorough on complex)
+- Testing critical systems where reliability is paramount
+
+**Use fixed sample size when:**
+- Test duration must be predictable
+- Running in CI/CD with strict time limits
+- Need consistent baseline for performance measurements
+- Property is well-understood and simple
+
+---
+
+## Technical Constraints
+
+### Confidence Check Interval
+
+FluentCheck checks confidence **every 100 tests** for performance reasons.
+
+```typescript
+// From src/strategies/Explorer.ts
+const confidenceCheckInterval = 100
+```
+
+**Implications:**
+- **Minimum termination**: 100 tests for properties without failures
+- **Granularity**: Confidence-based stopping occurs at multiples of 100
+- **Performance tradeoff**: Checking confidence has computational cost
+
+Properties that never fail will terminate at 100, 200, 300, etc. tests. Properties that fail may terminate at any point when a failure is found.
+
+### Default Threshold
+
+The default pass rate threshold is **0.999 (99.9%)**:
+
+```typescript
+const threshold = budget.passRateThreshold ?? 0.999
+```
+
+This means by default, confidence represents: "probability that at least 99.9% of inputs satisfy the property."
+
+You can adjust this with `withPassRateThreshold()` for different guarantees.
+
+---
+
+## Mathematical Foundation
+
+### Bayesian Confidence Calculation
+
+FluentCheck uses Bayesian inference with a uniform prior:
+
+1. **Prior**: Beta(1, 1) - Uniform distribution (no prior knowledge)
+2. **Likelihood**: Binomial - Based on observed test outcomes
+3. **Posterior**: Beta(successes + 1, failures + 1) - Updated belief
+
+After observing `n` successful tests and `m` failures:
+- Posterior distribution: Beta(n + 1, m + 1)
+- Confidence: P(p > threshold | data) where p is the true pass rate
+
+This is calculated as:
+```
+confidence = 1 - CDF_Beta(n+1, m+1)(threshold)
+```
+
+Where CDF_Beta is the cumulative distribution function of the Beta distribution.
+
+### Credible Intervals
+
+The 95% credible interval represents plausible values for the true pass rate:
+
+```typescript
+// 95% credible interval
+const lower = InvCDF_Beta(n+1, m+1)(0.025)
+const upper = InvCDF_Beta(n+1, m+1)(0.975)
+```
+
+This is a **Bayesian credible interval**, which means: "95% probability the true pass rate falls within [lower, upper]."
+
+This differs from frequentist confidence intervals in interpretation:
+- **Credible interval**: "95% probability the parameter is in this range" (direct)
+- **Confidence interval**: "95% of such intervals would contain the parameter" (indirect)
+
+### Example Calculation
+
+After 1000 successful tests and 0 failures:
+- Posterior: Beta(1001, 1)
+- Confidence (threshold=0.999): P(p > 0.999 | data) ≈ 0.368 (36.8%)
+- 95% Credible Interval: [0.997, 1.000]
+
+After 10000 successful tests and 0 failures:
+- Posterior: Beta(10001, 1)
+- Confidence (threshold=0.999): P(p > 0.999 | data) ≈ 1.000 (99.997%)
+- 95% Credible Interval: [0.9997, 1.000]
+
+This shows how confidence increases with more evidence.
+
+---
+
+## For Contributors: Implementation Notes
+
+### Beta Distribution
+
+FluentCheck uses the `jstat` library for Beta distribution calculations:
 
 ```typescript
 import jstat from 'jstat'
 
-/**
- * A probability distribution (https://en.wikipedia.org/wiki/Probability_distribution).
- */
-export abstract class Distribution {
-  abstract mean(): number
-  abstract mode(): number
-  abstract pdf(x: number): number   // Probability density function
-  abstract cdf(x: number): number   // Cumulative distribution function
-  abstract inv(p: number): number   // Inverse cumulative distribution function
-}
-
-/**
- * A beta distribution (https://en.wikipedia.org/wiki/Beta_distribution).
- */
-export class BetaDistribution extends Distribution {
-  constructor(public alpha: number, public beta: number) {
-    super()
-  }
-
-  mean(): number { return jstat.beta.mean(this.alpha, this.beta) }
-  mode(): number { return jstat.beta.mode(this.alpha, this.beta) }
-  pdf(x: number): number { return jstat.beta.pdf(x, this.alpha, this.beta) }
-  cdf(x: number): number { return jstat.beta.cdf(x, this.alpha, this.beta) }
-  inv(x: number): number { return jstat.beta.inv(x, this.alpha, this.beta) }
-}
-
-/**
- * A beta-binomial distribution (https://en.wikipedia.org/wiki/Beta-binomial_distribution).
- */
-export class BetaBinomialDistribution extends IntegerDistribution {
-  constructor(public trials: number, public alpha: number, public beta: number) { super() }
-
-  pdf(x: number): number { return Math.exp(this.logPdf(x)) }
-  supportMin(): number { return 0 }
-  supportMax(): number { return this.trials }
-  mean(): number { return this.trials * this.alpha / (this.alpha + this.beta) }
+// Bayesian confidence calculation
+function calculateBayesianConfidence(
+  successes: number,
+  failures: number,
+  threshold: number
+): number {
+  const alpha = successes + 1
+  const beta = failures + 1
+  return 1 - jstat.beta.cdf(threshold, alpha, beta)
 }
 ```
 
-The tests verify that these distributions match their mathematical definitions:
+### When Confidence is Calculated
 
-```typescript
-// From statistics.test.ts
-it('defines the mean as a constant-time closed form expression', () => {
-  const check = (trials: number, a: number, b: number, expected: number) =>
-    expect(new BetaBinomialDistribution(trials, a, b).mean()).to.be.closeTo(expected, deltaFor(expected))
+Confidence is calculated:
+- Every 100 tests during exploration (for early termination)
+- At the end of testing (for final statistics)
+- Only when tests have been run (not on immediate failure)
 
-  check(1234, 4.5, 3.5, 694.125)
-  check(31234, 1.0, 1.0, 15617.0)
-  // More test cases...
-})
+See [`src/strategies/Explorer.ts`](../src/strategies/Explorer.ts) for implementation details.
 
-it('defines a PDF consistent with its mean definition', () => {
-  [...Array(100)].forEach((_, n) => {
-    const dist = new BetaBinomialDistribution(n, Math.random() * 20, Math.random() * 20)
-    const pdfMean = [...Array(n + 1)].reduce((acc, _, i) => acc + dist.pdf(i) * i, 0)
-    expect(pdfMean).to.be.closeTo(dist.mean(), deltaFor(dist.mean()))
-  })
-})
+### Distribution Classes
+
+For advanced use cases, FluentCheck provides distribution classes:
+
+- `BetaDistribution` - Continuous distributions on [0, 1]
+- `BetaBinomialDistribution` - Discrete trials with uncertainty
+- `IntegerDistribution` - Base class for discrete distributions
+
+These are used internally for:
+- Arbitrary size estimation after filtering
+- Credible interval calculation
+- Statistical modeling
+
+See [`src/statistics.ts`](../src/statistics.ts) for full implementation.
+
+---
+
+## Empirical Evidence
+
+These claims are backed by reproducible experiments. See the **[Evidence Documentation](./evidence/README.md)** for:
+
+- **Efficiency Study**: Demonstrates adaptive termination — properties with bugs terminate faster
+- **Calibration Study**: Shows 100% precision — when confidence is claimed, it's always correct
+- **Detection Study**: Compares bug detection rates vs fixed sample sizes
+
+Run the evidence suite yourself:
+
+```bash
+npm run evidence        # Full mode (~15-30 seconds)
+npm run evidence:quick  # Quick mode (~5 seconds)
 ```
 
-These distributions are used to model the posterior probability of property satisfaction after observing test outcomes:
-
-- The **Beta distribution** is used to model continuous probabilities between 0 and 1
-- The **Beta-Binomial distribution** is used for discrete trials with uncertainty
-
-The framework leverages these distributions to estimate:
-
-1. The probability that a property holds for all inputs
-2. The size of the input space that satisfies a property
-3. The confidence level in the test results
-
-## Arbitrary Size Estimation
-
-One application of statistical methods in FluentCheck is estimating the size of arbitrary domains, especially after filtering:
-
-```typescript
-// From arbitrary.test.ts
-it('size should be estimated for filtered arbitraries', () => {
-  expect(fc.integer(1, 1000).filter(i => i > 200).filter(i => i < 800).size().credibleInterval[0])
-    .to.be.below(600)
-  expect(fc.integer(1, 1000).filter(i => i > 200).filter(i => i < 800).size().credibleInterval[1])
-    .to.be.above(600)
-  expect(fc.integer(1, 1000).filter(i => i > 200 && i < 800).size().credibleInterval[0])
-    .to.be.below(600)
-  expect(fc.integer(1, 1000).filter(i => i > 200 && i < 800).size().credibleInterval[1])
-    .to.be.above(600)
-})
-```
-
-For filtered arbitraries, the exact size is unknown, so FluentCheck uses statistical sampling to estimate a credible interval for the size.
-
-## Practical Applications
-
-Statistical confidence calculations are particularly valuable for:
-
-1. **Critical systems**: Where high confidence in correctness is essential
-2. **Massive input spaces**: Where exhaustive testing is impossible
-3. **Risk assessment**: Quantifying the probability of failure
-4. **Test optimization**: Determining when enough tests have been run
-
-## Usage Examples
-
-```typescript
-// Configure the testing strategy with a 99% confidence level
-fc.scenario()
-  .config(fc.strategy()
-    .withMaxIterations(1000)
-    .withConfidence(0.99))
-  .forall('x', fc.integer())
-  .then(({x}) => x * x >= 0)
-  .check()
-```
-
-The framework will run tests until it achieves the specified confidence level, or reaches the maximum number of iterations.
-
-## Mathematical Foundation
-
-FluentCheck's statistical approach is based on Bayesian statistics, which allows updating beliefs based on evidence. The implementation uses:
-
-1. **Prior distributions**: Initial assumptions about property satisfaction
-2. **Likelihood functions**: The probability of observing test results given a hypothesis
-3. **Posterior distributions**: Updated beliefs after observing test results
-
-The `IntegerDistribution` base class provides default implementations of key statistical functions:
-
-```typescript
-/**
- * A discrete probability distribution where the support is a contiguous set of integers.
- */
-export abstract class IntegerDistribution extends Distribution {
-  abstract supportMin(): number
-  abstract supportMax(): number
-
-  // Default implementation is O(n) on the support size
-  mean(): number {
-    let avg = 0
-    for (let k = this.supportMin(); k <= this.supportMax(); k++) {
-      avg += k * this.pdf(k)
-    }
-    return avg
-  }
-
-  // Default implementation is O(n) on the support size. Can be made better if distribution is
-  // known to be unimodal
-  mode(): number {
-    let max = NaN, maxP = 0
-    for (let k = this.supportMin(); k <= this.supportMax(); k++) {
-      const p = this.pdf(k)
-      if (p > maxP) { max = k; maxP = p }
-    }
-    return max
-  }
-
-  // Default implementation is O(n * pdf), where `pdf` is the time complexity of pdf(k)
-  cdf(k: number): number {
-    if (k < this.supportMin()) return 0.0
-    if (k >= this.supportMax()) return 1.0
-    let sum = 0
-    for (let k2 = this.supportMin(); k2 <= k; k2++) {
-      sum += this.pdf(k2)
-    }
-    return sum
-  }
-
-  // Default implementation is O(log(n) * cdf), where `cdf` is the time complexity of cdf(k)
-  inv(p: number): number {
-    let low = this.supportMin(), high = this.supportMax()
-    while (low < high) {
-      const mid = Math.floor((high + low) / 2)
-      if (this.cdf(mid) >= p) high = mid
-      else low = mid + 1
-    }
-    return low
-  }
-}
-```
-
-## Advanced Statistical Features
-
-FluentCheck's statistical toolkit includes:
-
-1. **Confidence intervals**: Estimating the range of possible satisfaction probabilities
-2. **Bayesian inference**: Updating beliefs about property satisfaction based on evidence
-3. **Statistical power analysis**: Determining the number of tests needed to detect failures with a given probability
+---
 
 ## Comparison with Other Frameworks
 
-Most property testing frameworks rely on a fixed number of test cases without statistical guarantees. FluentCheck's approach provides quantifiable confidence in test results, making it more suitable for critical applications where reliability is paramount. For instance, while FastCheck might run a fixed 100 tests by default, FluentCheck can adaptively decide how many tests to run based on the desired confidence level and observed results. 
+Most property testing frameworks (QuickCheck, Hypothesis, fast-check) use fixed sample sizes:
+- **QuickCheck (Haskell)**: Default 100 tests
+- **Hypothesis (Python)**: Adaptive but heuristic-based, not statistical
+- **fast-check (JavaScript)**: Fixed 100 tests (configurable)
+
+FluentCheck's **Bayesian confidence** provides:
+1. **Quantifiable guarantees**: "95% confident" vs "ran 100 tests"
+2. **Adaptive termination**: Based on evidence, not arbitrary counts
+3. **Statistical rigor**: Founded on established Bayesian inference
+4. **Credible intervals**: Uncertainty quantification included
+
+This makes FluentCheck particularly suitable for critical systems where statistical guarantees are valuable.

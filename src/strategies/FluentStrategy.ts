@@ -9,7 +9,18 @@ import type {Sampler} from './Sampler.js'
 import type {ExecutionStrategy} from './ExecutionStrategy.js'
 import type {ShrinkStrategy} from './ShrinkStrategy.js'
 
-export type FluentConfig = { sampleSize?: number, shrinkSize?: number }
+export type FluentConfig = {
+  sampleSize?: number
+  shrinkSize?: number
+  /** Target confidence level (0-1) for early termination */
+  targetConfidence?: number
+  /** Minimum confidence level (0-1) before stopping */
+  minConfidence?: number
+  /** Maximum number of iterations (safety upper bound) */
+  maxIterations?: number
+  /** Pass rate threshold (0-1) for confidence calculation (default 0.999) */
+  passRateThreshold?: number
+}
 
 export interface FluentStrategyInterface<Rec extends StrategyBindings = StrategyBindings> {
   hasInput: <K extends keyof Rec & string>(arbitraryName: K) => boolean

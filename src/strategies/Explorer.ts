@@ -14,7 +14,7 @@ import {PreconditionFailure} from '../FluentCheck.js'
 import type {Sampler} from './Sampler.js'
 import type {BoundTestCase} from './types.js'
 import type {StatisticsContext} from '../statistics.js'
-import {runWithStatisticsContext} from '../statistics.js'
+import {runWithStatisticsContext, calculateBayesianConfidence} from '../statistics.js'
 
 /**
  * Budget constraints for exploration.
@@ -30,6 +30,31 @@ export interface ExplorationBudget {
    * If set, exploration MAY stop early when exceeded.
    */
   readonly maxTime?: number
+
+  /**
+   * Optional target confidence level (0-1) for early termination.
+   * When this confidence is reached, exploration will terminate early.
+   */
+  readonly targetConfidence?: number
+
+  /**
+   * Optional minimum confidence level (0-1) before stopping.
+   * If maxTests is reached but confidence is below this threshold,
+   * exploration will continue until confidence is met (up to maxIterations).
+   */
+  readonly minConfidence?: number
+
+  /**
+   * Optional maximum number of iterations as a safety upper bound.
+   * Prevents infinite loops when using confidence-based termination.
+   */
+  readonly maxIterations?: number
+
+  /**
+   * Optional pass-rate threshold for confidence calculation (default 0.999).
+   * Used to calculate: confidence = P(pass_rate > passRateThreshold | data)
+   */
+  readonly passRateThreshold?: number
 }
 
 /**
@@ -104,9 +129,13 @@ type PropertyEvaluation = 'passed' | 'failed' | 'skipped'
 interface ExplorationState {
   testsRun: number
   skipped: number
+  testsPassed: number
+  testsFailed: number
   budgetExceeded: boolean
   startTime: number
   labels: Map<string, number>
+  /** Last test run number when confidence was checked (for periodic checking) */
+  lastConfidenceCheck: number
 }
 
 interface TraversalContext<Rec extends {}> {
@@ -260,9 +289,12 @@ export abstract class AbstractExplorer<Rec extends {}> implements Explorer<Rec> 
     const state: ExplorationState = {
       testsRun: 0,
       skipped: 0,
+      testsPassed: 0,
+      testsFailed: 0,
       budgetExceeded: false,
       startTime: Date.now(),
-      labels: new Map<string, number>()
+      labels: new Map<string, number>(),
+      lastConfidenceCheck: 0
     }
 
     const evaluator = this.createEvaluator(executableScenario.nodes, property, statisticsContext, progressCallback, state, budget)
@@ -442,6 +474,12 @@ export abstract class AbstractExplorer<Rec extends {}> implements Explorer<Rec> 
           try {
             const unwrapped = this.unwrapTestCase(testCase)
             const result = property(unwrapped) ? 'passed' : 'failed'
+            // Track pass/fail for confidence calculation
+            if (result === 'passed') {
+              evalState.testsPassed += 1
+            } else {
+              evalState.testsFailed += 1
+            }
             callProgressCallback(evalState, result)
             return result
           } catch (e) {
@@ -472,6 +510,12 @@ export abstract class AbstractExplorer<Rec extends {}> implements Explorer<Rec> 
         try {
           // Context is already set above, evaluateScenarioNodes will use it
           const result = this.evaluateScenarioNodes(testCase, nodes) ? 'passed' : 'failed'
+          // Track pass/fail for confidence calculation
+          if (result === 'passed') {
+            evalState.testsPassed += 1
+          } else {
+            evalState.testsFailed += 1
+          }
           callProgressCallback(evalState, result)
           return result
         } catch (e) {
@@ -633,7 +677,53 @@ export abstract class AbstractExplorer<Rec extends {}> implements Explorer<Rec> 
   }
 
   protected isOutOfBudget(budget: ExplorationBudget, state: ExplorationState): boolean {
+    const MIN_TESTS_FOR_CONFIDENCE = 10
+    // Check confidence periodically (every 100 tests or when maxTests reached)
+    const shouldCheckConfidence = budget.targetConfidence !== undefined || budget.minConfidence !== undefined
+    const confidenceCheckInterval = 100
+    const shouldCheckNow = shouldCheckConfidence &&
+      (state.testsRun - state.lastConfidenceCheck >= confidenceCheckInterval || state.testsRun >= budget.maxTests)
+
+    if (shouldCheckNow && state.testsRun > 0) {
+      if (state.testsRun >= MIN_TESTS_FOR_CONFIDENCE) {
+        const threshold = budget.passRateThreshold ?? 0.999
+        const confidence = calculateBayesianConfidence(state.testsPassed, state.testsFailed, threshold)
+
+        // Early termination: if target confidence reached, stop
+        if (budget.targetConfidence !== undefined && confidence >= budget.targetConfidence) {
+          state.budgetExceeded = false // Not really exceeded, just reached target
+          return true
+        }
+      }
+      state.lastConfidenceCheck = state.testsRun
+    }
+
+    // Check maxIterations safety bound
+    if (budget.maxIterations !== undefined && state.testsRun >= budget.maxIterations) {
+      state.budgetExceeded = true
+      return true
+    }
+
+    // Check maxTests
     if (state.testsRun >= budget.maxTests) {
+      // If minConfidence is set and not met, continue (unless maxIterations reached)
+      if (budget.minConfidence !== undefined) {
+        if (state.testsRun >= MIN_TESTS_FOR_CONFIDENCE) {
+          const threshold = budget.passRateThreshold ?? 0.999
+          const confidence = calculateBayesianConfidence(state.testsPassed, state.testsFailed, threshold)
+          if (confidence < budget.minConfidence) {
+            // Continue past maxTests if maxIterations allows
+            if (budget.maxIterations === undefined || state.testsRun < budget.maxIterations) {
+              return false // Continue exploring
+            }
+          }
+        } else {
+          // Not enough tests yet, continue if maxIterations allows
+          if (budget.maxIterations === undefined || state.testsRun < budget.maxIterations) {
+            return false // Continue exploring
+          }
+        }
+      }
       state.budgetExceeded = true
       return true
     }

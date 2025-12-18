@@ -15,6 +15,7 @@ import {
 export * from './types.js'
 import type {NonEmptyArray, ExactSizeArbitrary} from './types.js'
 export {Arbitrary, type HashFunction, type EqualsFunction} from './internal.js'
+export type {ArbitrarySize} from './types.js'
 export {NoArbitrary} from './NoArbitrary.js'
 
 // Helper to assert that an Arbitrary is ExactSizeArbitrary at factory boundaries
@@ -74,13 +75,13 @@ export const set = <const A extends readonly unknown[]>(
 
 export const oneof = <const A extends readonly unknown[]>(elements: A): ExactSizeArbitrary<A[number]> => {
   if (elements.length === 0) return NoArbitrary
-  return integer(0, elements.length - 1).map((i): A[number] => {
+  return asExact(integer(0, elements.length - 1).map((i): A[number] => {
     const element = elements[i]
     if (element === undefined) {
       throw new Error(`Index ${i} out of bounds for oneof elements array`)
     }
     return element
-  }) as ExactSizeArbitrary<A[number]>
+  }))
 }
 
 export const union = <A>(...arbitraries: Arbitrary<A>[]): Arbitrary<A> => {

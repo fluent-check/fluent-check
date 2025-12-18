@@ -1,5 +1,6 @@
 import type {DetailedExplorationStats} from './strategies/Explorer.js'
 import type {FluentStatistics, ShrinkingStatistics} from './statistics.js'
+import {calculateBayesianConfidence, calculateCredibleInterval} from './statistics.js'
 
 export interface StatisticsAggregationInput {
   testsRun: number
@@ -10,6 +11,8 @@ export interface StatisticsAggregationInput {
   labels?: Record<string, number>
   detailedStats?: DetailedExplorationStats
   shrinkingStats?: ShrinkingStatistics
+  /** Pass rate threshold for confidence calculation (default 0.999) */
+  passRateThreshold?: number
 }
 
 export interface StatisticsAggregator {
@@ -29,12 +32,23 @@ export class DefaultStatisticsAggregator implements StatisticsAggregator {
       shrinkingStats
     } = input
 
+    const testsPassed = counterexampleFound ? testsRun - skipped - 1 : testsRun - skipped
+    const testsFailed = counterexampleFound ? 1 : 0
+
     const stats: FluentStatistics = {
       testsRun,
-      testsPassed: counterexampleFound ? testsRun - skipped - 1 : testsRun - skipped,
+      testsPassed,
       testsDiscarded: skipped,
       executionTimeMs,
       executionTimeBreakdown
+    }
+
+    // Calculate Bayesian confidence and credible interval
+    // Only calculate if we have at least one test result
+    if (testsRun > 0) {
+      const threshold = input.passRateThreshold ?? 0.999
+      stats.confidence = calculateBayesianConfidence(testsPassed, testsFailed, threshold)
+      stats.credibleInterval = calculateCredibleInterval(testsPassed, testsFailed)
     }
 
     if (labels !== undefined) {
