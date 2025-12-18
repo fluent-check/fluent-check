@@ -277,21 +277,26 @@ console.log(`95% credible interval: [${(lower*100).toFixed(1)}%, ${(upper*100).t
 
 ### Confidence Check Interval
 
-FluentCheck checks confidence **every 100 tests** for performance reasons.
+FluentCheck checks confidence at configurable intervals (default: **100 tests**).
 
 ```typescript
-// From src/strategies/Explorer.ts
-const confidenceCheckInterval = 100
+// Default interval
+fc.strategy().withConfidence(0.95)  // Checks every 100 tests
+
+// Custom interval for more responsive termination
+fc.strategy()
+  .withConfidence(0.95)
+  .withConfidenceCheckInterval(50)  // Checks every 50 tests
 ```
 
 **Implications:**
-- **Minimum termination**: 100 tests for properties without failures
-- **Granularity**: Confidence-based stopping occurs at multiples of 100
-- **Performance tradeoff**: Checking confidence has computational cost
+- **Minimum termination**: Equal to the check interval for properties without failures
+- **Granularity**: Confidence-based stopping occurs at multiples of the interval
+- **Performance tradeoff**: Smaller intervals are more responsive but have higher computational cost
 
-Properties that never fail will terminate at 100, 200, 300, etc. tests. Properties that fail may terminate at any point when a failure is found.
+Properties that never fail will terminate at the check interval, 2x interval, 3x interval, etc. Properties that fail may terminate at any point when a failure is found.
 
-### Default Threshold
+### Default Threshold: Why 0.999?
 
 The default pass rate threshold is **0.999 (99.9%)**:
 
@@ -299,13 +304,68 @@ The default pass rate threshold is **0.999 (99.9%)**:
 const threshold = budget.passRateThreshold ?? 0.999
 ```
 
-This means by default, confidence represents: "probability that at least 99.9% of inputs satisfy the property."
+**Rationale for 0.999:**
 
-You can adjust this with `withPassRateThreshold()` for different guarantees.
+1. **Alignment with "five nines" reliability**: Critical systems often target 99.9%+ availability. Property testing should match these standards.
+
+2. **Rare bug detection**: Property testing aims to catch rare edge cases. A 99% threshold would miss bugs occurring in 1-in-100 inputs.
+
+3. **Practical balance**: The threshold significantly impacts required sample sizes:
+
+| Threshold | 90% Confidence | 95% Confidence | 99% Confidence |
+|-----------|----------------|----------------|----------------|
+| 99.00% | 229 tests | 298 tests | 458 tests |
+| 99.50% | 459 tests | 597 tests | 918 tests |
+| 99.90% | 2,301 tests | 2,994 tests | 4,602 tests |
+| 99.99% | 23,024 tests | 29,955 tests | 46,049 tests |
+
+*These values are computed from framework calculations assuming zero failures.*
+
+**Choosing a threshold**: Lower thresholds require fewer tests but provide weaker guarantees. Use:
+- **0.99 (99%)**: For quick smoke tests during development
+- **0.999 (99.9%)**: For CI/CD and production testing (default)
+- **0.9999 (99.99%)**: For safety-critical systems
+
+You can adjust this with `withPassRateThreshold()`:
+
+```typescript
+// For faster CI: lower threshold = fewer tests needed
+fc.strategy()
+  .withConfidence(0.95)
+  .withPassRateThreshold(0.99)  // ~300 tests instead of ~3000
+```
 
 ---
 
 ## Mathematical Foundation
+
+### Why Beta(1,1) Uniform Prior?
+
+FluentCheck uses a **uniform prior Beta(1,1)** rather than an informative prior. This is a deliberate design choice:
+
+**Why uniform is correct for testing:**
+
+1. **No hidden assumptions**: An informative prior (e.g., Beta(10, 0.01) encoding "properties usually pass") would bias results. When testing untrusted code, new features, or performing security audits, such assumptions are inappropriate.
+
+2. **Conservative by design**: With Beta(1,1), achieving high confidence requires substantial evidence. After 1000 passing tests with threshold 0.999:
+   - Beta(1,1) prior: ~63% confidence (requires more evidence)
+   - This is intentional — in testing, false confidence is worse than being cautious
+
+3. **Standard practice**: Uniform priors are the standard non-informative choice in Bayesian hypothesis testing when prior knowledge should not influence results.
+
+4. **User control via threshold**: If you want faster convergence, lower `passRateThreshold` (e.g., 0.99 instead of 0.999). This is more transparent than encoding assumptions in priors.
+
+**Confidence progression with Beta(1,1) at threshold 0.999:**
+
+| Tests (0 failures) | Confidence |
+|-------------------|------------|
+| 100 | 9.61% |
+| 1,000 | 63.27% |
+| 3,000 | 95.03% |
+| 5,000 | 99.33% |
+| 10,000 | ~100% |
+
+*These values are computed from framework calculations.*
 
 ### Bayesian Confidence Calculation
 
@@ -346,15 +406,37 @@ This differs from frequentist confidence intervals in interpretation:
 
 After 1000 successful tests and 0 failures:
 - Posterior: Beta(1001, 1)
-- Confidence (threshold=0.999): P(p > 0.999 | data) ≈ 0.368 (36.8%)
+- Confidence (threshold=0.999): P(p > 0.999 | data) ≈ 63.27%
 - 95% Credible Interval: [0.997, 1.000]
+
+After 3000 successful tests and 0 failures:
+- Posterior: Beta(3001, 1)
+- Confidence (threshold=0.999): P(p > 0.999 | data) ≈ 95.03%
+- This is the approximate minimum for 95% confidence at threshold 0.999
 
 After 10000 successful tests and 0 failures:
 - Posterior: Beta(10001, 1)
-- Confidence (threshold=0.999): P(p > 0.999 | data) ≈ 1.000 (99.997%)
+- Confidence (threshold=0.999): P(p > 0.999 | data) ≈ 100%
 - 95% Credible Interval: [0.9997, 1.000]
 
-This shows how confidence increases with more evidence.
+*These values are computed from framework calculations.*
+
+### Bug Detection Probability
+
+When testing for rare bugs, the probability of detection follows the geometric distribution:
+
+**Probability of finding at least one failure:**
+
+| Failure Rate | 100 Tests | 500 Tests | 1,000 Tests | 5,000 Tests |
+|--------------|-----------|-----------|-------------|-------------|
+| 1% (1 in 100) | 63.4% | 99.3% | ~100% | ~100% |
+| 0.5% (1 in 200) | 39.4% | 91.8% | 99.3% | ~100% |
+| 0.1% (1 in 1000) | 9.5% | 39.4% | 63.2% | 99.3% |
+| 0.01% (1 in 10000) | 1.0% | 4.9% | 9.5% | 39.3% |
+
+*These values are computed from framework calculations using `detectionProbability()`.*
+
+**Key insight**: For a bug occurring 1-in-1000 times, you need ~3000 tests to have 95% chance of finding it. This explains why confident testing of rare bugs requires substantial sample sizes.
 
 ---
 
@@ -382,9 +464,11 @@ function calculateBayesianConfidence(
 ### When Confidence is Calculated
 
 Confidence is calculated:
-- Every 100 tests during exploration (for early termination)
+- At configurable intervals during exploration (default: every 100 tests) for early termination
 - At the end of testing (for final statistics)
 - Only when tests have been run (not on immediate failure)
+
+The interval is configurable via `withConfidenceCheckInterval()`.
 
 See [`src/strategies/Explorer.ts`](../src/strategies/Explorer.ts) for implementation details.
 
@@ -424,15 +508,60 @@ npm run evidence:quick  # Quick mode (~5 seconds)
 
 ## Comparison with Other Frameworks
 
-Most property testing frameworks (QuickCheck, Hypothesis, fast-check) use fixed sample sizes:
-- **QuickCheck (Haskell)**: Default 100 tests
-- **Hypothesis (Python)**: Adaptive but heuristic-based, not statistical
-- **fast-check (JavaScript)**: Fixed 100 tests (configurable)
+Most property testing frameworks use fixed sample sizes or heuristic-based adaptation:
+
+| Framework | Default Tests | Adaptation | Statistical Guarantee |
+|-----------|---------------|------------|----------------------|
+| **QuickCheck (Haskell)** | 100 | None (fixed) | None |
+| **Hypothesis (Python)** | Variable | Coverage-guided heuristics | None |
+| **fast-check (JavaScript)** | 100 | None (fixed) | None |
+| **FluentCheck** | Adaptive | Bayesian inference | Yes |
+
+**Key differences:**
+
+- **Hypothesis** uses coverage-guided heuristics to adapt testing, but does not provide Bayesian confidence semantics. Its adaptation is based on code coverage, not statistical inference about pass rates.
+
+- **FluentCheck** provides proper probabilistic guarantees: "95% confident the true pass rate exceeds 99.9%" is a precise Bayesian statement that Hypothesis cannot make.
 
 FluentCheck's **Bayesian confidence** provides:
 1. **Quantifiable guarantees**: "95% confident" vs "ran 100 tests"
-2. **Adaptive termination**: Based on evidence, not arbitrary counts
-3. **Statistical rigor**: Founded on established Bayesian inference
-4. **Credible intervals**: Uncertainty quantification included
+2. **Adaptive termination**: Based on statistical evidence, not arbitrary counts or heuristics
+3. **Statistical rigor**: Founded on established Bayesian inference with conjugate priors
+4. **Credible intervals**: Proper uncertainty quantification included
+5. **Configurable trade-offs**: Threshold, confidence level, and check interval all adjustable
 
 This makes FluentCheck particularly suitable for critical systems where statistical guarantees are valuable.
+
+---
+
+## Key Insight: Conservative by Design
+
+FluentCheck prioritizes **bug detection over confidence claims**. When a property has a pass rate close to (but above) the threshold, FluentCheck will often find a failure before achieving confidence.
+
+**Example**: For a property with 97% pass rate and 95% threshold:
+- Running 100 tests has ~95% chance of finding at least one failure
+- If a failure is found, testing terminates immediately (correct: bug found)
+- If no failure found in first 100 tests, confidence check occurs
+
+This means "low sensitivity" for near-threshold properties is **correct behavior**, not miscalibration:
+- Finding a bug is more valuable than claiming confidence
+- The system never makes false positive claims (100% precision)
+- When confidence is claimed, the threshold is always actually met
+
+**This is exactly what you want in a testing tool.**
+
+---
+
+## Related Work
+
+For readers interested in the statistical foundations:
+
+- **Bayesian inference for binomial proportions**: The Beta-Binomial model used here is standard. See Gelman et al., "Bayesian Data Analysis" (3rd ed., 2013).
+
+- **Property-based testing origins**: Claessen & Hughes, "QuickCheck: A Lightweight Tool for Random Testing of Haskell Programs" (ICFP 2000) introduced the paradigm.
+
+- **Statistical software testing**: Whalen et al., "Coverage Metrics for Requirements-based Testing" (ISSTA 2006) explores statistical approaches to testing.
+
+- **Hypothesis adaptive testing**: MacIver & Hatfield-Dodds, "Hypothesis: A new approach to property-based testing" (unpublished) describes coverage-guided adaptation.
+
+The key novelty in FluentCheck is integrating Bayesian confidence-based termination into a mainstream JavaScript/TypeScript PBT library with proper statistical semantics and reproducible evidence.

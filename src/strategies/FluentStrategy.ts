@@ -20,6 +20,8 @@ export type FluentConfig = {
   maxIterations?: number
   /** Pass rate threshold (0-1) for confidence calculation (default 0.999) */
   passRateThreshold?: number
+  /** Interval (in tests) between confidence checks (default 100) */
+  confidenceCheckInterval?: number
 }
 
 export interface FluentStrategyInterface<Rec extends StrategyBindings = StrategyBindings> {

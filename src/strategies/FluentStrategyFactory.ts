@@ -285,6 +285,33 @@ export class FluentStrategyFactory<Rec extends StrategyBindings = StrategyBindin
   }
 
   /**
+   * Sets the interval (in tests) between confidence checks.
+   * Smaller intervals are more responsive but have higher computational cost.
+   *
+   * @param interval - Number of tests between confidence checks (must be >= 1)
+   * @returns This factory for method chaining
+   * @throws Error if interval is not a positive integer
+   *
+   * @example
+   * ```typescript
+   * fc.scenario()
+   *   .config(fc.strategy()
+   *     .withConfidence(0.95)
+   *     .withConfidenceCheckInterval(50))  // Check every 50 tests instead of 100
+   *   .forall('x', fc.integer())
+   *   .then(({x}) => x * x >= 0)
+   *   .check()
+   * ```
+   */
+  withConfidenceCheckInterval(interval: number): this {
+    if (interval < 1 || !Number.isInteger(interval)) {
+      throw new Error(`Confidence check interval must be a positive integer, got ${interval}`)
+    }
+    this.configuration = {...this.configuration, confidenceCheckInterval: interval}
+    return this
+  }
+
+  /**
    * Configures a custom shrinker factory.
    *
    * @param factory - Function that creates a Shrinker instance
@@ -421,10 +448,10 @@ export class FluentStrategyFactory<Rec extends StrategyBindings = StrategyBindin
    */
   clone(): FluentStrategyFactory<Rec> {
     const cloned = new FluentStrategyFactory<Rec>()
-    
+
     // Copy public configuration
     cloned.configuration = {...this.configuration}
-    
+
     // Copy private fields
     cloned.samplerConfig = {...this.samplerConfig}
     cloned.enableShrinking = this.enableShrinking
@@ -434,7 +461,7 @@ export class FluentStrategyFactory<Rec extends StrategyBindings = StrategyBindin
     cloned.shrinkerFactory = this.shrinkerFactory
     cloned.detailedStatistics = this.detailedStatistics
     cloned.verbosity = this.verbosity
-    
+
     return cloned
   }
 

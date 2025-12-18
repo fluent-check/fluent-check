@@ -1,4 +1,14 @@
-import {BetaBinomialDistribution, IntegerDistribution, type ArbitraryStatistics, type TargetStatistics, type ShrinkingStatistics} from '../src/statistics'
+import {
+  BetaBinomialDistribution,
+  IntegerDistribution,
+  sampleSizeForConfidence,
+  expectedTestsToDetectFailure,
+  detectionProbability,
+  calculateBayesianConfidence,
+  type ArbitraryStatistics,
+  type TargetStatistics,
+  type ShrinkingStatistics
+} from '../src/statistics'
 import {DefaultStatisticsAggregator, type StatisticsAggregationInput} from '../src/statisticsAggregator'
 import type {DetailedExplorationStats} from '../src/strategies/Explorer'
 import * as fc from '../src/index'
@@ -661,6 +671,122 @@ describe('Statistics tests', () => {
       expect(stats.events).to.deep.equal({hit: 2})
       expect(stats.targets).to.equal(targets)
       expect(stats.shrinking).to.deep.equal(shrinkingStats)
+    })
+  })
+
+  describe('Statistical utility functions', () => {
+    describe('sampleSizeForConfidence', () => {
+      it('calculates required tests for 95% confidence at threshold 0.999', () => {
+        const n = sampleSizeForConfidence(0.999, 0.95)
+        // Verify that n successes gives at least 95% confidence
+        const confidence = calculateBayesianConfidence(n, 0, 0.999)
+        expect(confidence).to.be.at.least(0.95)
+        // And n-1 gives less than 95% confidence
+        const confidenceBefore = calculateBayesianConfidence(n - 1, 0, 0.999)
+        expect(confidenceBefore).to.be.lessThan(0.95)
+      })
+
+      it('calculates required tests for 90% confidence at threshold 0.99', () => {
+        const n = sampleSizeForConfidence(0.99, 0.90)
+        const confidence = calculateBayesianConfidence(n, 0, 0.99)
+        expect(confidence).to.be.at.least(0.90)
+      })
+
+      it('returns lower values for lower thresholds', () => {
+        const n1 = sampleSizeForConfidence(0.99, 0.95)
+        const n2 = sampleSizeForConfidence(0.999, 0.95)
+        const n3 = sampleSizeForConfidence(0.9999, 0.95)
+        expect(n1).to.be.lessThan(n2)
+        expect(n2).to.be.lessThan(n3)
+      })
+
+      it('returns lower values for lower confidence requirements', () => {
+        const n1 = sampleSizeForConfidence(0.999, 0.90)
+        const n2 = sampleSizeForConfidence(0.999, 0.95)
+        const n3 = sampleSizeForConfidence(0.999, 0.99)
+        expect(n1).to.be.lessThan(n2)
+        expect(n2).to.be.lessThan(n3)
+      })
+
+      it('throws on invalid threshold', () => {
+        expect(() => sampleSizeForConfidence(0, 0.95)).to.throw()
+        expect(() => sampleSizeForConfidence(1, 0.95)).to.throw()
+        expect(() => sampleSizeForConfidence(-0.5, 0.95)).to.throw()
+        expect(() => sampleSizeForConfidence(1.5, 0.95)).to.throw()
+      })
+
+      it('throws on invalid confidence', () => {
+        expect(() => sampleSizeForConfidence(0.99, 0)).to.throw()
+        expect(() => sampleSizeForConfidence(0.99, 1)).to.throw()
+        expect(() => sampleSizeForConfidence(0.99, -0.5)).to.throw()
+        expect(() => sampleSizeForConfidence(0.99, 1.5)).to.throw()
+      })
+    })
+
+    describe('expectedTestsToDetectFailure', () => {
+      it('returns 100 for 1% failure rate', () => {
+        const expected = expectedTestsToDetectFailure(0.01)
+        expect(expected).to.equal(100)
+      })
+
+      it('returns 1000 for 0.1% failure rate', () => {
+        const expected = expectedTestsToDetectFailure(0.001)
+        expect(expected).to.equal(1000)
+      })
+
+      it('returns 1 for 100% failure rate', () => {
+        const expected = expectedTestsToDetectFailure(1.0)
+        expect(expected).to.equal(1)
+      })
+
+      it('throws on invalid failure rate', () => {
+        expect(() => expectedTestsToDetectFailure(0)).to.throw()
+        expect(() => expectedTestsToDetectFailure(-0.1)).to.throw()
+        expect(() => expectedTestsToDetectFailure(1.5)).to.throw()
+      })
+    })
+
+    describe('detectionProbability', () => {
+      it('calculates ~63% detection for 1% failure rate in 100 tests', () => {
+        const p = detectionProbability(0.01, 100)
+        // 1 - (0.99)^100 ≈ 0.634
+        expect(p).to.be.closeTo(0.634, 0.01)
+      })
+
+      it('calculates ~63% detection for 0.1% failure rate in 1000 tests', () => {
+        const p = detectionProbability(0.001, 1000)
+        // 1 - (0.999)^1000 ≈ 0.632
+        expect(p).to.be.closeTo(0.632, 0.01)
+      })
+
+      it('returns 0 for 0 tests', () => {
+        const p = detectionProbability(0.01, 0)
+        expect(p).to.equal(0)
+      })
+
+      it('returns ~1 for large number of tests with non-trivial failure rate', () => {
+        const p = detectionProbability(0.01, 10000)
+        expect(p).to.be.greaterThan(0.9999)
+      })
+
+      it('follows expected relationship: higher failure rate = higher detection', () => {
+        const p1 = detectionProbability(0.001, 500)
+        const p2 = detectionProbability(0.01, 500)
+        const p3 = detectionProbability(0.1, 500)
+        expect(p1).to.be.lessThan(p2)
+        expect(p2).to.be.lessThan(p3)
+      })
+
+      it('throws on invalid failure rate', () => {
+        expect(() => detectionProbability(0, 100)).to.throw()
+        expect(() => detectionProbability(-0.1, 100)).to.throw()
+        expect(() => detectionProbability(1.5, 100)).to.throw()
+      })
+
+      it('throws on invalid test count', () => {
+        expect(() => detectionProbability(0.01, -1)).to.throw()
+        expect(() => detectionProbability(0.01, 1.5)).to.throw()
+      })
     })
   })
 })
