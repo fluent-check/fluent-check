@@ -20,7 +20,11 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import numpy as np
 from pathlib import Path
-from util import wilson_score_interval, format_ci, save_figure, compute_summary_stats
+from util import (
+    wilson_score_interval, format_ci, save_figure, compute_summary_stats,
+    chi_squared_test, cohens_h, effect_size_interpretation, odds_ratio,
+    power_analysis_proportion
+)
 
 # Paths
 PROJECT_ROOT = Path(__file__).parent.parent
@@ -64,6 +68,24 @@ def main():
         mean_tests = group['tests_run'].mean()
         median_tests = group['tests_run'].median()
         
+        # Timing analysis
+        mean_time_micros = group['elapsed_micros'].mean()
+        median_time_micros = group['elapsed_micros'].median()
+        mean_time_ms = mean_time_micros / 1000
+        
+        # ROI metrics
+        # Time per test (microseconds)
+        time_per_test = mean_time_micros / mean_tests if mean_tests > 0 else 0
+        
+        # Detection efficiency: bugs found per millisecond
+        bugs_found = group['bug_found'].sum()
+        total_time_ms = group['elapsed_micros'].sum() / 1000
+        detection_per_ms = bugs_found / total_time_ms if total_time_ms > 0 else 0
+        
+        # Time to first detection (only for trials that found bugs)
+        bug_trials = group[group['bug_found'] == True]
+        mean_time_to_detection = bug_trials['elapsed_micros'].mean() / 1000 if len(bug_trials) > 0 else np.nan
+        
         # Expected detection for fixed methods: 1 - (1-p)^n
         if method.startswith('fixed_'):
             sample_size = int(method.split('_')[1])
@@ -79,6 +101,11 @@ def main():
             'expected_rate': expected,
             'mean_tests': mean_tests,
             'median_tests': median_tests,
+            'mean_time_ms': mean_time_ms,
+            'median_time_micros': median_time_micros,
+            'time_per_test': time_per_test,
+            'detection_per_ms': detection_per_ms,
+            'mean_time_to_detection': mean_time_to_detection,
             'n_trials': n
         })
     
@@ -161,21 +188,23 @@ def main():
     # Create ECDF of tests-to-termination (much clearer than overlapping histograms)
     fig, ax = plt.subplots(figsize=(12, 7))
     
-    # Define colors and line styles for methods
+    # Define colors: shades of blue for fixed methods, shades of red for confidence methods
+    # All solid lines, same width
     method_styles = {
-        'fixed_50': {'color': '#ffbb78', 'linestyle': '-', 'linewidth': 1.5},
-        'fixed_100': {'color': '#ff7f0e', 'linestyle': '-', 'linewidth': 2},
-        'fixed_200': {'color': '#d62728', 'linestyle': '-', 'linewidth': 1.5},
-        'fixed_500': {'color': '#c49c94', 'linestyle': '-', 'linewidth': 2},
-        'fixed_1000': {'color': '#8c564b', 'linestyle': '-', 'linewidth': 1.5},
-        'confidence_0.90': {'color': '#98df8a', 'linestyle': '--', 'linewidth': 1.5},
-        'confidence_0.95': {'color': '#2ca02c', 'linestyle': '--', 'linewidth': 2.5},
-        'confidence_0.99': {'color': '#1f77b4', 'linestyle': '--', 'linewidth': 2.5},
+        'fixed_50': {'color': '#c6dbef', 'linestyle': '-', 'linewidth': 2},      # lightest blue
+        'fixed_100': {'color': '#9ecae1', 'linestyle': '-', 'linewidth': 2},     # light blue
+        'fixed_200': {'color': '#6baed6', 'linestyle': '-', 'linewidth': 2},     # medium-light blue
+        'fixed_500': {'color': '#3182bd', 'linestyle': '-', 'linewidth': 2},     # medium blue
+        'fixed_1000': {'color': '#08519c', 'linestyle': '-', 'linewidth': 2},    # dark blue
+        'confidence_0.80': {'color': '#fcbba1', 'linestyle': '-', 'linewidth': 2},  # lightest red
+        'confidence_0.90': {'color': '#fc9272', 'linestyle': '-', 'linewidth': 2},  # light red
+        'confidence_0.95': {'color': '#fb6a4a', 'linestyle': '-', 'linewidth': 2},  # medium red
+        'confidence_0.99': {'color': '#de2d26', 'linestyle': '-', 'linewidth': 2},  # dark red
     }
     
     for method in methods:
         group = df[df['method'] == method]
-        style = method_styles.get(method, {'color': 'gray', 'linestyle': '-', 'linewidth': 1})
+        style = method_styles.get(method, {'color': 'gray', 'linestyle': '-', 'linewidth': 2})
         
         # Plot ECDF
         sns.ecdfplot(
@@ -230,6 +259,224 @@ def main():
             conf_efficiency = best_conf['detection_rate'] / best_conf['mean_tests'] * 100
             print(f"  Fixed efficiency: {fixed_efficiency:.4f}% detection per test")
             print(f"  Confidence efficiency: {conf_efficiency:.4f}% detection per test")
+    
+    # Statistical Hypothesis Testing
+    print("\n" + "=" * 100)
+    print("STATISTICAL HYPOTHESIS TESTS")
+    print("=" * 100)
+    
+    # Compare pairs of methods using Chi-squared tests
+    print("\nPairwise Chi-squared Tests (detection rate comparisons):")
+    print("-" * 100)
+    cohens_h_label = "Cohen's h"
+    print(f"{'Comparison':<35} {'Chi²':<10} {'p-value':<12} {'Significant':<12} {cohens_h_label:<12} {'Effect Size':<12}")
+    print("-" * 100)
+    
+    # Key comparisons
+    comparisons = [
+        ('fixed_100', 'confidence_0.95'),
+        ('fixed_500', 'confidence_0.99'),
+        ('fixed_1000', 'confidence_0.99'),
+        ('confidence_0.90', 'confidence_0.99'),
+        ('fixed_100', 'fixed_500'),
+    ]
+    
+    for method1, method2 in comparisons:
+        row1 = results_df[results_df['method'] == method1]
+        row2 = results_df[results_df['method'] == method2]
+        
+        if len(row1) == 0 or len(row2) == 0:
+            continue
+            
+        row1 = row1.iloc[0]
+        row2 = row2.iloc[0]
+        
+        # Get raw counts from original data
+        g1 = df[df['method'] == method1]
+        g2 = df[df['method'] == method2]
+        
+        n1, n2 = len(g1), len(g2)
+        s1 = g1['bug_found'].sum()
+        s2 = g2['bug_found'].sum()
+        
+        # Chi-squared test
+        chi2_result = chi_squared_test(s1, n1, s2, n2)
+        
+        # Effect size
+        p1, p2 = row1['detection_rate'], row2['detection_rate']
+        h = cohens_h(p1, p2)
+        effect = effect_size_interpretation(h)
+        
+        sig_str = "Yes*" if chi2_result['significant'] else "No"
+        
+        print(f"{method1} vs {method2:<15} "
+              f"{chi2_result['chi2']:<10.3f} "
+              f"{chi2_result['p_value']:<12.4f} "
+              f"{sig_str:<12} "
+              f"{h:<12.3f} "
+              f"{effect:<12}")
+    
+    print("-" * 100)
+    print("* Significant at α = 0.05 (with Yates continuity correction)")
+    
+    # Odds ratios for significant comparisons
+    print("\nOdds Ratios (for detection success):")
+    print("-" * 80)
+    print(f"{'Comparison':<35} {'OR':<10} {'95% CI':<25} {'Interpretation':<20}")
+    print("-" * 80)
+    
+    for method1, method2 in comparisons:
+        row1 = results_df[results_df['method'] == method1]
+        row2 = results_df[results_df['method'] == method2]
+        
+        if len(row1) == 0 or len(row2) == 0:
+            continue
+            
+        g1 = df[df['method'] == method1]
+        g2 = df[df['method'] == method2]
+        
+        n1, n2 = len(g1), len(g2)
+        s1 = g1['bug_found'].sum()
+        s2 = g2['bug_found'].sum()
+        
+        or_result = odds_ratio(s1, n1, s2, n2)
+        
+        ci_str = f"[{or_result['ci_lower']:.2f}, {or_result['ci_upper']:.2f}]"
+        
+        if or_result['odds_ratio'] > 1:
+            interp = f"{method1} has higher odds"
+        elif or_result['odds_ratio'] < 1:
+            interp = f"{method2} has higher odds"
+        else:
+            interp = "No difference"
+        
+        print(f"{method1} vs {method2:<15} "
+              f"{or_result['odds_ratio']:<10.2f} "
+              f"{ci_str:<25} "
+              f"{interp:<20}")
+    
+    print("-" * 80)
+    
+    # Power analysis
+    print("\nPower Analysis:")
+    print("-" * 60)
+    
+    # For the fixed_500 vs confidence_0.99 comparison
+    if 'fixed_500' in results_df['method'].values and 'confidence_0.99' in results_df['method'].values:
+        p1 = results_df[results_df['method'] == 'fixed_500']['detection_rate'].iloc[0]
+        p2 = results_df[results_df['method'] == 'confidence_0.99']['detection_rate'].iloc[0]
+        
+        h = abs(cohens_h(p1, p2))
+        actual_n = len(df[df['method'] == 'fixed_500'])
+        required_n = power_analysis_proportion(p1, p2, alpha=0.05, power=0.80)
+        
+        print(f"  Comparing fixed_500 ({p1*100:.1f}%) vs confidence_0.99 ({p2*100:.1f}%)")
+        print(f"  Effect size (Cohen's h): {h:.3f} ({effect_size_interpretation(h)})")
+        print(f"  Actual sample size per group: {actual_n}")
+        print(f"  Required sample size for 80% power: {required_n}")
+        
+        if actual_n >= required_n:
+            print(f"  → Adequately powered to detect this effect size")
+        else:
+            print(f"  → Underpowered: need {required_n - actual_n} more samples per group")
+    
+    print("-" * 60)
+    
+    # Performance ROI Analysis
+    print("\n" + "=" * 100)
+    print("PERFORMANCE ROI ANALYSIS")
+    print("=" * 100)
+    
+    print("\nTime Investment by Method:")
+    print("-" * 100)
+    print(f"{'Method':<18} {'Mean Time (ms)':<16} {'Time/Test (µs)':<16} {'Detection Rate':<16} {'ROI*':<16}")
+    print("-" * 100)
+    
+    for _, row in results_df.iterrows():
+        roi = (row['detection_rate'] / row['mean_time_ms'] * 1000) if row['mean_time_ms'] > 0 else 0
+        print(f"{row['method']:<18} "
+              f"{row['mean_time_ms']:<16.2f} "
+              f"{row['time_per_test']:<16.1f} "
+              f"{row['detection_rate']*100:<15.1f}% "
+              f"{roi:<16.4f}")
+    
+    print("-" * 100)
+    print("* ROI = (detection_rate / time_ms) × 1000 = bugs found per second of testing")
+    
+    # Time to first detection
+    print("\nTime to First Detection (when bug found):")
+    print("-" * 80)
+    print(f"{'Method':<18} {'Mean Time (ms)':<20} {'Median Time (µs)':<20}")
+    print("-" * 80)
+    
+    for _, row in results_df.iterrows():
+        if not np.isnan(row['mean_time_to_detection']):
+            print(f"{row['method']:<18} "
+                  f"{row['mean_time_to_detection']:<20.2f} "
+                  f"{row['median_time_micros']:<20.0f}")
+        else:
+            print(f"{row['method']:<18} {'N/A':<20} {'N/A':<20}")
+    
+    print("-" * 80)
+    
+    # Cost-benefit analysis
+    print("\nCost-Benefit Analysis:")
+    print("-" * 80)
+    
+    # Compare best fixed vs best confidence
+    if len(fixed_methods) > 0 and len(conf_methods) > 0:
+        best_fixed = fixed_methods.loc[fixed_methods['detection_rate'].idxmax()]
+        best_conf = conf_methods.loc[conf_methods['detection_rate'].idxmax()]
+        
+        print(f"\nBest Fixed Method ({best_fixed['method']}):")
+        print(f"  Detection rate: {best_fixed['detection_rate']*100:.1f}%")
+        print(f"  Mean time: {best_fixed['mean_time_ms']:.2f} ms")
+        print(f"  Time per test: {best_fixed['time_per_test']:.1f} µs")
+        print(f"  ROI: {(best_fixed['detection_rate'] / best_fixed['mean_time_ms'] * 1000):.4f} bugs/sec")
+        
+        print(f"\nBest Confidence Method ({best_conf['method']}):")
+        print(f"  Detection rate: {best_conf['detection_rate']*100:.1f}%")
+        print(f"  Mean time: {best_conf['mean_time_ms']:.2f} ms")
+        print(f"  Time per test: {best_conf['time_per_test']:.1f} µs")
+        print(f"  ROI: {(best_conf['detection_rate'] / best_conf['mean_time_ms'] * 1000):.4f} bugs/sec")
+        
+        # Time trade-off
+        time_diff = best_fixed['mean_time_ms'] - best_conf['mean_time_ms']
+        detection_diff = (best_fixed['detection_rate'] - best_conf['detection_rate']) * 100
+        
+        print(f"\nTrade-off:")
+        if time_diff > 0:
+            print(f"  {best_fixed['method']} takes {time_diff:.2f} ms MORE ({(time_diff/best_conf['mean_time_ms']*100):.1f}%)")
+        else:
+            print(f"  {best_fixed['method']} takes {abs(time_diff):.2f} ms LESS ({(abs(time_diff)/best_fixed['mean_time_ms']*100):.1f}%)")
+        
+        print(f"  {best_fixed['method']} detects {detection_diff:.1f}% MORE bugs")
+        
+        # Cost per bug found
+        if best_fixed['detection_rate'] > 0:
+            cost_per_bug_fixed = best_fixed['mean_time_ms'] / best_fixed['detection_rate']
+            print(f"  Cost per bug (fixed): {cost_per_bug_fixed:.2f} ms")
+        
+        if best_conf['detection_rate'] > 0:
+            cost_per_bug_conf = best_conf['mean_time_ms'] / best_conf['detection_rate']
+            print(f"  Cost per bug (confidence): {cost_per_bug_conf:.2f} ms")
+            
+            if best_fixed['detection_rate'] > 0:
+                efficiency_ratio = cost_per_bug_fixed / cost_per_bug_conf
+                if efficiency_ratio > 1:
+                    print(f"  → Confidence is {efficiency_ratio:.2f}x MORE time-efficient per bug")
+                else:
+                    print(f"  → Fixed is {1/efficiency_ratio:.2f}x MORE time-efficient per bug")
+    
+    # Find most time-efficient method overall
+    results_df['roi'] = (results_df['detection_rate'] / results_df['mean_time_ms'] * 1000)
+    best_roi = results_df.loc[results_df['roi'].idxmax()]
+    
+    print(f"\nMost Time-Efficient Method:")
+    print(f"  {best_roi['method']}: {best_roi['roi']:.4f} bugs/sec")
+    print(f"  Detection: {best_roi['detection_rate']*100:.1f}% in {best_roi['mean_time_ms']:.2f} ms")
+    
+    print("-" * 80)
     
     print(f"\n✓ Detection rate analysis complete")
 

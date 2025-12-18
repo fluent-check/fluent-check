@@ -65,6 +65,9 @@ export function prepareCheckExecution<Rec extends {}>(
     }),
     ...(factory.configuration.passRateThreshold !== undefined && {
       passRateThreshold: factory.configuration.passRateThreshold
+    }),
+    ...(factory.configuration.confidenceCheckInterval !== undefined && {
+      confidenceCheckInterval: factory.configuration.confidenceCheckInterval
     })
   }
 

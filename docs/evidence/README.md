@@ -46,9 +46,10 @@ Confidence-based termination adapts to property complexity: simpler properties (
 
 ### Key Constraint
 
-FluentCheck checks confidence **every 100 tests**. This means:
-- Minimum termination for confidence-based stopping: 100 tests
+FluentCheck checks confidence at configurable intervals (default: **100 tests**). This means:
+- Minimum termination for confidence-based stopping: equal to the interval (default 100)
 - Properties with failures may terminate earlier via bug detection
+- Interval is configurable via `withConfidenceCheckInterval()`
 
 ### Method
 
@@ -181,7 +182,53 @@ Unlike traditional calibration (predicted vs observed probability), this study m
 
 ⚠️ **Sensitivity varies by margin**: Properties close to threshold often find failures before achieving confidence. This is **correct behavior** — finding a bug is more valuable than claiming confidence.
 
-**Key Insight**: FluentCheck is *conservative*. It would rather find a bug than claim confidence, which is exactly what you want in a testing tool.
+> **Key Insight**: FluentCheck is *conservative by design*. It prioritizes bug detection over confidence claims. For a property at 97% pass rate (2% above the 95% threshold), running 100 tests has ~95% chance of finding a failure first. This is exactly what you want in a testing tool — find bugs, don't just claim things are fine.
+
+---
+
+## Performance ROI Analysis
+
+### Detection Study: Time Efficiency
+
+**Key Finding**: Confidence-based methods are **more time-efficient per bug detected** despite lower absolute detection rates.
+
+| Method | Detection Rate | Mean Time | Cost per Bug | ROI (bugs/sec) |
+|--------|---------------|-----------|--------------|----------------|
+| **fixed_1000** | 86.2% | 0.27 ms | **0.31 ms** | 3,219 |
+| **confidence_0.99** | 60.2% | 0.17 ms | **0.28 ms** | **3,574** |
+
+**Trade-off Analysis**:
+- `fixed_1000` takes **59% more time** but detects **26% more bugs**
+- `confidence_0.99` is **1.11x more time-efficient** per bug (0.28 ms vs 0.31 ms)
+- **Most time-efficient**: `confidence_0.99` at 3,574 bugs/second
+
+**Time per Test**: Remarkably consistent across methods at ~0.6-0.8 µs per test, showing the overhead of confidence checking is negligible.
+
+### Efficiency Study: Early Termination Savings
+
+**Key Finding**: Early bug detection saves **49.3% of testing time** compared to running to confidence.
+
+| Property Type | Confidence (µs) | Bug Found (µs) | Time Savings |
+|---------------|----------------|----------------|--------------|
+| **frequent_failure** | 106.0 | 39.5 | **+62.7%** |
+| **common_failure** | 96.1 | 50.9 | **+47.0%** |
+| **uncommon_failure** | 111.3 | 68.0 | **+38.9%** |
+| **rare_failure** | 116.1 | 113.6 | +2.1% |
+
+**Overall Efficiency**:
+- Average time per test: **1.34 µs** (consistent overhead)
+- Average time per bug: **0.22 ms** (fast feedback)
+- Time saved by early bug detection: **49.3%** vs baseline
+
+### Interpretation
+
+1. **Confidence methods optimize for time-per-bug**, not total bugs found
+2. **Early bug detection** provides massive time savings (up to 63%)
+3. **Overhead is minimal**: ~1.3 µs per test includes confidence calculations
+4. **Best choice depends on goals**:
+   - **Maximum bugs found**: Use `fixed_1000` (86% detection)
+   - **Best time efficiency**: Use `confidence_0.99` (3,574 bugs/sec)
+   - **Fastest feedback**: Use confidence-based (terminates on first bug)
 
 ---
 

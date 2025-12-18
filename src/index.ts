@@ -61,6 +61,13 @@ export {
   StreamingMinMax,
   StreamingQuantiles,
   DistributionTracker,
+  // Statistical utilities
+  calculateBayesianConfidence,
+  calculateCredibleInterval,
+  wilsonScoreInterval,
+  sampleSizeForConfidence,
+  expectedTestsToDetectFailure,
+  detectionProbability,
   type Logger,
   type LogEntry,
   type LogLevel,

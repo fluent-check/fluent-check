@@ -55,6 +55,12 @@ export interface ExplorationBudget {
    * Used to calculate: confidence = P(pass_rate > passRateThreshold | data)
    */
   readonly passRateThreshold?: number
+
+  /**
+   * Optional interval (in tests) between confidence checks (default 100).
+   * Smaller intervals are more responsive but have higher computational cost.
+   */
+  readonly confidenceCheckInterval?: number
 }
 
 /**
@@ -678,9 +684,9 @@ export abstract class AbstractExplorer<Rec extends {}> implements Explorer<Rec> 
 
   protected isOutOfBudget(budget: ExplorationBudget, state: ExplorationState): boolean {
     const MIN_TESTS_FOR_CONFIDENCE = 10
-    // Check confidence periodically (every 100 tests or when maxTests reached)
+    // Check confidence periodically (configurable interval, default 100 tests)
     const shouldCheckConfidence = budget.targetConfidence !== undefined || budget.minConfidence !== undefined
-    const confidenceCheckInterval = 100
+    const confidenceCheckInterval = budget.confidenceCheckInterval ?? 100
     const shouldCheckNow = shouldCheckConfidence &&
       (state.testsRun - state.lastConfidenceCheck >= confidenceCheckInterval || state.testsRun >= budget.maxTests)
 

@@ -211,6 +211,95 @@ def main():
             if len(unique_tests) <= 3:
                 print(f"    Unique test counts: {sorted(unique_tests)}")
     
+    # Performance ROI Analysis
+    print("\n" + "=" * 90)
+    print("PERFORMANCE ROI ANALYSIS")
+    print("=" * 90)
+    
+    print("\nTime Investment by Property Type:")
+    print("-" * 90)
+    print(f"{'Property':<20} {'Mean Time (µs)':<18} {'Time/Test (µs)':<18} {'Median (µs)':<18}")
+    print("-" * 90)
+    
+    for prop_type in property_types:
+        group = df[df['property_type'] == prop_type]
+        mean_time = group['elapsed_micros'].mean()
+        mean_tests = group['tests_run'].mean()
+        time_per_test = mean_time / mean_tests if mean_tests > 0 else 0
+        median_time = group['elapsed_micros'].median()
+        
+        print(f"{prop_type:<20} "
+              f"{mean_time:<18.1f} "
+              f"{time_per_test:<18.2f} "
+              f"{median_time:<18.0f}")
+    
+    print("-" * 90)
+    
+    # Cost-benefit by termination reason
+    print("\nCost-Benefit: Confidence vs Bug Detection:")
+    print("-" * 90)
+    print(f"{'Property':<20} {'Confidence (µs)':<20} {'Bug Found (µs)':<20} {'Savings':<15}")
+    print("-" * 90)
+    
+    for prop_type in property_types:
+        group = df[df['property_type'] == prop_type]
+        
+        conf_trials = group[group['termination_reason'] == 'confidence']
+        bug_trials = group[group['termination_reason'] == 'bugFound']
+        
+        mean_conf_time = conf_trials['elapsed_micros'].mean() if len(conf_trials) > 0 else np.nan
+        mean_bug_time = bug_trials['elapsed_micros'].mean() if len(bug_trials) > 0 else np.nan
+        
+        if not np.isnan(mean_conf_time) and not np.isnan(mean_bug_time):
+            savings = ((mean_conf_time - mean_bug_time) / mean_conf_time * 100)
+            savings_str = f"{savings:+.1f}%"
+        elif np.isnan(mean_bug_time):
+            savings_str = "N/A (no bugs)"
+        elif np.isnan(mean_conf_time):
+            savings_str = "N/A (always bugs)"
+        else:
+            savings_str = "N/A"
+        
+        conf_str = f"{mean_conf_time:.1f}" if not np.isnan(mean_conf_time) else "N/A"
+        bug_str = f"{mean_bug_time:.1f}" if not np.isnan(mean_bug_time) else "N/A"
+        
+        print(f"{prop_type:<20} "
+              f"{conf_str:<20} "
+              f"{bug_str:<20} "
+              f"{savings_str:<15}")
+    
+    print("-" * 90)
+    print("Savings = (confidence_time - bug_time) / confidence_time × 100%")
+    print("Positive savings: bug detection is faster (terminates early)")
+    print("Negative savings: confidence takes longer to achieve")
+    
+    # Overall efficiency
+    print("\nOverall Efficiency Summary:")
+    print("-" * 90)
+    
+    total_time = df['elapsed_micros'].sum() / 1000  # ms
+    total_tests = df['tests_run'].sum()
+    total_bugs = df[df['bug_found'] == True]['bug_found'].count()
+    
+    print(f"  Total time spent: {total_time:.2f} ms")
+    print(f"  Total tests run: {total_tests}")
+    print(f"  Total bugs found: {total_bugs}")
+    print(f"  Average time per test: {(total_time * 1000) / total_tests:.2f} µs")
+    print(f"  Average time per bug: {total_time / total_bugs:.2f} ms" if total_bugs > 0 else "  No bugs found")
+    print(f"  Bug detection rate: {total_bugs / total_tests * 100:.2f}%")
+    
+    # Time saved by early termination
+    always_true_time = df[df['property_type'] == 'always_true']['elapsed_micros'].mean()
+    other_props = df[df['property_type'] != 'always_true']
+    avg_other_time = other_props['elapsed_micros'].mean()
+    
+    if not np.isnan(always_true_time) and not np.isnan(avg_other_time):
+        time_saved_pct = (always_true_time - avg_other_time) / always_true_time * 100
+        print(f"\nTime saved by early bug detection: {abs(time_saved_pct):.1f}%")
+        print(f"  (Comparing always_true baseline vs properties with potential bugs)")
+    
+    print("-" * 90)
+    
     print(f"\n✓ Efficiency analysis complete")
 
 if __name__ == "__main__":
