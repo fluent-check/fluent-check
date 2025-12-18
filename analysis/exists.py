@@ -20,7 +20,10 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import numpy as np
 from pathlib import Path
-from util import wilson_score_interval, format_ci, save_figure
+from util import (
+    wilson_score_interval, format_ci, save_figure, compute_summary_stats,
+    chi_squared_test, cohens_h, effect_size_interpretation
+)
 
 # Paths
 PROJECT_ROOT = Path(__file__).parent.parent
@@ -163,7 +166,7 @@ def main():
     yerr_lower = np.maximum(0, scenario_df['detection_rate'] - scenario_df['ci_lower'])
     yerr_upper = np.maximum(0, scenario_df['ci_upper'] - scenario_df['detection_rate'])
     
-    ax.bar(
+    bars = ax.bar(
         x_pos,
         scenario_df['detection_rate'],
         yerr=[yerr_lower, yerr_upper],
