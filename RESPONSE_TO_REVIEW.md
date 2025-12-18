@@ -28,7 +28,7 @@ We thank the reviewer for their thorough statistical analysis of FluentCheck's B
    - New feature development where bugs are expected
    - Security testing where assumptions are dangerous
 
-3. **Intentionally conservative**: The calculation P(p > 0.999 | 1000 successes, 0 failures) ≈ 36.8% is **mathematically correct**. In safety-critical testing, false confidence is worse than being cautious.
+3. **Intentionally conservative**: With Beta(1,1) prior, achieving high confidence requires substantial evidence. For 1000 successes and 0 failures, P(p > 0.999) ≈ 63.2% — still not certain, which is **intentionally cautious**. In safety-critical testing, avoiding false confidence is more important than fast convergence.
 
 4. **User control via threshold**: Users wanting faster convergence can lower `passRateThreshold` (e.g., 0.99 instead of 0.999). This is more transparent than encoding hidden assumptions in priors.
 

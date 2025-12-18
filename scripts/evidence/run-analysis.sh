@@ -24,6 +24,7 @@ echo "Running Python analysis..."
 python calibration.py
 python detection.py
 python efficiency.py
+python exists.py
 
 deactivate
 

@@ -102,7 +102,9 @@ export class BetaBinomialDistribution extends IntegerDistribution {
   // cdf(k: number): number
 
   #logPdf(x: number) {
-    return Math.log(jstat.combination(this.trials, x)) +
+    // Use gammaln for numerical stability with large trials (>170 would overflow factorial)
+    const logCombination = jstat.gammaln(this.trials + 1) - jstat.gammaln(x + 1) - jstat.gammaln(this.trials - x + 1)
+    return logCombination +
       this.#betaln(x + this.alpha, this.trials - x + this.beta) -
       this.#betaln(this.alpha, this.beta)
   }

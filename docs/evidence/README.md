@@ -4,11 +4,12 @@ This document presents empirical evidence that FluentCheck's confidence-based te
 
 ## Overview
 
-Three studies validate the confidence-based termination approach:
+Four studies validate FluentCheck's statistical approach:
 
 1. **Efficiency Study**: Does it adapt test effort to property complexity?
 2. **Calibration Study**: How reliable are confidence claims? (Sensitivity/Specificity)
 3. **Detection Rate Study**: Does it find rare bugs more reliably than fixed N?
+4. **Existential Quantifier Study**: Does `.exists()` efficiently find witnesses?
 
 All data is reproducible with deterministic seeds. Raw data available in [`raw/`](raw/).
 
@@ -56,7 +57,7 @@ FluentCheck checks confidence at configurable intervals (default: **100 tests**)
 - **Pass rate threshold**: 80% (asking "is pass rate > 80%?")
 - **Target confidence**: 95%
 - **Property types**: 100% to 95% pass rates
-- **Trials per type**: 50 (quick mode)
+- **Trials per type**: 200 (full mode)
 
 ### Results
 
@@ -93,9 +94,9 @@ FluentCheck checks confidence at configurable intervals (default: **100 tests**)
 | Property Type | Pass Rate | Mean Tests | Bug Found % | Interpretation |
 |--------------|-----------|------------|-------------|----------------|
 | always_true | 100% | 100 | 0% | Terminates at first confidence check |
-| rare_failure | 99.9% | 96 | 10% | Usually achieves confidence |
-| uncommon_failure | 99.5% | 76 | 47% | Mixed termination modes |
-| common_failure | 99% | 62 | 61% | Often finds bug early |
+| rare_failure | 99.9% | 96 | 9.5% | Usually achieves confidence |
+| uncommon_failure | 99.5% | 76 | 33.5% | Mixed termination modes |
+| common_failure | 99% | 62 | 56.5% | Often finds bug early |
 | frequent_failure | 95% | 19 | 100% | Always finds bug before check |
 
 ### Conclusions
@@ -123,7 +124,7 @@ Unlike traditional calibration (predicted vs observed probability), this study m
 - **Threshold**: 95% (asking "is pass rate > 95%?")
 - **Pass rates tested**: 80%, 90%, 94%, 96%, 97%, 99%, 99.9%, 100%
 - **Target confidence levels**: 90%, 95%, 99%
-- **Trials per configuration**: 50
+- **Trials per configuration**: 200
 
 ### Results
 
@@ -170,9 +171,9 @@ Unlike traditional calibration (predicted vs observed probability), this study m
 |-----------|-------------|------|
 | 100% | 100% | No failures possible → always achieves confidence |
 | 99.9% | 89% | ~10% chance of finding 1 failure in 100 tests |
-| 99% | 37% | ~63% chance of finding failure in 100 tests |
+| 99% | 36.8% | ~63% chance of finding failure in 100 tests |
 | 97% | 4% | Very likely to find failure before confidence |
-| 96% | 2% | Almost certain to find failure first |
+| 96% | 1.7% | Almost certain to find failure first |
 
 ### Conclusions
 
@@ -190,35 +191,36 @@ Unlike traditional calibration (predicted vs observed probability), this study m
 
 ### Detection Study: Time Efficiency
 
-**Key Finding**: Confidence-based methods are **more time-efficient per bug detected** despite lower absolute detection rates.
+**Key Finding**: Confidence-based methods achieve **higher detection efficiency per test** while fixed methods achieve higher absolute detection rates.
 
-| Method | Detection Rate | Mean Time | Cost per Bug | ROI (bugs/sec) |
-|--------|---------------|-----------|--------------|----------------|
-| **fixed_1000** | 86.2% | 0.27 ms | **0.31 ms** | 3,219 |
-| **confidence_0.99** | 60.2% | 0.17 ms | **0.28 ms** | **3,574** |
+| Method | Detection Rate | Mean Tests | 95% CI | Efficiency |
+|--------|---------------|------------|--------|------------|
+| **fixed_1000** | 86.2% | 442 | [82.9%, 88.9%] | 0.20%/test |
+| **confidence_0.99** | 60.2% | 258 | [55.8%, 64.4%] | **0.23%/test** |
+| **fixed_500** | 59.8% | 335 | [55.4%, 64.0%] | 0.18%/test |
 
 **Trade-off Analysis**:
-- `fixed_1000` takes **59% more time** but detects **26% more bugs**
-- `confidence_0.99` is **1.11x more time-efficient** per bug (0.28 ms vs 0.31 ms)
-- **Most time-efficient**: `confidence_0.99` at 3,574 bugs/second
+- `fixed_1000` detects **26% more bugs** but runs **71% more tests**
+- `confidence_0.99` is **15% more test-efficient** (0.23% vs 0.20% detection per test)
+- Both `fixed_500` and `confidence_0.99` achieve ~60% detection with no statistical difference (χ² p=0.95)
 
 **Time per Test**: Remarkably consistent across methods at ~0.6-0.8 µs per test, showing the overhead of confidence checking is negligible.
 
 ### Efficiency Study: Early Termination Savings
 
-**Key Finding**: Early bug detection saves **49.3% of testing time** compared to running to confidence.
+**Key Finding**: Early bug detection saves **50.1% of testing time** compared to running to confidence.
 
 | Property Type | Confidence (µs) | Bug Found (µs) | Time Savings |
 |---------------|----------------|----------------|--------------|
-| **frequent_failure** | 106.0 | 39.5 | **+62.7%** |
-| **common_failure** | 96.1 | 50.9 | **+47.0%** |
-| **uncommon_failure** | 111.3 | 68.0 | **+38.9%** |
-| **rare_failure** | 116.1 | 113.6 | +2.1% |
+| **frequent_failure** | 76.0 | 35.7 | **+53.0%** |
+| **common_failure** | 101.4 | 52.0 | **+48.7%** |
+| **uncommon_failure** | 120.7 | 64.2 | **+46.8%** |
+| **rare_failure** | 115.1 | 107.3 | +6.8% |
 
 **Overall Efficiency**:
-- Average time per test: **1.34 µs** (consistent overhead)
+- Average time per test: **1.35 µs** (consistent overhead)
 - Average time per bug: **0.22 ms** (fast feedback)
-- Time saved by early bug detection: **49.3%** vs baseline
+- Time saved by early bug detection: **50.1%** vs baseline
 
 ### Interpretation
 
@@ -243,7 +245,7 @@ Confidence-based termination finds rare bugs more reliably than fixed sample siz
 - **Bug frequency**: 0.2% failure rate (1 in 500 tests)
 - **Fixed methods**: N=50, 100, 200, 500, 1000
 - **Confidence methods**: 80%, 90%, 95%, 99%
-- **Trials per method**: 50
+- **Trials per method**: 500
 
 ### Results
 
@@ -313,6 +315,8 @@ Confidence-based termination finds rare bugs more reliably than fixed sample siz
 | fixed_200 | 35.4% | 33.0% | 161 | 0.22%/test |
 | fixed_500 | 59.8% | 63.2% | 335 | 0.18%/test |
 | fixed_1000 | 86.2% | 86.5% | 442 | 0.20%/test |
+| confidence_0.80 | 32.4% | adaptive | 168 | 0.19%/test |
+| confidence_0.90 | 35.8% | adaptive | 160 | 0.22%/test |
 | confidence_0.95 | 47.0% | adaptive | 226 | 0.21%/test |
 | confidence_0.99 | 60.2% | adaptive | 258 | 0.23%/test |
 
@@ -327,6 +331,100 @@ Confidence-based termination finds rare bugs more reliably than fixed sample siz
 **Key Insight**: Choose based on your needs:
 - **Fixed N**: Predictable runtime, simple to understand
 - **Confidence-based**: Meaningful statistical guarantees, adapts to property behavior
+
+---
+
+## 4. Existential Quantifier Study
+
+### Hypothesis
+
+FluentCheck's `.exists()` efficiently finds witnesses for existential properties, with detection rates proportional to witness density and sample size.
+
+### Method
+
+**Key design decision**: We use large ranges (1M values) with modular arithmetic predicates to avoid birthday paradox effects. This ensures witness density is independent of range size and each sample is truly independent.
+
+- **Search space**: [1, 1,000,000] — with max 500 samples, we cover only 0.05% of the space
+- **Scenarios tested**:
+  - Sparse witness (0.01% density): Find x where `x % 10000 === 0`
+  - Rare witness (1% density): Find x where `x % 100 === 0`
+  - Moderate witness (10% density): Find x where `x % 10 === 0`
+  - Dense witness (50% density): Find x where `x % 2 === 0` (even numbers)
+  - Exists-forall pattern (~50%): Find a ≥ 501000 such that a + b ≥ 500000 for all b ∈ [-1000, 1000]
+  - Forall-exists pattern (0.01% per a): For each a ∈ [1,10], find b ∈ [1,10000] such that a + b = 1000
+- **Sample sizes**: 50, 100, 200, 500
+- **Trials per configuration**: 200
+
+### Results
+
+![Detection Rates](./figures/exists_detection_rates.png)
+
+*Figure 5: Witness detection rate by scenario type with 95% confidence intervals.*
+
+#### How to Read This Figure
+
+- **X-axis**: Scenario type (ordered by witness density)
+- **Y-axis**: Proportion of trials that found a witness (0 to 1.0)
+- **Bar height**: Detection rate (higher = finds more witnesses)
+- **Error bars**: 95% confidence interval
+- **Red markers**: Expected detection rate based on theoretical probability
+
+---
+
+![Detection vs Sample Size](./figures/exists_vs_sample_size.png)
+
+*Figure 6: Detection rate as a function of sample size.*
+
+#### How to Read This Figure
+
+- **X-axis**: Sample size (number of tests allowed)
+- **Y-axis**: Detection rate
+- **Solid lines**: Observed detection rates
+- **Dashed lines**: Theoretical expected rates: P(find) = 1 - (1-d)^n
+
+---
+
+![Tests to Witness](./figures/exists_tests_to_witness.png)
+
+*Figure 7: Distribution of tests run before finding a witness.*
+
+#### What to Look For
+
+1. **Dense scenarios** (50% witness density): Witnesses found in 1-5 tests
+2. **Moderate scenarios** (10% density): Witnesses found in ~10-20 tests
+3. **Sparse scenarios** (0.01% density): Requires many tests, often exhausts budget
+
+### Expected vs Observed
+
+For a witness density `d` and sample size `n`, the expected detection rate is:
+
+```
+P(find witness) = 1 - (1 - d)^n
+```
+
+| Scenario | Density | N=50 Expected | N=50 Observed | N=500 Expected | N=500 Observed |
+|----------|---------|---------------|---------------|----------------|----------------|
+| sparse | 0.01% | 0.5% | 1.0% | 4.9% | 4.5% |
+| rare | 1% | 39.5% | 38.5% | 99.3% | 99.5% |
+| moderate | 10% | 99.5% | 98.5% | ~100% | 100% |
+| dense | 50% | ~100% | 100% | ~100% | 100% |
+| exists_forall | 50% | ~100% | 99.5% | ~100% | 100% |
+
+### Conclusions
+
+✅ **Detection matches theory**: Observed rates closely match geometric distribution predictions.
+
+✅ **Efficient early exit**: Dense witnesses found in 1-5 tests, not the full budget.
+
+✅ **exists-forall works efficiently**: Pattern like "find a such that for all b, P(a,b)" works well.
+
+⚠️ **forall-exists is hard**: Pattern like "for all a, find b such that P(a,b)" requires finding witnesses for EVERY 'a' value, making it exponentially harder. Use domain-specific strategies for this pattern.
+
+⚠️ **Sparse witnesses need samples**: 0.01% density needs ~10,000 samples for reliable detection.
+
+**Key Insight**: FluentCheck's `.exists()` is most valuable for witnesses with ≥1% density. For sparser witnesses, increase sample size or use domain knowledge to improve density. For forall-exists patterns, consider alternative formulations or custom witness strategies.
+
+For expressiveness comparison with other frameworks, see [Existential Quantifier Expressiveness](exists-expressiveness.md).
 
 ---
 
@@ -376,5 +474,5 @@ diff /tmp/run1.csv docs/evidence/raw/calibration.csv  # No differences
 
 ---
 
-*Evidence generated with Quick Mode (1,900 total trials)*  
-*For production evidence: `npm run evidence` (Full Mode, 10,000+ trials)*
+*Evidence generated with Full Mode (15,100 total trials)*  
+*For quick verification: `npm run evidence:quick` (Quick Mode, ~2,600 trials)*

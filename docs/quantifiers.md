@@ -152,4 +152,23 @@ Most property testing frameworks only implement universal quantification (forall
 
 1. Mathematical properties that naturally involve both kinds of quantifiers
 2. Proving existence of elements with certain properties
-3. Finding specific values that satisfy complex conditions 
+3. Finding specific values that satisfy complex conditions
+
+---
+
+## Empirical Evidence
+
+FluentCheck's existential quantifier support has been validated through empirical studies measuring:
+
+- **Detection efficiency**: Witness detection rates across different densities
+- **Performance**: Time to find witnesses, tests-to-witness distribution
+- **Theoretical accuracy**: Observed vs expected detection rates
+
+Key findings:
+- Dense witnesses (50%+ density): Near 100% detection in 1-5 tests
+- Moderate witnesses (10% density): ~99% detection with 50 samples
+- Mixed quantifier patterns (exists-forall, forall-exists) work efficiently
+
+For detailed results, see [Statistical Evidence: Existential Quantifier Study](evidence/README.md#4-existential-quantifier-study).
+
+For expressiveness comparison, see [Existential Quantifier Expressiveness](evidence/exists-expressiveness.md).

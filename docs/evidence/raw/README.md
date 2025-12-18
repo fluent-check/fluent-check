@@ -9,6 +9,7 @@ This directory contains raw experimental data from confidence-based termination 
 | `calibration.csv` | 1,200 | 4,800 | Sensitivity/specificity of threshold detection |
 | `detection.csv` | 450 | 4,500 | Bug detection rate comparison |
 | `efficiency.csv` | 250 | 1,000 | Property complexity adaptation |
+| `exists.csv` | 1,200 | 4,800 | Existential quantifier witness detection |
 
 ## Data Generation
 
@@ -191,6 +192,40 @@ Using identical thresholds would conflate different phenomena and make results h
 - Average time per test: 1.34 µs
 - Early bug detection saves 49.3% time vs running to confidence
 - Frequent failures (95% pass): 62.7% faster via early termination
+
+### exists.csv
+
+| Column | Type | Description |
+|--------|------|-------------|
+| trial_id | int | Unique trial identifier |
+| seed | int | Deterministic seed |
+| scenario | enum | 'sparse', 'rare', 'moderate', 'dense', 'exists_forall', 'forall_exists' |
+| witness_density | float | Expected proportion of valid witnesses |
+| sample_size | int | Max tests configured |
+| witness_found | bool | Whether a witness was found |
+| tests_run | int | Number of tests executed |
+| elapsed_micros | int | High-resolution timing |
+| witness_value | string | JSON-serialized witness (if found) |
+
+**Scenario Details:**
+
+Uses large ranges (1M values) with modular arithmetic to avoid birthday paradox effects.
+
+| Scenario | Density | Description |
+|----------|---------|-------------|
+| sparse | 0.01% | Find x where `x % 10000 === 0` in [1, 1M] |
+| rare | 1% | Find x where `x % 100 === 0` in [1, 1M] |
+| moderate | 10% | Find x where `x % 10 === 0` in [1, 1M] |
+| dense | 50% | Find even x (`x % 2 === 0`) in [1, 1M] |
+| exists_forall | ~50% | Find a ≥ 501000 such that a + b ≥ 500000 for all b ∈ [-1000, 1000] |
+| forall_exists | 0.01%/a | For each a ∈ [1,10], find b ∈ [1,10000] such that a + b = 1000 |
+
+**Expected Detection Rate:**
+
+For a witness density `d` and sample size `n`:
+```
+P(find witness) = 1 - (1 - d)^n
+```
 
 ---
 
