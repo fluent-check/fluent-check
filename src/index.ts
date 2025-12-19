@@ -132,5 +132,40 @@ export {
   pair,
   nullable,
   optional,
-  type Arbitrary
+  // Graph arbitraries
+  graph,
+  directedGraph,
+  undirectedGraph,
+  weightedGraph,
+  connectedGraph,
+  dag,
+  path,
+  // FSM arbitraries
+  fsm,
+  fsmTrace,
+  isDeadlockFree,
+  allStatesReachable,
+  hasLiveness,
+  getReachableStates,
+  isDeterministic,
+  invariantHolds,
+  findDeadlocks,
+  simulate,
+  type Arbitrary,
+  type Graph,
+  type FSM,
+  type FSMTrace
 } from './arbitraries/index.js'
+
+// Stateful testing
+export {
+  stateful,
+  StatefulBuilder,
+  type Command,
+  type StatefulConfig,
+  type StatefulCheckConfig,
+  type StatefulResult,
+  type ExecutedCommand,
+  type CommandSequence,
+  type Invariant
+} from './stateful/index.js'

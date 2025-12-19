@@ -13,14 +13,29 @@ import {
 } from './internal.js'
 
 export * from './types.js'
-import type {NonEmptyArray, ExactSizeArbitrary, Graph, GraphConfig} from './types.js'
+import type {NonEmptyArray, ExactSizeArbitrary, Graph, GraphConfig, FSM, FSMConfig, FSMTrace} from './types.js'
 export {Arbitrary, type HashFunction, type EqualsFunction} from './internal.js'
-export type {ArbitrarySize, Graph, Edge, AdjacencyEntry, GraphConfig, PathConfig} from './types.js'
+export type {
+  ArbitrarySize, Graph, Edge, AdjacencyEntry, GraphConfig, PathConfig,
+  FSM, FSMConfig, FSMTrace, Transition
+} from './types.js'
 export {NoArbitrary} from './NoArbitrary.js'
 import {ArbitraryGraph} from './ArbitraryGraph.js'
 import {ArbitraryPath} from './ArbitraryPath.js'
+import {ArbitraryFSM, ArbitraryFSMTrace} from './ArbitraryFSM.js'
 export {ArbitraryGraph} from './ArbitraryGraph.js'
 export {ArbitraryPath} from './ArbitraryPath.js'
+export {ArbitraryFSM, ArbitraryFSMTrace} from './ArbitraryFSM.js'
+export {
+  isDeadlockFree,
+  allStatesReachable,
+  hasLiveness,
+  getReachableStates,
+  isDeterministic,
+  invariantHolds,
+  findDeadlocks,
+  simulate
+} from './ArbitraryFSM.js'
 
 // Helper to assert that an Arbitrary is ExactSizeArbitrary at factory boundaries
 const asExact = <A>(arb: Arbitrary<A>): ExactSizeArbitrary<A> => arb as ExactSizeArbitrary<A>
@@ -298,4 +313,65 @@ export const path = <N>(
   if (target !== undefined && !graphValue.nodes.includes(target)) return NoArbitrary
 
   return new ArbitraryPath(graphValue, source, target, maxLength)
+}
+
+// ============================================================================
+// FSM (Finite State Machine) Arbitraries
+// ============================================================================
+
+/**
+ * Creates an arbitrary that generates Finite State Machines.
+ *
+ * @param config - Configuration for FSM generation
+ * @returns An arbitrary generating FSMs
+ *
+ * @example
+ * ```typescript
+ * // Generate FSMs with 5 states and a simple alphabet
+ * const fsmArb = fc.fsm({
+ *   states: 5,
+ *   alphabet: ['a', 'b', 'c']
+ * })
+ *
+ * // Generate FSMs with named states
+ * const namedFsm = fc.fsm({
+ *   states: ['idle', 'running', 'stopped'],
+ *   alphabet: ['start', 'stop', 'reset']
+ * })
+ * ```
+ */
+export const fsm = <S = number, E = string>(
+  config: FSMConfig<S, E>
+): Arbitrary<FSM<S, E>> => {
+  const stateCount = typeof config.states === 'number' ? config.states : config.states.length
+  if (stateCount === 0 || config.alphabet.length === 0) return NoArbitrary
+  return new ArbitraryFSM(config)
+}
+
+/**
+ * Creates an arbitrary that generates execution traces for an FSM.
+ *
+ * @param fsmValue - The FSM to generate traces for
+ * @param maxLength - Maximum trace length (default: 10)
+ * @param reachAccepting - If true, traces prefer to reach accepting states
+ * @returns An arbitrary generating valid FSM traces
+ *
+ * @example
+ * ```typescript
+ * fc.scenario()
+ *   .forall('machine', fc.fsm({states: 4, alphabet: ['a', 'b']}))
+ *   .forall('trace', ({machine}) => fc.fsmTrace(machine, 5))
+ *   .then(({machine, trace}) => {
+ *     // Verify trace is valid
+ *     return trace.events.length === trace.states.length - 1
+ *   })
+ *   .check()
+ * ```
+ */
+export const fsmTrace = <S, E>(
+  fsmValue: FSM<S, E>,
+  maxLength = 10,
+  reachAccepting = false
+): Arbitrary<FSMTrace<S, E>> => {
+  return new ArbitraryFSMTrace(fsmValue, maxLength, reachAccepting)
 }

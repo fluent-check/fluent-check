@@ -260,3 +260,97 @@ export interface PathConfig<N> {
   /** Maximum path length (number of nodes) */
   maxLength?: number
 }
+
+// ============================================================================
+// FSM (Finite State Machine) Types
+// ============================================================================
+
+/**
+ * Represents a transition in a Finite State Machine.
+ *
+ * @typeParam S - The state type
+ * @typeParam E - The event/input type
+ */
+export interface Transition<S, E> {
+  /** Source state */
+  from: S
+  /** Target state */
+  to: S
+  /** Event/input that triggers this transition */
+  event: E
+  /** Optional guard condition (transition only fires if guard returns true) */
+  guard?: () => boolean
+}
+
+/**
+ * Represents a Finite State Machine.
+ *
+ * @typeParam S - The state type (default: number)
+ * @typeParam E - The event/input type (default: string)
+ *
+ * @example
+ * ```typescript
+ * // Traffic light FSM
+ * const trafficLight: FSM<'red' | 'yellow' | 'green', 'timer'> = {
+ *   states: ['red', 'yellow', 'green'],
+ *   alphabet: ['timer'],
+ *   initial: 'red',
+ *   accepting: ['green'],
+ *   transitions: new Map([
+ *     ['red', [{ to: 'green', event: 'timer' }]],
+ *     ['green', [{ to: 'yellow', event: 'timer' }]],
+ *     ['yellow', [{ to: 'red', event: 'timer' }]]
+ *   ])
+ * }
+ * ```
+ */
+export interface FSM<S = number, E = string> {
+  /** All states in the FSM */
+  states: S[]
+  /** The input alphabet (set of possible events) */
+  alphabet: E[]
+  /** The initial state */
+  initial: S
+  /** Accepting/final states (optional, empty means all states accept) */
+  accepting: S[]
+  /** Transitions: Map from state to array of outgoing transitions */
+  transitions: Map<S, Array<{ to: S; event: E }>>
+}
+
+/**
+ * Represents an execution trace of an FSM.
+ *
+ * @typeParam S - The state type
+ * @typeParam E - The event type
+ */
+export interface FSMTrace<S, E> {
+  /** Sequence of states visited */
+  states: S[]
+  /** Sequence of events that triggered transitions */
+  events: E[]
+}
+
+/**
+ * Configuration for FSM generation.
+ *
+ * @typeParam S - The state type
+ * @typeParam E - The event type
+ */
+export interface FSMConfig<S = number, E = string> {
+  /** Number of states or array of state values */
+  states: number | S[]
+  /** The input alphabet */
+  alphabet: E[]
+  /** Minimum number of transitions per state (default: 0) */
+  minTransitionsPerState?: number
+  /** Maximum number of transitions per state (default: alphabet.length) */
+  maxTransitionsPerState?: number
+  /** Whether to ensure all states are reachable from initial (default: true) */
+  connected?: boolean
+  /** Whether to ensure the FSM is deterministic (default: true) */
+  deterministic?: boolean
+  /** Minimum number of accepting states (default: 1) */
+  minAccepting?: number
+  /** Maximum number of accepting states (default: states/2) */
+  maxAccepting?: number
+}
