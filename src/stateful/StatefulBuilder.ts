@@ -270,7 +270,8 @@ function createRng(seed: number): () => number {
 function generateSequence<M, S>(
   config: StatefulConfig<M, S>,
   maxCommands: number,
-  rng: () => number
+  rng: () => number,
+  verbose = false
 ): CommandSequence<M, S> {
   const sequence: CommandSequence<M, S> = []
   const model = config.modelFactory()
@@ -310,8 +311,12 @@ function generateSequence<M, S>(
     try {
       // eslint-disable-next-line no-restricted-syntax
       cmd.run(args, model, undefined as unknown as S)
-    } catch {
-      // Ignore errors during sequence generation
+    } catch (e) {
+      // Errors during model-only execution may indicate bugs in command logic
+      if (verbose) {
+        const errorMsg = e instanceof Error ? e.message : String(e)
+        console.warn(`[stateful] Warning: command '${cmd.name}' threw during sequence generation: ${errorMsg}`)
+      }
     }
 
     sequence.push({
@@ -453,9 +458,10 @@ function runStatefulCheck<M, S>(
   const seed = checkConfig.seed ?? Math.floor(Math.random() * 0x100000000)
 
   const rng = createRng(seed)
+  const verbose = checkConfig.verbose ?? false
 
   for (let run = 0; run < numRuns; run++) {
-    const sequence = generateSequence(config, maxCommands, rng)
+    const sequence = generateSequence(config, maxCommands, rng, verbose)
     const result = executeSequence(config, sequence)
 
     if (!result.success) {

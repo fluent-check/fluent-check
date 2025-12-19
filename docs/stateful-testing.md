@@ -133,7 +133,7 @@ Set a postcondition checked after the command executes. Receives:
     actual: sut.peek()
   }))
   .post((_args, _model, _sut, result) => {
-    const r = result as { expected: number; actual: number };
+    const r = result as { expected: number; actual: number | undefined };
     return r.expected === r.actual;
   })
 ```

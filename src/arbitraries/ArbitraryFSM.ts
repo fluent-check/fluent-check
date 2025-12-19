@@ -3,16 +3,21 @@ import type {FSM, FSMConfig, FSMTrace} from './types.js'
 import type {HashFunction, EqualsFunction} from './Arbitrary.js'
 import {estimatedSize, FNV_OFFSET_BASIS, mix, stringToHash} from './util.js'
 import {Arbitrary} from './internal.js'
-import {ArbitraryGraph} from './ArbitraryGraph.js'
 import * as fc from './index.js'
 
 /**
  * Arbitrary that generates Finite State Machines with configurable properties.
  *
- * Implemented as a thin wrapper around ArbitraryGraph, where:
- * - FSM states = Graph nodes
- * - FSM transitions = Graph weighted edges (event as weight)
- * - FSM is always directed
+ * FSMs are generated with the following structure:
+ * - States: Either a count (generating 0, 1, 2, ...) or explicit state values
+ * - Alphabet: Set of events/inputs that trigger transitions
+ * - Transitions: Map from state to outgoing transitions (to, event)
+ * - Initial: First state (states[0])
+ * - Accepting: Subset of states marked as accepting
+ *
+ * Generation ensures:
+ * - Connectivity (optional): All states reachable from initial
+ * - Determinism (optional): At most one transition per (state, event) pair
  *
  * @typeParam S - The state type
  * @typeParam E - The event/input type
@@ -21,7 +26,6 @@ export class ArbitraryFSM<S = number, E = string> extends Arbitrary<FSM<S, E>> {
   private readonly stateCount: number
   private readonly stateValues: S[]
   private readonly alphabet: E[]
-  private readonly graphArb: ArbitraryGraph<S, E>
   private readonly minAccepting: number
   private readonly maxAccepting: number
   private readonly isConnected: boolean
@@ -35,7 +39,6 @@ export class ArbitraryFSM<S = number, E = string> extends Arbitrary<FSM<S, E>> {
     // Resolve state configuration
     if (typeof config.states === 'number') {
       this.stateCount = config.states
-
       this.stateValues = Array.from({length: config.states}, (_, i) => i) as S[]
     } else {
       this.stateCount = config.states.length
@@ -49,22 +52,6 @@ export class ArbitraryFSM<S = number, E = string> extends Arbitrary<FSM<S, E>> {
     this.isDeterministic = config.deterministic ?? true
     this.minAccepting = config.minAccepting ?? 1
     this.maxAccepting = config.maxAccepting ?? Math.max(1, Math.floor(this.stateCount / 2))
-
-    // Create the underlying graph arbitrary
-    // For FSM, we use the alphabet elements as edge weights
-    // The graph generates edges, and we'll assign events to them
-    const minEdges = this.minTransitions * this.stateCount
-    const maxEdges = this.maxTransitions * this.stateCount
-
-    this.graphArb = new ArbitraryGraph<S, E>(
-      {
-        nodes: this.stateValues,
-        edges: {min: minEdges, max: maxEdges},
-        directed: true,
-        connected: this.isConnected
-      },
-      fc.oneof(this.alphabet as readonly E[])
-    )
   }
 
   override size() {

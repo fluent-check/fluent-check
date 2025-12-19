@@ -276,8 +276,7 @@ describe('FSM Property-Based Testing', () => {
 
       const result = fcMain.scenario()
         .given('fsm', fsmValue)
-
-        .exists('trace', (({fsm}) => fc.fsmTrace(fsm as FSM, 5, true)) as any)
+        .exists('trace', (({fsm}: {fsm: FSM}) => fc.fsmTrace(fsm, 5, true)) as any)
         .then(({fsm, trace}) => {
           const typedFsm = fsm
           const typedTrace = trace as FSMTrace<number, string>
@@ -402,8 +401,7 @@ describe('FSM Property-Based Testing', () => {
       // For any trace through the FSM, verify an invariant holds at each step
       const result = fcMain.scenario()
         .forall('fsm', fc.fsm({states: 4, alphabet: ['a', 'b']}))
-
-        .forall('trace', (({fsm}) => fc.fsmTrace(fsm as FSM, 8)) as any)
+        .forall('trace', (({fsm}: {fsm: FSM}) => fc.fsmTrace(fsm, 8)) as any)
         .then(({trace}) => {
           const typedTrace = trace as FSMTrace<number, string>
           // Invariant: All visited states should be valid indices
@@ -467,8 +465,7 @@ describe('FSM Property-Based Testing', () => {
           deterministic: true,
           minTransitionsPerState: 2 // Ensure most events have transitions
         }))
-
-        .forall('trace', (({fsm}) => fc.fsmTrace(fsm as FSM, 5)) as any)
+        .forall('trace', (({fsm}: {fsm: FSM}) => fc.fsmTrace(fsm, 5)) as any)
         .then(({fsm, trace}) => {
           const typedFsm = fsm
           const typedTrace = trace as FSMTrace<number, string>
