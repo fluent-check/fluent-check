@@ -263,6 +263,12 @@ describe('ArbitraryGraph', () => {
 
       expect(arb.canGenerate({value: wrongGraph})).to.be.false
     })
+
+    it('should throw error for acyclic undirected graphs', () => {
+      // acyclic option is only supported for directed graphs
+      expect(() => fc.graph({nodes: 3, directed: false, acyclic: true}))
+        .to.throw('The "acyclic" option is only supported for directed graphs.')
+    })
   })
 
   describe('cornerCases', () => {

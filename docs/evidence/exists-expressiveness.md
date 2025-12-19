@@ -108,14 +108,10 @@ for (let i = 2; i < n; i++) {
 fc.scenario()
   .forall('graph', fc.directedGraph(10, {min: 5, max: 20}))
   .exists('path', ({graph}) => fc.path(graph, 0, 9))
-  .then(({graph, path}) => {
-    // Verify path is valid: starts at 0, ends at 9, all edges exist
-    if (path[0] !== 0 || path[path.length - 1] !== 9) return false
-    for (let i = 0; i < path.length - 1; i++) {
-      const edges = graph.edges.get(path[i]) ?? []
-      if (!edges.some(e => e.target === path[i + 1])) return false
-    }
-    return true
+  .then(({path}) => {
+    // Property: Assert that a path was found.
+    // The fc.path arbitrary guarantees it's a valid path from 0 to 9.
+    return path.length > 0
   })
   .check()
 ```

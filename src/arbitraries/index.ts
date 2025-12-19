@@ -157,9 +157,12 @@ export const record = <S extends RecordSchema>(schema: S): Arbitrary<UnwrapSchem
  * const labeled = fc.graph({nodes: ['A', 'B', 'C', 'D']})
  * ```
  */
-export const graph = <N = number>(
+export function graph(config: Omit<GraphConfig<number>, 'nodes'> & { nodes: number }): Arbitrary<Graph<number>>
+export function graph<N>(config: Omit<GraphConfig<N>, 'nodes'> & { nodes: N[] }): Arbitrary<Graph<N>>
+export function graph<N = number>(config: GraphConfig<N>): Arbitrary<Graph<N>>
+export function graph<N = number>(
   config: GraphConfig<N>
-): Arbitrary<Graph<N>> => {
+): Arbitrary<Graph<N>> {
   if (typeof config.nodes === 'number' && config.nodes < 0) return NoArbitrary
   if (Array.isArray(config.nodes) && config.nodes.length === 0 && config.edges !== undefined) {
     const edges = config.edges
@@ -340,9 +343,12 @@ export const path = <N>(
  * })
  * ```
  */
-export const fsm = <S = number, E = string>(
+export function fsm<E = string>(config: Omit<FSMConfig<number, E>, 'states'> & { states: number }): Arbitrary<FSM<number, E>>
+export function fsm<S, E = string>(config: Omit<FSMConfig<S, E>, 'states'> & { states: S[] }): Arbitrary<FSM<S, E>>
+export function fsm<S = number, E = string>(config: FSMConfig<S, E>): Arbitrary<FSM<S, E>>
+export function fsm<S = number, E = string>(
   config: FSMConfig<S, E>
-): Arbitrary<FSM<S, E>> => {
+): Arbitrary<FSM<S, E>> {
   const stateCount = typeof config.states === 'number' ? config.states : config.states.length
   if (stateCount === 0 || config.alphabet.length === 0) return NoArbitrary
   return new ArbitraryFSM(config)

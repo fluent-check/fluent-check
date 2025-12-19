@@ -300,11 +300,18 @@ function generateSequence<M, S>(
 
     // Generate arguments
     const args: Record<string, unknown> = {}
+    let allArgsGenerated = true
     for (const [key, arb] of Object.entries(cmd.args)) {
       const pick = (arb).pick(rng)
-      if (pick === undefined) continue
+      if (pick === undefined) {
+        allArgsGenerated = false
+        break
+      }
       args[key] = pick.value
     }
+    
+    // Skip command if any argument failed to generate
+    if (!allArgsGenerated) continue
 
     // Execute on model to update state for precondition checking
     // We use a dummy SUT during generation to track model state changes

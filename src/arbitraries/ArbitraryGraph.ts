@@ -30,6 +30,11 @@ export class ArbitraryGraph<N = number, E = void> extends Arbitrary<Graph<N, E>>
     this.isAcyclic = config.acyclic ?? false
     this.weightArbitrary = weightArbitrary
 
+    // Validate configuration
+    if (this.isAcyclic && !this.isDirected) {
+      throw new Error('The "acyclic" option is only supported for directed graphs.')
+    }
+
     // Resolve node configuration
     if (typeof config.nodes === 'number') {
       this.nodeCount = config.nodes
