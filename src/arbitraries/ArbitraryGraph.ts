@@ -286,6 +286,17 @@ export class ArbitraryGraph<N = number, E = void> extends Arbitrary<Graph<N, E>>
           sourceEdges.push({target: edge.target} as AdjacencyEntry<N, E>)
         }
         newEdges.set(edge.source, sourceEdges)
+
+        // For undirected graphs, add the reverse edge to maintain symmetry
+        if (!graph.directed) {
+          const targetEdges = newEdges.get(edge.target) ?? []
+          if ('weight' in edge) {
+            targetEdges.push({target: edge.source, weight: edge.weight} as AdjacencyEntry<N, E>)
+          } else {
+            targetEdges.push({target: edge.source} as AdjacencyEntry<N, E>)
+          }
+          newEdges.set(edge.target, targetEdges)
+        }
       }
 
       const newGraph: Graph<N, E> = {
@@ -343,6 +354,8 @@ export class ArbitraryGraph<N = number, E = void> extends Arbitrary<Graph<N, E>>
     const queue: N[] = [firstNode]
     visited.add(firstNode)
 
+    // Standard BFS traversal - no reverse edge check needed because
+    // undirected graphs maintain symmetric adjacency (A->B implies B->A)
     while (queue.length > 0) {
       const node = queue.shift()
       if (node === undefined) break
@@ -352,16 +365,6 @@ export class ArbitraryGraph<N = number, E = void> extends Arbitrary<Graph<N, E>>
         if (!visited.has(neighbor.target)) {
           visited.add(neighbor.target)
           queue.push(neighbor.target)
-        }
-      }
-
-      // For undirected graphs, also check reverse edges
-      if (!graph.directed) {
-        for (const [source, adj] of graph.edges) {
-          if (adj.some(e => e.target === node) && !visited.has(source)) {
-            visited.add(source)
-            queue.push(source)
-          }
         }
       }
     }

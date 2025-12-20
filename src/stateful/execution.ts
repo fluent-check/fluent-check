@@ -18,6 +18,21 @@ function createRng(seed: number): () => number {
   }
 }
 
+/**
+ * Creates a dummy SUT proxy that absorbs all method calls during sequence generation.
+ * This allows the execute function to update the model without crashing on SUT access.
+ * All property accesses return functions that return undefined, and those functions
+ * are also proxies, so chained calls like sut.foo().bar() work without throwing.
+ */
+function createDummySut<S>(): S {
+  const handler: ProxyHandler<object> = {
+    get: () => new Proxy(() => undefined, handler),
+    apply: () => undefined,
+    construct: () => new Proxy({}, handler)
+  }
+  return new Proxy({}, handler) as S
+}
+
 function generateSequence<M, S>(
   config: StatefulConfig<M, S>,
   maxCommands: number,
@@ -59,7 +74,7 @@ function generateSequence<M, S>(
     if (!allArgsGenerated) continue
 
     try {
-      command.execute(args, model, undefined as never)
+      command.execute(args, model, createDummySut<S>())
     } catch (e) {
       if (verbose) {
         const errorMsg = e instanceof Error ? e.message : String(e)

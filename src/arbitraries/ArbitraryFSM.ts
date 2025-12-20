@@ -19,6 +19,14 @@ import * as fc from './index.js'
  * - Connectivity (optional): All states reachable from initial
  * - Determinism (optional): At most one transition per (state, event) pair
  *
+ * Note: This class does not delegate to ArbitraryGraph because FSMs have
+ * semantic requirements that graphs cannot express:
+ * - Transitions require event labels (not optional weights)
+ * - Determinism constrains at most one transition per (state, event) pair
+ * - Accepting states have no graph equivalent
+ * The spanning tree and random edge algorithms share similar structure but
+ * differ in how they assign events and enforce determinism constraints.
+ *
  * @typeParam S - The state type
  * @typeParam E - The event/input type
  */

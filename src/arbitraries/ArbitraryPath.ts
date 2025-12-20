@@ -65,7 +65,10 @@ export class ArbitraryPath<N> extends Arbitrary<N[]> {
         }
       }
 
-      // For undirected graphs, also traverse in opposite direction
+      // For undirected graphs, also traverse in opposite direction.
+      // This defensive check handles user-provided graphs that may not maintain
+      // symmetric adjacency (A->B does not guarantee B->A in the adjacency map).
+      // ArbitraryGraph maintains symmetry, but ArbitraryPath accepts any graph.
       if (!this.graph.directed) {
         if (direction === 'forward') {
           for (const [source, adj] of this.graph.edges) {
@@ -125,7 +128,8 @@ export class ArbitraryPath<N> extends Arbitrary<N[]> {
         .map(e => e.target)
         .filter(n => !visited.has(n))
 
-      // For undirected graphs, also consider reverse edges
+      // For undirected graphs, also consider reverse edges (defensive for
+      // user-provided graphs that may not maintain symmetric adjacency)
       if (!this.graph.directed) {
         for (const [source, adj] of this.graph.edges) {
           if (adj.some(e => e.target === current) && !visited.has(source)) {
