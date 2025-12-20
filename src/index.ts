@@ -61,7 +61,6 @@ export {
   StreamingMinMax,
   StreamingQuantiles,
   DistributionTracker,
-  // Statistical utilities
   calculateBayesianConfidence,
   calculateCredibleInterval,
   wilsonScoreInterval,
@@ -122,7 +121,6 @@ export {
   regex,
   patterns,
   shrinkRegexString,
-  // Presets
   positiveInt,
   negativeInt,
   nonZeroInt,
@@ -134,3 +132,15 @@ export {
   optional,
   type Arbitrary
 } from './arbitraries/index.js'
+export {
+  stateful,
+  StatefulBuilder,
+  CommandBuilder,
+  PostBuilder,
+  type StatefulCheckConfig,
+  type StatefulResult,
+  type StoredCommand,
+  type CommandExecution,
+  type Invariant,
+  type BuilderState
+} from './stateful/index.js'

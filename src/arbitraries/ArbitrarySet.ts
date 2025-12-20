@@ -2,8 +2,8 @@ import type {FluentPick, ExactSize} from './types.js'
 import type {HashFunction, EqualsFunction} from './Arbitrary.js'
 import {Arbitrary} from './internal.js'
 import {exactSize, FNV_OFFSET_BASIS, mix} from './util.js'
-import {factorial} from '../statistics.js'
 import * as fc from './index.js'
+import jstat from 'jstat'
 
 export class ArbitrarySet<A> extends Arbitrary<A[]> {
   readonly max: number
@@ -14,10 +14,10 @@ export class ArbitrarySet<A> extends Arbitrary<A[]> {
   }
 
   override size(): ExactSize {
-    const comb = (n: number, s: number) => { return factorial (n) / (factorial(s) * factorial(n - s)) }
-
     let value = 0
-    for (let i = this.min; i <= this.max; i++) value += comb(this.elements.length, i)
+    for (let i = this.min; i <= this.max; i++) {
+      value += jstat.combination(this.elements.length, i)
+    }
 
     return exactSize(value)
   }

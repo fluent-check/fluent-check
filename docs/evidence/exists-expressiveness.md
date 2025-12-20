@@ -104,10 +104,25 @@ for (let i = 2; i < n; i++) {
 
 ```typescript
 // FluentCheck: Is there a valid path from start to goal?
+// Using the graph and path arbitraries for automatic generation and shrinking
+fc.scenario()
+  .forall('graph', fc.directedGraph(10, {min: 5, max: 20}))
+  .exists('path', ({graph}) => fc.path(graph, 0, 9))
+  .then(({path}) => {
+    // Property: Assert that a path was found.
+    // The fc.path arbitrary guarantees it's a valid path from 0 to 9.
+    return path.length > 0
+  })
+  .check()
+```
+
+**Alternative with given:**
+```typescript
+// For a specific graph structure
 fc.scenario()
   .given('graph', () => buildGraph())
-  .exists('path', fc.array(fc.integer(0, 10), 1, 5))
-  .then(({graph, path}) => isValidPath(graph, path, 0, 10))
+  .exists('path', ({graph}) => fc.path(graph, 0, 9))
+  .then(({path}) => path.length > 0)
   .check()
 ```
 

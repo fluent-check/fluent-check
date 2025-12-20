@@ -360,7 +360,6 @@ export class FluentCheck<
     return runCheck(scenario, executionConfig, options)
   }
 
-
   /**
    * Check the property and verify coverage requirements.
    * Executes tests and verifies that all coverage requirements are satisfied using statistical confidence intervals.

@@ -154,3 +154,203 @@ export type Validated<T extends Record<string, unknown>> = Required<T>
  * ```
  */
 export type NonEmptyArray<T> = [T, ...T[]]
+
+// ============================================================================
+// Graph Types
+// ============================================================================
+
+/**
+ * Represents an edge in a graph.
+ *
+ * @typeParam N - The node type
+ * @typeParam E - The edge weight type (void for unweighted graphs)
+ */
+export type Edge<N, E = void> = E extends void
+  ? { source: N; target: N }
+  : { source: N; target: N; weight: E }
+
+/**
+ * Adjacency list entry for a node's outgoing edges.
+ *
+ * @typeParam N - The node type
+ * @typeParam E - The edge weight type (void for unweighted graphs)
+ */
+export type AdjacencyEntry<N, E = void> = E extends void
+  ? { target: N }
+  : { target: N; weight: E }
+
+/**
+ * Represents a graph with nodes and edges.
+ *
+ * Uses adjacency list representation for efficient traversal.
+ *
+ * @typeParam N - The node type (default: number)
+ * @typeParam E - The edge weight type (void for unweighted graphs)
+ *
+ * @example
+ * ```typescript
+ * // Unweighted directed graph
+ * const graph: Graph<number> = {
+ *   nodes: [0, 1, 2],
+ *   edges: new Map([
+ *     [0, [{ target: 1 }, { target: 2 }]],
+ *     [1, [{ target: 2 }]]
+ *   ]),
+ *   directed: true
+ * }
+ *
+ * // Weighted undirected graph
+ * const weighted: Graph<string, number> = {
+ *   nodes: ['A', 'B', 'C'],
+ *   edges: new Map([
+ *     ['A', [{ target: 'B', weight: 5 }]],
+ *     ['B', [{ target: 'A', weight: 5 }, { target: 'C', weight: 3 }]],
+ *     ['C', [{ target: 'B', weight: 3 }]]
+ *   ]),
+ *   directed: false
+ * }
+ * ```
+ */
+export interface Graph<N = number, E = void> {
+  /** Array of all nodes in the graph */
+  nodes: N[]
+  /** Adjacency list mapping each node to its outgoing edges */
+  edges: Map<N, AdjacencyEntry<N, E>[]>
+  /** Whether the graph is directed */
+  directed: boolean
+}
+
+/**
+ * Configuration for graph generation.
+ *
+ * @typeParam N - The node type
+ * @typeParam E - The edge weight type
+ */
+export interface GraphConfig<N = number, E = void> {
+  /**
+   * Number of nodes or an arbitrary generating the node array.
+   * If a number, nodes are integers 0 to n-1.
+   */
+  nodes: number | N[]
+  /**
+   * Number of edges or an arbitrary generating the edge count.
+   * Defaults to [0, maxPossibleEdges].
+   */
+  edges?: number | { min: number; max: number }
+  /** Whether to generate directed graphs (default: true) */
+  directed?: boolean
+  /** Arbitrary for generating edge weights (makes this a weighted graph) */
+  weights?: E extends void ? never : unknown
+  /** Ensure the graph is connected (default: false) */
+  connected?: boolean
+  /** Ensure the graph is acyclic - only valid for directed graphs (default: false) */
+  acyclic?: boolean
+}
+
+/**
+ * Configuration for path generation within a graph.
+ */
+export interface PathConfig<N> {
+  /** The graph to generate paths in */
+  graph: Graph<N, unknown>
+  /** Source node to start from */
+  source: N
+  /** Optional target node to reach */
+  target?: N
+  /** Maximum path length (number of nodes) */
+  maxLength?: number
+}
+
+// ============================================================================
+// FSM (Finite State Machine) Types
+// ============================================================================
+
+/**
+ * Represents a transition in a Finite State Machine.
+ *
+ * @typeParam S - The state type
+ * @typeParam E - The event/input type
+ */
+export interface Transition<S, E> {
+  /** Source state */
+  from: S
+  /** Target state */
+  to: S
+  /** Event/input that triggers this transition */
+  event: E
+  /** Optional guard condition (transition only fires if guard returns true) */
+  guard?: () => boolean
+}
+
+/**
+ * Represents a Finite State Machine.
+ *
+ * @typeParam S - The state type (default: number)
+ * @typeParam E - The event/input type (default: string)
+ *
+ * @example
+ * ```typescript
+ * // Traffic light FSM
+ * const trafficLight: FSM<'red' | 'yellow' | 'green', 'timer'> = {
+ *   states: ['red', 'yellow', 'green'],
+ *   alphabet: ['timer'],
+ *   initial: 'red',
+ *   accepting: ['green'],
+ *   transitions: new Map([
+ *     ['red', [{ to: 'green', event: 'timer' }]],
+ *     ['green', [{ to: 'yellow', event: 'timer' }]],
+ *     ['yellow', [{ to: 'red', event: 'timer' }]]
+ *   ])
+ * }
+ * ```
+ */
+export interface FSM<S = number, E = string> {
+  /** All states in the FSM */
+  states: S[]
+  /** The input alphabet (set of possible events) */
+  alphabet: E[]
+  /** The initial state */
+  initial: S
+  /** Accepting/final states (optional, empty means all states accept) */
+  accepting: S[]
+  /** Transitions: Map from state to array of outgoing transitions */
+  transitions: Map<S, Array<{ to: S; event: E }>>
+}
+
+/**
+ * Represents an execution trace of an FSM.
+ *
+ * @typeParam S - The state type
+ * @typeParam E - The event type
+ */
+export interface FSMTrace<S, E> {
+  /** Sequence of states visited */
+  states: S[]
+  /** Sequence of events that triggered transitions */
+  events: E[]
+}
+
+/**
+ * Configuration for FSM generation.
+ *
+ * @typeParam S - The state type
+ * @typeParam E - The event type
+ */
+export interface FSMConfig<S = number, E = string> {
+  /** Number of states or array of state values */
+  states: number | S[]
+  /** The input alphabet */
+  alphabet: E[]
+  /** Minimum number of transitions per state (default: 0) */
+  minTransitionsPerState?: number
+  /** Maximum number of transitions per state (default: alphabet.length) */
+  maxTransitionsPerState?: number
+  /** Whether to ensure all states are reachable from initial (default: true) */
+  connected?: boolean
+  /** Whether to ensure the FSM is deterministic (default: true) */
+  deterministic?: boolean
+  /** Minimum number of accepting states (default: 1) */
+  minAccepting?: number
+  /** Maximum number of accepting states (default: states/2) */
+  maxAccepting?: number
+}

@@ -29,6 +29,8 @@ FluentCheck offers a powerful yet intuitive approach to property testing:
 - **Given-When-Then Pattern**: Structure tests in a clear, consistent way
 - **Chained Type Inference**: Maintain type information through transformations
 - **Corner Case Prioritization**: Ensure edge cases are thoroughly tested
+- **Stateful Testing**: Test stateful systems with model-based testing
+- **Graph & FSM Arbitraries**: Generate complex graph structures and finite state machines
 
 ## Requirements
 

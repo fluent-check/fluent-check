@@ -13,10 +13,29 @@ import {
 } from './internal.js'
 
 export * from './types.js'
-import type {NonEmptyArray, ExactSizeArbitrary} from './types.js'
+import type {NonEmptyArray, ExactSizeArbitrary, Graph, GraphConfig, FSM, FSMConfig, FSMTrace} from './types.js'
 export {Arbitrary, type HashFunction, type EqualsFunction} from './internal.js'
-export type {ArbitrarySize} from './types.js'
+export type {
+  ArbitrarySize, Graph, Edge, AdjacencyEntry, GraphConfig, PathConfig,
+  FSM, FSMConfig, FSMTrace, Transition
+} from './types.js'
 export {NoArbitrary} from './NoArbitrary.js'
+import {ArbitraryGraph} from './ArbitraryGraph.js'
+import {ArbitraryPath} from './ArbitraryPath.js'
+import {ArbitraryFSM, ArbitraryFSMTrace} from './ArbitraryFSM.js'
+export {ArbitraryGraph} from './ArbitraryGraph.js'
+export {ArbitraryPath} from './ArbitraryPath.js'
+export {ArbitraryFSM, ArbitraryFSMTrace} from './ArbitraryFSM.js'
+export {
+  isDeadlockFree,
+  allStatesReachable,
+  hasLiveness,
+  getReachableStates,
+  isDeterministic,
+  invariantHolds,
+  findDeadlocks,
+  simulate
+} from './ArbitraryFSM.js'
 
 // Helper to assert that an Arbitrary is ExactSizeArbitrary at factory boundaries
 const asExact = <A>(arb: Arbitrary<A>): ExactSizeArbitrary<A> => arb as ExactSizeArbitrary<A>
@@ -117,4 +136,248 @@ type UnwrapSchema<S extends RecordSchema> =
 export const record = <S extends RecordSchema>(schema: S): Arbitrary<UnwrapSchema<S>> => {
   if (Object.values(schema).some(a => a === NoArbitrary)) return NoArbitrary
   return new ArbitraryRecord(schema)
+}
+
+// ============================================================================
+// Graph Arbitraries
+// ============================================================================
+
+/**
+ * Creates an arbitrary that generates graphs with configurable topology.
+ *
+ * @param config - Configuration for graph generation
+ * @returns An arbitrary generating graphs
+ *
+ * @example
+ * ```typescript
+ * // Generate directed graphs with 5 nodes and 3-10 edges
+ * const g = fc.graph({nodes: 5, edges: {min: 3, max: 10}, directed: true})
+ *
+ * // Generate graphs with custom node labels
+ * const labeled = fc.graph({nodes: ['A', 'B', 'C', 'D']})
+ * ```
+ */
+export function graph(config: Omit<GraphConfig<number>, 'nodes'> & { nodes: number }): Arbitrary<Graph<number>>
+export function graph<N>(config: Omit<GraphConfig<N>, 'nodes'> & { nodes: N[] }): Arbitrary<Graph<N>>
+export function graph<N = number>(config: GraphConfig<N>): Arbitrary<Graph<N>>
+export function graph<N = number>(
+  config: GraphConfig<N>
+): Arbitrary<Graph<N>> {
+  if (typeof config.nodes === 'number' && config.nodes < 0) return NoArbitrary
+  if (Array.isArray(config.nodes) && config.nodes.length === 0 && config.edges !== undefined) {
+    const edges = config.edges
+    const minEdges = typeof edges === 'number' ? edges : edges.min
+    if (minEdges > 0) return NoArbitrary
+  }
+  return new ArbitraryGraph(config)
+}
+
+/**
+ * Creates an arbitrary that generates directed graphs.
+ *
+ * @param nodes - Number of nodes or array of node values
+ * @param edges - Optional edge configuration
+ * @returns An arbitrary generating directed graphs
+ *
+ * @example
+ * ```typescript
+ * // Generate directed graphs with 5 nodes
+ * const g = fc.directedGraph(5)
+ *
+ * // Generate directed graphs with 5 nodes and 3-10 edges
+ * const g2 = fc.directedGraph(5, {min: 3, max: 10})
+ * ```
+ */
+export const directedGraph = <N = number>(
+  nodes: number | N[],
+  edges?: number | {min: number; max: number}
+): Arbitrary<Graph<N>> => {
+  return graph({nodes, edges, directed: true} as GraphConfig<N>)
+}
+
+/**
+ * Creates an arbitrary that generates undirected graphs.
+ *
+ * @param nodes - Number of nodes or array of node values
+ * @param edges - Optional edge configuration
+ * @returns An arbitrary generating undirected graphs
+ *
+ * @example
+ * ```typescript
+ * // Generate undirected graphs with 5 nodes
+ * const g = fc.undirectedGraph(5)
+ * ```
+ */
+export const undirectedGraph = <N = number>(
+  nodes: number | N[],
+  edges?: number | {min: number; max: number}
+): Arbitrary<Graph<N>> => {
+  return graph({nodes, edges, directed: false} as GraphConfig<N>)
+}
+
+/**
+ * Creates an arbitrary that generates weighted graphs.
+ *
+ * @param config - Configuration for graph generation
+ * @param weightArbitrary - Arbitrary for generating edge weights
+ * @returns An arbitrary generating weighted graphs
+ *
+ * @example
+ * ```typescript
+ * // Generate weighted graphs with integer edge weights
+ * const g = fc.weightedGraph({nodes: 5}, fc.integer(1, 100))
+ * ```
+ */
+export const weightedGraph = <N = number, E = number>(
+  config: Omit<GraphConfig<N, E>, 'weights'>,
+  weightArbitrary: Arbitrary<E>
+): Arbitrary<Graph<N, E>> => {
+  if (typeof config.nodes === 'number' && config.nodes < 0) return NoArbitrary
+  return new ArbitraryGraph(config as GraphConfig<N, E>, weightArbitrary)
+}
+
+/**
+ * Creates an arbitrary that generates connected graphs.
+ *
+ * All nodes in generated graphs are reachable from any other node.
+ *
+ * @param nodes - Number of nodes or array of node values
+ * @param edges - Optional edge configuration (minimum will be adjusted for connectivity)
+ * @returns An arbitrary generating connected graphs
+ *
+ * @example
+ * ```typescript
+ * // Generate connected graphs with 5 nodes
+ * const g = fc.connectedGraph(5)
+ * ```
+ */
+export const connectedGraph = <N = number>(
+  nodes: number | N[],
+  edges?: number | {min: number; max: number}
+): Arbitrary<Graph<N>> => {
+  return graph({nodes, edges, directed: false, connected: true} as GraphConfig<N>)
+}
+
+/**
+ * Creates an arbitrary that generates directed acyclic graphs (DAGs).
+ *
+ * @param nodes - Number of nodes or array of node values
+ * @param edges - Optional edge configuration
+ * @returns An arbitrary generating DAGs
+ *
+ * @example
+ * ```typescript
+ * // Generate DAGs with 5 nodes
+ * const g = fc.dag(5)
+ * ```
+ */
+export const dag = <N = number>(
+  nodes: number | N[],
+  edges?: number | {min: number; max: number}
+): Arbitrary<Graph<N>> => {
+  return graph({nodes, edges, directed: true, acyclic: true} as GraphConfig<N>)
+}
+
+/**
+ * Creates an arbitrary that generates valid paths within a graph.
+ *
+ * @param graphValue - The graph to generate paths in
+ * @param source - Source node to start from
+ * @param target - Optional target node to reach
+ * @param maxLength - Maximum path length (default: 10)
+ * @returns An arbitrary generating valid paths, or NoArbitrary if no path is possible
+ *
+ * @example
+ * ```typescript
+ * // Generate paths starting from node 0
+ * const p = fc.path(myGraph, 0)
+ *
+ * // Generate paths from node 0 to node 5
+ * const p2 = fc.path(myGraph, 0, 5)
+ *
+ * // With exists quantifier for reachability testing
+ * fc.scenario()
+ *   .given('graph', () => buildGraph())
+ *   .exists('path', ({graph}) => fc.path(graph, 0, 9))
+ *   .then(({path}) => path.length > 0)
+ *   .check()
+ * ```
+ */
+export const path = <N>(
+  graphValue: Graph<N, unknown>,
+  source: N,
+  target?: N,
+  maxLength = 10
+): Arbitrary<N[]> => {
+  // Check if source exists in graph
+  if (!graphValue.nodes.includes(source)) return NoArbitrary
+
+  // Check if target exists in graph (if specified)
+  if (target !== undefined && !graphValue.nodes.includes(target)) return NoArbitrary
+
+  return new ArbitraryPath(graphValue, source, target, maxLength)
+}
+
+// ============================================================================
+// FSM (Finite State Machine) Arbitraries
+// ============================================================================
+
+/**
+ * Creates an arbitrary that generates Finite State Machines.
+ *
+ * @param config - Configuration for FSM generation
+ * @returns An arbitrary generating FSMs
+ *
+ * @example
+ * ```typescript
+ * // Generate FSMs with 5 states and a simple alphabet
+ * const fsmArb = fc.fsm({
+ *   states: 5,
+ *   alphabet: ['a', 'b', 'c']
+ * })
+ *
+ * // Generate FSMs with named states
+ * const namedFsm = fc.fsm({
+ *   states: ['idle', 'running', 'stopped'],
+ *   alphabet: ['start', 'stop', 'reset']
+ * })
+ * ```
+ */
+export function fsm<E = string>(config: Omit<FSMConfig<number, E>, 'states'> & { states: number }): Arbitrary<FSM<number, E>>
+export function fsm<S, E = string>(config: Omit<FSMConfig<S, E>, 'states'> & { states: S[] }): Arbitrary<FSM<S, E>>
+export function fsm<S = number, E = string>(config: FSMConfig<S, E>): Arbitrary<FSM<S, E>>
+export function fsm<S = number, E = string>(
+  config: FSMConfig<S, E>
+): Arbitrary<FSM<S, E>> {
+  const stateCount = typeof config.states === 'number' ? config.states : config.states.length
+  if (stateCount === 0 || config.alphabet.length === 0) return NoArbitrary
+  return new ArbitraryFSM(config)
+}
+
+/**
+ * Creates an arbitrary that generates execution traces for an FSM.
+ *
+ * @param fsmValue - The FSM to generate traces for
+ * @param maxLength - Maximum trace length (default: 10)
+ * @param reachAccepting - If true, traces prefer to reach accepting states
+ * @returns An arbitrary generating valid FSM traces
+ *
+ * @example
+ * ```typescript
+ * fc.scenario()
+ *   .forall('machine', fc.fsm({states: 4, alphabet: ['a', 'b']}))
+ *   .forall('trace', ({machine}) => fc.fsmTrace(machine, 5))
+ *   .then(({machine, trace}) => {
+ *     // Verify trace is valid
+ *     return trace.events.length === trace.states.length - 1
+ *   })
+ *   .check()
+ * ```
+ */
+export const fsmTrace = <S, E>(
+  fsmValue: FSM<S, E>,
+  maxLength = 10,
+  reachAccepting = false
+): Arbitrary<FSMTrace<S, E>> => {
+  return new ArbitraryFSMTrace(fsmValue, maxLength, reachAccepting)
 }
