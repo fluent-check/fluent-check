@@ -61,7 +61,6 @@ export {
   StreamingMinMax,
   StreamingQuantiles,
   DistributionTracker,
-  // Statistical utilities
   calculateBayesianConfidence,
   calculateCredibleInterval,
   wilsonScoreInterval,
@@ -122,7 +121,6 @@ export {
   regex,
   patterns,
   shrinkRegexString,
-  // Presets
   positiveInt,
   negativeInt,
   nonZeroInt,
@@ -132,40 +130,17 @@ export {
   pair,
   nullable,
   optional,
-  // Graph arbitraries
-  graph,
-  directedGraph,
-  undirectedGraph,
-  weightedGraph,
-  connectedGraph,
-  dag,
-  path,
-  // FSM arbitraries
-  fsm,
-  fsmTrace,
-  isDeadlockFree,
-  allStatesReachable,
-  hasLiveness,
-  getReachableStates,
-  isDeterministic,
-  invariantHolds,
-  findDeadlocks,
-  simulate,
-  type Arbitrary,
-  type Graph,
-  type FSM,
-  type FSMTrace
+  type Arbitrary
 } from './arbitraries/index.js'
-
-// Stateful testing
 export {
   stateful,
   StatefulBuilder,
-  type Command,
-  type StatefulConfig,
+  CommandBuilder,
+  PostBuilder,
   type StatefulCheckConfig,
   type StatefulResult,
-  type ExecutedCommand,
-  type CommandSequence,
-  type Invariant
+  type StoredCommand,
+  type CommandExecution,
+  type Invariant,
+  type BuilderState
 } from './stateful/index.js'

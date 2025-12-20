@@ -1,89 +1,94 @@
 import type {Arbitrary} from '../arbitraries/internal.js'
 
-/**
- * Configuration for running stateful tests.
- */
+type Prettify<T> = { [K in keyof T]: T[K] } & {}
+
 export interface StatefulCheckConfig {
-  /** Number of test runs (default: 100) */
   numRuns?: number
-  /** Maximum number of commands per sequence (default: 50) */
   maxCommands?: number
-  /** Random seed for reproducibility */
   seed?: number
-  /** Enable verbose logging */
   verbose?: boolean
 }
 
-/**
- * Result of a stateful test run.
- */
 export interface StatefulResult<M, S> {
-  /** Whether all tests passed */
   success: boolean
-  /** Number of tests run */
   numRuns: number
-  /** If failed, the failing command sequence */
-  failingSequence?: ExecutedCommand<M, S, unknown>[] | undefined
-  /** If failed, the shrunk minimal sequence */
-  shrunkSequence?: ExecutedCommand<M, S, unknown>[] | undefined
-  /** Error message if failed */
+  failingSequence?: CommandExecution<M, S>[] | undefined
+  shrunkSequence?: CommandExecution<M, S>[] | undefined
   error?: string | undefined
-  /** Random seed used */
   seed: number
 }
 
-/**
- * A command definition for stateful testing.
- *
- * @typeParam M - Model type
- * @typeParam S - System under test type
- * @typeParam Args - Command arguments type (record of arbitrary values)
- */
-export interface Command<M, S, Args extends Record<string, unknown>> {
-  /** Unique name identifying this command */
-  name: string
-  /** Arbitraries for generating command arguments */
-  args: { [K in keyof Args]: Arbitrary<Args[K]> }
-  /** Precondition: command is only selected when this returns true */
-  pre?: ((model: M) => boolean) | undefined
-  /** Execute the command, mutating model and SUT */
-  run: (args: Args, model: M, sut: S) => unknown
-  /** Postcondition: checked after run() completes */
-  post?: ((args: Args, model: M, sut: S, result: unknown) => boolean) | undefined
+export type CommandArbitraries<Args extends Record<string, unknown>> = {
+  readonly [K in keyof Args]: Arbitrary<Args[K]>
 }
 
-/**
- * An executed command with its generated arguments.
- */
-export interface ExecutedCommand<M, S, Args> {
-  /** The command definition */
-  command: Command<M, S, Args extends Record<string, unknown> ? Args : Record<string, unknown>>
-  /** The generated argument values */
-  args: Args
-  /** Result returned by run() */
+export interface StoredCommand<M, S> {
+  readonly name: string
+  readonly arbitraries: Record<string, Arbitrary<unknown>>
+  readonly precondition: ((model: M) => boolean) | undefined
+  readonly execute: (args: Record<string, unknown>, model: M, sut: S) => unknown
+  readonly postcondition: ((args: Record<string, unknown>, model: M, sut: S, result: unknown) => boolean) | undefined
+}
+
+export interface CommandExecution<M, S> {
+  readonly command: StoredCommand<M, S>
+  readonly args: Record<string, unknown>
   result?: unknown
 }
 
-/**
- * A sequence of commands to execute.
- */
-export type CommandSequence<M, S> = ExecutedCommand<M, S, unknown>[]
+export type CommandSequence<M, S> = CommandExecution<M, S>[]
 
-/**
- * Invariant function checked after each command.
- */
 export type Invariant<M, S> = (model: M, sut: S) => boolean
 
-/**
- * Internal configuration built by the fluent API.
- */
 export interface StatefulConfig<M, S> {
-  /** Factory function to create fresh model instances */
-  modelFactory: () => M
-  /** Factory function to create fresh SUT instances */
-  sutFactory: () => S
-  /** Registered commands */
-  commands: Command<M, S, Record<string, unknown>>[]
-  /** Registered invariants */
-  invariants: Invariant<M, S>[]
+  readonly modelFactory: () => M
+  readonly sutFactory: () => S
+  readonly commands: readonly StoredCommand<M, S>[]
+  readonly invariants: readonly Invariant<M, S>[]
 }
+
+export interface BuilderState<M, S> {
+  readonly modelFactory: (() => M) | undefined
+  readonly sutFactory: (() => S) | undefined
+  readonly commands: readonly StoredCommand<M, S>[]
+  readonly invariants: readonly Invariant<M, S>[]
+}
+
+export function emptyBuilderState<M, S>(): BuilderState<M, S> {
+  return {
+    modelFactory: undefined,
+    sutFactory: undefined,
+    commands: [],
+    invariants: []
+  }
+}
+
+export function withModelFactory<M, S>(
+  state: BuilderState<M, S>,
+  factory: () => M
+): BuilderState<M, S> {
+  return {...state, modelFactory: factory}
+}
+
+export function withSutFactory<M, S>(
+  state: BuilderState<M, S>,
+  factory: () => S
+): BuilderState<M, S> {
+  return {...state, sutFactory: factory}
+}
+
+export function withCommand<M, S>(
+  state: BuilderState<M, S>,
+  command: StoredCommand<M, S>
+): BuilderState<M, S> {
+  return {...state, commands: [...state.commands, command]}
+}
+
+export function withInvariant<M, S>(
+  state: BuilderState<M, S>,
+  invariant: Invariant<M, S>
+): BuilderState<M, S> {
+  return {...state, invariants: [...state.invariants, invariant]}
+}
+
+export type {Prettify}

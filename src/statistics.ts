@@ -2,6 +2,8 @@ import jstat from 'jstat'
 import {AsyncLocalStorage} from 'node:async_hooks'
 import {stringify} from './arbitraries/util.js'
 
+export const factorial = jstat.factorial
+
 /**
  * A probability distribution (https://en.wikipedia.org/wiki/Probability_distribution).
  */
