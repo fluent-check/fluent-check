@@ -459,7 +459,7 @@ FluentCheck's shrinking consistently finds minimal or near-minimal witnesses, wi
 1. **Shrinking matters**: For predicates with clear minimal witnesses, FluentCheck finds them consistently
 2. **Effort is bounded**: Shrinking uses configurable budgets, preventing unbounded search
 3. **Non-linear predicates work**: Even when the minimal isn't obvious from the predicate structure
-4. **Shrinking overhead is minimal**: Typically 10-20% of total execution time
+4. **Exploration is fast**: Typically 1-14% of total execution time; shrinking dominates at 86-99%
 
 ---
 

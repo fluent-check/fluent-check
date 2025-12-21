@@ -250,7 +250,7 @@ def main():
 
     ax.set_xlabel('Scenario', fontsize=12)
     ax.set_ylabel('Time (ms)', fontsize=12)
-    ax.set_title('Time Breakdown: Exploration vs Shrinking', fontsize=14)
+    ax.set_title('Time Breakdown: Exploration vs Shrinking\n(Shrinking dominates: 86-99% of total time)', fontsize=14)
     ax.set_xticks(x_pos)
     ax.set_xticklabels([SCENARIO_LABELS.get(s, s).split('\n')[0] for s in results_df['scenario']],
                        fontsize=9, rotation=45, ha='right')
@@ -298,7 +298,10 @@ def main():
     print(f"\n  Time Analysis:")
     print(f"  Average exploration time: {avg_explore_time:.2f} ms")
     print(f"  Average shrinking time: {avg_shrink_time:.2f} ms")
-    print(f"  Shrinking overhead: {shrink_percentage:.1f}% of total time")
+    print(f"  Shrinking time: {shrink_percentage:.1f}% of total time")
+    print(f"  Exploration time: {100 - shrink_percentage:.1f}% of total time")
+    print(f"\n  Note: Exploration times are very small (often <0.1 ms) and may be at")
+    print(f"  measurement precision limits. The pattern is consistent: shrinking dominates.")
 
     print(f"\n✓ Shrinking analysis complete")
 
