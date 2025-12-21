@@ -286,8 +286,9 @@ async function runShrinkingStudy(): Promise<void> {
     'total_elapsed_micros'
   ])
 
-  const trialsPerScenario = getSampleSize(200, 50)
-  const sampleSize = 500 // Higher sample size to ensure witness finding
+  // Increased sample sizes for more reliable results, especially for sparse scenarios
+  const trialsPerScenario = getSampleSize(1000, 200) // 1000 trials in full mode (was 200)
+  const sampleSize = 2000 // Higher sample size to ensure witness finding for sparse predicates (was 500)
 
   const scenarios = [
     { name: 'threshold_gt_100', runner: runThresholdTrial, description: 'x > 100 (minimal: 101)' },
