@@ -23,7 +23,7 @@ import seaborn as sns
 import numpy as np
 from pathlib import Path
 from scipy import stats
-from util import wilson_score_interval, format_ci, save_figure, chi_squared_test, cohens_h, effect_size_interpretation
+from util import wilson_score_interval, save_figure, chi_squared_test, cohens_h, effect_size_interpretation
 
 # Paths
 PROJECT_ROOT = Path(__file__).parent.parent
@@ -166,8 +166,8 @@ def main():
     print("=" * 100)
 
     # Filter to found witnesses
-    fc_found_df = first_class[first_class['witness_found'] == True]
-    dn_found_df = double_neg[double_neg['witness_found'] == True]
+    fc_found_df = first_class[first_class['witness_found']]
+    dn_found_df = double_neg[double_neg['witness_found']]
 
     if len(fc_found_df) > 0 and len(dn_found_df) > 0:
         print(f"\n{'Approach':<20} {'Mean Candidates':<18} {'Mean Improvements':<18}")
@@ -319,10 +319,10 @@ def main():
     )
 
     # Agreement analysis
-    both_found = ((merged['witness_found_fc'] == True) & (merged['witness_found_dn'] == True)).sum()
-    both_not_found = ((merged['witness_found_fc'] == False) & (merged['witness_found_dn'] == False)).sum()
-    fc_only = ((merged['witness_found_fc'] == True) & (merged['witness_found_dn'] == False)).sum()
-    dn_only = ((merged['witness_found_fc'] == False) & (merged['witness_found_dn'] == True)).sum()
+    both_found = (merged['witness_found_fc'] & merged['witness_found_dn']).sum()
+    both_not_found = (~merged['witness_found_fc'] & ~merged['witness_found_dn']).sum()
+    fc_only = (merged['witness_found_fc'] & ~merged['witness_found_dn']).sum()
+    dn_only = (~merged['witness_found_fc'] & merged['witness_found_dn']).sum()
 
     total_pairs = len(merged)
     agreement_rate = (both_found + both_not_found) / total_pairs
@@ -334,7 +334,7 @@ def main():
     print(f"\n  Overall agreement: {agreement_rate*100:.1f}%")
 
     # When both found, check if they found the same value
-    both_found_df = merged[(merged['witness_found_fc'] == True) & (merged['witness_found_dn'] == True)]
+    both_found_df = merged[merged['witness_found_fc'] & merged['witness_found_dn']]
     if len(both_found_df) > 0:
         same_value = (both_found_df['witness_value_fc'] == both_found_df['witness_value_dn']).sum()
         same_rate = same_value / len(both_found_df)

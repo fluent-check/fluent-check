@@ -19,7 +19,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import numpy as np
 from pathlib import Path
-from util import wilson_score_interval, format_ci, save_figure, compute_summary_stats
+from util import wilson_score_interval, format_ci, save_figure
 
 # Paths
 PROJECT_ROOT = Path(__file__).parent.parent
@@ -59,7 +59,7 @@ def main():
     print(f"  Loaded {len(df)} trials\n")
 
     # Filter to only trials that found witnesses
-    found_df = df[df['witness_found'] == True].copy()
+    found_df = df[df['witness_found']].copy()
     print(f"  Found witnesses: {len(found_df)} ({len(found_df)/len(df)*100:.1f}%)\n")
 
     if len(found_df) == 0:
@@ -87,7 +87,7 @@ def main():
         # Distance from minimal (for non-minimal cases)
         group = group.copy()
         group['distance'] = np.abs(group['final_witness'] - group['expected_minimal'])
-        non_minimal = group[group['is_minimal'] == False]
+        non_minimal = group[~group['is_minimal']]
         mean_distance = non_minimal['distance'].mean() if len(non_minimal) > 0 else 0
 
         # Shrinking effort

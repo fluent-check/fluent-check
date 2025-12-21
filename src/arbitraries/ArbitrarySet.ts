@@ -14,7 +14,12 @@ export class ArbitrarySet<A> extends Arbitrary<A[]> {
   }
 
   override size(): ExactSize {
-    const comb = (n: number, s: number) => { return jstat.factorial(n) / (jstat.factorial(s) * jstat.factorial(n - s)) }
+    // Use log-space calculation to avoid numerical overflow for n > 170
+    const comb = (n: number, s: number) => {
+      return Math.round(
+        Math.exp(jstat.gammaln(n + 1) - jstat.gammaln(s + 1) - jstat.gammaln(n - s + 1))
+      )
+    }
 
     let value = 0
     for (let i = this.min; i <= this.max; i++) value += comb(this.elements.length, i)
