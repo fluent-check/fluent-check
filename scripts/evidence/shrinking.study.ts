@@ -287,7 +287,8 @@ async function runShrinkingStudy(): Promise<void> {
   ])
 
   // Increased sample sizes for more reliable results, especially for sparse scenarios
-  const trialsPerScenario = getSampleSize(1000, 200) // 1000 trials in full mode (was 200)
+  // Statistical target: CI width < 4% for most scenarios, at least 30-50 minimal witnesses for rare events
+  const trialsPerScenario = getSampleSize(2000, 300) // 2000 trials in full mode for reliable statistics (was 1000)
   const sampleSize = 2000 // Higher sample size to ensure witness finding for sparse predicates (was 500)
 
   const scenarios = [
