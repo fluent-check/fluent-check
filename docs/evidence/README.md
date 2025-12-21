@@ -454,12 +454,45 @@ FluentCheck's shrinking consistently finds minimal or near-minimal witnesses, wi
   - Improvements made (successful shrink steps)
   - Time spent shrinking vs exploring
 
+### Results
+
+![Minimal Witness Achievement](figures/shrinking_minimal_rate.png)
+
+*Figure 1: Rate at which shrinking finds the theoretical minimal witness (95% CI).*
+
+![Shrinking Effort and Progress](figures/shrinking_effort.png)
+
+*Figure 2: Shrinking effort (candidates tested) and progress (improvements made) by scenario.*
+
+**How to interpret Figure 2:**
+
+The two side-by-side charts show the **efficiency** of shrinking:
+
+- **Left chart (Effort)**: "Shrink Candidates Tested" — measures the *input/cost* (how much work the algorithm does)
+- **Right chart (Progress)**: "Successful Shrink Steps" — measures the *output/benefit* (how many improvements were made)
+
+**Comparing the charts reveals efficiency:**
+- **High effort + High progress** = Efficient shrinking (e.g., `x > 100`: ~155 candidates → ~13 improvements)
+- **High effort + Low progress** = Inefficient shrinking (e.g., `x > 100 ∧ x % 7 = 0`: ~190 candidates → ~9 improvements)
+- **Low effort + Zero progress** = Shrinking doesn't work (e.g., `x % 10000 = 0`: ~100 candidates → 0 improvements)
+
+The sparse predicate `x % 10000 = 0` shows minimal effort and zero progress, confirming that shrinking struggles with very sparse predicates (0.01% density).
+
+![Witness Quality](figures/shrinking_witness_quality.png)
+
+*Figure 3: Distance from minimal witness (lower is better, 0 = perfect).*
+
+![Time Breakdown](figures/shrinking_time_breakdown.png)
+
+*Figure 4: Time spent on exploration vs shrinking. Shrinking dominates: 86-99% of total time.*
+
 ### Key Insights
 
 1. **Shrinking matters**: For predicates with clear minimal witnesses, FluentCheck finds them consistently
 2. **Effort is bounded**: Shrinking uses configurable budgets, preventing unbounded search
 3. **Non-linear predicates work**: Even when the minimal isn't obvious from the predicate structure
 4. **Exploration is fast**: Typically 1-14% of total execution time; shrinking dominates at 86-99%
+5. **Efficiency varies by predicate**: Simple thresholds (`x > 100`) are most efficient; sparse predicates (`x % 10000 = 0`) don't shrink effectively
 
 ---
 
