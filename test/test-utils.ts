@@ -104,6 +104,39 @@ export function confidenceScenario(sampleSize: number, confidence: number) {
       .withSampleSize(sampleSize))
 }
 
+/**
+ * Creates a scenario that fails on the nth test.
+ * Useful for testing counterexample detection and shrinking.
+ * @param sampleSize - Maximum number of tests to run
+ * @param failOnTest - The test number that should fail (1-indexed)
+ * @returns A configured scenario builder
+ */
+export function failingScenario(sampleSize: number, failOnTest: number) {
+  let count = 0
+  return scenarioWithSampleSize(sampleSize)
+    .forall('x', fc.integer(0, 100))
+    .then(() => ++count !== failOnTest)
+}
+
+/**
+ * Creates a scenario with precondition filtering.
+ * Useful for testing discarded test statistics.
+ * @param sampleSize - Number of tests to run
+ * @param precondition - Predicate that determines which values to test
+ * @returns A configured scenario builder
+ */
+export function preconditionScenario(
+  sampleSize: number,
+  precondition: (x: number) => boolean
+) {
+  return scenarioWithSampleSize(sampleSize)
+    .forall('x', fc.integer(0, 100))
+    .then(({x}) => {
+      fc.pre(precondition(x))
+      return true
+    })
+}
+
 // ============================================================================
 // Assertion Helpers
 // ============================================================================
@@ -247,6 +280,41 @@ export function assertPositive(value: number, fieldName?: string): void {
     const msg = fieldName !== undefined ? `${fieldName} must be positive` : 'Value must be positive'
     throw new Error(`${msg}, got ${value}`)
   }
+}
+
+/**
+ * Asserts that a value is a valid probability (between 0 and 1, inclusive).
+ * @param value - The probability to check
+ * @param fieldName - Optional field name for error messages
+ */
+export function assertValidProbability(value: number, fieldName?: string): void {
+  expect(value).to.be.within(0, 1, fieldName !== undefined ? `${fieldName} must be between 0 and 1` : undefined)
+}
+
+/**
+ * Asserts that a value is a valid confidence level (between 0 and 1, inclusive).
+ * This is an alias for assertValidProbability with clearer semantics for confidence values.
+ * @param value - The confidence to check
+ * @param min - Minimum allowed value (default: 0)
+ * @param max - Maximum allowed value (default: 1)
+ * @param fieldName - Optional field name for error messages
+ */
+export function assertValidConfidence(value: number, min = 0, max = 1, fieldName?: string): void {
+  expect(value).to.be.within(min, max, fieldName !== undefined ? `${fieldName} must be between ${min} and ${max}` : undefined)
+}
+
+/**
+ * Asserts that an interval [lower, upper] is valid.
+ * Checks that both bounds are probabilities and that lower <= upper.
+ * @param lower - Lower bound of the interval
+ * @param upper - Upper bound of the interval
+ * @param fieldName - Optional field name for error messages
+ */
+export function assertValidInterval(lower: number, upper: number, fieldName?: string): void {
+  const prefix = fieldName !== undefined ? `${fieldName}: ` : ''
+  assertValidProbability(lower, `${prefix}lower bound`)
+  assertValidProbability(upper, `${prefix}upper bound`)
+  expect(lower).to.be.at.most(upper, `${prefix}lower bound must be <= upper bound`)
 }
 
 // ============================================================================
@@ -685,6 +753,24 @@ export function binaryProperty<T, U>(
     .forall('b', arbB)
     .then(({a, b}) => predicate(a, b))
     .check()
+}
+
+// ============================================================================
+// Mathematical Testing Utilities
+// ============================================================================
+
+/**
+ * Calculates a relative tolerance delta for floating-point comparisons.
+ * Uses a hybrid approach: absolute tolerance for small values, relative for large.
+ * @param expected - The expected value
+ * @param relativeTolerance - Relative tolerance factor (default: 1e-4 = 0.01%)
+ * @param minAbsolute - Minimum absolute tolerance (default: 1e-8)
+ * @returns The tolerance delta to use with closeTo assertions
+ * @example
+ * expect(actual).to.be.closeTo(expected, relativeDelta(expected))
+ */
+export function relativeDelta(expected: number, relativeTolerance = 1e-4, minAbsolute = 1e-8): number {
+  return Math.max(minAbsolute, Math.abs(expected) * relativeTolerance)
 }
 
 // ============================================================================

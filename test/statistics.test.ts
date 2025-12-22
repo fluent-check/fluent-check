@@ -15,11 +15,16 @@ import * as fc from '../src/index'
 import {it, describe} from 'mocha'
 import {expect} from 'chai'
 import stats from 'jstat'
-import {scenarioWithSampleSize, assertStatisticsInvariants, assertSatisfiable} from './test-utils.js'
+import {
+  scenarioWithSampleSize,
+  assertStatisticsInvariants,
+  assertSatisfiable,
+  failingScenario,
+  preconditionScenario,
+  relativeDelta
+} from './test-utils.js'
 
 describe('Statistics tests', () => {
-  const deltaFor = (expected: number) => Math.max(1e-8, Math.abs(expected) * 1e-4)
-
   describe('IntegerDistribution default implementations', () => {
     class TestBinomialDistribution extends IntegerDistribution {
       constructor(public readonly trials: number, public readonly p: number) { super() }
@@ -88,14 +93,14 @@ describe('Statistics tests', () => {
     it('defines the mean as a constant-time closed form expression', () => {
       for (const [trials, a, b, expectedMean] of testCases) {
         const actual = new BetaBinomialDistribution(trials, a, b).mean()
-        expect(actual).to.be.closeTo(expectedMean, deltaFor(expectedMean))
+        expect(actual).to.be.closeTo(expectedMean, relativeDelta(expectedMean))
       }
     })
 
     it('defines the mode as a constant-time closed form expression', () => {
       for (const [trials, a, b, , expectedMode] of testCases) {
         const actual = new BetaBinomialDistribution(trials, a, b).mode()
-        expect(actual).to.be.closeTo(expectedMode, deltaFor(expectedMode))
+        expect(actual).to.be.closeTo(expectedMode, relativeDelta(expectedMode))
       }
     })
 
@@ -103,7 +108,7 @@ describe('Statistics tests', () => {
       for (let n = 0; n < 100; n++) {
         const dist = new BetaBinomialDistribution(n, Math.random() * 20, Math.random() * 20)
         const pdfMean = [...Array(n + 1)].reduce((acc: number, _, i) => acc + dist.pdf(i) * i, 0)
-        expect(pdfMean).to.be.closeTo(dist.mean(), deltaFor(dist.mean()))
+        expect(pdfMean).to.be.closeTo(dist.mean(), relativeDelta(dist.mean()))
       }
     })
   })
@@ -116,25 +121,6 @@ describe('Statistics tests', () => {
         .then(() => true)
         .check()
 
-    // Helper to create a scenario that fails on nth test
-    const failOnNthScenario = (sampleSize: number, failOn: number) => {
-      let count = 0
-      return scenarioWithSampleSize(sampleSize)
-        .forall('x', fc.integer(0, 100))
-        .then(() => ++count !== failOn)
-        .check()
-    }
-
-    // Helper to create a scenario with precondition filtering
-    const filteredScenario = (sampleSize: number, filter: (x: number) => boolean) =>
-      scenarioWithSampleSize(sampleSize)
-        .forall('x', fc.integer(0, 100))
-        .then(({x}) => {
-          fc.pre(filter(x))
-          return true
-        })
-        .check()
-
     describe('testsRun', () => {
       it('equals sample size when all tests pass', () => {
         const result = passingScenario(100)
@@ -142,7 +128,7 @@ describe('Statistics tests', () => {
       })
 
       it('counts tests until counterexample found', () => {
-        const result = failOnNthScenario(1000, 7)
+        const result = failingScenario(1000, 7).check()
         expect(result.satisfiable).to.be.false
         expect(result.statistics.testsRun).to.equal(7)
       })
@@ -159,7 +145,7 @@ describe('Statistics tests', () => {
       })
 
       it('includes discarded tests in count', () => {
-        const result = filteredScenario(100, x => x % 3 === 0)
+        const result = preconditionScenario(100, x => x % 3 === 0).check()
         expect(result.statistics.testsRun).to.equal(100)
         expect(result.statistics.testsDiscarded).to.be.greaterThan(0)
       })
@@ -173,7 +159,7 @@ describe('Statistics tests', () => {
       })
 
       it('equals testsRun - testsDiscarded for satisfiable property', () => {
-        const result = filteredScenario(200, x => x < 50)
+        const result = preconditionScenario(200, x => x < 50).check()
         assertStatisticsInvariants(result)
         expect(result.statistics.testsDiscarded).to.be.greaterThan(0)
         expect(result.statistics.testsPassed).to.be.greaterThan(0)
@@ -190,7 +176,7 @@ describe('Statistics tests', () => {
       })
 
       it('counts passing tests before counterexample', () => {
-        const result = failOnNthScenario(200, 10)
+        const result = failingScenario(200, 10).check()
         expect(result.statistics.testsPassed).to.equal(9)
         assertStatisticsInvariants(result)
       })
@@ -198,7 +184,7 @@ describe('Statistics tests', () => {
 
     describe('testsDiscarded', () => {
       it('equals result.skipped', () => {
-        const result = filteredScenario(100, x => x % 2 === 0)
+        const result = preconditionScenario(100, x => x % 2 === 0).check()
         expect(result.statistics.testsDiscarded).to.equal(result.skipped)
         expect(result.skipped).to.be.greaterThan(0)
       })
@@ -259,11 +245,11 @@ describe('Statistics tests', () => {
 
     describe('statistics invariants', () => {
       it('satisfies testsRun = testsPassed + testsDiscarded for satisfiable', () => {
-        assertStatisticsInvariants(filteredScenario(150, x => x % 3 === 0))
+        assertStatisticsInvariants(preconditionScenario(150, x => x % 3 === 0).check())
       })
 
       it('satisfies testsRun = testsPassed + testsDiscarded + 1 for unsatisfiable', () => {
-        const result = failOnNthScenario(200, 15)
+        const result = failingScenario(200, 15).check()
         assertStatisticsInvariants(result)
         expect(result.statistics.testsPassed).to.equal(14)
         expect(result.statistics.testsRun).to.equal(15)
