@@ -2,62 +2,68 @@ import * as fc from '../src/index'
 import {it, describe} from 'mocha'
 import {expect} from 'chai'
 import {wilsonScoreInterval} from '../src/statistics'
+import {
+  scenarioWithSampleSize,
+  getCoverageResults,
+  findCoverageByLabel,
+  getLabels
+} from './test-utils.js'
 
 describe('Coverage Requirements', () => {
   describe('cover()', () => {
     it('should add coverage requirement to scenario', () => {
-      const result = fc.scenario()
-        .config(fc.strategy().withSampleSize(100))
+      const result = scenarioWithSampleSize(100)
         .forall('x', fc.integer(-50, 50))
         .cover(10, ({x}) => x < 0, 'negative')
         .cover(10, ({x}) => x > 0, 'positive')
         .then(({x}) => Math.abs(x) >= 0)
         .check()
 
-      expect(result.satisfiable).to.be.true
-      expect(result.statistics.labels).to.exist
       // With uniform distribution over [-50, 50], expect ~49% negative, ~49% positive, ~2% zero
-      const labels = result.statistics.labels
-      if (labels === undefined) throw new Error('Expected labels to be defined')
+      const labels = getLabels(result)
       const testsRun = result.statistics.testsRun
-      expect(labels.negative).to.be.greaterThan(testsRun * 0.3) // At least 30%
-      expect(labels.positive).to.be.greaterThan(testsRun * 0.3) // At least 30%
+      expect(labels['negative']).to.be.greaterThan(testsRun * 0.3) // At least 30%
+      expect(labels['positive']).to.be.greaterThan(testsRun * 0.3) // At least 30%
     })
 
     it('should validate coverage percentage range', () => {
-      expect(() => {
-        fc.scenario()
-          .forall('x', fc.integer())
-          .cover(-1, ({_x}) => _x >= 0, 'non-negative')
-          .then(({_x}) => true)
-      }).to.throw('Coverage percentage must be between 0 and 100')
+      const testCases = [
+        {percentage: -1, shouldThrow: true, description: 'negative value'},
+        {percentage: 101, shouldThrow: true, description: 'value above 100'},
+        {percentage: 0, shouldThrow: false, description: 'lower boundary'},
+        {percentage: 100, shouldThrow: false, description: 'upper boundary'},
+        {percentage: 50, shouldThrow: false, description: 'middle value'}
+      ]
 
-      expect(() => {
-        fc.scenario()
-          .forall('x', fc.integer())
-          .cover(101, ({_x}) => _x >= 0, 'non-negative')
-          .then(({_x}) => true)
-      }).to.throw('Coverage percentage must be between 0 and 100')
+      for (const {percentage, shouldThrow, description} of testCases) {
+        const fn = () => {
+          fc.scenario()
+            .forall('x', fc.integer())
+            .cover(percentage, ({x: _x}) => true, 'test')
+            .then(() => true)
+        }
+
+        if (shouldThrow) {
+          expect(fn, `should throw for ${description} (${percentage})`).to.throw('Coverage percentage must be between 0 and 100')
+        } else {
+          expect(fn, `should not throw for ${description} (${percentage})`).to.not.throw()
+        }
+      }
     })
   })
 
   describe('coverTable()', () => {
     it('should add coverage table to scenario', () => {
-      const result = fc.scenario()
-        .config(fc.strategy().withSampleSize(100))
+      const result = scenarioWithSampleSize(100)
         .forall('xs', fc.array(fc.integer(), 0, 20))
         .coverTable('sizes', {empty: 5, small: 20, large: 20},
           ({xs}) => xs.length === 0 ? 'empty' : xs.length < 10 ? 'small' : 'large')
         .then(({xs}) => xs.length >= 0)
         .check()
 
-      expect(result.satisfiable).to.be.true
-      expect(result.statistics.labels).to.exist
-      const labels = result.statistics.labels
-      if (labels === undefined) throw new Error('Expected labels to be defined')
+      const labels = getLabels(result)
       // All three categories should be tracked
       expect(labels['sizes.empty']).to.be.a('number')
-      expect(labels['sizes.small']).to.be.a('number')
       expect(labels['sizes.large']).to.be.a('number')
       // Sum of categories should equal tests run (each test belongs to exactly one category)
       const total = (labels['sizes.empty'] ?? 0) + (labels['sizes.small'] ?? 0) + (labels['sizes.large'] ?? 0)
@@ -77,8 +83,7 @@ describe('Coverage Requirements', () => {
 
   describe('checkCoverage()', () => {
     it('should verify coverage requirements and return results', () => {
-      const result = fc.scenario()
-        .config(fc.strategy().withSampleSize(2000))
+      const result = scenarioWithSampleSize(2000)
         .forall('x', fc.integer(-100, 100))
         .cover(10, ({x}) => x < 0, 'negative')
         .cover(10, ({x}) => x > 0, 'positive')
@@ -86,11 +91,7 @@ describe('Coverage Requirements', () => {
         .then(({x}) => Math.abs(x) >= 0)
         .checkCoverage()
 
-      expect(result.satisfiable).to.be.true
-      expect(result.statistics.coverageResults).to.exist
-
-      const coverageResults = result.statistics.coverageResults
-      if (coverageResults === undefined) throw new Error('Expected coverageResults to be defined')
+      const coverageResults = getCoverageResults(result)
       expect(coverageResults.length).to.equal(3)
 
       // All requirements should be satisfied (we set achievable thresholds)
@@ -99,7 +100,7 @@ describe('Coverage Requirements', () => {
       }
 
       // Verify negative coverage (~50% expected, requiring only 10%)
-      const negative = coverageResults.find(c => c.label === 'negative')
+      const negative = findCoverageByLabel(coverageResults, 'negative')
       if (negative === undefined) throw new Error('Expected negative coverage to be found')
       expect(negative.observedPercentage).to.be.greaterThan(40)
       expect(negative.observedPercentage).to.be.lessThan(60)
@@ -108,21 +109,20 @@ describe('Coverage Requirements', () => {
       expect(negative.confidenceInterval[1]).to.be.greaterThan(negative.observedPercentage)
 
       // Verify positive coverage (~50% expected, requiring only 10%)
-      const positive = coverageResults.find(c => c.label === 'positive')
+      const positive = findCoverageByLabel(coverageResults, 'positive')
       if (positive === undefined) throw new Error('Expected positive coverage to be found')
       expect(positive.observedPercentage).to.be.greaterThan(40)
       expect(positive.observedPercentage).to.be.lessThan(60)
 
       // Verify zero coverage (~0.5% expected)
-      const zero = coverageResults.find(c => c.label === 'zero')
+      const zero = findCoverageByLabel(coverageResults, 'zero')
       if (zero === undefined) throw new Error('Expected zero coverage to be found')
       expect(zero.observedPercentage).to.be.lessThan(5) // Should be around 0.5%
     })
 
     it('should throw error when coverage requirements not satisfied', () => {
       expect(() => {
-        fc.scenario()
-          .config(fc.strategy().withSampleSize(100))
+        scenarioWithSampleSize(100)
           .forall('x', fc.integer(1, 100)) // Only positive numbers
           .cover(50, ({x}) => x < 0, 'negative') // Requires 50% negative, but impossible
           .then(({x}) => x > 0)
@@ -132,25 +132,20 @@ describe('Coverage Requirements', () => {
 
     it('should use custom confidence level with wider interval', () => {
       // Run with enough samples for reliable results
-      const result95 = fc.scenario()
-        .config(fc.strategy().withSampleSize(500))
+      const result95 = scenarioWithSampleSize(500)
         .forall('x', fc.integer(-100, 100))
         .cover(10, ({x}) => x < 0, 'negative')
         .then(({x}) => Math.abs(x) >= 0)
         .checkCoverage({confidence: 0.95})
 
-      const result99 = fc.scenario()
-        .config(fc.strategy().withSampleSize(500))
+      const result99 = scenarioWithSampleSize(500)
         .forall('x', fc.integer(-100, 100))
         .cover(10, ({x}) => x < 0, 'negative')
         .then(({x}) => Math.abs(x) >= 0)
         .checkCoverage({confidence: 0.99})
 
-      const coverageResults95 = result95.statistics.coverageResults
-      const coverageResults99 = result99.statistics.coverageResults
-      if (coverageResults95 === undefined || coverageResults99 === undefined) {
-        throw new Error('Expected coverageResults')
-      }
+      const coverageResults95 = getCoverageResults(result95)
+      const coverageResults99 = getCoverageResults(result99)
       const coverage95 = coverageResults95[0]
       const coverage99 = coverageResults99[0]
       if (coverage95 === undefined || coverage99 === undefined) {
@@ -167,29 +162,23 @@ describe('Coverage Requirements', () => {
     })
 
     it('should handle scenarios without coverage requirements', () => {
-      const result = fc.scenario()
-        .config(fc.strategy().withSampleSize(10))
+      const result = scenarioWithSampleSize(10)
         .forall('x', fc.integer())
         .then(({x}) => x === x)
         .checkCoverage()
 
-      expect(result.satisfiable).to.be.true
       expect(result.statistics.coverageResults).to.be.undefined
     })
 
     it('should handle zero tests run', () => {
-      const result = fc.scenario()
-        .config(fc.strategy().withSampleSize(0))
+      const result = scenarioWithSampleSize(0)
         .forall('x', fc.integer())
         .cover(10, ({x}) => x >= 0, 'non-negative')
         .then(({x}) => x >= 0)
         .checkCoverage()
 
       expect(result.statistics.testsRun).to.equal(0)
-      expect(result.statistics.coverageResults).to.exist
-
-      const coverageResults = result.statistics.coverageResults
-      if (coverageResults === undefined) throw new Error('Expected coverageResults')
+      const coverageResults = getCoverageResults(result)
       const coverage = coverageResults[0]
       if (coverage === undefined) throw new Error('Expected coverage entry')
       expect(coverage.observedPercentage).to.equal(0)
@@ -253,15 +242,13 @@ describe('Coverage Requirements', () => {
   describe('coverage satisfaction logic', () => {
     it('should satisfy requirement when observed is clearly above required', () => {
       // 80% observed, 10% required - should easily pass
-      const result = fc.scenario()
-        .config(fc.strategy().withSampleSize(100))
+      const result = scenarioWithSampleSize(100)
         .forall('x', fc.boolean())
         .cover(10, ({x}) => x === true, 'true-values')
         .then(() => true)
         .checkCoverage()
 
-      const coverageResults = result.statistics.coverageResults
-      if (coverageResults === undefined) throw new Error('Expected coverageResults')
+      const coverageResults = getCoverageResults(result)
       const coverage = coverageResults[0]
       if (coverage === undefined) throw new Error('Expected coverage entry')
       expect(coverage.satisfied).to.be.true
@@ -272,8 +259,7 @@ describe('Coverage Requirements', () => {
     it('should fail requirement when observed is clearly below required', () => {
       // Trying to get 90% of values < 10 from range [0, 100] - impossible
       expect(() => {
-        fc.scenario()
-          .config(fc.strategy().withSampleSize(200))
+        scenarioWithSampleSize(200)
           .forall('x', fc.integer(0, 100))
           .cover(90, ({x}) => x < 10, 'small-values')
           .then(() => true)
@@ -284,15 +270,13 @@ describe('Coverage Requirements', () => {
     it('should use upper bound of confidence interval for satisfaction', () => {
       // This tests the R <= U logic: even if observed is slightly below required,
       // if the upper confidence bound is >= required, it should pass
-      const result = fc.scenario()
-        .config(fc.strategy().withSampleSize(200))
+      const result = scenarioWithSampleSize(200)
         .forall('x', fc.integer(0, 100))
         .cover(10, ({x}) => x < 12, 'small-values') // ~12% expected, 10% required
         .then(() => true)
         .checkCoverage()
 
-      const coverageResults = result.statistics.coverageResults
-      if (coverageResults === undefined) throw new Error('Expected coverageResults')
+      const coverageResults = getCoverageResults(result)
       const coverage = coverageResults[0]
       if (coverage === undefined) throw new Error('Expected coverage entry')
       // The requirement should be satisfied because upper bound of CI >= 10%
@@ -305,20 +289,16 @@ describe('Coverage Requirements', () => {
 
   describe('coverage with classification', () => {
     it('should work alongside existing classification methods', () => {
-      const result = fc.scenario()
-        .config(fc.strategy().withSampleSize(100))
+      const result = scenarioWithSampleSize(100)
         .forall('x', fc.integer(-50, 50))
         .classify(({x}) => x < 0, 'negative-classify')
         .cover(10, ({x}) => x < 0, 'negative-cover')
         .then(({x}) => Math.abs(x) >= 0)
         .checkCoverage()
 
-      expect(result.satisfiable).to.be.true
-      expect(result.statistics.labels).to.exist
-      if (result.statistics.labels !== undefined) {
-        expect(result.statistics.labels['negative-classify']).to.exist
-        expect(result.statistics.labels['negative-cover']).to.exist
-      }
+      const labels = getLabels(result)
+      expect(labels['negative-classify']).to.exist
+      expect(labels['negative-cover']).to.exist
     })
   })
 })

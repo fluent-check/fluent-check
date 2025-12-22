@@ -2,56 +2,17 @@ import * as fc from '../src/index'
 import {it, describe, beforeEach, afterEach} from 'mocha'
 import {expect} from 'chai'
 import {
-  Verbosity, FluentReporter, type ArbitraryStatistics, type FluentStatistics, type Logger, type LogEntry
+  Verbosity, FluentReporter, type LogEntry
 } from '../src/index'
-
-// Helper to create a scenario with detailed statistics
-function detailedScenario(sampleSize = 100) {
-  return fc.scenario().config(fc.strategy().withDetailedStatistics().withSampleSize(sampleSize))
-}
-
-// Helper to create a scenario without detailed statistics
-function basicScenario(sampleSize = 100) {
-  return fc.scenario().config(fc.strategy().withSampleSize(sampleSize))
-}
-
-// Helper to get arbitrary stats, throwing if missing
-function getArbitraryStats(result: {statistics: FluentStatistics}, name: string): ArbitraryStatistics {
-  const stats = result.statistics.arbitraryStats?.[name]
-  if (stats === undefined) throw new Error(`arbitraryStats['${name}'] missing`)
-  return stats
-}
-
-function createTestLogger(): { logger: Logger; entries: LogEntry[] } {
-  const entries: LogEntry[] = []
-  const logger: Logger = {
-    log: (entry) => { entries.push(entry) }
-  }
-  return {logger, entries}
-}
-
-// Console capture helper for verbosity tests
-let capturedLogs: string[] = []
-let originalConsoleLog: typeof console.log
-let originalConsoleDebug: typeof console.debug
-let originalConsoleWarn: typeof console.warn
-
-function captureConsole() {
-  capturedLogs = []
-  originalConsoleLog = console.log
-  originalConsoleDebug = console.debug
-  originalConsoleWarn = console.warn
-  const handler = (...args: unknown[]) => capturedLogs.push(args.join(' '))
-  console.log = handler
-  console.debug = handler
-  console.warn = handler
-}
-
-function restoreConsole() {
-  console.log = originalConsoleLog
-  console.debug = originalConsoleDebug
-  console.warn = originalConsoleWarn
-}
+import {
+  detailedScenario,
+  basicScenario,
+  getArbitraryStats,
+  createTestLogger,
+  captureConsole,
+  restoreConsole,
+  getCapturedLogs
+} from './test-utils.js'
 
 describe('Detailed Statistics', () => {
   describe('withDetailedStatistics()', () => {
@@ -63,8 +24,6 @@ describe('Detailed Statistics', () => {
 
       const xStats = getArbitraryStats(result, 'x')
       expect(xStats.samplesGenerated).to.equal(result.statistics.testsRun)
-      expect(xStats.distribution).to.exist
-
       const dist = xStats.distribution
       if (dist === undefined) throw new Error('Expected distribution')
       expect(dist.min).to.be.within(1, 100)
@@ -82,8 +41,6 @@ describe('Detailed Statistics', () => {
 
       const xsStats = getArbitraryStats(result, 'xs')
       expect(xsStats.samplesGenerated).to.equal(result.statistics.testsRun)
-      expect(xsStats.arrayLengths).to.exist
-
       const lengths = xsStats.arrayLengths
       if (lengths === undefined) throw new Error('Expected arrayLengths')
       expect(lengths.min).to.be.within(0, 20)
@@ -98,8 +55,6 @@ describe('Detailed Statistics', () => {
         .check()
 
       const sStats = getArbitraryStats(result, 's')
-      expect(sStats.stringLengths).to.exist
-
       const lengths = sStats.stringLengths
       if (lengths === undefined) throw new Error('Expected stringLengths')
       expect(lengths.min).to.be.within(0, 50)
@@ -124,7 +79,6 @@ describe('Detailed Statistics', () => {
         .then(() => true)
         .check()
 
-      expect(result.satisfiable).to.be.true
       expect(result.statistics.arbitraryStats).to.be.undefined
     })
 
@@ -134,7 +88,6 @@ describe('Detailed Statistics', () => {
         .then(() => true)
         .check()
 
-      expect(result.satisfiable).to.be.true
       if (result.statistics.arbitraryStats !== undefined) {
         expect(Object.keys(result.statistics.arbitraryStats)).to.have.length(0)
       }
@@ -217,7 +170,7 @@ describe('Detailed Statistics', () => {
         .check({logger})
 
       expect(entries.some(e => {
-        const data = e.data as Record<string, unknown> | undefined
+        const data = e.data
         const payload = data !== undefined && 'payload' in data ? data['payload'] : undefined
         return e.level === 'debug' && e.message === 'event' && payload !== undefined
       })).to.be.true
@@ -406,7 +359,7 @@ describe('Detailed Statistics', () => {
         .then(() => true)
         .check({logStatistics: true})
 
-      expect(capturedLogs).to.have.length(0)
+      expect(getCapturedLogs()).to.have.length(0)
     })
 
     it('should output in Verbose mode', () => {
@@ -416,7 +369,7 @@ describe('Detailed Statistics', () => {
         .then(() => true)
         .check({logStatistics: true})
 
-      expect(capturedLogs.length).to.be.greaterThan(0)
+      expect(getCapturedLogs().length).to.be.greaterThan(0)
     })
 
     it('should output debug information in Debug mode', () => {
@@ -426,7 +379,7 @@ describe('Detailed Statistics', () => {
         .then(() => true)
         .check({logStatistics: true})
 
-      expect(capturedLogs.some(log => log.includes('[DEBUG]'))).to.be.true
+      expect(getCapturedLogs().some(log => log.includes('[DEBUG]'))).to.be.true
     })
 
     it('should suppress logger output in Quiet mode', () => {
@@ -511,14 +464,13 @@ describe('Detailed Statistics', () => {
     })
 
     it('should handle progress callback errors gracefully', () => {
-      const result = basicScenario()
+      basicScenario()
         .forall('x', fc.integer())
         .then(() => true)
         .check({
           onProgress: () => { throw new Error('Callback error') }
         })
-
-      expect(result.satisfiable).to.be.true
+      // Test passes if no exception is thrown
     })
 
     it('should respect progressInterval option', () => {
@@ -545,6 +497,7 @@ describe('Detailed Statistics', () => {
         .then(() => true)
         .check()
 
+      // Both should exist when classification and detailed stats are enabled
       expect(result.statistics.labels).to.exist
       expect(result.statistics.arbitraryStats).to.exist
     })

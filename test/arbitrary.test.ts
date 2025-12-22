@@ -1,65 +1,79 @@
 import * as fc from '../src/index.js'
 import {exactSize, estimatedSize} from '../src/arbitraries/index.js'
+import type {ArbitrarySize} from '../src/arbitraries/types.js'
 import {it, describe} from 'mocha'
 import * as chai from 'chai'
+import {
+  scenarioWithSampleSize,
+  assertSatisfiable,
+  assertNotSatisfiable,
+  assertSatisfiableWithExample,
+  getCornerCaseValues,
+  assertCanGenerate,
+  assertCannotGenerate,
+  assertExactSize,
+  assertEstimatedSize,
+  mediumInt
+} from './test-utils.js'
 const {expect} = chai
 
 describe('Arbitrary tests', () => {
   it('should return has many numbers has asked', () => {
-    fc.scenario()
-      .forall('n', fc.integer(0, 100))
+    const result = scenarioWithSampleSize()
+      .forall('n', mediumInt())
       .given('a', () => fc.integer())
       .then(({n, a}) => a.sample(n).length === n)
       .check()
-      .assertSatisfiable()
+    assertSatisfiable(result)
   })
 
   it('should return values in the specified range', () => {
-    fc.scenario()
-      .forall('n', fc.integer(0, 100))
+    const result = scenarioWithSampleSize()
+      .forall('n', mediumInt())
       .given('a', () => fc.integer(0, 50))
       .then(({n, a}) => a.sample(n).every(i => i.value <= 50))
       .and(({n, a}) => a.sampleWithBias(n).every(i => i.value <= 50))
       .check()
-      .assertSatisfiable()
+    assertSatisfiable(result)
   })
 
   it('should return corner cases if there is space', () => {
-    fc.scenario()
+    const result = scenarioWithSampleSize()
       .forall('n', fc.integer(4, 100))
       .given('a', () => fc.integer(0, 50))
       .then(({n, a}) => a.sampleWithBias(n).some(v => v.value === 0))
       .and(({n, a}) => a.sampleWithBias(n).some(v => v.value === 50))
       .check()
-      .assertSatisfiable()
+    assertSatisfiable(result)
   })
 
   it('should return values smaller than what was shrunk', () => {
-    fc.scenario()
-      .forall('n', fc.integer(0, 100))
-      .forall('s', fc.integer(0, 100))
-      .given('a', () => fc.integer(0, 100))
+    const result = scenarioWithSampleSize()
+      .forall('n', mediumInt())
+      .forall('s', mediumInt())
+      .given('a', () => mediumInt())
       .then(({n, s, a}) => a.shrink({value: s}).sample(n).every(i => i.value < s))
       .and(({n, s, a}) => a.shrink({value: s}).sampleWithBias(n).every(i => i.value < s))
       .check()
-      .assertSatisfiable()
+    assertSatisfiable(result)
   })
 
   it('should allow shrinking of mapped arbitraries', () => {
-    expect(fc.scenario()
+    const result = fc.scenario()
       .exists('n', fc.integer(0, 25).map(x => x + 25).map(x => x * 2))
       .forall('a', fc.integer(0, 10))
       .then(({n, a}) => a <= n)
       .check()
-    ).to.deep.include({satisfiable: true, example: {n: 50}})
+    assertSatisfiableWithExample(result, {n: 50})
   })
 
   it('should allow shrinking of mapped tupples', () => {
-    expect(fc.scenario()
+    const result = fc.scenario()
       .exists('point', fc.tuple(
         fc.integer(50, 1000).filter(x => x > 100),
         fc.string(1, 10, fc.char('a')).filter(x => x.length > 2)).map(([a, b]) => [a * 2, '_'.concat(b)]))
-      .check()).to.deep.include({satisfiable: true, example: {point: [202, '_aaa']}})
+      .check()
+    assertSatisfiableWithExample(result, {point: [202, '_aaa']})
   })
 
   it('should shrink mapped arbitraries using the pre-map value', () => {
@@ -74,50 +88,49 @@ describe('Arbitrary tests', () => {
 
   describe('Corner Cases', () => {
     it('should return the corner cases of integers', () => {
-      expect(fc.integer().cornerCases().map(c => c.value)).to.have.members(
+      expect(getCornerCaseValues(fc.integer())).to.have.members(
         [0, -Number.MAX_SAFE_INTEGER, Number.MAX_SAFE_INTEGER]
       )
-      expect(fc.integer(1,10).cornerCases().map(c => c.value)).to.have.members([1, 6, 10])
-      expect(fc.integer(-10,10).cornerCases().map(c => c.value)).to.have.members([0, -10, 10])
-      expect(fc.integer(5,5).cornerCases().map(c => c.value)).to.have.members([5])
+      expect(getCornerCaseValues(fc.integer(1,10))).to.have.members([1, 6, 10])
+      expect(getCornerCaseValues(fc.integer(-10,10))).to.have.members([0, -10, 10])
+      expect(getCornerCaseValues(fc.integer(5,5))).to.have.members([5])
     })
 
     it('should return the corner cases of booleans', () => {
-      expect(fc.boolean().cornerCases().map(c => c.value)).to.have.members([true, false])
+      expect(getCornerCaseValues(fc.boolean())).to.have.members([true, false])
     })
 
     it('should return the corner cases of strings', () => {
-      expect(fc.string(0, 0).cornerCases().map(c => c.value)).to.have.members([''])
-      expect(fc.string(1, 3, fc.char('a')).cornerCases().map(c => c.value)).to.have.members(['a', 'aaa'])
-      expect(fc.string(1, 3, fc.char('a','b')).cornerCases().map(c => c.value)).to.have.members(
+      expect(getCornerCaseValues(fc.string(0, 0))).to.have.members([''])
+      expect(getCornerCaseValues(fc.string(1, 3, fc.char('a')))).to.have.members(['a', 'aaa'])
+      expect(getCornerCaseValues(fc.string(1, 3, fc.char('a','b')))).to.have.members(
         ['a', 'aaa', 'b', 'bbb'])
-      expect(fc.string(1, 3, fc.char('a','c')).cornerCases().map(c => c.value)).to.have.members(
+      expect(getCornerCaseValues(fc.string(1, 3, fc.char('a','c')))).to.have.members(
         ['a', 'aaa', 'b', 'bbb', 'c', 'ccc']
       )
-      expect(fc.string(1, 3, fc.char('a','d')).cornerCases().map(c => c.value)).to.have.members(
+      expect(getCornerCaseValues(fc.string(1, 3, fc.char('a','d')))).to.have.members(
         ['a', 'aaa', 'c', 'ccc', 'd', 'ddd']
       )
-      expect(fc.string(1, 3, fc.char('a','e')).cornerCases().map(c => c.value)).to.have.members(
+      expect(getCornerCaseValues(fc.string(1, 3, fc.char('a','e')))).to.have.members(
         ['a', 'aaa', 'c', 'ccc', 'e', 'eee']
       )
     })
 
     it('should return the corner cases of arrays/sets', () => {
-      expect(fc.array(fc.integer(0, 5), 1, 3).cornerCases().map(c => c.value)).to.have.deep.members(
+      expect(getCornerCaseValues(fc.array(fc.integer(0, 5), 1, 3))).to.have.deep.members(
         [[0], [0, 0, 0], [3], [3, 3, 3], [5], [5, 5, 5]]
       )
-      expect(fc.set(['a', 'b', 'c'], 1, 3).cornerCases().map(c => c.value)).to.have.deep.members(
+      expect(getCornerCaseValues(fc.set(['a', 'b', 'c'], 1, 3))).to.have.deep.members(
         [['a'], ['a', 'b', 'c']]
       )
     })
 
     it('should return the corner cases of maps', () => {
-      expect(fc.integer(0, 1).map(i => i === 0).cornerCases().map(c => c.value)).to.have.members([true, false])
+      expect(getCornerCaseValues(fc.integer(0, 1).map(i => i === 0))).to.have.members([true, false])
     })
 
     it('should return the corner cases of tuples', () => {
-      expect(fc.tuple(fc.integer(0, 1), fc.string(1, 2, fc.char('a','c')))
-        .cornerCases().map(c => c.value)).to.have.deep.members([
+      expect(getCornerCaseValues(fc.tuple(fc.integer(0, 1), fc.string(1, 2, fc.char('a','c'))))).to.have.deep.members([
         [0, 'a'], [0, 'aa'], [0, 'b'], [0, 'bb'], [0, 'c'], [0, 'cc'],
         [1, 'a'], [1, 'aa'], [1, 'b'], [1, 'bb'], [1, 'c'], [1, 'cc']
       ])
@@ -157,44 +170,44 @@ describe('Arbitrary tests', () => {
 
   describe('Transformations', () => {
     it('should allow booleans to be mappeable', () => {
-      fc.scenario()
+      const result = scenarioWithSampleSize()
         .forall('n', fc.integer(10, 100))
         .given('a', () => fc.boolean().map(e => e ? 'Heads' : 'Tails'))
         .then(({a, n}) => a.sampleWithBias(n).some(s => s.value === 'Heads'))
         .and(({a, n}) => a.sampleWithBias(n).some(s => s.value === 'Tails'))
         .check()
-        .assertSatisfiable()
+      assertSatisfiable(result)
     })
 
     it('should allow integers to be filtered', () => {
-      fc.scenario()
-        .forall('n', fc.integer(0, 100).filter(n => n < 10))
+      const result = scenarioWithSampleSize()
+        .forall('n', mediumInt().filter(n => n < 10))
         .then(({n}) => n < 10)
         .check()
-        .assertSatisfiable()
+      assertSatisfiable(result)
     })
 
     it('filters should exclude corner cases, even after shrinking', () => {
-      expect(fc.scenario()
+      const result = fc.scenario()
         .exists('a', fc.integer(-20, 20).filter(a => a !== 0))
         .then(({a}) => a % 11 === 0 && a !== 11 && a !== -11)
         .check()
-      ).to.have.property('satisfiable', false)
+      assertNotSatisfiable(result)
     })
 
     it('should allow integers to be both mapped and filtered', () => {
-      fc.scenario()
-        .forall('n', fc.integer(0, 100).map(n => n + 100).filter(n => n < 150))
+      const result = scenarioWithSampleSize()
+        .forall('n', mediumInt().map(n => n + 100).filter(n => n < 150))
         .then(({n}) => n >= 100 && n <= 150)
         .check()
-        .assertSatisfiable()
+      assertSatisfiable(result)
     })
 
     describe('suchThat (filter alias)', () => {
       it('suchThat should produce same results as filter', () => {
         const predicate = (n: number) => n > 50
-        const filterArb = fc.integer(0, 100).filter(predicate)
-        const suchThatArb = fc.integer(0, 100).suchThat(predicate)
+        const filterArb = mediumInt().filter(predicate)
+        const suchThatArb = mediumInt().suchThat(predicate)
 
         // Both should have the same estimated size type
         expect(filterArb.size().type).to.equal(suchThatArb.size().type)
@@ -202,39 +215,39 @@ describe('Arbitrary tests', () => {
       })
 
       it('suchThat should work in property tests', () => {
-        fc.scenario()
-          .forall('n', fc.integer(0, 100).suchThat(n => n < 10))
+        const result = fc.scenario()
+          .forall('n', mediumInt().suchThat(n => n < 10))
           .then(({n}) => n < 10)
           .check()
-          .assertSatisfiable()
+        assertSatisfiable(result)
       })
 
       it('suchThat should chain with map correctly', () => {
-        fc.scenario()
-          .forall('n', fc.integer(0, 100).suchThat(n => n > 50).map(n => n * 2))
+        const result = fc.scenario()
+          .forall('n', mediumInt().suchThat(n => n > 50).map(n => n * 2))
           .then(({n}) => n > 100)
           .check()
-          .assertSatisfiable()
+        assertSatisfiable(result)
       })
 
       it('suchThat should chain with other transformations', () => {
-        const arb = fc.integer(0, 100)
+        const arb = mediumInt()
           .suchThat(n => n % 2 === 0)  // even numbers
           .map(n => n / 2)              // divide by 2
 
-        fc.scenario()
+        const result = fc.scenario()
           .forall('n', arb)
           .then(({n}) => Number.isInteger(n) && n >= 0 && n <= 50)
           .check()
-          .assertSatisfiable()
+        assertSatisfiable(result)
       })
 
       it('suchThat should exclude corner cases appropriately', () => {
-        fc.scenario()
+        const result = fc.scenario()
           .exists('a', fc.integer(-20, 20).suchThat(a => a !== 0))
           .then(({a}) => a % 11 === 0 && a !== 11 && a !== -11)
           .check()
-          .assertNotSatisfiable()
+        assertNotSatisfiable(result)
       })
     })
   })
@@ -245,53 +258,43 @@ describe('Arbitrary tests', () => {
         it('exactSize creates an ExactSize with only type and value', () => {
           const size = exactSize(42)
           expect(size).to.deep.equal({type: 'exact', value: 42})
-          expect(size).to.have.property('type', 'exact')
-          expect(size).to.have.property('value', 42)
           expect(size).to.not.have.property('credibleInterval')
         })
 
         it('estimatedSize creates an EstimatedSize with type, value, and credibleInterval', () => {
           const size = estimatedSize(100, [90, 110])
           expect(size).to.deep.equal({type: 'estimated', value: 100, credibleInterval: [90, 110]})
-          expect(size).to.have.property('type', 'estimated')
-          expect(size).to.have.property('value', 100)
-          expect(size).to.have.property('credibleInterval').deep.equal([90, 110])
         })
       })
 
       describe('ExactSize implementations', () => {
         it('integer arbitrary returns ExactSize without credibleInterval', () => {
           const size = fc.integer(0, 10).size()
-          expect(size.type).to.equal('exact')
-          expect(size.value).to.equal(11)
+          assertExactSize(size, 11)
           expect(size).to.not.have.property('credibleInterval')
         })
 
         it('constant arbitrary returns ExactSize', () => {
           const size = fc.constant(42).size()
-          expect(size.type).to.equal('exact')
-          expect(size.value).to.equal(1)
+          assertExactSize(size, 1)
           expect(size).to.not.have.property('credibleInterval')
         })
 
         it('empty arbitrary returns ExactSize with value 0', () => {
           const size = fc.empty().size()
-          expect(size.type).to.equal('exact')
-          expect(size.value).to.equal(0)
+          assertExactSize(size, 0)
           expect(size).to.not.have.property('credibleInterval')
         })
 
         it('set arbitrary returns ExactSize', () => {
           const size = fc.set(['a', 'b', 'c'], 1, 3).size()
-          expect(size.type).to.equal('exact')
-          expect(size.value).to.equal(7)
+          assertExactSize(size, 7)
           expect(size).to.not.have.property('credibleInterval')
         })
 
         it('boolean arbitrary returns ExactSize', () => {
           const size = fc.boolean().size()
-          expect(size.type).to.equal('exact')
-          expect(size.value).to.equal(2)
+          assertExactSize(size, 2)
           expect(size).to.not.have.property('credibleInterval')
         })
       })
@@ -302,15 +305,9 @@ describe('Arbitrary tests', () => {
 
           // We are loosing type information here, because .filter should automatically
           // narrow the type back to an estimated size. See #438
+          assertEstimatedSize(size)
           if (size.type === 'estimated') {
-            expect(size.type).to.equal('estimated')
-            expect(size).to.have.property('credibleInterval')
-            expect(size.credibleInterval).to.be.an('array').with.length(2)
-            expect(size.credibleInterval[0]).to.be.a('number')
-            expect(size.credibleInterval[1]).to.be.a('number')
             expect(size.credibleInterval[0]).to.be.at.most(size.credibleInterval[1])
-          } else {
-            throw new Error('Expected estimated size')
           }
         })
       })
@@ -325,34 +322,29 @@ describe('Arbitrary tests', () => {
 
         it('tuple containing filtered arbitrary returns EstimatedSize', () => {
           const size = fc.tuple(fc.integer(0, 10).filter(n => n > 5), fc.boolean()).size()
-          expect(size.type).to.equal('estimated')
-          expect(size).to.have.property('credibleInterval')
+          assertEstimatedSize(size)
         })
 
         it('union of exact arbitraries returns ExactSize', () => {
           const size = fc.union(fc.integer(0, 5), fc.integer(10, 15)).size()
-          expect(size.type).to.equal('exact')
-          expect(size.value).to.equal(12) // 6 + 6
+          assertExactSize(size, 12) // 6 + 6
           expect(size).to.not.have.property('credibleInterval')
         })
 
         it('union containing filtered arbitrary returns EstimatedSize', () => {
           const size = fc.union(fc.integer(0, 10).filter(n => n > 5), fc.integer(-1, 0)).size()
-          expect(size.type).to.equal('estimated')
-          expect(size).to.have.property('credibleInterval')
+          assertEstimatedSize(size)
         })
 
         it('array of exact arbitrary returns ExactSize', () => {
           const size = fc.array(fc.boolean(), 2, 2).size()
-          expect(size.type).to.equal('exact')
-          expect(size.value).to.equal(4) // 2^2
+          assertExactSize(size, 4) // 2^2
           expect(size).to.not.have.property('credibleInterval')
         })
 
         it('array of filtered arbitrary returns EstimatedSize', () => {
           const size = fc.array(fc.integer(0, 10).filter(n => n > 5), 1, 2).size()
-          expect(size.type).to.equal('estimated')
-          expect(size).to.have.property('credibleInterval')
+          assertEstimatedSize(size)
         })
       })
 
@@ -376,7 +368,7 @@ describe('Arbitrary tests', () => {
         })
 
         it('switch statement covers all cases', () => {
-          const formatSize = (size: fc.ArbitrarySize): string => {
+          const formatSize = (size: ArbitrarySize): string => {
             switch (size.type) {
               case 'exact':
                 return `exact:${size.value}`
@@ -434,64 +426,78 @@ describe('Arbitrary tests', () => {
     })
 
     it('should return the correct size of shrinked integer arbitraries', () => {
-      expect(fc.integer(0, 10).shrink({value: 5}).size()).to.have.property('value', 5)
+      expect(fc.integer(0, 10).shrink({value: 5}).size().value).to.equal(5)
     })
 
     it('should return the correct size of a composite arbitrary', () => {
-      expect(fc.union(fc.boolean(), fc.boolean(), fc.boolean()).size()).to.have.property('value', 6)
+      expect(fc.union(fc.boolean(), fc.boolean(), fc.boolean()).size().value).to.equal(6)
     })
 
     it('should return the correct size of a collection arbitrary', () => {
-      expect(fc.array(fc.boolean(), 10, 10).size()).to.have.property('value', 1024)
-      expect(fc.array(fc.boolean(), 1, 10).size()).to.have.property('value', 2046)
-      expect(fc.array(fc.empty(), 0, 10).size()).to.have.property('value', 1)
-      expect(fc.array(fc.empty(), 1, 10).size()).to.have.property('value', 0)
-      expect(fc.array(fc.integer(0, 3), 3, 4).size()).to.have.property('value', 320)
+      expect(fc.array(fc.boolean(), 10, 10).size().value).to.equal(1024)
+      expect(fc.array(fc.boolean(), 1, 10).size().value).to.equal(2046)
+      expect(fc.array(fc.empty(), 0, 10).size().value).to.equal(1)
+      expect(fc.array(fc.empty(), 1, 10).size().value).to.equal(0)
+      expect(fc.array(fc.integer(0, 3), 3, 4).size().value).to.equal(320)
 
-      expect(fc.set([], 0, 0).size()).to.have.property('value', 1)
-      expect(fc.set(['a', 'b', 'c'], 1, 3).size()).to.have.property('value', 7)
+      expect(fc.set([], 0, 0).size().value).to.equal(1)
+      expect(fc.set(['a', 'b', 'c'], 1, 3).size().value).to.equal(7)
       // TODO(rui): should we replace exact values with an "unbounded" value when they're bigger
       // than MAX_SAFE_INTEGER? This will bite us later.
-      expect(fc.array(fc.integer(), 1, 2).size()).to.have.property('value').gt(Number.MAX_SAFE_INTEGER)
+      expect(fc.array(fc.integer(), 1, 2).size().value).to.be.greaterThan(Number.MAX_SAFE_INTEGER)
     })
 
     it('should return the correct size of a oneof arbitrary', () => {
-      expect(fc.oneof(['a', 'b', 'c']).size()).to.have.property('value', 3)
+      expect(fc.oneof(['a', 'b', 'c']).size().value).to.equal(3)
     })
 
   })
 
   describe('Filtered Arbitraries', () => {
     it('should be able to verify if a pick can be generated by a filtered mapped filtered arbitrary', () => {
-      expect(fc.integer(0, 1)
-        .map(a => a === 1, {inverseMap: b => b ? [1] : [0]})
-        .filter(a => a === false)
-        .map(a => a ? 0 : 1, {inverseMap: b => b === 0 ? [true] : [false]})
-        .canGenerate({original: 0, value: 0})).to.be.false
+      assertCannotGenerate(
+        fc.integer(0, 1)
+          .map(a => a === 1, {inverseMap: b => b ? [1] : [0]})
+          .filter(a => a === false)
+          .map(a => a ? 0 : 1, {inverseMap: b => b === 0 ? [true] : [false]}),
+        {original: 0, value: 0}
+      )
 
-      expect(fc.integer(0, 1)
-        .map(a => a === 1, {inverseMap: b => b ? [1] : [0]})
-        .filter(a => a === false)
-        .map(a => a ? 0 : 1, {inverseMap: b => b === 0 ? [true] : [false]})
-        .canGenerate({original: 1, value: 1})).to.be.true
+      assertCanGenerate(
+        fc.integer(0, 1)
+          .map(a => a === 1, {inverseMap: b => b ? [1] : [0]})
+          .filter(a => a === false)
+          .map(a => a ? 0 : 1, {inverseMap: b => b === 0 ? [true] : [false]}),
+        {original: 1, value: 1}
+      )
     })
   })
 
   describe('Mapped Arbitraries', () => {
     it('should be able to inverse map transformation', () => {
-      expect(fc.integer(-10, 0).map(a => Math.abs(a), {inverseMap: b => [-b]})
-        .canGenerate({original: -5, value: -5})).to.be.false
-      expect(fc.integer(-10, 0).map(a => Math.abs(a), {canGenerate: b => b.value >= 0 && b.value <= 10})
-        .canGenerate({original: -5, value: -5})).to.be.false
+      assertCannotGenerate(
+        fc.integer(-10, 0).map(a => Math.abs(a), {inverseMap: b => [-b]}),
+        {original: -5, value: -5}
+      )
+      assertCannotGenerate(
+        fc.integer(-10, 0).map(a => Math.abs(a), {canGenerate: b => b.value >= 0 && b.value <= 10}),
+        {original: -5, value: -5}
+      )
 
-      expect(fc.integer(-10, 10).map(a => Math.abs(a), {inverseMap: b => [-b, b]})
-        .canGenerate({original: -5, value: -5})).to.be.true
-      expect(fc.integer(-10, 10).map(a => Math.abs(a), {canGenerate: b => b.value >= -10 && b.value <= 10})
-        .canGenerate({original: -5, value: -5})).to.be.true
+      assertCanGenerate(
+        fc.integer(-10, 10).map(a => Math.abs(a), {inverseMap: b => [-b, b]}),
+        {original: -5, value: -5}
+      )
+      assertCanGenerate(
+        fc.integer(-10, 10).map(a => Math.abs(a), {canGenerate: b => b.value >= -10 && b.value <= 10}),
+        {original: -5, value: -5}
+      )
 
-      expect(fc.array(fc.integer(-10, 0), 2, 5)
-        .map(a => a.map(b => Math.abs(b)), {inverseMap: b => [b.map(x => -x)]})
-        .canGenerate({original: [-5, -3, -2], value: [-5, -3, -2]})).to.be.false
+      assertCannotGenerate(
+        fc.array(fc.integer(-10, 0), 2, 5)
+          .map(a => a.map(b => Math.abs(b)), {inverseMap: b => [b.map(x => -x)]}),
+        {original: [-5, -3, -2], value: [-5, -3, -2]}
+      )
     })
   })
 
@@ -503,16 +509,16 @@ describe('Arbitrary tests', () => {
     })
 
     it('should return no more than the number of possible cases', () => {
-      fc.scenario()
+      const result = fc.scenario()
         .forall('n', fc.integer(3, 10))
         .given('ub', () => fc.boolean())
         .then(({n, ub}) => ub.sampleUnique(n).length === 2)
         .check()
-        .assertSatisfiable()
+      assertSatisfiable(result)
     })
 
     it('should return a unique sample with bias with corner cases', () => {
-      fc.scenario()
+      const result = fc.scenario()
         .forall('n', fc.integer(10, 20))
         .forall('s', fc.integer(5, 10))
         .given('a', ({n}) => fc.integer(0, n))
@@ -521,11 +527,11 @@ describe('Arbitrary tests', () => {
         .and(({r}) => r.length === new Set(r.map(e => e.value)).size)
         .and(({a, r}) => a.cornerCases().map(c => c.value).every(e => r.map(e => e.value).includes(e)))
         .check()
-        .assertSatisfiable()
+      assertSatisfiable(result)
     })
 
     it('should return a unique sample with bias even with a small sample', () => {
-      fc.scenario()
+      const result = fc.scenario()
         .forall('n', fc.integer(10, 20))
         .forall('s', fc.integer(0, 5))
         .given('a', ({n}) => fc.integer(0, n))
@@ -533,7 +539,7 @@ describe('Arbitrary tests', () => {
         .then(({r, s}) => r.length === s)
         .and(({r}) => r.length === new Set(r.map(e => e.value)).size)
         .check()
-        .assertSatisfiable()
+      assertSatisfiable(result)
     })
   })
 
@@ -545,102 +551,103 @@ describe('Arbitrary tests', () => {
     })
 
     it('should check a property based on a chained arbitrary', () => {
-      fc.scenario()
+      const result = fc.scenario()
         .forall('a', fc.integer(1, 10).chain(i => fc.array(fc.constant(i), i, i)))
         .then(({a}) => a.length === a[0])
         .check()
-        .assertSatisfiable()
+      assertSatisfiable(result)
     })
   })
 
   describe('Can Generate', () => {
     it('knows if it can generate an integer', () => {
-      expect(fc.integer(1, 10).canGenerate({value: 1})).to.be.true
-      expect(fc.integer(1, 10).canGenerate({value: 10})).to.be.true
-      expect(fc.integer(1, 10).canGenerate({value: -1})).to.be.false
-      expect(fc.integer(1, 10).canGenerate({value: 11})).to.be.false
+      assertCanGenerate(fc.integer(1, 10), {value: 1})
+      assertCanGenerate(fc.integer(1, 10), {value: 10})
+      assertCannotGenerate(fc.integer(1, 10), {value: -1})
+      assertCannotGenerate(fc.integer(1, 10), {value: 11})
     })
 
     it('knows if it can generate a string', () => {
-      expect(fc.string(1, 4).canGenerate({value: 'a', original: [97]})).to.be.true
-      expect(fc.string(1, 4).canGenerate({value: 'abcd', original: [97, 98, 99, 100]})).to.be.true
-      expect(fc.string(1, 2).canGenerate({value: 'abc', original: [97, 98, 99]})).to.be.false
-      expect(fc.string(2, 4).canGenerate({value: 'a', original: [97]})).to.be.false
-      expect(fc.string(2, 4).canGenerate({value: 'abcd', original: [97, 98, 99, 100]})).to.be.true
-      expect(fc.string(2, 4).canGenerate({value: '12', original: [49, 50]})).to.be.true
-      expect(fc.string(2, 4).canGenerate({value: 'ab12', original: [97, 98, 49, 50]})).to.be.true
+      assertCanGenerate(fc.string(1, 4), {value: 'a', original: [97]})
+      assertCanGenerate(fc.string(1, 4), {value: 'abcd', original: [97, 98, 99, 100]})
+      assertCannotGenerate(fc.string(1, 2), {value: 'abc', original: [97, 98, 99]})
+      assertCannotGenerate(fc.string(2, 4), {value: 'a', original: [97]})
+      assertCanGenerate(fc.string(2, 4), {value: 'abcd', original: [97, 98, 99, 100]})
+      assertCanGenerate(fc.string(2, 4), {value: '12', original: [49, 50]})
+      assertCanGenerate(fc.string(2, 4), {value: 'ab12', original: [97, 98, 49, 50]})
     })
 
     it('knows if it can generate a boolean', () => {
-      expect(fc.boolean().canGenerate({value: true})).to.be.true
-      expect(fc.boolean().canGenerate({value: false})).to.be.true
+      assertCanGenerate(fc.boolean(), {value: true})
+      assertCanGenerate(fc.boolean(), {value: false})
     })
 
     it('knows if it can generate an array', () => {
-      expect(fc.nonEmptyArray(fc.integer(1, 10), 10).canGenerate({value: [1, 2, 3], original: [1, 2, 3]})).to.be.true
-      expect(fc.nonEmptyArray(fc.integer(1, 10), 10).canGenerate({value: [1, 2, 30], original: [1, 2, 30]})).to.be.false
-      expect(fc.nonEmptyArray(fc.integer(1, 2), 10).canGenerate({value: [1, 2, 3], original: [1, 2, 3]})).to.be.false
+      assertCanGenerate(fc.nonEmptyArray(fc.integer(1, 10), 10), {value: [1, 2, 3], original: [1, 2, 3]})
+      assertCannotGenerate(fc.nonEmptyArray(fc.integer(1, 10), 10), {value: [1, 2, 30], original: [1, 2, 30]})
+      assertCannotGenerate(fc.nonEmptyArray(fc.integer(1, 2), 10), {value: [1, 2, 3], original: [1, 2, 3]})
     })
 
     it('knows if it can be generated by a composite', () => {
-      expect(fc.union(fc.integer(1, 10), fc.integer(20, 30)).canGenerate({value: 1})).to.be.true
-      expect(fc.union(fc.integer(1, 10), fc.integer(20, 30)).canGenerate({value: 10})).to.be.true
-      expect(fc.union(fc.integer(1, 10), fc.integer(20, 30)).canGenerate({value: 20})).to.be.true
-      expect(fc.union(fc.integer(1, 10), fc.integer(20, 30)).canGenerate({value: 30})).to.be.true
-      expect(fc.union(fc.integer(1, 10), fc.integer(20, 30)).canGenerate({value: 15})).to.be.false
-      expect(fc.union(fc.integer(1, 10), fc.integer(20, 30)).canGenerate({value: 0})).to.be.false
-      expect(fc.union(fc.integer(1, 10), fc.integer(20, 30)).canGenerate({value: 31})).to.be.false
+      const union = fc.union(fc.integer(1, 10), fc.integer(20, 30))
+      assertCanGenerate(union, {value: 1})
+      assertCanGenerate(union, {value: 10})
+      assertCanGenerate(union, {value: 20})
+      assertCanGenerate(union, {value: 30})
+      assertCannotGenerate(union, {value: 15})
+      assertCannotGenerate(union, {value: 0})
+      assertCannotGenerate(union, {value: 31})
     })
 
     it('knows if it can be generated by a map', () => {
-      expect(fc.integer(97, 100).map(n => String.fromCharCode(n)).canGenerate({original: 97, value: 'a'})).to.be.true
-      expect(fc.integer(97, 100).map(n => String.fromCharCode(n)).canGenerate({original: 99, value: 'c'})).to.be.true
-      expect(fc.integer(97, 100).map(n => String.fromCharCode(n)).canGenerate({original: 101, value: 'e'})).to.be.false
-      expect(fc.integer(97, 100).map(n => String.fromCharCode(n)).canGenerate({original: 102, value: 'f'})).to.be.false
+      const mapped = fc.integer(97, 100).map(n => String.fromCharCode(n))
+      assertCanGenerate(mapped, {original: 97, value: 'a'})
+      assertCanGenerate(mapped, {original: 99, value: 'c'})
+      assertCannotGenerate(mapped, {original: 101, value: 'e'})
+      assertCannotGenerate(mapped, {original: 102, value: 'f'})
     })
 
     it('knows if it can be generated by a filter', () => {
-      expect(fc.integer(0,4).filter(n => n !== 2).canGenerate({value: -1})).to.be.false
-      expect(fc.integer(0,4).filter(n => n !== 2).canGenerate({value: 0})).to.be.true
+      const filtered = fc.integer(0,4).filter(n => n !== 2)
+      assertCannotGenerate(filtered, {value: -1})
+      assertCanGenerate(filtered, {value: 0})
 
       // TODO: This should be false. However, we are not checking if the filter is able to actually generate the value
       // due to missing intermediate information (i.e. multiple maps generate intermediate different values - and
       // types - and we only preserve the root). Maybe we should consider preserving the full path.
-      // expect(fc.integer(0,4).filter(n => n !== 2).canGenerate({ value: 2 })).to.be.false
-      expect(fc.integer(0,4).filter(n => n !== 2).canGenerate({value: 4})).to.be.true
-      expect(fc.integer(0,4).filter(n => n !== 2).canGenerate({value: 5})).to.be.false
+      // assertCannotGenerate(filtered, { value: 2 })
+      assertCanGenerate(filtered, {value: 4})
+      assertCannotGenerate(filtered, {value: 5})
     })
 
     it('knows if it can be generated by a set', () => {
-      expect(fc.set(['a', 'b', 'c'], 1, 3) .canGenerate({value: ['a', 'b', 'c']})).to.be.true
+      assertCanGenerate(fc.set(['a', 'b', 'c'], 1, 3), {value: ['a', 'b', 'c']})
 
       // Type system does not allow this
-      // expect(fc.set(['a', 'b', 'c'], 1, 3) .canGenerate({value: ['a', 'b', 'd']})).to.be.false
-      expect(fc.set(['a', 'b', 'c'], 1, 2) .canGenerate({value: ['a', 'b', 'c']})).to.be.false
-      expect(fc.set([], 0, 0).canGenerate({value: []})).to.be.true
-      expect(fc.set([], 1, 2).canGenerate({value: []})).to.be.false
+      // assertCannotGenerate(fc.set(['a', 'b', 'c'], 1, 3), {value: ['a', 'b', 'd']})
+      assertCannotGenerate(fc.set(['a', 'b', 'c'], 1, 2), {value: ['a', 'b', 'c']})
+      assertCanGenerate(fc.set([], 0, 0), {value: []})
+      assertCannotGenerate(fc.set([], 1, 2), {value: []})
     })
 
     it('knows if it can be generated by a oneof', () => {
-      expect(fc.oneof(['a', 'b', 'c']).canGenerate({value: 'a', original: 0})).to.be.true
+      assertCanGenerate(fc.oneof(['a', 'b', 'c']), {value: 'a', original: 0})
       // Type system does not allow this
-      // expect(fc.oneof(['a', 'b', 'c']).canGenerate({value: 'd', original: 3})).to.be.false
+      // assertCannotGenerate(fc.oneof(['a', 'b', 'c']), {value: 'd', original: 3})
     })
 
     it('knows if it can be generated by a constant', () => {
-      expect(fc.constant('a').canGenerate({value: 'a'})).to.be.true
-      expect(fc.constant(1).canGenerate({value: 1, original: undefined})).to.be.true
-      expect(fc.constant('a').canGenerate({value: 'b'})).to.be.false
-      expect(fc.constant(1).canGenerate({value: 2, original: undefined})).to.be.false
+      assertCanGenerate(fc.constant('a'), {value: 'a'})
+      assertCanGenerate(fc.constant(1), {value: 1, original: undefined})
+      assertCannotGenerate(fc.constant('a'), {value: 'b'})
+      assertCannotGenerate(fc.constant(1), {value: 2, original: undefined})
     })
 
     it('knows if it can be generated by a tuple', () => {
-      expect(fc.tuple(fc.integer(1, 5), fc.string(1, 5, fc.char('a','c')))
-        .canGenerate({value: [1, 'b'], original: [undefined, [98]]})).to.be.true
-      expect(fc.tuple(fc.integer(1, 5), fc.string(1, 5, fc.char('a','c')))
-        .canGenerate({value: [6, 'b'], original: [undefined, [98]]})).to.be.false
-      expect(fc.tuple(fc.integer(1, 5), fc.string(1, 5, fc.char('a','c')))
-        .canGenerate({value: [1, 'd'], original: [undefined, [100]]})).to.be.false
+      const tuple = fc.tuple(fc.integer(1, 5), fc.string(1, 5, fc.char('a','c')))
+      assertCanGenerate(tuple, {value: [1, 'b'], original: [undefined, [98]]})
+      assertCannotGenerate(tuple, {value: [6, 'b'], original: [undefined, [98]]})
+      assertCannotGenerate(tuple, {value: [1, 'd'], original: [undefined, [100]]})
     })
   })
 
@@ -669,11 +676,11 @@ describe('Arbitrary tests', () => {
 
     it('should always be satisfiable due to vacuous truth in universal assertions', () => {
       /* istanbul ignore next */
-      fc.scenario()
+      const result = fc.scenario()
         .forall('empty', fc.empty())
         .then(_ => false)
         .check()
-        .assertSatisfiable()
+      assertSatisfiable(result)
     })
 
     it('should never be satisfiable due to vacuous truth in existential assertions', () => {
@@ -690,55 +697,55 @@ describe('Arbitrary tests', () => {
     describe('hashCode', () => {
       it('returns consistent values for equal inputs (integer)', () => {
         const arb = fc.integer()
-        fc.scenario()
+        const result = fc.scenario()
           .forall('x', fc.integer())
           .then(({x}) => {
             const hash = arb.hashCode()
             return hash(x) === hash(x)
           })
           .check()
-          .assertSatisfiable()
+        assertSatisfiable(result)
       })
 
       it('returns consistent values for equal inputs (real)', () => {
         const arb = fc.real()
-        fc.scenario()
+        const result = fc.scenario()
           .forall('x', fc.real())
           .then(({x}) => {
             const hash = arb.hashCode()
             return hash(x) === hash(x)
           })
           .check()
-          .assertSatisfiable()
+        assertSatisfiable(result)
       })
 
       it('returns consistent values for equal inputs (boolean)', () => {
         const arb = fc.boolean()
-        fc.scenario()
+        const result = fc.scenario()
           .forall('x', fc.boolean())
           .then(({x}) => {
             const hash = arb.hashCode()
             return hash(x) === hash(x)
           })
           .check()
-          .assertSatisfiable()
+        assertSatisfiable(result)
       })
 
       it('returns consistent values for equal inputs (array)', () => {
         const arb = fc.array(fc.integer(0, 10))
-        fc.scenario()
+        const result = fc.scenario()
           .forall('x', fc.array(fc.integer(0, 10), 0, 5))
           .then(({x}) => {
             const hash = arb.hashCode()
             return hash(x) === hash(x)
           })
           .check()
-          .assertSatisfiable()
+        assertSatisfiable(result)
       })
 
       it('different arrays produce different hashes when elements differ', () => {
         const arb = fc.array(fc.integer(0, 10))
-        fc.scenario()
+        const result = fc.scenario()
           .forall('x', fc.array(fc.integer(0, 10), 1, 3))
           .forall('y', fc.array(fc.integer(0, 10), 1, 3))
           .then(({x, y}) => {
@@ -754,12 +761,12 @@ describe('Arbitrary tests', () => {
             return hash(x) === hash(y)
           })
           .check()
-          .assertSatisfiable()
+        assertSatisfiable(result)
       })
 
       it('equal arrays have equal hashes', () => {
         const arb = fc.array(fc.integer(0, 10))
-        fc.scenario()
+        const result = fc.scenario()
           .forall('x', fc.array(fc.integer(0, 10), 0, 5))
           .then(({x}) => {
             const hash = arb.hashCode()
@@ -768,31 +775,31 @@ describe('Arbitrary tests', () => {
             return eq(x, x) && hash(x) === hash(x)
           })
           .check()
-          .assertSatisfiable()
+        assertSatisfiable(result)
       })
 
       it('returns consistent values for equal inputs (tuple)', () => {
         const arb = fc.tuple(fc.integer(0, 10), fc.boolean())
-        fc.scenario()
+        const result = fc.scenario()
           .forall('x', fc.tuple(fc.integer(0, 10), fc.boolean()))
           .then(({x}) => {
             const hash = arb.hashCode()
             return hash(x) === hash(x)
           })
           .check()
-          .assertSatisfiable()
+        assertSatisfiable(result)
       })
 
       it('returns consistent values for equal inputs (record)', () => {
         const arb = fc.record({a: fc.integer(0, 10), b: fc.boolean()})
-        fc.scenario()
+        const result = fc.scenario()
           .forall('x', fc.record({a: fc.integer(0, 10), b: fc.boolean()}))
           .then(({x}) => {
             const hash = arb.hashCode()
             return hash(x) === hash(x)
           })
           .check()
-          .assertSatisfiable()
+        assertSatisfiable(result)
       })
 
       it('returns 32-bit integers', () => {
@@ -812,20 +819,20 @@ describe('Arbitrary tests', () => {
           expect(Number.isInteger(unsigned)).to.be.true
         }
         // Also test with property-based for a range (non-negative values)
-        fc.scenario()
-          .forall('x', fc.integer(0, 100))
+        const result = fc.scenario()
+          .forall('x', mediumInt())
           .then(({x}) => {
             const value = hash(x)
             // For non-negative values, unsigned conversion should preserve the value
             return Number.isInteger(value) && value >= 0 && (value >>> 0) === value
           })
           .check()
-          .assertSatisfiable()
+        assertSatisfiable(result)
       })
 
       it('equal values have equal hashes (hash-equals consistency)', () => {
         const arb = fc.integer(0, 100)
-        fc.scenario()
+        const result = fc.scenario()
           .forall('x', fc.integer(0, 100))
           .forall('y', fc.integer(0, 100))
           .then(({x, y}) => {
@@ -838,62 +845,62 @@ describe('Arbitrary tests', () => {
             return true
           })
           .check()
-          .assertSatisfiable()
+        assertSatisfiable(result)
       })
     })
 
     describe('equals', () => {
       it('is reflexive for all types (integer)', () => {
         const arb = fc.integer()
-        fc.scenario()
+        const result = fc.scenario()
           .forall('x', fc.integer())
           .then(({x}) => {
             const eq = arb.equals()
             return eq(x, x)
           })
           .check()
-          .assertSatisfiable()
+        assertSatisfiable(result)
       })
 
       it('is reflexive for all types (real)', () => {
         const arb = fc.real()
-        fc.scenario()
+        const result = fc.scenario()
           .forall('x', fc.real())
           .then(({x}) => {
             const eq = arb.equals()
             return eq(x, x)
           })
           .check()
-          .assertSatisfiable()
+        assertSatisfiable(result)
       })
 
       it('is reflexive for all types (boolean)', () => {
         const arb = fc.boolean()
-        fc.scenario()
+        const result = fc.scenario()
           .forall('x', fc.boolean())
           .then(({x}) => {
             const eq = arb.equals()
             return eq(x, x)
           })
           .check()
-          .assertSatisfiable()
+        assertSatisfiable(result)
       })
 
       it('is reflexive for all types (array)', () => {
         const arb = fc.array(fc.integer())
-        fc.scenario()
+        const result = fc.scenario()
           .forall('x', fc.array(fc.integer(), 0, 5))
           .then(({x}) => {
             const eq = arb.equals()
             return eq(x, x)
           })
           .check()
-          .assertSatisfiable()
+        assertSatisfiable(result)
       })
 
       it('is symmetric', () => {
         const arb = fc.integer()
-        fc.scenario()
+        const result = fc.scenario()
           .forall('x', fc.integer())
           .forall('y', fc.integer())
           .then(({x, y}) => {
@@ -901,7 +908,7 @@ describe('Arbitrary tests', () => {
             return eq(x, y) === eq(y, x)
           })
           .check()
-          .assertSatisfiable()
+        assertSatisfiable(result)
       })
 
       it('handles special floating-point values with Object.is semantics', () => {
@@ -914,7 +921,7 @@ describe('Arbitrary tests', () => {
 
       it('compares arrays element-by-element', () => {
         const arb = fc.array(fc.integer())
-        fc.scenario()
+        const result = fc.scenario()
           .forall('x', fc.array(fc.integer(0, 10), 0, 5))
           .forall('y', fc.array(fc.integer(0, 10), 0, 5))
           .then(({x, y}) => {
@@ -924,12 +931,12 @@ describe('Arbitrary tests', () => {
             return eq(x, y) === expectedEqual
           })
           .check()
-          .assertSatisfiable()
+        assertSatisfiable(result)
       })
 
       it('compares tuples element-by-element', () => {
         const arb = fc.tuple(fc.integer(), fc.string())
-        fc.scenario()
+        const result = fc.scenario()
           .forall('x', fc.tuple(fc.integer(0, 10), fc.string(1, 3)))
           .forall('y', fc.tuple(fc.integer(0, 10), fc.string(1, 3)))
           .then(({x, y}) => {
@@ -938,12 +945,12 @@ describe('Arbitrary tests', () => {
             return eq(x, y) === expectedEqual
           })
           .check()
-          .assertSatisfiable()
+        assertSatisfiable(result)
       })
 
       it('compares records property-by-property', () => {
         const arb = fc.record({x: fc.integer(), y: fc.integer()})
-        fc.scenario()
+        const result = fc.scenario()
           .forall('x', fc.record({x: fc.integer(0, 10), y: fc.integer(0, 10)}))
           .forall('y', fc.record({x: fc.integer(0, 10), y: fc.integer(0, 10)}))
           .then(({x, y}) => {
@@ -952,7 +959,7 @@ describe('Arbitrary tests', () => {
             return eq(x, y) === expectedEqual
           })
           .check()
-          .assertSatisfiable()
+        assertSatisfiable(result)
       })
     })
 
@@ -964,7 +971,7 @@ describe('Arbitrary tests', () => {
 
       it('never returns duplicates (property-based)', () => {
         const arb = fc.integer(0, 100)
-        fc.scenario()
+        const result = fc.scenario()
           .forall('sampleSize', fc.integer(1, 200))
           .then(({sampleSize}) => {
             const samples = arb.sampleUnique(sampleSize)
@@ -972,7 +979,9 @@ describe('Arbitrary tests', () => {
             // Check that no two samples are equal
             for (let i = 0; i < samples.length; i++) {
               for (let j = i + 1; j < samples.length; j++) {
-                if (eq(samples[i].value, samples[j].value)) {
+                const sampleI = samples[i]
+                const sampleJ = samples[j]
+                if (sampleI !== undefined && sampleJ !== undefined && eq(sampleI.value, sampleJ.value)) {
                   return false
                 }
               }
@@ -980,7 +989,7 @@ describe('Arbitrary tests', () => {
             return true
           })
           .check()
-          .assertSatisfiable()
+        assertSatisfiable(result)
       })
 
       it('correctly deduplicates arrays', () => {
@@ -992,7 +1001,7 @@ describe('Arbitrary tests', () => {
 
       it('never returns duplicate arrays (property-based)', () => {
         const arb = fc.array(fc.integer(0, 10), 0, 3)
-        fc.scenario()
+        const result = fc.scenario()
           .forall('sampleSize', fc.integer(1, 100))
           .then(({sampleSize}) => {
             const samples = arb.sampleUnique(sampleSize)
@@ -1000,7 +1009,9 @@ describe('Arbitrary tests', () => {
             // Check that no two samples are equal
             for (let i = 0; i < samples.length; i++) {
               for (let j = i + 1; j < samples.length; j++) {
-                if (eq(samples[i].value, samples[j].value)) {
+                const sampleI = samples[i]
+                const sampleJ = samples[j]
+                if (sampleI !== undefined && sampleJ !== undefined && eq(sampleI.value, sampleJ.value)) {
                   return false
                 }
               }
@@ -1008,7 +1019,7 @@ describe('Arbitrary tests', () => {
             return true
           })
           .check()
-          .assertSatisfiable()
+        assertSatisfiable(result)
       })
 
       it('correctly deduplicates booleans', () => {
@@ -1024,7 +1035,7 @@ describe('Arbitrary tests', () => {
 
       it('never returns duplicate tuples (property-based)', () => {
         const arb = fc.tuple(fc.integer(0, 10), fc.boolean())
-        fc.scenario()
+        const result = fc.scenario()
           .forall('sampleSize', fc.integer(1, 100))
           .then(({sampleSize}) => {
             const samples = arb.sampleUnique(sampleSize)
@@ -1032,7 +1043,9 @@ describe('Arbitrary tests', () => {
             // Check that no two samples are equal
             for (let i = 0; i < samples.length; i++) {
               for (let j = i + 1; j < samples.length; j++) {
-                if (eq(samples[i].value, samples[j].value)) {
+                const sampleI = samples[i]
+                const sampleJ = samples[j]
+                if (sampleI !== undefined && sampleJ !== undefined && eq(sampleI.value, sampleJ.value)) {
                   return false
                 }
               }
@@ -1040,14 +1053,14 @@ describe('Arbitrary tests', () => {
             return true
           })
           .check()
-          .assertSatisfiable()
+        assertSatisfiable(result)
       })
     })
 
     describe('fallback behavior', () => {
       it('MappedArbitrary falls back to base class for complex objects', () => {
         const arb = fc.integer(0, 10).map(n => ({value: n, nested: {x: n}}))
-        fc.scenario()
+        const result = fc.scenario()
           .forall('x', fc.integer(0, 10))
           .then(({x}) => {
             const hash = arb.hashCode()
@@ -1058,12 +1071,12 @@ describe('Arbitrary tests', () => {
             return hash(obj1) === hash(obj2) && eq(obj1, obj2)
           })
           .check()
-          .assertSatisfiable()
+        assertSatisfiable(result)
       })
 
       it('ChainedArbitrary uses fallback', () => {
         const arb = fc.integer(1, 3).chain(n => fc.array(fc.constant(n), n, n))
-        fc.scenario()
+        const result = fc.scenario()
           .forall('x', fc.integer(1, 3))
           .then(({x}) => {
             const hash = arb.hashCode()
@@ -1074,11 +1087,11 @@ describe('Arbitrary tests', () => {
             return hash(arr1) === hash(arr2) && eq(arr1, arr2)
           })
           .check()
-          .assertSatisfiable()
+        assertSatisfiable(result)
       })
 
       it('FilteredArbitrary delegates to base', () => {
-        fc.scenario()
+        const result = fc.scenario()
           .given('arb', () => fc.integer(0, 100).filter(n => n % 2 === 0))
           .forall('x', fc.integer(0, 100).filter(n => n % 2 === 0))
           .forall('y', fc.integer(0, 100).filter(n => n % 2 === 0))
@@ -1093,7 +1106,7 @@ describe('Arbitrary tests', () => {
             }
           })
           .check()
-          .assertSatisfiable()
+        assertSatisfiable(result)
       })
     })
 
@@ -1114,7 +1127,7 @@ describe('Arbitrary tests', () => {
 
       it('handles nested structures', () => {
         const arb = fc.array(fc.array(fc.integer(0, 5)))
-        fc.scenario()
+        const result = fc.scenario()
           .forall('x', fc.array(fc.array(fc.integer(0, 5)), 0, 3))
           .then(({x}) => {
             const hash = arb.hashCode()
@@ -1123,7 +1136,7 @@ describe('Arbitrary tests', () => {
             return hash(x) === hash(x) && eq(x, x)
           })
           .check()
-          .assertSatisfiable()
+        assertSatisfiable(result)
       })
     })
   })
