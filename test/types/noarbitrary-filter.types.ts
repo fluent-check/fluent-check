@@ -21,16 +21,18 @@ const filtered = NoArbitrary.filter(() => true)
 type FilteredType = typeof filtered
 
 // This MUST be EstimatedSizeArbitrary<never>, not ExactSizeArbitrary<never>
-type _T1 = Expect<Equal<FilteredType, EstimatedSizeArbitrary<never>>>
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+type AssertFilteredType = Expect<Equal<FilteredType, EstimatedSizeArbitrary<never>>>
 
 // And .size() on the filtered result should return EstimatedSize
-const filteredSize = filtered.size()
-type _T2 = Expect<Equal<typeof filteredSize, EstimatedSize>>
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+type AssertSizeType = Expect<Equal<ReturnType<typeof filtered.size>, EstimatedSize>>
 
 // Same for suchThat
 const suchThat = NoArbitrary.suchThat(() => true)
 type SuchThatType = typeof suchThat
-type _T3 = Expect<Equal<SuchThatType, EstimatedSizeArbitrary<never>>>
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+type AssertSuchThatType = Expect<Equal<SuchThatType, EstimatedSizeArbitrary<never>>>
 
 void filtered
 void suchThat

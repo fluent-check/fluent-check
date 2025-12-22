@@ -2,6 +2,10 @@ import jstat from 'jstat'
 import {AsyncLocalStorage} from 'node:async_hooks'
 import {stringify} from './arbitraries/util.js'
 
+export function factorial(n: number): number {
+  return jstat.factorial(n)
+}
+
 /**
  * A probability distribution (https://en.wikipedia.org/wiki/Probability_distribution).
  */
@@ -644,7 +648,14 @@ export const DEFAULT_HISTOGRAM_BINS = 10
 /**
  * Streaming quantile estimator using the P² algorithm for q1/median/q3 with
  * an initial exact phase. Maintains a bounded reservoir for histogram output.
+ *
+ * NOTE: This implementation uses non-null assertions for array access because:
+ * 1. The P² algorithm uses fixed-size arrays of exactly 5 elements
+ * 2. The arrays are initialized together when count === 5
+ * 3. After initialization, all indices 0-4 are guaranteed to be valid
+ * 4. TypeScript's type narrowing doesn't work well with dynamic numeric indexing
  */
+/* eslint-disable @typescript-eslint/no-non-null-assertion */
 export class StreamingQuantiles {
   private readonly probs = [0, 0.25, 0.5, 0.75, 1]
   private readonly dn = [0, 0.25, 0.5, 0.75, 1]
@@ -797,6 +808,7 @@ export class StreamingQuantiles {
     if (deltaN === 0) return this.q[i]!
     return this.q[i]! + di * (this.q[nextIndex]! - this.q[i]!) / deltaN
   }
+  /* eslint-enable @typescript-eslint/no-non-null-assertion */
 
   private addToReservoir(value: number): void {
     if (this.reservoir.length < this.reservoirSize) {
@@ -889,7 +901,8 @@ export class DistributionTracker {
     for (const value of samples) {
       let idx = Math.floor((value - min) / binSize)
       if (idx >= binCount) idx = binCount - 1
-      bins[idx]!.count += 1
+      const bin = bins[idx]
+      if (bin !== undefined) bin.count += 1
     }
 
     for (const bin of bins) {

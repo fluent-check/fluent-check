@@ -17,7 +17,8 @@ describe('Coverage Requirements', () => {
       expect(result.satisfiable).to.be.true
       expect(result.statistics.labels).to.exist
       // With uniform distribution over [-50, 50], expect ~49% negative, ~49% positive, ~2% zero
-      const labels = result.statistics.labels!
+      const labels = result.statistics.labels
+      if (labels === undefined) throw new Error('Expected labels to be defined')
       const testsRun = result.statistics.testsRun
       expect(labels.negative).to.be.greaterThan(testsRun * 0.3) // At least 30%
       expect(labels.positive).to.be.greaterThan(testsRun * 0.3) // At least 30%
@@ -52,13 +53,14 @@ describe('Coverage Requirements', () => {
 
       expect(result.satisfiable).to.be.true
       expect(result.statistics.labels).to.exist
-      const labels = result.statistics.labels!
+      const labels = result.statistics.labels
+      if (labels === undefined) throw new Error('Expected labels to be defined')
       // All three categories should be tracked
       expect(labels['sizes.empty']).to.be.a('number')
       expect(labels['sizes.small']).to.be.a('number')
       expect(labels['sizes.large']).to.be.a('number')
       // Sum of categories should equal tests run (each test belongs to exactly one category)
-      const total = labels['sizes.empty'] + labels['sizes.small'] + labels['sizes.large']
+      const total = (labels['sizes.empty'] ?? 0) + (labels['sizes.small'] ?? 0) + (labels['sizes.large'] ?? 0)
       expect(total).to.equal(result.statistics.testsRun)
     })
 
@@ -87,7 +89,8 @@ describe('Coverage Requirements', () => {
       expect(result.satisfiable).to.be.true
       expect(result.statistics.coverageResults).to.exist
 
-      const coverageResults = result.statistics.coverageResults!
+      const coverageResults = result.statistics.coverageResults
+      if (coverageResults === undefined) throw new Error('Expected coverageResults to be defined')
       expect(coverageResults.length).to.equal(3)
 
       // All requirements should be satisfied (we set achievable thresholds)
@@ -96,7 +99,8 @@ describe('Coverage Requirements', () => {
       }
 
       // Verify negative coverage (~50% expected, requiring only 10%)
-      const negative = coverageResults.find(c => c.label === 'negative')!
+      const negative = coverageResults.find(c => c.label === 'negative')
+      if (negative === undefined) throw new Error('Expected negative coverage to be found')
       expect(negative.observedPercentage).to.be.greaterThan(40)
       expect(negative.observedPercentage).to.be.lessThan(60)
       expect(negative.requiredPercentage).to.equal(10)
@@ -104,12 +108,14 @@ describe('Coverage Requirements', () => {
       expect(negative.confidenceInterval[1]).to.be.greaterThan(negative.observedPercentage)
 
       // Verify positive coverage (~50% expected, requiring only 10%)
-      const positive = coverageResults.find(c => c.label === 'positive')!
+      const positive = coverageResults.find(c => c.label === 'positive')
+      if (positive === undefined) throw new Error('Expected positive coverage to be found')
       expect(positive.observedPercentage).to.be.greaterThan(40)
       expect(positive.observedPercentage).to.be.lessThan(60)
 
       // Verify zero coverage (~0.5% expected)
-      const zero = coverageResults.find(c => c.label === 'zero')!
+      const zero = coverageResults.find(c => c.label === 'zero')
+      if (zero === undefined) throw new Error('Expected zero coverage to be found')
       expect(zero.observedPercentage).to.be.lessThan(5) // Should be around 0.5%
     })
 
@@ -140,8 +146,16 @@ describe('Coverage Requirements', () => {
         .then(({x}) => Math.abs(x) >= 0)
         .checkCoverage({confidence: 0.99})
 
-      const coverage95 = result95.statistics.coverageResults![0]
-      const coverage99 = result99.statistics.coverageResults![0]
+      const coverageResults95 = result95.statistics.coverageResults
+      const coverageResults99 = result99.statistics.coverageResults
+      if (coverageResults95 === undefined || coverageResults99 === undefined) {
+        throw new Error('Expected coverageResults')
+      }
+      const coverage95 = coverageResults95[0]
+      const coverage99 = coverageResults99[0]
+      if (coverage95 === undefined || coverage99 === undefined) {
+        throw new Error('Expected coverage entries')
+      }
 
       expect(coverage95.confidence).to.equal(0.95)
       expect(coverage99.confidence).to.equal(0.99)
@@ -174,7 +188,10 @@ describe('Coverage Requirements', () => {
       expect(result.statistics.testsRun).to.equal(0)
       expect(result.statistics.coverageResults).to.exist
 
-      const coverage = result.statistics.coverageResults![0]
+      const coverageResults = result.statistics.coverageResults
+      if (coverageResults === undefined) throw new Error('Expected coverageResults')
+      const coverage = coverageResults[0]
+      if (coverage === undefined) throw new Error('Expected coverage entry')
       expect(coverage.observedPercentage).to.equal(0)
       // With zero tests, Wilson interval should be [0, 1] (full uncertainty)
       expect(coverage.confidenceInterval[0]).to.equal(0)
@@ -243,7 +260,10 @@ describe('Coverage Requirements', () => {
         .then(() => true)
         .checkCoverage()
 
-      const coverage = result.statistics.coverageResults![0]
+      const coverageResults = result.statistics.coverageResults
+      if (coverageResults === undefined) throw new Error('Expected coverageResults')
+      const coverage = coverageResults[0]
+      if (coverage === undefined) throw new Error('Expected coverage entry')
       expect(coverage.satisfied).to.be.true
       expect(coverage.requiredPercentage).to.equal(10)
       expect(coverage.observedPercentage).to.be.greaterThan(30) // ~50% expected
@@ -271,7 +291,10 @@ describe('Coverage Requirements', () => {
         .then(() => true)
         .checkCoverage()
 
-      const coverage = result.statistics.coverageResults![0]
+      const coverageResults = result.statistics.coverageResults
+      if (coverageResults === undefined) throw new Error('Expected coverageResults')
+      const coverage = coverageResults[0]
+      if (coverage === undefined) throw new Error('Expected coverage entry')
       // The requirement should be satisfied because upper bound of CI >= 10%
       expect(coverage.satisfied).to.be.true
       expect(coverage.requiredPercentage).to.equal(10)

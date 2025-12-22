@@ -6,14 +6,15 @@ import type {
   LabelNode,
   CollectNode,
   CoverNode,
-  CoverTableNode
+  CoverTableNode,
+  QuantifierNode
 } from '../Scenario.js'
 import {createExecutableScenario} from '../ExecutableScenario.js'
 import type {ExecutableScenario, ExecutableQuantifier} from '../ExecutableScenario.js'
 import {PreconditionFailure} from '../FluentCheck.js'
 import type {Sampler} from './Sampler.js'
 import type {BoundTestCase} from './types.js'
-import type {StatisticsContext} from '../statistics.js'
+import type {StatisticsContext, ArbitraryStatistics, TargetStatistics} from '../statistics.js'
 import {runWithStatisticsContext, calculateBayesianConfidence} from '../statistics.js'
 
 /**
@@ -68,11 +69,11 @@ export interface ExplorationBudget {
  */
 export interface DetailedExplorationStats {
   /** Per-arbitrary statistics (only when detailed statistics enabled) */
-  arbitraryStats?: Record<string, import('../statistics.js').ArbitraryStatistics>
+  arbitraryStats?: Record<string, ArbitraryStatistics>
   /** Event counts (if any events were recorded) */
   events?: Record<string, number>
   /** Target statistics (if any targets were recorded) */
-  targets?: Record<string, import('../statistics.js').TargetStatistics>
+  targets?: Record<string, TargetStatistics>
 }
 
 /**
@@ -303,7 +304,9 @@ export abstract class AbstractExplorer<Rec extends {}> implements Explorer<Rec> 
       lastConfidenceCheck: 0
     }
 
-    const evaluator = this.createEvaluator(executableScenario.nodes, property, statisticsContext, progressCallback, state, budget)
+    const evaluator = this.createEvaluator(
+      executableScenario.nodes, property, statisticsContext, progressCallback, state, budget
+    )
 
     const outcomes = new TraversalOutcomeBuilder<Rec>()
     const results = new ExplorationResultBuilder<Rec>(state)
@@ -463,7 +466,7 @@ export abstract class AbstractExplorer<Rec extends {}> implements Explorer<Rec> 
             totalTests: budget.maxTests,
             elapsedMs: Date.now() - evalState.startTime
           })
-        } catch (_e) {
+        } catch {
           // Progress callback errors should not stop execution
           // Logging would require verbosity context, so we silently continue
         }
@@ -863,7 +866,7 @@ class NestedLoopSemantics<Rec extends {}> implements QuantifierSemantics<Rec> {
     // look it up from the nodes array. The quantifier should always exist in nodes
     // since ExecutableScenario is created from Scenario which includes quantifier nodes.
     const quantifierNode = frame.ctx.executableScenario.nodes.find(
-      (n): n is import('../Scenario.js').QuantifierNode =>
+      (n): n is QuantifierNode =>
         (n.type === 'forall' || n.type === 'exists') && n.name === frame.quantifier.name
     )
 

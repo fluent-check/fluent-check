@@ -134,7 +134,8 @@ export class FluentReporter extends Error {
     if (statistics.targets !== undefined && Object.keys(statistics.targets).length > 0) {
       lines.push('\nTargets:')
       for (const [label, target] of Object.entries(statistics.targets)) {
-        lines.push(`  ${label}: best=${target.best}, mean=${target.mean.toFixed(2)}, observations=${target.observations}`)
+        const mean = target.mean.toFixed(2)
+        lines.push(`  ${label}: best=${target.best}, mean=${mean}, observations=${target.observations}`)
       }
     }
 
@@ -160,15 +161,23 @@ export class FluentReporter extends Error {
 
         if (stats.arrayLengths !== undefined) {
           lines.push('    Array lengths:')
-          lines.push(`      Min: ${stats.arrayLengths.min}, Max: ${stats.arrayLengths.max}`)
-          lines.push(`      Mean: ${stats.arrayLengths.mean.toFixed(2)}, Median: ${stats.arrayLengths.median.toFixed(2)}`)
+          const arrMin = stats.arrayLengths.min
+          const arrMax = stats.arrayLengths.max
+          const arrMean = stats.arrayLengths.mean.toFixed(2)
+          const arrMedian = stats.arrayLengths.median.toFixed(2)
+          lines.push(`      Min: ${arrMin}, Max: ${arrMax}`)
+          lines.push(`      Mean: ${arrMean}, Median: ${arrMedian}`)
           renderHistogram(stats.arrayLengthHistogram, 'Histogram')
         }
 
         if (stats.stringLengths !== undefined) {
           lines.push('    String lengths:')
-          lines.push(`      Min: ${stats.stringLengths.min}, Max: ${stats.stringLengths.max}`)
-          lines.push(`      Mean: ${stats.stringLengths.mean.toFixed(2)}, Median: ${stats.stringLengths.median.toFixed(2)}`)
+          const strMin = stats.stringLengths.min
+          const strMax = stats.stringLengths.max
+          const strMean = stats.stringLengths.mean.toFixed(2)
+          const strMedian = stats.stringLengths.median.toFixed(2)
+          lines.push(`      Min: ${strMin}, Max: ${strMax}`)
+          lines.push(`      Mean: ${strMean}, Median: ${strMedian}`)
           renderHistogram(stats.stringLengthHistogram, 'Histogram')
         }
       }
@@ -322,7 +331,10 @@ export class FluentReporter extends Error {
       executionTimeMs: statistics.executionTimeMs
     }
 
-    if (statistics.executionTimeBreakdown !== undefined) output.executionTimeBreakdown = statistics.executionTimeBreakdown
+    // TODO(tech-debt): Consider using object spread with conditional properties instead of mutations
+    if (statistics.executionTimeBreakdown !== undefined) {
+      output.executionTimeBreakdown = statistics.executionTimeBreakdown
+    }
     if (statistics.labels !== undefined) output.labels = statistics.labels
     if (statistics.labelPercentages !== undefined) output.labelPercentages = statistics.labelPercentages
     if (statistics.events !== undefined) output.events = statistics.events

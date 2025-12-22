@@ -1,7 +1,9 @@
 import * as fc from '../src/index'
 import {it, describe, beforeEach, afterEach} from 'mocha'
 import {expect} from 'chai'
-import {Verbosity, FluentReporter, type ArbitraryStatistics, type FluentStatistics, type Logger, type LogEntry} from '../src/index'
+import {
+  Verbosity, FluentReporter, type ArbitraryStatistics, type FluentStatistics, type Logger, type LogEntry
+} from '../src/index'
 
 // Helper to create a scenario with detailed statistics
 function detailedScenario(sampleSize = 100) {
@@ -63,7 +65,8 @@ describe('Detailed Statistics', () => {
       expect(xStats.samplesGenerated).to.equal(result.statistics.testsRun)
       expect(xStats.distribution).to.exist
 
-      const dist = xStats.distribution!
+      const dist = xStats.distribution
+      if (dist === undefined) throw new Error('Expected distribution')
       expect(dist.min).to.be.within(1, 100)
       expect(dist.max).to.be.within(1, 100)
       expect(dist.mean).to.be.within(1, 100)
@@ -81,7 +84,8 @@ describe('Detailed Statistics', () => {
       expect(xsStats.samplesGenerated).to.equal(result.statistics.testsRun)
       expect(xsStats.arrayLengths).to.exist
 
-      const lengths = xsStats.arrayLengths!
+      const lengths = xsStats.arrayLengths
+      if (lengths === undefined) throw new Error('Expected arrayLengths')
       expect(lengths.min).to.be.within(0, 20)
       expect(lengths.max).to.be.within(0, 20)
       expect(lengths.count).to.equal(xsStats.samplesGenerated)
@@ -96,7 +100,8 @@ describe('Detailed Statistics', () => {
       const sStats = getArbitraryStats(result, 's')
       expect(sStats.stringLengths).to.exist
 
-      const lengths = sStats.stringLengths!
+      const lengths = sStats.stringLengths
+      if (lengths === undefined) throw new Error('Expected stringLengths')
       expect(lengths.min).to.be.within(0, 50)
       expect(lengths.max).to.be.within(0, 50)
       expect(lengths.count).to.equal(sStats.samplesGenerated)
@@ -151,8 +156,9 @@ describe('Detailed Statistics', () => {
       expect(result.statistics.events).to.exist
       expect(result.statistics.eventPercentages).to.exist
 
-      const events = result.statistics.events!
-      const pcts = result.statistics.eventPercentages!
+      const events = result.statistics.events
+      const pcts = result.statistics.eventPercentages
+      if (events === undefined || pcts === undefined) throw new Error('Expected events and percentages')
 
       // Event counts should not exceed tests run (each test triggers at most one)
       const totalEvents = (events['positive'] ?? 0) + (events['negative'] ?? 0) + (events['zero'] ?? 0)
@@ -205,13 +211,14 @@ describe('Detailed Statistics', () => {
         .config(fc.strategy().withVerbosity(Verbosity.Debug).withSampleSize(5))
         .forall('x', fc.integer())
         .then(({x}) => {
-          fc.event('payload', {x})
+          fc.event('payload', {x: x})
           return true
         })
         .check({logger})
 
       expect(entries.some(e => {
-        const payload = e.data !== undefined && 'payload' in e.data ? (e.data as Record<string, unknown>)['payload'] : undefined
+        const data = e.data as Record<string, unknown> | undefined
+        const payload = data !== undefined && 'payload' in data ? data['payload'] : undefined
         return e.level === 'debug' && e.message === 'event' && payload !== undefined
       })).to.be.true
     })
@@ -227,8 +234,10 @@ describe('Detailed Statistics', () => {
         })
         .check()
 
-      const targets = result.statistics.targets!
-      const valueTarget = targets['value']!
+      const targets = result.statistics.targets
+      if (targets === undefined) throw new Error('Expected targets')
+      const valueTarget = targets['value']
+      if (valueTarget === undefined) throw new Error('Expected value target')
 
       expect(valueTarget.best).to.be.within(0, 100)
       expect(valueTarget.observations).to.equal(result.statistics.testsRun)
@@ -257,7 +266,8 @@ describe('Detailed Statistics', () => {
         })
         .check()
 
-      const targets = result.statistics.targets!
+      const targets = result.statistics.targets
+      if (targets === undefined) throw new Error('Expected targets')
       expect(targets['length']).to.exist
       expect(targets['max']).to.exist
     })
@@ -274,7 +284,8 @@ describe('Detailed Statistics', () => {
         })
         .check({logger})
 
-      const targets = result.statistics.targets!
+      const targets = result.statistics.targets
+      if (targets === undefined) throw new Error('Expected targets')
       expect(targets['valid']).to.exist
       expect(targets['invalid']).to.be.undefined
       expect(targets['invalid2']).to.be.undefined
@@ -369,7 +380,8 @@ describe('Detailed Statistics', () => {
         .then(() => true)
         .check()
 
-      const dist = getArbitraryStats(result, 'x').distribution!
+      const dist = getArbitraryStats(result, 'x').distribution
+      if (dist === undefined) throw new Error('Expected distribution')
 
       // Mean should be roughly centered (uniform distribution)
       expect(dist.mean).to.be.closeTo(50, 15)
@@ -492,7 +504,8 @@ describe('Detailed Statistics', () => {
 
       expect(progressCalls.length).to.be.greaterThan(0)
 
-      const lastProgress = progressCalls[progressCalls.length - 1]!
+      const lastProgress = progressCalls[progressCalls.length - 1]
+      if (lastProgress === undefined) throw new Error('Expected at least one progress call')
       expect(lastProgress.testsRun).to.equal(result.statistics.testsRun)
       expect(lastProgress.currentPhase).to.equal('exploring')
     })
@@ -501,7 +514,9 @@ describe('Detailed Statistics', () => {
       const result = basicScenario()
         .forall('x', fc.integer())
         .then(() => true)
-        .check({onProgress: () => { throw new Error('Callback error') }})
+        .check({
+          onProgress: () => { throw new Error('Callback error') }
+        })
 
       expect(result.satisfiable).to.be.true
     })
@@ -515,7 +530,9 @@ describe('Detailed Statistics', () => {
         .check({onProgress: (p) => progressCalls.push(p), progressInterval: 100})
 
       expect(progressCalls.length).to.be.at.least(1)
-      expect(progressCalls[progressCalls.length - 1]!.testsRun).to.equal(result.statistics.testsRun)
+      const lastCall = progressCalls[progressCalls.length - 1]
+      if (lastCall === undefined) throw new Error('Expected at least one progress call')
+      expect(lastCall.testsRun).to.equal(result.statistics.testsRun)
     })
   })
 
@@ -540,7 +557,8 @@ describe('Detailed Statistics', () => {
         .then(() => true)
         .check()
 
-      const dist = getArbitraryStats(result, 'x').distribution!
+      const dist = getArbitraryStats(result, 'x').distribution
+      if (dist === undefined) throw new Error('Expected distribution')
       expect(dist.min).to.be.within(0, 20)
       expect(dist.max).to.be.within(0, 20)
     })

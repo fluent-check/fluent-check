@@ -360,7 +360,6 @@ export class FluentCheck<
     return runCheck(scenario, executionConfig, options)
   }
 
-
   /**
    * Check the property and verify coverage requirements.
    * Executes tests and verifies that all coverage requirements are satisfied using statistical confidence intervals.
@@ -419,8 +418,8 @@ export class FluentCheck<
 
     // Throw error if any requirements not satisfied
     if (!verification.allSatisfied) {
-      const errorMessage = `Coverage requirements not satisfied:\n${verification.unsatisfied.map(req => `  - ${req}`).join('\n')}`
-      throw new Error(errorMessage)
+      const unsatisfiedList = verification.unsatisfied.map(req => `  - ${req}`).join('\n')
+      throw new Error(`Coverage requirements not satisfied:\n${unsatisfiedList}`)
     }
 
     return coverageResult
