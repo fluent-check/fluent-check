@@ -517,14 +517,14 @@ export function assertThrowsWithProperty(
   property: string,
   value: unknown | ((val: unknown) => boolean)
 ): void {
-  expect(fn).to.throw()
   try {
     fn()
+    expect.fail('Expected function to throw, but it did not.')
   } catch (error) {
     const errorObj = error as Record<string, unknown>
     expect(errorObj).to.have.property(property)
     if (typeof value === 'function') {
-      expect(value(errorObj[property])).to.be.true
+      expect((value as (val: unknown) => boolean)(errorObj[property])).to.be.true
     } else {
       expect(errorObj[property]).to.equal(value)
     }
