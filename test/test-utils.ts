@@ -503,17 +503,7 @@ export function assertThrowsWithMessage(
   fn: () => void,
   messagePattern: string | RegExp
 ): void {
-  expect(fn).to.throw()
-  try {
-    fn()
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error)
-    if (typeof messagePattern === 'string') {
-      expect(message).to.include(messagePattern)
-    } else {
-      expect(message).to.match(messagePattern)
-    }
-  }
+  expect(fn).to.throw(messagePattern)
 }
 
 /**
