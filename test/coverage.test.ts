@@ -44,9 +44,11 @@ describe('Coverage Requirements', () => {
         }
 
         if (shouldThrow) {
-          expect(fn, `should throw for ${description} (${percentage})`).to.throw('Coverage percentage must be between 0 and 100')
+          expect(fn, `should throw for ${description} (${percentage})`)
+            .to.throw('Coverage percentage must be between 0 and 100')
         } else {
-          expect(fn, `should not throw for ${description} (${percentage})`).to.not.throw()
+          expect(fn, `should not throw for ${description} (${percentage})`)
+            .to.not.throw()
         }
       }
     })
