@@ -17,6 +17,7 @@ describe('Algebraic structures', () => {
       semigroup('(ℤ, min)', smallInt(), Math.min),
       semigroup('(Boolean, ∧)', fc.boolean(), (a, b) => a && b),
       semigroup('(Boolean, ∨)', fc.boolean(), (a, b) => a || b),
+      semigroup('(String, concat)', fc.string(0, 5), (a, b) => a + b),
     ].forEach(run => run())
   })
 
@@ -37,6 +38,7 @@ describe('Algebraic structures', () => {
       monoid('(ℤ, ×, 1)', smallInt(), (a, b) => a * b, 1),
       monoid('(Boolean, ∧, true)', fc.boolean(), (a, b) => a && b, true),
       monoid('(Boolean, ∨, false)', fc.boolean(), (a, b) => a || b, false),
+      monoid('(String, concat, "")', fc.string(0, 5), (a, b) => a + b, ''),
     ].forEach(run => run())
   })
 
