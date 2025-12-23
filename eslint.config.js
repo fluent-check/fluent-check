@@ -48,7 +48,7 @@ export default [
       'eol-last': ['warn', 'always'],
       'keyword-spacing': 'warn',
       // TODO(rui): apply this later
-      'max-len': ['warn', { code: 120, tabWidth: 2 }],
+      'max-len': ['warn', { code: 128, tabWidth: 2 }],
       'no-multiple-empty-lines': ['warn', { max: 1 }],
       'no-trailing-spaces': ['warn', { skipBlankLines: false }],
       'object-curly-spacing': 'warn',
