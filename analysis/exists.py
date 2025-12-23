@@ -20,6 +20,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import numpy as np
 from pathlib import Path
+from scipy import stats
 from util import wilson_score_interval, format_ci, save_figure
 
 # Paths
@@ -336,6 +337,89 @@ def main():
               f"{diff_str:<10}")
     
     print("-" * 80)
+    
+    # Chi-squared goodness-of-fit test
+    print(f"\n{'='*100}")
+    print("CHI-SQUARED GOODNESS-OF-FIT TEST (Observed vs Expected)")
+    print("=" * 100)
+    print("\nVerifying that observed detection rates match theoretical expectations.")
+    print("p > 0.05 indicates no significant deviation from theory.\n")
+    
+    chi_results = []
+    for scenario in SCENARIO_ORDER:
+        if scenario not in df['scenario'].values:
+            continue
+        
+        scenario_df = df[df['scenario'] == scenario]
+        
+        for sample_size in sorted(scenario_df['sample_size'].unique()):
+            group = scenario_df[scenario_df['sample_size'] == sample_size]
+            n = len(group)
+            observed_found = group['witness_found'].sum()
+            observed_not_found = n - observed_found
+            
+            density = group['witness_density'].iloc[0]
+            expected_rate = expected_detection_rate(density, sample_size, scenario)
+            expected_found = expected_rate * n
+            expected_not_found = n - expected_found
+            
+            # Chi-squared test: observed vs expected for [found, not_found]
+            # Skip if expected counts are too small
+            if expected_found < 5 or expected_not_found < 5:
+                chi2, p_value = np.nan, np.nan
+            else:
+                chi2, p_value = stats.chisquare(
+                    [observed_found, observed_not_found],
+                    [expected_found, expected_not_found]
+                )
+            
+            chi_results.append({
+                'scenario': scenario,
+                'sample_size': sample_size,
+                'n': n,
+                'observed': observed_found / n,
+                'expected': expected_rate,
+                'chi2': chi2,
+                'p_value': p_value,
+                'matches_theory': p_value > 0.05 if not np.isnan(p_value) else None
+            })
+    
+    chi_df = pd.DataFrame(chi_results)
+    
+    print(f"{'Scenario':<15} {'N':<6} {'Obs':<10} {'Exp':<10} {'χ²':<10} {'p-value':<10} {'Match':<8}")
+    print("-" * 80)
+    
+    for _, row in chi_df.iterrows():
+        if np.isnan(row['chi2']):
+            chi_str = "N/A"
+            p_str = "N/A"
+            match = "skip"
+        else:
+            chi_str = f"{row['chi2']:.2f}"
+            p_str = f"{row['p_value']:.3f}"
+            match = "✓" if row['matches_theory'] else "✗"
+        
+        print(f"{row['scenario']:<15} "
+              f"{int(row['sample_size']):<6} "
+              f"{row['observed']*100:<10.1f}% "
+              f"{row['expected']*100:<10.1f}% "
+              f"{chi_str:<10} "
+              f"{p_str:<10} "
+              f"{match:<8}")
+    
+    print("-" * 80)
+    
+    # Summary of chi-squared results
+    valid_tests = chi_df[~chi_df['chi2'].isna()]
+    if len(valid_tests) > 0:
+        matching = valid_tests['matches_theory'].sum()
+        total = len(valid_tests)
+        print(f"\n  Statistical equivalence: {matching}/{total} tests match theory (p > 0.05)")
+        
+        if matching == total:
+            print("  ✓ All observed rates match theoretical expectations")
+        else:
+            print("  ⚠ Some deviations detected - investigate potential RNG or methodology issues")
     
     # ROI Analysis
     print(f"\n{'='*100}")

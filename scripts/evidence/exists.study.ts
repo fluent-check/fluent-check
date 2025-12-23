@@ -13,7 +13,7 @@
  * is approximately `1 - (1-d)^n` (geometric distribution).
  * 
  * IMPORTANT: We use large ranges (1M+ values) with modular arithmetic predicates
- * to avoid birthday paradox effects. This ensures witness density is independent
+ * to avoid space exhaustion effects. This ensures witness density is independent
  * of range size and each sample is truly independent.
  */
 
@@ -21,7 +21,7 @@ import * as fc from '../../src/index.js'
 import { CSVWriter, ProgressReporter, getSeed, getSampleSize, mulberry32, HighResTimer } from './runner.js'
 import path from 'path'
 
-// Large range to avoid birthday paradox effects
+// Large range to avoid space exhaustion/saturation effects
 // With 1M values and max 500 samples, we cover only 0.05% of the space
 const LARGE_RANGE_MIN = 1
 const LARGE_RANGE_MAX = 1_000_000
@@ -288,7 +288,7 @@ function runRareTrial(
 async function runExistsStudy(): Promise<void> {
   console.log('\n=== Existential Quantifier Study ===')
   console.log('Hypothesis: FluentCheck efficiently finds witnesses for existential properties')
-  console.log(`Search space: [${LARGE_RANGE_MIN.toLocaleString()}, ${LARGE_RANGE_MAX.toLocaleString()}] (avoids birthday paradox)\n`)
+  console.log(`Search space: [${LARGE_RANGE_MIN.toLocaleString()}, ${LARGE_RANGE_MAX.toLocaleString()}] (avoids space exhaustion)\n`)
 
   const outputPath = path.join(process.cwd(), 'docs/evidence/raw/exists.csv')
   const writer = new CSVWriter(outputPath)

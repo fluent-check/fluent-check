@@ -25,6 +25,8 @@ python calibration.py
 python detection.py
 python efficiency.py
 python exists.py
+python shrinking.py
+python double_negation.py
 
 deactivate
 
