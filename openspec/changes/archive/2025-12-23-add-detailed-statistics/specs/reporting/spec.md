@@ -220,31 +220,6 @@ The system SHALL support progress callbacks for long-running tests.
 - **AND** test execution SHALL continue
 - **AND** further progress callbacks SHALL be skipped for that test run
 
-## MODIFIED Requirements
-
-### Requirement: FluentReporter Error Formatting
-
-The system SHALL enhance FluentReporter to include statistics in error messages when available.
-
-#### Scenario: Statistics in error message
-- **WHEN** a property fails and verbosity is `Verbose` or `Debug`
-- **THEN** the error message SHALL include a summary of statistics
-- **AND** the summary SHALL include tests run, time, and key metrics
-
-#### Scenario: Error message structure
-- **WHEN** a FluentReporter error is constructed
-- **THEN** the error message SHALL have this structure:
-  1. Headline: "Property not satisfiable"
-  2. Counterexample (JSON formatted)
-  3. Seed for reproduction
-  4. Statistics summary (if verbose)
-  5. Shrinking info (if shrinking was performed)
-
-#### Scenario: Seed in error message
-- **WHEN** a FluentReporter error is thrown
-- **THEN** the seed SHALL always be included
-- **AND** the format SHALL show how to reproduce: `Seed: 12345 (use .withSeed(12345) to reproduce)`
-
 ### Requirement: FluentResult Assertion Messages
 
 The system SHALL provide detailed assertion messages.
@@ -265,3 +240,33 @@ The system SHALL provide detailed assertion messages.
 #### Scenario: Custom assertion message
 - **WHEN** `result.assertSatisfiable(message)` is called with a custom message
 - **THEN** the custom message SHALL be prepended to the default error details
+
+## MODIFIED Requirements
+
+### Requirement: FluentReporter Error
+
+The system SHALL provide a `FluentReporter` error class for test framework integration.
+
+#### Scenario: Error name
+- **WHEN** a FluentReporter error is thrown
+- **THEN** its name SHALL be "Property not satisfiable"
+
+#### Scenario: Error message
+- **WHEN** a FluentReporter error is thrown
+- **THEN** its message SHALL include the counterexample as JSON
+- **AND** the error message SHALL include a summary of statistics when verbosity is `Verbose` or `Debug`
+- **AND** the statistics summary SHALL include tests run, time, and key metrics
+
+#### Scenario: Error message structure
+- **WHEN** a FluentReporter error is constructed
+- **THEN** the error message SHALL have this structure:
+  1. Headline: "Property not satisfiable"
+  2. Counterexample (JSON formatted)
+  3. Seed for reproduction
+  4. Statistics summary (if verbose)
+  5. Shrinking info (if shrinking was performed)
+
+#### Scenario: Seed in error message
+- **WHEN** a FluentReporter error is thrown
+- **THEN** the seed SHALL always be included
+- **AND** the format SHALL show how to reproduce: `Seed: 12345 (use .withSeed(12345) to reproduce)`
