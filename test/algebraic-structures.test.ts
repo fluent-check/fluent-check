@@ -1,6 +1,6 @@
 import * as fc from '../src/index'
 import {it, describe} from 'mocha'
-import {testCommutative, testAssociative, testIdentity, smallInt} from './test-utils.js'
+import {testCommutative, testAssociative, testIdentity, smallInt, assertNotSatisfiableWithCounterExample} from './test-utils.js'
 
 describe('Algebraic structures', () => {
   const semigroup = <T>(name: string, arbitrary: fc.Arbitrary<T>, op: (a: T, b: T) => T) => () => {
@@ -206,8 +206,7 @@ describe('Algebraic structures', () => {
   describe('Non-examples (structures that fail properties)', () => {
     it('(ℤ, -) is not a semigroup (not associative)', () => {
       const result = testAssociative(smallInt(), (a, b) => a - b).check()
-      result.assertNotSatisfiable()
-      result.assertExample({a: 0, b: 0, c: -1})
+      assertNotSatisfiableWithCounterExample(result, {a: 0, b: 0, c: -1})
     })
 
     it('addition does not distribute over multiplication', () => {
@@ -217,8 +216,7 @@ describe('Algebraic structures', () => {
         .forall('c', fc.integer(-10, 10))
         .then(({a, b, c}) => a + (b * c) === (a + b) * (a + c))
         .check()
-      result.assertNotSatisfiable()
-      result.assertExample({a: -1, b: 0, c: 0})
+      assertNotSatisfiableWithCounterExample(result, {a: -1, b: 0, c: 0})
     })
   })
 })

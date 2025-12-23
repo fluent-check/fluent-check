@@ -1,5 +1,6 @@
 import * as fc from '../src/index'
 import {it} from 'mocha'
+import {assertNotSatisfiableWithCounterExample} from './test-utils.js'
 
 class Stack<T> {
   elements: Array<T> = []
@@ -38,8 +39,7 @@ describe('Stack tests', () => {
       .then(({es, stack}) => stack.size() === es.length)
       .and(({stack}) => stack.size() > 0)
       .check()
-    result.assertNotSatisfiable()
-    result.assertExample({es: []})
+    assertNotSatisfiableWithCounterExample(result, {es: []})
   })
 
   it('should find if two different stacks behave the same', () => {

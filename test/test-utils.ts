@@ -183,6 +183,21 @@ export function assertExample<Rec extends {} = {}>(
 }
 
 /**
+ * Asserts that a result's counterexample matches the expected values.
+ * This is a wrapper around result.assertCounterExample() for consistency.
+ * @param result - The FluentResult to check
+ * @param expected - Partial object with expected values
+ * @param message - Optional custom error message
+ */
+export function assertCounterExample<Rec extends {} = {}>(
+  result: FluentResult<Rec>,
+  expected: Partial<Rec>,
+  message?: string
+): void {
+  result.assertCounterExample(expected, message)
+}
+
+/**
  * Asserts that a result is satisfiable and its example matches expected values.
  * Combines assertSatisfiable and assertExample for convenience.
  * @param result - The FluentResult to check
@@ -196,6 +211,22 @@ export function assertSatisfiableWithExample<Rec extends {} = {}>(
 ): void {
   assertSatisfiable(result, message)
   assertExample(result, expected, message)
+}
+
+/**
+ * Asserts that a result is not satisfiable and its counterexample matches expected values.
+ * Combines assertNotSatisfiable and assertCounterExample for convenience.
+ * @param result - The FluentResult to check
+ * @param expected - Partial object with expected values
+ * @param message - Optional custom error message
+ */
+export function assertNotSatisfiableWithCounterExample<Rec extends {} = {}>(
+  result: FluentResult<Rec>,
+  expected: Partial<Rec>,
+  message?: string
+): void {
+  assertNotSatisfiable(result, message)
+  assertCounterExample(result, expected, message)
 }
 
 /**
@@ -797,8 +828,7 @@ export function assertExistentialWitness<T>(
     .exists(variableName as any, arbitrary)
     .then((vars: any) => predicate(vars[variableName]))
     .check()
-  result.assertSatisfiable()
-  result.assertExample({[variableName]: expectedWitness} as any)
+  assertSatisfiableWithExample(result, {[variableName]: expectedWitness} as any)
 }
 
 // ============================================================================
