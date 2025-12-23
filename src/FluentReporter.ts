@@ -1,5 +1,6 @@
 import type {FluentResult} from './FluentCheck.js'
 import type {FluentStatistics, HistogramBin} from './statistics.js'
+import * as md from 'ts-markdown-builder'
 
 export function expect<Rec extends {}>(result: FluentResult<Rec>): void | never {
   if (!result.satisfiable) {
@@ -67,6 +68,55 @@ export class FluentReporter extends Error {
     }
   }
 
+  // Helper: Check if an object has keys
+  private static hasKeys<T extends Record<string, unknown>>(obj: T | undefined): obj is T {
+    return obj !== undefined && Object.keys(obj).length > 0
+  }
+
+  // Helper: Get percentage with fallback
+  private static getPercentage(percentages: Record<string, number> | undefined, key: string): number {
+    return percentages?.[key] ?? 0
+  }
+
+  // Helper: Sort labels by count (descending) and limit
+  private static getSortedLabels(
+    labels: Record<string, number> | undefined,
+    maxRows: number
+  ): Array<[string, number]> {
+    if (!this.hasKeys(labels)) return []
+    return Object.entries(labels)
+      .sort(([, a], [, b]) => b - a)
+      .slice(0, maxRows)
+  }
+
+  // Helper: Calculate histogram bar width
+  private static calculateBarWidth(count: number, maxCount: number): number {
+    return maxCount === 0 ? 0 : Math.max(1, Math.round((count / maxCount) * 20))
+  }
+
+  // Helper: Render histogram bins to lines (for text format)
+  private static renderHistogramBins(
+    bins: HistogramBin[],
+    maxCount: number,
+    indent: string
+  ): string[] {
+    return bins.map(bin => {
+      const width = this.calculateBarWidth(bin.count, maxCount)
+      const bar = '█'.repeat(width)
+      return `${indent}${bin.label.padEnd(14)} ${bar} ${bin.percentage.toFixed(1)}%`
+    })
+  }
+
+  // Helper: Format distribution stats (min/max/mean/median) - returns two lines
+  private static formatDistributionStats(
+    stats: { min: number; max: number; mean: number; median: number }
+  ): [string, string] {
+    return [
+      `Min: ${stats.min}, Max: ${stats.max}`,
+      `Mean: ${stats.mean.toFixed(2)}, Median: ${stats.median.toFixed(2)}`
+    ]
+  }
+
   private static formatText(
     statistics: FluentStatistics,
     detailed: boolean,
@@ -78,11 +128,7 @@ export class FluentReporter extends Error {
       if (!includeHistograms || bins === undefined || bins.length === 0) return
       const maxCount = Math.max(...bins.map(b => b.count))
       if (heading !== undefined) lines.push(`    ${heading}:`)
-      for (const bin of bins) {
-        const width = maxCount === 0 ? 0 : Math.max(1, Math.round((bin.count / maxCount) * 20))
-        const bar = '█'.repeat(width)
-        lines.push(`      ${bin.label.padEnd(14)} ${bar} ${bin.percentage.toFixed(1)}%`)
-      }
+      lines.push(...this.renderHistogramBins(bins, maxCount, '      '))
     }
 
     lines.push('Statistics:')
@@ -95,14 +141,12 @@ export class FluentReporter extends Error {
       lines.push(`    Shrinking: ${statistics.executionTimeBreakdown.shrinking}ms`)
     }
 
-    if (statistics.labels !== undefined && Object.keys(statistics.labels).length > 0) {
+    if (this.hasKeys(statistics.labels)) {
       lines.push('\nLabels:')
-      const sortedLabels = Object.entries(statistics.labels)
-        .sort(([, a], [, b]) => b - a)
-        .slice(0, maxLabelRows)
+      const sortedLabels = this.getSortedLabels(statistics.labels, maxLabelRows)
 
       for (const [label, count] of sortedLabels) {
-        const percentage = statistics.labelPercentages?.[label] ?? 0
+        const percentage = this.getPercentage(statistics.labelPercentages, label)
         lines.push(`  ${label}: ${count} (${percentage.toFixed(1)}%)`)
       }
 
@@ -115,23 +159,23 @@ export class FluentReporter extends Error {
         const maxCount = Math.max(...sortedLabels.map(([, count]) => count))
         lines.push('  Label histogram:')
         for (const [label, count] of sortedLabels) {
-          const percentage = statistics.labelPercentages?.[label] ?? 0
-          const width = maxCount === 0 ? 0 : Math.max(1, Math.round((count / maxCount) * 20))
+          const percentage = this.getPercentage(statistics.labelPercentages, label)
+          const width = this.calculateBarWidth(count, maxCount)
           const bar = '█'.repeat(width)
           lines.push(`    ${label}: ${bar} ${percentage.toFixed(1)}%`)
         }
       }
     }
 
-    if (statistics.events !== undefined && Object.keys(statistics.events).length > 0) {
+    if (this.hasKeys(statistics.events)) {
       lines.push('\nEvents:')
       for (const [event, count] of Object.entries(statistics.events)) {
-        const percentage = statistics.eventPercentages?.[event] ?? 0
+        const percentage = this.getPercentage(statistics.eventPercentages, event)
         lines.push(`  ${event}: ${count} (${percentage.toFixed(1)}%)`)
       }
     }
 
-    if (statistics.targets !== undefined && Object.keys(statistics.targets).length > 0) {
+    if (this.hasKeys(statistics.targets)) {
       lines.push('\nTargets:')
       for (const [label, target] of Object.entries(statistics.targets)) {
         const mean = target.mean.toFixed(2)
@@ -161,17 +205,17 @@ export class FluentReporter extends Error {
 
         if (stats.arrayLengths !== undefined) {
           lines.push('    Array lengths:')
-          const { min, max, mean, median } = stats.arrayLengths
-          lines.push(`      Min: ${min}, Max: ${max}`)
-          lines.push(`      Mean: ${mean.toFixed(2)}, Median: ${median.toFixed(2)}`)
+          const [minMax, meanMedian] = this.formatDistributionStats(stats.arrayLengths)
+          lines.push(`      ${minMax}`)
+          lines.push(`      ${meanMedian}`)
           renderHistogram(stats.arrayLengthHistogram, 'Histogram')
         }
 
         if (stats.stringLengths !== undefined) {
           lines.push('    String lengths:')
-          const { min, max, mean, median } = stats.stringLengths
-          lines.push(`      Min: ${min}, Max: ${max}`)
-          lines.push(`      Mean: ${mean.toFixed(2)}, Median: ${median.toFixed(2)}`)
+          const [minMax, meanMedian] = this.formatDistributionStats(stats.stringLengths)
+          lines.push(`      ${minMax}`)
+          lines.push(`      ${meanMedian}`)
           renderHistogram(stats.stringLengthHistogram, 'Histogram')
         }
       }
@@ -180,138 +224,158 @@ export class FluentReporter extends Error {
     return lines.join('\n')
   }
 
+  // Helper: Render histogram for markdown format
+  private static renderMarkdownHistogram(
+    bins: HistogramBin[] | undefined,
+    title: string | undefined,
+    includeHistograms: boolean
+  ): string | null {
+    if (!includeHistograms || bins === undefined || bins.length === 0) return null
+    const maxCount = Math.max(...bins.map(b => b.count))
+    const histogramLines = title ? [`Histogram: ${title}`] : ['Histogram']
+    histogramLines.push(...this.renderHistogramBins(bins, maxCount, '').map(line => line.trim()))
+    return md.codeBlock(histogramLines.join('\n'))
+  }
+
   private static formatMarkdown(
     statistics: FluentStatistics,
     detailed: boolean,
     includeHistograms: boolean,
     maxLabelRows: number
   ): string {
-    const lines: string[] = []
-    const renderHistogram = (bins?: HistogramBin[]) => {
-      if (!includeHistograms || bins === undefined || bins.length === 0) return
-      lines.push('')
-      lines.push('```\nHistogram')
-      const maxCount = Math.max(...bins.map(b => b.count))
-      for (const bin of bins) {
-        const width = maxCount === 0 ? 0 : Math.max(1, Math.round((bin.count / maxCount) * 20))
-        const bar = '█'.repeat(width)
-        lines.push(`${bin.label.padEnd(14)} ${bar} ${bin.percentage.toFixed(1)}%`)
-      }
-      lines.push('```')
-    }
+    const blocks: string[] = []
 
-    lines.push('## Statistics')
-    lines.push('')
-    lines.push('| Metric | Value |')
-    lines.push('|--------|-------|')
-    lines.push(`| Tests run | ${statistics.testsRun} |`)
-    lines.push(`| Tests passed | ${statistics.testsPassed} |`)
-    lines.push(`| Tests discarded | ${statistics.testsDiscarded} |`)
-    lines.push(`| Execution time | ${statistics.executionTimeMs}ms |`)
+    // Main statistics table
+    const mainTableRows: string[][] = [
+      ['Tests run', String(statistics.testsRun)],
+      ['Tests passed', String(statistics.testsPassed)],
+      ['Tests discarded', String(statistics.testsDiscarded)],
+      ['Execution time', `${statistics.executionTimeMs}ms`]
+    ]
+    
     if (statistics.executionTimeBreakdown !== undefined) {
-      lines.push(`| - Exploration | ${statistics.executionTimeBreakdown.exploration}ms |`)
-      lines.push(`| - Shrinking | ${statistics.executionTimeBreakdown.shrinking}ms |`)
+      mainTableRows.push(['- Exploration', `${statistics.executionTimeBreakdown.exploration}ms`])
+      mainTableRows.push(['- Shrinking', `${statistics.executionTimeBreakdown.shrinking}ms`])
     }
-    lines.push('')
 
-    if (statistics.labels !== undefined && Object.keys(statistics.labels).length > 0) {
-      lines.push('### Labels')
-      lines.push('')
-      lines.push('| Label | Count | Percentage |')
-      lines.push('|-------|-------|------------|')
+    blocks.push(
+      md.heading('Statistics', { level: 2 }),
+      md.table(['Metric', 'Value'], mainTableRows)
+    )
 
-      const sortedLabels = Object.entries(statistics.labels)
-        .sort(([, a], [, b]) => b - a)
-        .slice(0, maxLabelRows)
+    // Labels section
+    if (this.hasKeys(statistics.labels)) {
+      const sortedLabels = this.getSortedLabels(statistics.labels, maxLabelRows)
 
-      for (const [label, count] of sortedLabels) {
-        const percentage = statistics.labelPercentages?.[label] ?? 0
-        lines.push(`| ${label} | ${count} | ${percentage.toFixed(1)}% |`)
-      }
+      const labelRows: string[][] = sortedLabels.map(([label, count]) => {
+        const percentage = this.getPercentage(statistics.labelPercentages, label)
+        return [label, String(count), `${percentage.toFixed(1)}%`]
+      })
 
       const remaining = Object.keys(statistics.labels).length - sortedLabels.length
       if (remaining > 0) {
-        lines.push(`| ... and ${remaining} more | | |`)
+        labelRows.push([`... and ${remaining} more`, '', ''])
       }
-      lines.push('')
+
+      blocks.push(
+        md.heading('Labels', { level: 3 }),
+        md.table(['Label', 'Count', 'Percentage'], labelRows)
+      )
 
       if (includeHistograms && sortedLabels.length > 0) {
         const maxCount = Math.max(...sortedLabels.map(([, count]) => count))
-        lines.push('```\nLabel histogram')
+        const histogramLines = ['Label histogram']
         for (const [label, count] of sortedLabels) {
-          const percentage = statistics.labelPercentages?.[label] ?? 0
-          const width = maxCount === 0 ? 0 : Math.max(1, Math.round((count / maxCount) * 20))
+          const percentage = this.getPercentage(statistics.labelPercentages, label)
+          const width = this.calculateBarWidth(count, maxCount)
           const bar = '█'.repeat(width)
-          lines.push(`${label}: ${bar} ${percentage.toFixed(1)}%`)
+          histogramLines.push(`${label}: ${bar} ${percentage.toFixed(1)}%`)
         }
-        lines.push('```')
-        lines.push('')
+        blocks.push(md.codeBlock(histogramLines.join('\n')))
       }
     }
 
-    if (statistics.events !== undefined && Object.keys(statistics.events).length > 0) {
-      lines.push('### Events')
-      lines.push('')
-      lines.push('| Event | Count | Percentage |')
-      lines.push('|-------|-------|------------|')
-      for (const [event, count] of Object.entries(statistics.events)) {
-        const percentage = statistics.eventPercentages?.[event] ?? 0
-        lines.push(`| ${event} | ${count} | ${percentage.toFixed(1)}% |`)
-      }
-      lines.push('')
+    // Events section
+    if (this.hasKeys(statistics.events)) {
+      const eventRows: string[][] = Object.entries(statistics.events).map(([event, count]) => {
+        const percentage = this.getPercentage(statistics.eventPercentages, event)
+        return [event, String(count), `${percentage.toFixed(1)}%`]
+      })
+
+      blocks.push(
+        md.heading('Events', { level: 3 }),
+        md.table(['Event', 'Count', 'Percentage'], eventRows)
+      )
     }
 
-    if (statistics.targets !== undefined && Object.keys(statistics.targets).length > 0) {
-      lines.push('### Targets')
-      lines.push('')
-      lines.push('| Label | Best | Mean | Observations |')
-      lines.push('|-------|------|------|--------------|')
-      for (const [label, target] of Object.entries(statistics.targets)) {
-        lines.push(`| ${label} | ${target.best} | ${target.mean.toFixed(2)} | ${target.observations} |`)
-      }
-      lines.push('')
+    // Targets section
+    if (this.hasKeys(statistics.targets)) {
+      const targetRows: string[][] = Object.entries(statistics.targets).map(([label, target]) => [
+        label,
+        String(target.best),
+        target.mean.toFixed(2),
+        String(target.observations)
+      ])
+
+      blocks.push(
+        md.heading('Targets', { level: 3 }),
+        md.table(['Label', 'Best', 'Mean', 'Observations'], targetRows)
+      )
     }
 
+    // Arbitrary statistics section
     if (detailed && statistics.arbitraryStats !== undefined) {
-      lines.push('### Arbitrary Statistics')
-      lines.push('')
+      blocks.push(md.heading('Arbitrary Statistics', { level: 3 }))
+
       for (const [name, stats] of Object.entries(statistics.arbitraryStats)) {
-        lines.push(`#### ${name}`)
-        lines.push('')
-        lines.push(`- Samples generated: ${stats.samplesGenerated}`)
-        lines.push(`- Unique values: ${stats.uniqueValues}`)
-        lines.push(`- Corner cases: ${stats.cornerCases.tested.length}/${stats.cornerCases.total}`)
+        const arbitraryBlocks: string[] = [
+          md.heading(name, { level: 4 }),
+          md.list([
+            `Samples generated: ${stats.samplesGenerated}`,
+            `Unique values: ${stats.uniqueValues}`,
+            `Corner cases: ${stats.cornerCases.tested.length}/${stats.cornerCases.total}`
+          ])
+        ]
 
         if (stats.distribution !== undefined) {
-          lines.push('')
-          lines.push('**Distribution:**')
-          lines.push(`- Min: ${stats.distribution.min}, Max: ${stats.distribution.max}`)
-          lines.push(`- Mean: ${stats.distribution.mean.toFixed(2)}, Median: ${stats.distribution.median.toFixed(2)}`)
-          lines.push(`- Q1: ${stats.distribution.q1.toFixed(2)}, Q3: ${stats.distribution.q3.toFixed(2)}`)
-          lines.push(`- StdDev: ${stats.distribution.stdDev.toFixed(2)}`)
-          renderHistogram(stats.distributionHistogram)
+          arbitraryBlocks.push(
+            md.bold('Distribution:'),
+            md.list([
+              `Min: ${stats.distribution.min}, Max: ${stats.distribution.max}`,
+              `Mean: ${stats.distribution.mean.toFixed(2)}, Median: ${stats.distribution.median.toFixed(2)}`,
+              `Q1: ${stats.distribution.q1.toFixed(2)}, Q3: ${stats.distribution.q3.toFixed(2)}`,
+              `StdDev: ${stats.distribution.stdDev.toFixed(2)}`
+            ])
+          )
+          const histogram = this.renderMarkdownHistogram(stats.distributionHistogram, 'Distribution', includeHistograms)
+          if (histogram) arbitraryBlocks.push(histogram)
         }
 
         if (stats.arrayLengths !== undefined) {
-          lines.push('')
-          lines.push('**Array lengths:**')
-          lines.push(`- Min: ${stats.arrayLengths.min}, Max: ${stats.arrayLengths.max}`)
-          lines.push(`- Mean: ${stats.arrayLengths.mean.toFixed(2)}, Median: ${stats.arrayLengths.median.toFixed(2)}`)
-          renderHistogram(stats.arrayLengthHistogram)
+          const [minMax, meanMedian] = this.formatDistributionStats(stats.arrayLengths)
+          arbitraryBlocks.push(
+            md.bold('Array lengths:'),
+            md.list([minMax, meanMedian])
+          )
+          const histogram = this.renderMarkdownHistogram(stats.arrayLengthHistogram, 'Array lengths', includeHistograms)
+          if (histogram) arbitraryBlocks.push(histogram)
         }
 
         if (stats.stringLengths !== undefined) {
-          lines.push('')
-          lines.push('**String lengths:**')
-          lines.push(`- Min: ${stats.stringLengths.min}, Max: ${stats.stringLengths.max}`)
-          lines.push(`- Mean: ${stats.stringLengths.mean.toFixed(2)}, Median: ${stats.stringLengths.median.toFixed(2)}`)
-          renderHistogram(stats.stringLengthHistogram)
+          const [minMax, meanMedian] = this.formatDistributionStats(stats.stringLengths)
+          arbitraryBlocks.push(
+            md.bold('String lengths:'),
+            md.list([minMax, meanMedian])
+          )
+          const histogram = this.renderMarkdownHistogram(stats.stringLengthHistogram, 'String lengths', includeHistograms)
+          if (histogram) arbitraryBlocks.push(histogram)
         }
-        lines.push('')
+
+        blocks.push(...arbitraryBlocks)
       }
     }
 
-    return lines.join('\n')
+    return md.joinBlocks(blocks)
   }
 
   private static formatJson(
@@ -322,21 +386,27 @@ export class FluentReporter extends Error {
       testsRun: statistics.testsRun,
       testsPassed: statistics.testsPassed,
       testsDiscarded: statistics.testsDiscarded,
-      executionTimeMs: statistics.executionTimeMs
+      executionTimeMs: statistics.executionTimeMs,
+      ...(statistics.executionTimeBreakdown !== undefined && {
+        executionTimeBreakdown: statistics.executionTimeBreakdown
+      }),
+      ...(statistics.labels !== undefined && { labels: statistics.labels }),
+      ...(statistics.labelPercentages !== undefined && {
+        labelPercentages: statistics.labelPercentages
+      }),
+      ...(statistics.events !== undefined && { events: statistics.events }),
+      ...(statistics.eventPercentages !== undefined && {
+        eventPercentages: statistics.eventPercentages
+      }),
+      ...(statistics.targets !== undefined && { targets: statistics.targets }),
+      ...(statistics.coverageResults !== undefined && {
+        coverageResults: statistics.coverageResults
+      }),
+      ...(detailed && statistics.arbitraryStats !== undefined && {
+        arbitraryStats: statistics.arbitraryStats
+      }),
+      ...(statistics.shrinking !== undefined && { shrinking: statistics.shrinking })
     }
-
-    // TODO(tech-debt): Consider using object spread with conditional properties instead of mutations
-    if (statistics.executionTimeBreakdown !== undefined) {
-      output.executionTimeBreakdown = statistics.executionTimeBreakdown
-    }
-    if (statistics.labels !== undefined) output.labels = statistics.labels
-    if (statistics.labelPercentages !== undefined) output.labelPercentages = statistics.labelPercentages
-    if (statistics.events !== undefined) output.events = statistics.events
-    if (statistics.eventPercentages !== undefined) output.eventPercentages = statistics.eventPercentages
-    if (statistics.targets !== undefined) output.targets = statistics.targets
-    if (statistics.coverageResults !== undefined) output.coverageResults = statistics.coverageResults
-    if (detailed && statistics.arbitraryStats !== undefined) output.arbitraryStats = statistics.arbitraryStats
-    if (statistics.shrinking !== undefined) output.shrinking = statistics.shrinking
 
     return JSON.stringify(output, null, 2)
   }
