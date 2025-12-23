@@ -161,12 +161,9 @@ export class FluentReporter extends Error {
 
         if (stats.arrayLengths !== undefined) {
           lines.push('    Array lengths:')
-          const arrMin = stats.arrayLengths.min
-          const arrMax = stats.arrayLengths.max
-          const arrMean = stats.arrayLengths.mean.toFixed(2)
-          const arrMedian = stats.arrayLengths.median.toFixed(2)
-          lines.push(`      Min: ${arrMin}, Max: ${arrMax}`)
-          lines.push(`      Mean: ${arrMean}, Median: ${arrMedian}`)
+          const { min, max, mean, median } = stats.arrayLengths
+          lines.push(`      Min: ${min}, Max: ${max}`)
+          lines.push(`      Mean: ${mean.toFixed(2)}, Median: ${median.toFixed(2)}`)
           renderHistogram(stats.arrayLengthHistogram, 'Histogram')
         }
 
