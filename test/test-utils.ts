@@ -755,6 +755,52 @@ export function binaryProperty<T, U>(
     .check()
 }
 
+/**
+ * Asserts that a universal property holds for all values of an arbitrary.
+ * Combines scenario creation, checking, and assertion in one call.
+ * @param arbitrary - The arbitrary to test
+ * @param predicate - The property that should hold for all values
+ * @param sampleSize - Number of test cases (default: 100)
+ * @example
+ * assertUniversalProperty(fc.integer(), x => x + 0 === x)
+ */
+export function assertUniversalProperty<T>(
+  arbitrary: fc.Arbitrary<T>,
+  predicate: (value: T) => boolean,
+  sampleSize = 100
+): void {
+  fc.scenario()
+    .config(fc.strategy().withSampleSize(sampleSize))
+    .forall('x', arbitrary)
+    .then(({x}) => predicate(x))
+    .check()
+    .assertSatisfiable()
+}
+
+/**
+ * Asserts that a witness exists for an existential property and verifies the expected witness.
+ * This is the most common pattern in primitive arbitrary tests: prove existence and verify shrinking.
+ * @param arbitrary - The arbitrary to search
+ * @param predicate - The property that at least one value should satisfy
+ * @param expectedWitness - The expected witness value (usually the minimal/shrunken value)
+ * @param variableName - Variable name to use (default: 'x')
+ * @example
+ * assertExistentialWitness(fc.integer(1), x => x % 7 === 0, 7)
+ */
+export function assertExistentialWitness<T>(
+  arbitrary: fc.Arbitrary<T>,
+  predicate: (value: T) => boolean,
+  expectedWitness: T,
+  variableName = 'x'
+): void {
+  const result = fc.scenario()
+    .exists(variableName as any, arbitrary)
+    .then((vars: any) => predicate(vars[variableName]))
+    .check()
+  result.assertSatisfiable()
+  result.assertExample({[variableName]: expectedWitness} as any)
+}
+
 // ============================================================================
 // Mathematical Testing Utilities
 // ============================================================================

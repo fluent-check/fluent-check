@@ -1,6 +1,6 @@
 import * as fc from '../src/index'
 import {it} from 'mocha'
-import {smallInt, assertSatisfiableWithExample} from './test-utils.js'
+import {smallInt, assertSatisfiableWithExample, assertExistentialWitness} from './test-utils.js'
 
 describe('Integer tests', () => {
   it('finds there is a number in the -10, 10 range, which is neutral under addition for all integers.', () => {
@@ -22,19 +22,11 @@ describe('Integer tests', () => {
   })
 
   it('finds a number that is divisible by 7 and shrinks it', () => {
-    const result = fc.scenario()
-      .exists('a', fc.integer(1))
-      .then(({a}) => a % 7 === 0)
-      .check()
-    assertSatisfiableWithExample(result, {a: 7})
+    assertExistentialWitness(fc.integer(1), a => a % 7 === 0, 7, 'a')
   })
 
   it('finds a number that is divisible by -13 and shrinks it', () => {
-    const result = fc.scenario()
-      .exists('a', fc.integer(-100, -1))
-      .then(({a}) => a % 13 === 0)
-      .check()
-    assertSatisfiableWithExample(result, {a: -13})
+    assertExistentialWitness(fc.integer(-100, -1), a => a % 13 === 0, -13, 'a')
   })
 
   it('finds that summing two positive numbers in a range nevers returns zero', () => {

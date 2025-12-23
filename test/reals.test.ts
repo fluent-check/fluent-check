@@ -1,5 +1,6 @@
 import * as fc from '../src/index'
 import {it} from 'mocha'
+import {assertSatisfiableWithExample} from './test-utils.js'
 
 describe('Real-valued tests', () => {
   it('finds that there is a real larger than any number in a range and shrinks it', () => {
@@ -8,8 +9,7 @@ describe('Real-valued tests', () => {
       .forall('b', fc.real(-100, 100))
       .then(({a, b}) => a > b)
       .check()
-    result.assertSatisfiable()
-    result.assertExample({a: 101})
+    assertSatisfiableWithExample(result, {a: 101})
   })
 
   it('finds that multiplication has a zero element even in reals', () => {
@@ -18,7 +18,6 @@ describe('Real-valued tests', () => {
       .forall('b', fc.real())
       .then(({a, b}) => a * b === 0)
       .check()
-    result.assertSatisfiable()
-    result.assertExample({a: 0})
+    assertSatisfiableWithExample(result, {a: 0})
   })
 })
