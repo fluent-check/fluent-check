@@ -252,14 +252,14 @@ export class FluentReporter extends Error {
       ['Tests discarded', String(statistics.testsDiscarded)],
       ['Execution time', `${statistics.executionTimeMs}ms`]
     ]
-    
+
     if (statistics.executionTimeBreakdown !== undefined) {
       mainTableRows.push(['- Exploration', `${statistics.executionTimeBreakdown.exploration}ms`])
       mainTableRows.push(['- Shrinking', `${statistics.executionTimeBreakdown.shrinking}ms`])
     }
 
     blocks.push(
-      md.heading('Statistics', { level: 2 }),
+      md.heading('Statistics', {level: 2}),
       md.table(['Metric', 'Value'], mainTableRows)
     )
 
@@ -278,7 +278,7 @@ export class FluentReporter extends Error {
       }
 
       blocks.push(
-        md.heading('Labels', { level: 3 }),
+        md.heading('Labels', {level: 3}),
         md.table(['Label', 'Count', 'Percentage'], labelRows)
       )
 
@@ -303,7 +303,7 @@ export class FluentReporter extends Error {
       })
 
       blocks.push(
-        md.heading('Events', { level: 3 }),
+        md.heading('Events', {level: 3}),
         md.table(['Event', 'Count', 'Percentage'], eventRows)
       )
     }
@@ -318,18 +318,18 @@ export class FluentReporter extends Error {
       ])
 
       blocks.push(
-        md.heading('Targets', { level: 3 }),
+        md.heading('Targets', {level: 3}),
         md.table(['Label', 'Best', 'Mean', 'Observations'], targetRows)
       )
     }
 
     // Arbitrary statistics section
     if (detailed && statistics.arbitraryStats !== undefined) {
-      blocks.push(md.heading('Arbitrary Statistics', { level: 3 }))
+      blocks.push(md.heading('Arbitrary Statistics', {level: 3}))
 
       for (const [name, stats] of Object.entries(statistics.arbitraryStats)) {
         const arbitraryBlocks: string[] = [
-          md.heading(name, { level: 4 }),
+          md.heading(name, {level: 4}),
           md.list([
             `Samples generated: ${stats.samplesGenerated}`,
             `Unique values: ${stats.uniqueValues}`,
@@ -390,22 +390,22 @@ export class FluentReporter extends Error {
       ...(statistics.executionTimeBreakdown !== undefined && {
         executionTimeBreakdown: statistics.executionTimeBreakdown
       }),
-      ...(statistics.labels !== undefined && { labels: statistics.labels }),
+      ...(statistics.labels !== undefined && {labels: statistics.labels}),
       ...(statistics.labelPercentages !== undefined && {
         labelPercentages: statistics.labelPercentages
       }),
-      ...(statistics.events !== undefined && { events: statistics.events }),
+      ...(statistics.events !== undefined && {events: statistics.events}),
       ...(statistics.eventPercentages !== undefined && {
         eventPercentages: statistics.eventPercentages
       }),
-      ...(statistics.targets !== undefined && { targets: statistics.targets }),
+      ...(statistics.targets !== undefined && {targets: statistics.targets}),
       ...(statistics.coverageResults !== undefined && {
         coverageResults: statistics.coverageResults
       }),
       ...(detailed && statistics.arbitraryStats !== undefined && {
         arbitraryStats: statistics.arbitraryStats
       }),
-      ...(statistics.shrinking !== undefined && { shrinking: statistics.shrinking })
+      ...(statistics.shrinking !== undefined && {shrinking: statistics.shrinking})
     }
 
     return JSON.stringify(output, null, 2)

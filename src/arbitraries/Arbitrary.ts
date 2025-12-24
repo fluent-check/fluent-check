@@ -133,11 +133,37 @@ export abstract class Arbitrary<A> {
     const initialSize = this.size()
     let bagSize = Math.min(sampleSize, initialSize.value)
 
+    /**
+     * `sampleUnique` must always terminate.
+     *
+     * Some arbitraries can legally report an exact size that overestimates the number of *distinct*
+     * generated values (e.g. non-injective `map`, or unions whose components overlap). In those cases,
+     * relying on `size()` alone can lead to non-terminating attempts to collect `bagSize` unique values.
+     *
+     * We use attempt and "no-progress" guards to ensure termination while still trying hard to
+     * collect as many unique samples as possible.
+     */
+    let attempts = 0
+    let noProgress = 0
+    const maxAttempts = Math.max(100, bagSize * 50)
+    const maxNoProgress = Math.max(100, bagSize * 10)
+
     while (resultSize < bagSize) {
+      if (attempts >= maxAttempts || noProgress >= maxNoProgress) break
+
+      const before = resultSize
       const r = this.pick(generator)
+      attempts++
       if (r === undefined) break
+
       add(r)
-      if (initialSize.type !== 'exact') bagSize = Math.min(sampleSize, this.size().value)
+
+      if (resultSize === before) noProgress++
+      else noProgress = 0
+
+      if (initialSize.type !== 'exact') {
+        bagSize = Math.min(sampleSize, this.size().value)
+      }
     }
 
     // Flatten buckets to array

@@ -193,30 +193,35 @@ describe('Beta vs Beta-Binomial: 1 Million Trial Analysis', () => {
     if (n10 !== undefined) {
       const mseSign = n10.mseImprovementPercent >= 0 ? '+' : ''
       const benefit = n10.coverageDiffPercent > 0.5 ? 'Clear' : 'Marginal'
+      // eslint-disable-next-line max-len
       console.log(`n=10: Coverage +${n10.coverageDiffPercent.toFixed(3)}%, MSE ${mseSign}${n10.mseImprovementPercent.toFixed(2)}%`)
       console.log(`  → Cost: 1.5x, Benefit: ${benefit}`)
     }
     if (n20 !== undefined) {
       const mseSign = n20.mseImprovementPercent >= 0 ? '+' : ''
       const benefit = n20.coverageDiffPercent > 1.0 ? 'Clear' : 'Marginal'
+      // eslint-disable-next-line max-len
       console.log(`n=20: Coverage +${n20.coverageDiffPercent.toFixed(3)}%, MSE ${mseSign}${n20.mseImprovementPercent.toFixed(2)}%`)
       console.log(`  → Cost: 2.0x, Benefit: ${benefit}`)
     }
     if (n30 !== undefined) {
       const mseSign = n30.mseImprovementPercent >= 0 ? '+' : ''
       const benefit = n30.coverageDiffPercent > 1.0 ? 'Moderate' : 'Marginal'
+      // eslint-disable-next-line max-len
       console.log(`n=30: Coverage +${n30.coverageDiffPercent.toFixed(3)}%, MSE ${mseSign}${n30.mseImprovementPercent.toFixed(2)}%`)
       console.log(`  → Cost: 5.0x, Benefit: ${benefit}`)
     }
     if (n50 !== undefined) {
       const mseSign = n50.mseImprovementPercent >= 0 ? '+' : ''
       const benefit = n50.coverageDiffPercent > 1.0 ? 'Moderate' : 'Questionable'
+      // eslint-disable-next-line max-len
       console.log(`n=50: Coverage +${n50.coverageDiffPercent.toFixed(3)}%, MSE ${mseSign}${n50.mseImprovementPercent.toFixed(2)}%`)
       console.log(`  → Cost: 6.5x, Benefit: ${benefit}`)
     }
     if (n100 !== undefined) {
       const mseSign = n100.mseImprovementPercent >= 0 ? '+' : ''
       const benefit = n100.coverageDiffPercent > 0.5 ? 'Marginal' : 'Negligible'
+      // eslint-disable-next-line max-len
       console.log(`n=100: Coverage +${n100.coverageDiffPercent.toFixed(3)}%, MSE ${mseSign}${n100.mseImprovementPercent.toFixed(2)}%`)
       console.log(`  → Cost: 10.5x, Benefit: ${benefit}`)
     }
