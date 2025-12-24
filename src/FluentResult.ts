@@ -73,7 +73,7 @@ export class FluentResult<Rec extends {} = {}> {
   /**
    * Assert that the found example matches the expected partial object.
    * Performs a partial match: only the keys present in `expected` are compared.
-   * 
+   *
    * **Precondition:** The result must be satisfiable (i.e., `satisfiable === true`).
    * For non-satisfiable results, use `assertCounterExample` instead.
    *
@@ -106,7 +106,7 @@ export class FluentResult<Rec extends {} = {}> {
   /**
    * Assert that the found counterexample matches the expected partial object.
    * Performs a partial match: only the keys present in `expected` are compared.
-   * 
+   *
    * **Precondition:** The result must not be satisfiable (i.e., `satisfiable === false`).
    * For satisfiable results, use `assertExample` instead.
    *
@@ -137,7 +137,7 @@ export class FluentResult<Rec extends {} = {}> {
 
   /**
    * Internal helper to assert that the example/counterexample matches expected values.
-   * 
+   *
    * @param expected - Partial object to match against
    * @param message - Optional custom message prefix
    * @param requireSatisfiable - Whether the result must be satisfiable (true) or not satisfiable (false)

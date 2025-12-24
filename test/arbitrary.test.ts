@@ -508,6 +508,21 @@ describe('Arbitrary tests', () => {
       ).to.include.members([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
     })
 
+    it('should not stall when unique value count is smaller than size() (non-injective map)', () => {
+      const mapped = fc.integer(0, 10).map(() => 0)
+      const samples = mapped.sampleUnique(1000)
+      expect(samples.length).to.equal(1)
+      expect(samples[0]?.value).to.equal(0)
+    })
+
+    it('should not stall when unique value count is smaller than size() (overlapping union)', () => {
+      const union = fc.union(fc.integer(0, 10), fc.integer(5, 15))
+      const samples = union.sampleUnique(1000)
+      const values = samples.map(s => s.value)
+      expect(values.length).to.equal(new Set(values).size)
+      expect(values.length).to.be.at.most(16) // 0..15
+    })
+
     it('should return no more than the number of possible cases', () => {
       const result = fc.scenario()
         .forall('n', fc.integer(3, 10))
