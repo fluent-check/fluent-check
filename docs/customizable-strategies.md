@@ -69,7 +69,7 @@ const lcg = (seed: number) => {
 fc.scenario()
   .withGenerator(lcg, 1234) // overrides the RNG used by the strategy
   .forall('x', fc.integer())
-  .then(({x}) => x >= 0 || x < 0)
+.then(({x}) => x + 0 === x)
   .check()
 ```
 
