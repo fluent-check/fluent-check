@@ -1,7 +1,7 @@
 # Performance Baseline Report
 
 **Date**: November 2024  
-**Node.js Version**: v22+  
+**Node.js Version**: v22+ (CI: 22.x/24.x; `package.json` `engines.node`: >=24)  
 **Test Suite**: 309 tests  
 **Total Execution Time**: ~8 seconds
 

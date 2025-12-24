@@ -11,9 +11,16 @@ Strategies control how scenarios explore inputs, shrink failures, and collect st
 - `withBias()` – prioritize corner cases
 - `usingCache()` – reuse generated samples for efficiency
 - `withShrinking(shrinkSize?)` – enable per-arbitrary shrinking (default 500)
+- `withoutShrinking()` – disable shrinking (faster, less-informative counterexamples)
 - `withDetailedStatistics()` – collect per-arbitrary distributions, histograms, and corner-case coverage
 - `withVerbosity(level)` – control reporting detail (`Quiet`, `Normal`, `Verbose`, `Debug`)
 - `withRandomGenerator(builder, seed?)` – plug in a custom RNG (seed stored on the result)
+- Confidence-based termination:
+  - `withConfidence(level)` – stop early once confidence is reached (bounded by `sampleSize`)
+  - `withMinConfidence(level)` – if confidence is still low at `sampleSize`, continue (requires `withMaxIterations(...)`)
+  - `withPassRateThreshold(threshold)` – “pass rate > threshold” target for confidence calculation (default 0.999)
+  - `withMaxIterations(count)` – safety cap when continuing past `sampleSize`
+  - `withConfidenceCheckInterval(interval)` – how often confidence is evaluated (default 100 tests)
 
 Attach a strategy to any scenario or property with `.config(...)`. The last strategy in the chain wins.
 
@@ -69,7 +76,7 @@ const lcg = (seed: number) => {
 fc.scenario()
   .withGenerator(lcg, 1234) // overrides the RNG used by the strategy
   .forall('x', fc.integer())
-.then(({x}) => x + 0 === x)
+  .then(({x}) => x + 0 === x)
   .check()
 ```
 

@@ -32,7 +32,7 @@ flowchart LR
 FluentCheck uses **Bayesian statistics** to calculate the probability that your property holds:
 - Starts with no assumptions (uniform prior)
 - Updates confidence after each test
-- Stops when target confidence is reached or bug is found
+- Stops early when target confidence is reached, or immediately when a bug is found (bounded by your configured limits like `sampleSize`)
 
 **Example**: "95% confident the pass rate exceeds 99.9%" is a precise statistical statement, unlike "ran 100 tests."
 
@@ -45,12 +45,12 @@ FluentCheck uses **Bayesian statistics** to calculate the probability that your 
 ```typescript
 import * as fc from 'fluent-check'
 
-// Run until 95% confident the property holds
+// Stop early once we reach 95% confidence (bounded by sample size)
 const result = fc.scenario()
   .config(fc.strategy()
+    .withSampleSize(10_000) // upper bound; should be large enough to reach your target confidence
     .withConfidence(0.95)
-    .withPassRateThreshold(0.999)
-    .withMaxIterations(10000))
+    .withPassRateThreshold(0.999))
   .forall('x', fc.integer())
   .then(({x}) => x * x >= 0)
   .check()
@@ -80,7 +80,8 @@ console.log(`Credible interval: [${result.statistics.credibleInterval[0].toFixed
 fc.scenario()
   .config(fc.strategy()
     .withSampleSize(1000)
-    .withMinConfidence(0.95))
+    .withMinConfidence(0.95)
+    .withMaxIterations(10_000)) // important: upper bound when continuing past sample size
   .forall('x', fc.integer())
   .then(({x}) => x >= 0)
   .check()
@@ -190,25 +191,28 @@ fc.strategy().withMaxIterations(50000)
 
 - **Parameter**: Maximum number of test iterations
 - **Behavior**: Prevents infinite loops in confidence-based testing
-- **Recommended**: Always set when using confidence-based termination
+- **Recommended**: Always set when using `withMinConfidence(...)` (since it may run past `sampleSize`)
 
 ### Terminal Methods
 
-#### `checkWithConfidence(level: number, options?)`
+#### `checkWithConfidence(level: number, options?: CheckOptions)`
 
 Convenience method for confidence-based testing.
 
 ```typescript
 const result = fc.scenario()
+  .config(fc.strategy().withSampleSize(10_000)) // optional: raises the upper bound for reaching confidence
   .forall('x', fc.integer())
   .then(({x}) => x >= 0)
-  .checkWithConfidence(0.95, {maxIterations: 10000})
+  .checkWithConfidence(0.95)
 ```
 
 Equivalent to:
 ```typescript
 fc.scenario()
-  .config(fc.strategy().withConfidence(0.95).withMaxIterations(10000))
+  .config(fc.strategy()
+    .withSampleSize(10_000)
+    .withConfidence(0.95))
   .forall('x', fc.integer())
   .then(({x}) => x >= 0)
   .check()

@@ -19,7 +19,7 @@ npm run evidence:quick
 ```
 
 - ⏱️ **Time**: ~5 seconds
-- 📊 **Samples**: 50-100 trials per study
+- 📊 **Trials**: reduced per study (`QUICK_MODE=1`, varies by study)
 - 🎯 **Use for**: Testing, iteration, CI/CD
 
 ### Full Mode (Publication)
@@ -29,7 +29,7 @@ npm run evidence
 ```
 
 - ⏱️ **Time**: ~15-30 seconds  
-- 📊 **Samples**: 200-1000 trials per study
+- 📊 **Trials**: full per study (varies by study)
 - 🎯 **Use for**: Final evidence, documentation
 
 ## What Gets Generated
@@ -39,6 +39,10 @@ npm run evidence
 - `calibration.csv` - Confidence calibration data
 - `detection.csv` - Bug detection rate data
 - `efficiency.csv` - Property complexity adaptation data
+- `exists.csv` - Existential witness detection data
+- `shrinking.csv` - Shrinking effectiveness data
+- `double_negation.csv` - Double-negation equivalence data
+- `composition.csv` - Composition complexity data (paired with `double_negation.csv`)
 
 ### Visualizations (`docs/evidence/figures/`)
 
@@ -46,6 +50,16 @@ npm run evidence
 - `detection_rates.png` - Detection rate comparison
 - `detection_ecdf.png` - Tests-to-termination cumulative distribution
 - `efficiency_boxplot.png` - Efficiency comparison
+- `exists_detection_rates.png` - Witness detection rates by scenario
+- `exists_vs_sample_size.png` - Detection rate vs sample size
+- `exists_tests_to_witness.png` - Tests-to-witness distribution
+- `shrinking_minimal_rate.png` - Rate of reaching minimal witness
+- `shrinking_effort.png` - Shrinking effort vs progress
+- `shrinking_time_breakdown.png` - Exploration vs shrinking time
+- `shrinking_witness_quality.png` - Witness quality distribution
+- `double_neg_detection_rates.png` - Exists vs double-negation detection rates
+- `double_neg_composition.png` - Composition complexity comparison
+- `double_neg_shrinking.png` - Shrinking comparison
 
 ### Report
 
@@ -80,6 +94,9 @@ npm run evidence:generate
   → npx tsx scripts/evidence/calibration.study.ts
   → npx tsx scripts/evidence/detection.study.ts  
   → npx tsx scripts/evidence/efficiency.study.ts
+  → npx tsx scripts/evidence/exists.study.ts
+  → npx tsx scripts/evidence/shrinking.study.ts
+  → npx tsx scripts/evidence/double-negation.study.ts
   → Writes docs/evidence/raw/*.csv
 ```
 
@@ -92,6 +109,9 @@ npm run evidence:analyze
     → python analysis/calibration.py
     → python analysis/detection.py
     → python analysis/efficiency.py
+    → python analysis/exists.py
+    → python analysis/shrinking.py
+    → python analysis/double_negation.py
     → Writes docs/evidence/figures/*.png
     → Deactivates venv
 ```
@@ -149,7 +169,7 @@ For automated testing, use quick mode:
   run: npm run evidence:quick
   
 - name: Upload Artifacts
-  uses: actions/upload-artifact@v3
+  uses: actions/upload-artifact@v5
   with:
     name: evidence
     path: docs/evidence/
@@ -170,6 +190,9 @@ Edit scripts in `scripts/evidence/`:
 - `calibration.study.ts` - Calibration parameters
 - `detection.study.ts` - Bug failure rates
 - `efficiency.study.ts` - Property types
+- `exists.study.ts` - Existential witness detection scenarios
+- `shrinking.study.ts` - Shrinking effectiveness experiments
+- `double-negation.study.ts` - Double-negation equivalence and composition metrics
 
 ### Modify Analysis
 
@@ -177,6 +200,9 @@ Edit scripts in `analysis/`:
 - `calibration.py` - Calibration plot styling
 - `detection.py` - Detection rate visualization
 - `efficiency.py` - Efficiency plot styling
+- `exists.py` - Existential witness plots
+- `shrinking.py` - Shrinking plots
+- `double_negation.py` - Double-negation plots
 - `util.py` - Shared plotting utilities
 
 ## Next Steps
@@ -190,12 +216,5 @@ After generating evidence:
 
 ## Performance Notes
 
-**Quick Mode** (~5 seconds):
-- Calibration: 100 trials per confidence level (400 total)
-- Detection: 50 trials per method (250 total)
-- Efficiency: 50 trials per property (100 total)
-
-**Full Mode** (~15-30 seconds):
-- Calibration: 1000 trials per confidence level (4000 total)
-- Detection: 500 trials per method (2500 total)
-- Efficiency: 200 trials per property (400 total)
+**Quick Mode** (~5 seconds) and **Full Mode** (~15-30 seconds) run the same set of studies.
+Trial counts are reduced in quick mode via `QUICK_MODE=1`; see the study scripts in `scripts/evidence/` for exact parameters.

@@ -101,7 +101,7 @@ These are one-time startup costs and don't affect test execution.
 ### For Users
 
 1. **Use appropriate strategies** - `strategies.fast` for quick iteration
-2. **Limit sample sizes** - Default 100 is usually sufficient
+2. **Limit sample sizes** - Default sample size is 1000; reduce it when you need faster feedback
 3. **Consider test isolation** - Profile specific slow tests separately
 
 ## Profiling Commands

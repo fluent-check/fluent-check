@@ -4,12 +4,14 @@ This document presents empirical evidence that FluentCheck's confidence-based te
 
 ## Overview
 
-Four studies validate FluentCheck's statistical approach:
+Six studies validate FluentCheck's statistical approach:
 
 1. **Efficiency Study**: Does it adapt test effort to property complexity?
 2. **Calibration Study**: How reliable are confidence claims? (Sensitivity/Specificity)
 3. **Detection Rate Study**: Does it find rare bugs more reliably than fixed N?
 4. **Existential Quantifier Study**: Does `.exists()` efficiently find witnesses?
+5. **Shrinking Evaluation Study**: Does shrinking find minimal or near-minimal witnesses?
+6. **Double-Negation Equivalence Study**: Is double-negation semantically equivalent (and what’s the ergonomics cost)?
 
 All data is reproducible with deterministic seeds. Raw data available in [`raw/`](raw/).
 
@@ -27,12 +29,12 @@ Creates Python virtual environment and installs dependencies. **Run once.**
 
 ### Generate Evidence
 
-**Quick Mode** (~5 seconds, 1,900 trials):
+**Quick Mode** (reduced trials):
 ```bash
 npm run evidence:quick
 ```
 
-**Full Mode** (~15-30 seconds, 10,000+ trials):
+**Full Mode** (full trials):
 ```bash
 npm run evidence
 ```

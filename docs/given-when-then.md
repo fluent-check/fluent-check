@@ -29,7 +29,7 @@ All callbacks receive the accumulated record of quantifiers and givens with prec
 - Compute reusable helpers with `given` instead of recalculating inside `then`.
 - Keep assertions pure inside `then`; push setup into `given`/`when`.
 - Combine with `classify`, `label`, `collect`, or `cover` to understand and enforce what each scenario hits.
-- Use `map` when you need to transform the context as a whole (e.g., normalizing shapes before assertions).
+- To “transform the context”, bind derived values with `given(...)` (there is no scenario-level `.map(...)`). To transform generated values, use `Arbitrary.map()` (e.g. `fc.integer().map(...)`).
 
 ## Preconditions
 
