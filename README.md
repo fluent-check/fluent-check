@@ -598,7 +598,7 @@ const result = fc.scenario()
   .forall('x', fc.integer(-100, 100))
   .cover(40, ({x}) => x < 0, 'negative') // at least 40% negative
   .cover(40, ({x}) => x > 0, 'positive') // at least 40% positive
-  .coverTable('parity', { even: 60, odd: 40 }, ({x}) => x % 2 === 0 ? 'even' : 'odd')
+.coverTable('parity', { even: 45, odd: 45 }, ({x}) => x % 2 === 0 ? 'even' : 'odd')
   .then(({x}) => x + 0 === x)
   .checkCoverage({ confidence: 0.99 }) // throws if requirements are not statistically supported
 
