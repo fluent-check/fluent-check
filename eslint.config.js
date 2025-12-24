@@ -26,7 +26,10 @@ export default [
       '@typescript-eslint/strict-boolean-expressions': ['error', {
         allowString: false,
         allowNumber: false,
-        allowNullableObject: false,
+        allowNullableObject: true,
+        allowNullableBoolean: true,
+        allowNullableString: true,
+        allowNullableNumber: true,
       }],
       '@typescript-eslint/prefer-nullish-coalescing': 'warn',
       '@typescript-eslint/prefer-optional-chain': 'error',
@@ -45,7 +48,7 @@ export default [
       'eol-last': ['warn', 'always'],
       'keyword-spacing': 'warn',
       // TODO(rui): apply this later
-      'max-len': ['warn', { code: 120, tabWidth: 2 }],
+      'max-len': ['warn', { code: 128, tabWidth: 2 }],
       'no-multiple-empty-lines': ['warn', { max: 1 }],
       'no-trailing-spaces': ['warn', { skipBlankLines: false }],
       'object-curly-spacing': 'warn',
@@ -79,6 +82,8 @@ export default [
     files: ['test/**/*.ts'],
     rules: {
       '@typescript-eslint/no-unused-expressions': 'off',
+      // TypeScript correctly infers types in generic functions, but the linter can't track it
+      '@typescript-eslint/strict-boolean-expressions': 'off',
     },
   },
   {

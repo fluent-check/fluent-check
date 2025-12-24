@@ -1,3 +1,4 @@
+import equal from 'fast-deep-equal'
 import type {FluentStatistics} from './statistics.js'
 
 export class FluentResult<Rec extends {} = {}> {
@@ -72,9 +73,13 @@ export class FluentResult<Rec extends {} = {}> {
   /**
    * Assert that the found example matches the expected partial object.
    * Performs a partial match: only the keys present in `expected` are compared.
+   * 
+   * **Precondition:** The result must be satisfiable (i.e., `satisfiable === true`).
+   * For non-satisfiable results, use `assertCounterExample` instead.
    *
    * @param expected - Partial object to match against the example
    * @param message - Optional custom message prefix for the error
+   * @throws Error if the result is not satisfiable
    * @throws Error if any property in `expected` does not match the example
    *
    * @example
@@ -85,18 +90,80 @@ export class FluentResult<Rec extends {} = {}> {
    *   .then(({ a, b }) => a + b === b)
    *   .check();
    *
-   * result.assertSatisfiable();
-   * result.assertExample({ a: 0 });  // Partial match
+   * result.assertExample({ a: 0 });  // Partial match (also checks satisfiability)
    * ```
    */
   assertExample(expected: Partial<Rec>, message?: string): void {
+    this.#assertExampleMatch(
+      expected,
+      message,
+      true,
+      'Expected result to be satisfiable to assert example, but result is not satisfiable',
+      'Example mismatch'
+    )
+  }
+
+  /**
+   * Assert that the found counterexample matches the expected partial object.
+   * Performs a partial match: only the keys present in `expected` are compared.
+   * 
+   * **Precondition:** The result must not be satisfiable (i.e., `satisfiable === false`).
+   * For satisfiable results, use `assertExample` instead.
+   *
+   * @param expected - Partial object to match against the counterexample
+   * @param message - Optional custom message prefix for the error
+   * @throws Error if the result is satisfiable
+   * @throws Error if any property in `expected` does not match the counterexample
+   *
+   * @example
+   * ```typescript
+   * const result = fc.scenario()
+   *   .forall('x', fc.integer(1, 10))
+   *   .then(({ x }) => x < 0)  // Always false for positive integers
+   *   .check();
+   *
+   * result.assertCounterExample({ x: 1 });  // Partial match (also checks non-satisfiability)
+   * ```
+   */
+  assertCounterExample(expected: Partial<Rec>, message?: string): void {
+    this.#assertExampleMatch(
+      expected,
+      message,
+      false,
+      'Expected result to NOT be satisfiable to assert counterexample, but result is satisfiable',
+      'Counterexample mismatch'
+    )
+  }
+
+  /**
+   * Internal helper to assert that the example/counterexample matches expected values.
+   * 
+   * @param expected - Partial object to match against
+   * @param message - Optional custom message prefix
+   * @param requireSatisfiable - Whether the result must be satisfiable (true) or not satisfiable (false)
+   * @param preconditionError - Error message if precondition fails
+   * @param mismatchErrorPrefix - Prefix for mismatch error message
+   */
+  #assertExampleMatch(
+    expected: Partial<Rec>,
+    message: string | undefined,
+    requireSatisfiable: boolean,
+    preconditionError: string,
+    mismatchErrorPrefix: string
+  ): void {
+    if (this.satisfiable !== requireSatisfiable) {
+      const prefix = message !== undefined && message !== '' ? `${message}: ` : ''
+      const seedStr = this.seed !== undefined ? ` (seed: ${this.seed})` : ''
+      throw new Error(`${prefix}${preconditionError}${seedStr}`)
+    }
+
     const mismatches: string[] = []
 
     for (const key of Object.keys(expected) as Array<keyof Rec>) {
       const expectedValue = expected[key]
       const actualValue = this.example[key]
 
-      if (!this.#deepEqual(expectedValue, actualValue)) {
+      if (!equal(expectedValue, actualValue)) {
         mismatches.push(`${String(key)}: expected ${JSON.stringify(expectedValue)}, got ${JSON.stringify(actualValue)}`)
       }
     }
@@ -104,32 +171,7 @@ export class FluentResult<Rec extends {} = {}> {
     if (mismatches.length > 0) {
       const prefix = message !== undefined && message !== '' ? `${message}: ` : ''
       const seedStr = this.seed !== undefined ? ` (seed: ${this.seed})` : ''
-      throw new Error(`${prefix}Example mismatch - ${mismatches.join('; ')}${seedStr}`)
+      throw new Error(`${prefix}${mismatchErrorPrefix} - ${mismatches.join('; ')}${seedStr}`)
     }
-  }
-
-  /**
-   * Deep equality comparison for values.
-   */
-  #deepEqual(a: unknown, b: unknown): boolean {
-    if (a === b) return true
-    if (a === null || b === null) return false
-    if (typeof a !== 'object' || typeof b !== 'object') return false
-
-    if (Array.isArray(a) && Array.isArray(b)) {
-      if (a.length !== b.length) return false
-      return a.every((val, i) => this.#deepEqual(val, b[i]))
-    }
-
-    if (Array.isArray(a) !== Array.isArray(b)) return false
-
-    const keysA = Object.keys(a)
-    const keysB = Object.keys(b)
-    if (keysA.length !== keysB.length) return false
-
-    return keysA.every(key =>
-      Object.prototype.hasOwnProperty.call(b, key) &&
-      this.#deepEqual((a as Record<string, unknown>)[key], (b as Record<string, unknown>)[key])
-    )
   }
 }

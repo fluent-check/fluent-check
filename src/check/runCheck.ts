@@ -244,12 +244,13 @@ function resolvePassedOutcome<Rec extends {}>(
   const {scenario, logging} = context
 
   // For exists scenarios with a witness, shrink to find minimal satisfying values
-  if (scenario.hasExistential && explorationResult.witness !== undefined) {
+  const witness = explorationResult.witness
+  if (scenario.hasExistential && witness !== undefined) {
     logging.verbose('Shrinking witness...')
 
     const shrinkResult = withTiming(() =>
       context.shrinker.shrinkWitness(
-        explorationResult.witness!,
+        witness,
         context.executableScenario,
         context.explorer,
         context.property,

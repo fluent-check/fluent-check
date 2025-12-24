@@ -5,14 +5,21 @@ import {
   calculateBayesianConfidence,
   calculateCredibleInterval
 } from '../src/statistics'
+import {
+  scenarioWithSampleSize,
+  getConfidence,
+  assertSatisfiable,
+  assertNotSatisfiable,
+  assertValidConfidence,
+  assertValidInterval
+} from './test-utils.js'
 
 describe('Confidence Calculation', () => {
   describe('calculateBayesianConfidence', () => {
     it('should calculate high confidence after many successes', () => {
       // With threshold 0.99 (99% pass rate), 1000 successes should give high confidence
       const confidence = calculateBayesianConfidence(1000, 0, 0.99)
-      expect(confidence).to.be.greaterThan(0.99)
-      expect(confidence).to.be.lessThanOrEqual(1.0)
+      assertValidConfidence(confidence, 0.99, 1.0)
     })
 
     it('should calculate lower confidence with failures', () => {
@@ -23,8 +30,7 @@ describe('Confidence Calculation', () => {
 
     it('should handle edge case: all failures', () => {
       const confidence = calculateBayesianConfidence(0, 100, 0.999)
-      expect(confidence).to.be.greaterThanOrEqual(0)
-      expect(confidence).to.be.lessThan(0.01) // Very low confidence
+      assertValidConfidence(confidence, 0, 0.01) // Very low confidence
     })
 
     it('should handle edge case: no tests', () => {
@@ -57,7 +63,7 @@ describe('Confidence Calculation', () => {
       const [lower, upper] = calculateCredibleInterval(1000, 0, 0.95)
       expect(lower).to.be.greaterThan(0.99)
       expect(upper).to.be.lessThanOrEqual(1.0)
-      expect(lower).to.be.lessThan(upper)
+      assertValidInterval(lower, upper)
     })
 
     it('should calculate wider interval with failures', () => {
@@ -70,9 +76,8 @@ describe('Confidence Calculation', () => {
 
     it('should handle edge case: all failures', () => {
       const [lower, upper] = calculateCredibleInterval(0, 100, 0.95)
-      expect(lower).to.be.greaterThanOrEqual(0)
       expect(upper).to.be.lessThan(0.1) // Very low pass rate
-      expect(lower).to.be.lessThan(upper)
+      assertValidInterval(lower, upper)
     })
 
     it('should handle edge case: no tests', () => {
@@ -113,11 +118,9 @@ describe('Confidence-Based Termination', () => {
         .then(({x}) => x >= 0) // Always true
         .check()
 
-      expect(result.satisfiable).to.be.true
-      expect(result.statistics.confidence).to.exist
-      if (result.statistics.confidence !== undefined) {
-        expect(result.statistics.confidence).to.be.greaterThanOrEqual(0.95)
-      }
+      assertSatisfiable(result)
+      const confidence = getConfidence(result)
+      expect(confidence).to.be.greaterThanOrEqual(0.95)
       // Should terminate before reaching maxTests
       expect(result.statistics.testsRun).to.be.lessThan(10000)
       // But should run at least a few tests
@@ -150,12 +153,10 @@ describe('Confidence-Based Termination', () => {
         .then(({x}) => x >= 0) // Always true
         .check()
 
-      expect(result.satisfiable).to.be.true
-      expect(result.statistics.confidence).to.exist
-      if (result.statistics.confidence !== undefined) {
-        // Should eventually reach minConfidence or hit maxIterations
-        expect(result.statistics.testsRun).to.be.greaterThanOrEqual(100)
-      }
+      assertSatisfiable(result)
+      getConfidence(result) // Verify confidence exists
+      // Should eventually reach minConfidence or hit maxIterations
+      expect(result.statistics.testsRun).to.be.greaterThanOrEqual(100)
     })
 
     it('should validate confidence level', () => {
@@ -201,13 +202,11 @@ describe('Confidence-Based Termination', () => {
         .then(({x}) => x >= 0) // Always true
         .checkWithConfidence(0.90) // Lower threshold for faster test
 
-      expect(result.satisfiable).to.be.true
-      expect(result.statistics.confidence).to.exist
-      if (result.statistics.confidence !== undefined) {
-        // Confidence is calculated with default threshold 0.999, so actual confidence may be lower
-        // But it should still be reasonable (> 0.5) for a property that always passes
-        expect(result.statistics.confidence).to.be.greaterThan(0.5)
-      }
+      assertSatisfiable(result)
+      const confidence = getConfidence(result)
+      // Confidence is calculated with default threshold 0.999, so actual confidence may be lower
+      // But it should still be reasonable (> 0.5) for a property that always passes
+      expect(confidence).to.be.greaterThan(0.5)
       expect(result.statistics.credibleInterval).to.exist
     })
 
@@ -228,18 +227,15 @@ describe('Confidence-Based Termination', () => {
     })
 
     it('should work with unsatisfiable properties', () => {
-      const result = fc.scenario()
-        .config(fc.strategy().withSampleSize(100))
+      const result = scenarioWithSampleSize(100)
         .forall('x', fc.integer(0, 10))
         .then(({x}) => x !== x) // Always false
         .checkWithConfidence(0.95)
 
-      expect(result.satisfiable).to.be.false
-      expect(result.statistics.confidence).to.exist
+      assertNotSatisfiable(result)
+      const confidence = getConfidence(result)
       // Confidence should be very low since property always fails
-      if (result.statistics.confidence !== undefined) {
-        expect(result.statistics.confidence).to.be.lessThan(0.1)
-      }
+      expect(confidence).to.be.lessThan(0.1)
     })
   })
 
@@ -262,16 +258,10 @@ describe('Confidence-Based Termination', () => {
         .then(({x}) => x >= 0)
         .check()
 
-      expect(resultStrictThreshold.statistics.confidence).to.exist
-      expect(resultLaxThreshold.statistics.confidence).to.exist
-
-      if (resultStrictThreshold.statistics.confidence !== undefined &&
-          resultLaxThreshold.statistics.confidence !== undefined) {
-        // Stricter threshold should produce lower confidence for same data
-        expect(resultStrictThreshold.statistics.confidence).to.be.lessThan(
-          resultLaxThreshold.statistics.confidence
-        )
-      }
+      const strictConfidence = getConfidence(resultStrictThreshold)
+      const laxConfidence = getConfidence(resultLaxThreshold)
+      // Stricter threshold should produce lower confidence for same data
+      expect(strictConfidence).to.be.lessThan(laxConfidence)
     })
 
     it('should validate pass-rate threshold', () => {
@@ -303,38 +293,30 @@ describe('Confidence-Based Termination', () => {
         .then(({x}) => x >= 0)
         .check()
 
-      expect(result90.statistics.confidence).to.exist
-      expect(result99.statistics.confidence).to.exist
+      const confidence90 = getConfidence(result90)
+      const confidence99 = getConfidence(result99)
 
       // Higher confidence should require more tests
       expect(result99.statistics.testsRun).to.be.greaterThan(result90.statistics.testsRun)
 
       // Both should reach their target confidence
-      if (result90.statistics.confidence !== undefined) {
-        expect(result90.statistics.confidence).to.be.greaterThanOrEqual(0.90)
-      }
-      if (result99.statistics.confidence !== undefined) {
-        expect(result99.statistics.confidence).to.be.greaterThanOrEqual(0.99)
-      }
+      expect(confidence90).to.be.greaterThanOrEqual(0.90)
+      expect(confidence99).to.be.greaterThanOrEqual(0.99)
     })
   })
 
   describe('Confidence with existential quantifiers', () => {
     it('should calculate confidence for exists scenarios', () => {
-      const result = fc.scenario()
-        .config(fc.strategy().withSampleSize(200)) // Increased to ensure witness is found
+      const result = scenarioWithSampleSize(200) // Increased to ensure witness is found
         .exists('x', fc.integer(0, 100))
         .then(({x}) => x > 10) // Easier condition to satisfy
         .check()
 
-      expect(result.satisfiable).to.be.true
-      expect(result.statistics.confidence).to.exist
+      assertSatisfiable(result)
+      const confidence = getConfidence(result)
       expect(result.statistics.credibleInterval).to.exist
       // Confidence should be calculated based on the exploration results
-      if (result.statistics.confidence !== undefined) {
-        expect(result.statistics.confidence).to.be.greaterThanOrEqual(0)
-        expect(result.statistics.confidence).to.be.lessThanOrEqual(1)
-      }
+      assertValidConfidence(confidence)
     })
   })
 
@@ -387,45 +369,32 @@ describe('Confidence-Based Termination', () => {
 
   describe('Statistics include confidence', () => {
     it('should include confidence in all results', () => {
-      const result = fc.scenario()
-        .config(fc.strategy().withSampleSize(100))
+      const result = scenarioWithSampleSize(100)
         .forall('x', fc.integer())
         .then(({x}) => x * x >= 0)
         .check()
 
-      expect(result.statistics.confidence).to.exist
+      const confidence = getConfidence(result)
       expect(result.statistics.credibleInterval).to.exist
-      if (result.statistics.confidence !== undefined) {
-        expect(result.statistics.confidence).to.be.greaterThanOrEqual(0)
-        expect(result.statistics.confidence).to.be.lessThanOrEqual(1)
-      }
+      assertValidConfidence(confidence)
       if (result.statistics.credibleInterval !== undefined) {
         const [lower, upper] = result.statistics.credibleInterval
-        expect(lower).to.be.greaterThanOrEqual(0)
-        expect(upper).to.be.lessThanOrEqual(1)
-        expect(lower).to.be.lessThanOrEqual(upper)
+        assertValidInterval(lower, upper)
       }
     })
 
     it('should calculate confidence correctly for passed tests', () => {
-      const result = fc.scenario()
-        .config(fc.strategy().withSampleSize(1000))
+      const result = scenarioWithSampleSize(1000)
         .forall('x', fc.integer(0, 100))
         .then(({x}) => x >= 0) // Always true
         .check()
 
-      expect(result.satisfiable).to.be.true
-      expect(result.statistics.confidence).to.exist
-      if (result.statistics.confidence !== undefined) {
-        // With 1000 passing tests and default threshold 0.999, confidence should be reasonable
-        // (confidence that pass rate > 99.9% given 1000 successes is around 0.63)
-        expect(result.statistics.confidence).to.be.greaterThan(0.5)
-        expect(result.statistics.confidence).to.be.lessThanOrEqual(1.0)
-      }
+      assertSatisfiable(result)
+      const confidence = getConfidence(result)
+      // With 1000 passing tests and default threshold 0.999, confidence should be reasonable
+      // (confidence that pass rate > 99.9% given 1000 successes is around 0.63)
+      assertValidConfidence(confidence, 0.5, 1.0)
     })
   })
 })
 
-// Evidence suite has been moved to scripts/evidence/
-// Run: npm run evidence to generate statistical evidence
-// See: docs/evidence/README.md for results

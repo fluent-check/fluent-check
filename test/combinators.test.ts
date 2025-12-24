@@ -282,15 +282,14 @@ describe('Property Helpers (fc.props)', () => {
 
   describe('integration with preconditions', () => {
     it('should work with fc.pre() for filtering', () => {
-      const result = fc.scenario()
+      fc.scenario()
         .forall('arr', fc.array(fc.integer()))
         .then(({arr}) => {
           fc.pre(fc.props.nonEmpty(arr), 'array must be non-empty')
           return arr.length > 0
         })
         .check()
-
-      expect(result.satisfiable).to.be.true
+        .assertSatisfiable()
     })
   })
 })
@@ -475,15 +474,14 @@ describe('Property Templates (fc.templates)', () => {
 
   describe('integration', () => {
     it('should support chaining config', () => {
-      const result = fc.templates.roundtrip(
+      fc.templates.roundtrip(
         fc.integer(0, 1000),
         (x: number) => x.toString(),
         (s: string) => parseInt(s, 10)
       )
         .config(fc.strategies.minimal)
         .check()
-
-      expect(result.satisfiable).to.be.true
+        .assertSatisfiable()
     })
 
     it('should throw on assert failure', () => {

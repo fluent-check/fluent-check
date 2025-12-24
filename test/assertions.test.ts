@@ -1,6 +1,7 @@
 import * as fc from '../src/index'
 import {it} from 'mocha'
 import {expect} from 'chai'
+import {assertSatisfiableWithExample} from './test-utils.js'
 
 describe('FluentResult assertion methods', () => {
   describe('assertSatisfiable', () => {
@@ -203,8 +204,7 @@ describe('FluentResult assertion methods', () => {
         .then(({a, b}) => a + b === b)
         .check()
 
-      result.assertSatisfiable()
-      result.assertExample({a: 0})
+      assertSatisfiableWithExample(result, {a: 0})
     })
 
     it('should replace verbose Chai pattern', () => {

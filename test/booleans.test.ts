@@ -1,5 +1,6 @@
 import * as fc from '../src/index'
 import {it} from 'mocha'
+import {assertSatisfiableWithExample, assertUniversalProperty} from './test-utils.js'
 
 describe('Boolean tests', () => {
   it('finds two true booleans', () => {
@@ -8,8 +9,7 @@ describe('Boolean tests', () => {
       .exists('b', fc.boolean())
       .then(({a, b}) => a === true && b === true)
       .check()
-    result.assertSatisfiable()
-    result.assertExample({a: true, b: true})
+    assertSatisfiableWithExample(result, {a: true, b: true})
   })
 
   it('finds that some booleans are false', () => {
@@ -22,18 +22,10 @@ describe('Boolean tests', () => {
   })
 
   it('finds that self-XOR returns true', () => {
-    fc.scenario()
-      .forall('a', fc.boolean())
-      .then(({a}) => !(a !== a))
-      .check()
-      .assertSatisfiable()
+    assertUniversalProperty(fc.boolean(), a => !(a !== a))
   })
 
   it('finds implication using ORs', () => {
-    fc.scenario()
-      .forall('a', fc.boolean())
-      .then(({a}) => a === true || a === false)
-      .check()
-      .assertSatisfiable()
+    assertUniversalProperty(fc.boolean(), a => a === true || a === false)
   })
 })

@@ -1,4 +1,4 @@
-import type {CheckOptions, ProgressInfo} from './check/CheckOptions.js'
+import type {CheckOptions} from './check/CheckOptions.js'
 import type {Logger} from './statistics.js'
 import {Verbosity} from './statistics.js'
 import {

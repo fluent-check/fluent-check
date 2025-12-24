@@ -166,9 +166,23 @@ The system SHALL integrate statistics configuration with strategy presets.
 
 ## MODIFIED Requirements
 
-### Requirement: FluentStrategyFactory Configuration
+### Requirement: Strategy Factory
 
-The system SHALL extend FluentStrategyFactory to support detailed statistics and verbosity.
+The system SHALL provide a `FluentStrategyFactory` for building customized test strategies using a fluent API.
+
+#### Scenario: Create factory
+- **WHEN** `fc.strategy()` is called
+- **THEN** a new FluentStrategyFactory instance is returned
+
+#### Scenario: Build strategy
+- **WHEN** `.build()` is called on the factory
+- **THEN** a configured FluentStrategy instance is returned
+
+#### Scenario: Build strategy lazily at check time
+- **GIVEN** a FluentCheck scenario configured with a `FluentStrategyFactory`
+- **WHEN** `.check()` (or `.assert()`) is called on the scenario
+- **THEN** a `FluentStrategy` instance SHALL be built from the configured factory at execution time
+- **AND** that instance SHALL be reused for the entire scenario execution
 
 #### Scenario: Factory method additions
 - **WHEN** `FluentStrategyFactory` is extended
@@ -189,9 +203,18 @@ The system SHALL extend FluentStrategyFactory to support detailed statistics and
 - **THEN** the resulting `FluentStrategy` SHALL include statistics configuration
 - **AND** the strategy SHALL create appropriate tracking structures
 
-### Requirement: Explorer Interface Extension
+### Requirement: Explorer Interface
 
-The system SHALL extend the Explorer interface to support statistics collection.
+The system SHALL provide an `Explorer<Rec>` interface for navigating the search space of a scenario.
+
+#### Scenario: Explore method signature
+- **WHEN** an Explorer is used
+- **THEN** it SHALL accept a scenario, property function, sampler, and budget
+- **AND** it SHALL return an ExplorationResult
+
+#### Scenario: Explorer is stateless
+- **WHEN** an Explorer explores a scenario
+- **THEN** the Explorer instance SHALL NOT retain state between explorations
 
 #### Scenario: Explorer with statistics context
 - **WHEN** detailed statistics are enabled
@@ -206,9 +229,24 @@ The system SHALL extend the Explorer interface to support statistics collection.
   - `onEvaluate(testCase)` - called before property evaluation
   - `onResult(testCase, passed)` - called after property evaluation
 
-### Requirement: Sampler Statistics Integration
+### Requirement: Sampler Interface
 
-The system SHALL optionally track distribution data in samplers.
+The system SHALL provide a `Sampler` interface for generating samples from arbitraries.
+
+#### Scenario: Sample method
+- **WHEN** `sampler.sample(arbitrary, count)` is called
+- **THEN** it SHALL return an array of `FluentPick` values
+- **AND** the array length SHALL be at most `count`
+
+#### Scenario: Sample with bias method
+- **WHEN** `sampler.sampleWithBias(arbitrary, count)` is called
+- **THEN** it SHALL include corner cases from the arbitrary
+- **AND** remaining samples SHALL be randomly generated
+
+#### Scenario: Sample unique method
+- **WHEN** `sampler.sampleUnique(arbitrary, count)` is called
+- **THEN** it SHALL return only unique values
+- **AND** uniqueness SHALL be determined by the arbitrary's equals function
 
 #### Scenario: Sampler with statistics
 - **WHEN** detailed statistics are enabled and the sampler generates a value

@@ -193,26 +193,35 @@ describe('Reporting layer', () => {
       reporterNormal.onComplete(result)
 
       expect(logs.length).to.equal(1)
-      expect(logs[0]!.level).to.equal('info')
-      expect(logs[0]!.message).to.equal('statistics')
-      expect(logs[0]!.data).to.not.equal(undefined)
-      expect(logs[0]!.data!.statistics).to.equal(statistics)
-      expect(logs[0]!.data!.detailed).to.equal(false)
-      expect(logs[0]!.data!.includeHistograms).to.equal(false)
+      const log0 = logs[0]
+      if (log0 === undefined) throw new Error('Expected log entry')
+      expect(log0.level).to.equal('info')
+      expect(log0.message).to.equal('statistics')
+      expect(log0.data).to.not.equal(undefined)
+      const data0 = log0.data as Record<string, unknown>
+      expect(data0.statistics).to.equal(statistics)
+      expect(data0.detailed).to.equal(false)
+      expect(data0.includeHistograms).to.equal(false)
 
       logs.length = 0
       const reporterVerbose = new LoggerStatisticsReporter(logger, Verbosity.Verbose)
       reporterVerbose.onComplete(result)
 
-      expect(logs[0]!.data!.detailed).to.equal(true)
-      expect(logs[0]!.data!.includeHistograms).to.equal(false)
+      const logV = logs[0]
+      if (logV === undefined) throw new Error('Expected log entry')
+      const dataV = logV.data as Record<string, unknown>
+      expect(dataV.detailed).to.equal(true)
+      expect(dataV.includeHistograms).to.equal(false)
 
       logs.length = 0
       const reporterDebug = new LoggerStatisticsReporter(logger, Verbosity.Debug)
       reporterDebug.onComplete(result)
 
-      expect(logs[0]!.data!.detailed).to.equal(true)
-      expect(logs[0]!.data!.includeHistograms).to.equal(true)
+      const logD = logs[0]
+      if (logD === undefined) throw new Error('Expected log entry')
+      const dataD = logD.data as Record<string, unknown>
+      expect(dataD.detailed).to.equal(true)
+      expect(dataD.includeHistograms).to.equal(true)
 
       logs.length = 0
       const reporterQuiet = new LoggerStatisticsReporter(logger, Verbosity.Quiet)
