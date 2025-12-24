@@ -77,7 +77,7 @@ Coverage targets declared with `cover`/`coverTable` are verified by `checkCovera
 ```typescript
 const result = fc.scenario()
   .forall('n', fc.integer(-10, 10))
-  .cover(50, ({n}) => n < 0, 'negative')
+.cover(40, ({n}) => n < 0, 'negative')
   .then(({n}) => n + 0 === n)
   .checkCoverage({ confidence: 0.99 })
 
