@@ -29,6 +29,7 @@ FluentCheck offers a powerful yet intuitive approach to property testing:
 - **Given-When-Then Pattern**: Structure tests in a clear, consistent way
 - **Chained Type Inference**: Maintain type information through transformations
 - **Corner Case Prioritization**: Ensure edge cases are thoroughly tested
+- **Coverage & Classification**: Label inputs and enforce coverage targets with statistical confidence
 
 ## Requirements
 
@@ -588,6 +589,26 @@ console.log(result.statistics.labels)          // { small: ~50, large: ~50 }
 - Understand the distribution of generated test data
 - Ensure balanced testing across different input types
 
+### Coverage Requirements
+
+Use `cover` and `coverTable` to declare minimum coverage targets for important categories. Run `checkCoverage()` to verify the targets using Wilson score confidence intervals (95% by default, configurable per run).
+
+```typescript
+const result = fc.scenario()
+  .forall('x', fc.integer(-100, 100))
+  .cover(40, ({x}) => x < 0, 'negative') // at least 40% negative
+  .cover(40, ({x}) => x > 0, 'positive') // at least 40% positive
+.coverTable('parity', { even: 45, odd: 45 }, ({x}) => x % 2 === 0 ? 'even' : 'odd')
+  .then(({x}) => x + 0 === x)
+  .checkCoverage({ confidence: 0.99 }) // throws if requirements are not statistically supported
+
+for (const entry of result.statistics.coverageResults ?? []) {
+  console.log(`${entry.label}: ${entry.observedPercentage.toFixed(1)}% (CI ${entry.confidenceInterval[0].toFixed(1)}-${entry.confidenceInterval[1].toFixed(1)})`)
+}
+```
+
+Coverage nodes reuse the same labeling system as `classify()`/`label()`/`collect()`, so your statistics include both distribution insights and verification results.
+
 ### Detailed Statistics
 
 FluentCheck can collect and report comprehensive execution statistics, helping you understand the quality and coverage of your tests.
@@ -645,7 +666,7 @@ For more details on each feature, check out our detailed documentation:
 - [Given-When-Then Pattern](docs/given-when-then-pattern.md)
 - [Statistical Confidence](docs/statistical-confidence.md)
 - [Reporting and Progress](docs/reporting.md)
-- [Test Case Classification](docs/test-case-classification.md) (coming soon)
+- [Test Case Classification & Coverage](docs/test-case-classification.md)
 - [Smart Shrinking](docs/smart-shrinking.md)
 - [Customizable Strategies](docs/customizable-strategies.md)
 - [Composable Arbitraries](docs/composable-arbitraries.md)
