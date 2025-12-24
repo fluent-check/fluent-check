@@ -24,98 +24,46 @@ fc.scenario()
   .check()
 ```
 
-The tests show how these quantifiers are used to express mathematical properties. For example, from math.test.ts:
+The test suite includes many examples of mixed quantifiers. For example (see `test/assertions.test.ts`):
 
 ```typescript
-// Finding the neutral element of addition (exists 'a' such that a + b = b for all b)
-it('finds the neutral element of addition', () => {
-  expect(fc.scenario()
-    .exists('a', fc.integer())
-    .forall('b', fc.integer(-10, 10))
-    .then(({a, b}) => a + b === b)
-    .check()
-  ).to.deep.include({satisfiable: true, example: {a: 0}})
-})
+const result = fc.scenario()
+  .exists('a', fc.integer())
+  .forall('b', fc.integer(-10, 10))
+  .then(({a, b}) => a + b === b)
+  .check()
 
-// Testing if every integer has an additive inverse
-it('finds if addition has an inverse', () => {
-  expect(fc.scenario()
-    .forall('a', fc.integer(-10, 10))
-    .exists('b', fc.integer(-10, 10))
-    .then(({a, b}) => a + b === 0)
-    .check()
-  ).to.have.property('satisfiable', true)
-})
+// Only the existential binding is reported as the witness.
+result.assertExample({a: 0})
 ```
 
 ## Implementation Details
 
-The implementation distinguishes between universal and existential quantifiers using specialized classes that extend a common base:
+FluentCheck builds an immutable Scenario AST (see `.buildScenario()`) and executes it using an `Explorer` (search) plus an optional `Shrinker` (minimization).
 
-```typescript
-abstract class FluentCheckQuantifier<K extends string, A, Rec extends ParentRec & Record<K, A>, ParentRec extends {}>
-  extends FluentCheck<Rec, ParentRec> {
+At a high level:
 
-  constructor(
-    protected readonly parent: FluentCheck<ParentRec, any>,
-    public readonly name: K,
-    public readonly a: Arbitrary<A>,
-    strategy: FluentStrategy) {
-    super(strategy, parent)
-    this.strategy.addArbitrary(this.name, a)
-  }
+- For pure `forall` scenarios, execution searches for a counterexample. Finding one makes the result unsatisfiable.
+- For scenarios with at least one `exists`, execution searches for a witness. Finding one makes the result satisfiable; exhausting the budget without a witness makes the result unsatisfiable.
 
-  protected run(
-    testCase: WrapFluentPick<Rec>,
-    callback: (arg: WrapFluentPick<Rec>) => FluentResult,
-    partial: FluentResult | undefined = undefined,
-    depth = 0): FluentResult {
+Shrinking behavior:
 
-    this.strategy.configArbitrary(this.name, partial, depth)
-
-    while (this.strategy.hasInput(this.name)) {
-      testCase[this.name] = this.strategy.getInput(this.name)
-      const result = callback(testCase)
-      if (result.satisfiable === this.breakValue) {
-        result.addExample(this.name, testCase[this.name])
-        return this.run(testCase, callback, result, depth + 1)  // Shrinking loop
-      }
-    }
-
-    return partial ?? new FluentResult(!this.breakValue)
-  }
-
-  abstract breakValue: boolean
-}
-
-class FluentCheckUniversal<K extends string, A, Rec extends ParentRec & Record<K, A>, ParentRec extends {}>
-  extends FluentCheckQuantifier<K, A, Rec, ParentRec> {
-  breakValue = false  // Stops when property fails (found counterexample)
-}
-
-class FluentCheckExistential<K extends string, A, Rec extends ParentRec & Record<K, A>, ParentRec extends {}>
-  extends FluentCheckQuantifier<K, A, Rec, ParentRec> {
-  breakValue = true   // Stops when property succeeds (found witness)
-}
-```
-
-For universal properties, the search stops when a counterexample is found (when `result.satisfiable === false`). For existential properties, the search stops when an example satisfying the property is found (when `result.satisfiable === true`).
-
-The implementation inherits from a common base class `FluentCheckQuantifier` but differs in the critical `breakValue` property:
-
-1. `FluentCheckUniversal.breakValue = false` - Keep searching until a counterexample is found
-2. `FluentCheckExistential.breakValue = true` - Keep searching until a satisfying example is found
+- Failing results (counterexamples) are shrunk toward a smaller failing input.
+- Satisfiable `exists` results (witnesses) are shrunk toward a smaller witness, and `result.example` reports only the existential bindings.
 
 ## Result Reporting
 
-When using existential quantifiers, FluentCheck not only reports if a property is satisfiable but also provides the example that satisfies it:
+When using existential quantifiers, FluentCheck reports the witness as the `example`:
 
 ```typescript
-// The test result contains the specific value (0) that satisfies the property
-expect(result).to.deep.include({
-  satisfiable: true, 
-  example: {a: 0}
-});
+const result = fc.scenario()
+  .exists('a', fc.integer())
+  .forall('b', fc.integer(-10, 10))
+  .then(({a, b}) => a + b === b)
+  .check()
+
+console.log(result.satisfiable) // true
+console.log(result.example)     // { a: 0 }
 ```
 
 ## Practical Applications

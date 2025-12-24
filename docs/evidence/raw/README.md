@@ -10,6 +10,9 @@ This directory contains raw experimental data from confidence-based termination 
 | `detection.csv` | 450 | 4,500 | Bug detection rate comparison |
 | `efficiency.csv` | 250 | 1,000 | Property complexity adaptation |
 | `exists.csv` | 1,200 | 4,800 | Existential quantifier witness detection |
+| `shrinking.csv` | 1,500 | 10,000 | Shrinking effectiveness and minimal-witness rate |
+| `double_negation.csv` | 600 | 2,400 | First-class `.exists()` vs double-negation equivalence |
+| `composition.csv` | 30 | 100 | Composition complexity (exists-forall pattern) |
 
 ## Data Generation
 
@@ -226,6 +229,57 @@ For a witness density `d` and sample size `n`:
 ```
 P(find witness) = 1 - (1 - d)^n
 ```
+
+---
+
+### shrinking.csv
+
+| Column | Type | Description |
+|--------|------|-------------|
+| trial_id | int | Unique trial identifier |
+| seed | int | Deterministic seed |
+| scenario | enum | Shrinking scenario name |
+| witness_found | bool | Whether a witness was found |
+| initial_witness | int | Witness before shrinking (currently blank; reserved) |
+| final_witness | int | Witness after shrinking |
+| expected_minimal | int | Theoretical minimal witness for the scenario |
+| is_minimal | bool | Whether `final_witness` equals `expected_minimal` |
+| shrink_candidates_tested | int | Shrink candidates evaluated |
+| shrink_rounds_completed | int | Shrinking rounds executed |
+| shrink_improvements_made | int | Successful improvements accepted |
+| exploration_time_ms | int | Time spent exploring (ms) |
+| shrinking_time_ms | int | Time spent shrinking (ms) |
+| total_elapsed_micros | int | End-to-end time (µs) |
+
+### double_negation.csv
+
+| Column | Type | Description |
+|--------|------|-------------|
+| trial_id | int | Unique trial identifier |
+| seed | int | Deterministic seed |
+| scenario | enum | Witness-density scenario name |
+| approach | enum | 'first_class' or 'double_negation' |
+| witness_density | float | Expected witness density |
+| sample_size | int | Max tests configured |
+| witness_found | bool | Whether a witness was found |
+| tests_run | int | Number of tests executed |
+| elapsed_micros | int | High-resolution timing |
+| witness_value | int | Witness value (if found) |
+| shrink_candidates_tested | int | Shrink candidates evaluated |
+| shrink_improvements_made | int | Successful improvements accepted |
+
+### composition.csv
+
+| Column | Type | Description |
+|--------|------|-------------|
+| trial_id | int | Unique trial identifier |
+| seed | int | Deterministic seed |
+| approach | enum | 'first_class' or 'double_negation' |
+| witness_found | bool | Whether a witness was found |
+| tests_run | int | Number of tests executed |
+| elapsed_micros | int | High-resolution timing |
+| a_value | int | Found witness for `a` (if found) |
+| lines_of_code | int | Rough ergonomics proxy for the approach |
 
 ---
 

@@ -23,7 +23,7 @@ This workflow runs on push to the main branch, pull requests, and manual trigger
 #### Jobs:
 
 - **Build**: 
-  - Runs on multiple Node.js versions (18.x, 20.x)
+  - Runs on multiple Node.js versions (22.x, 24.x)
   - Installs dependencies
   - Runs linting
   - Executes tests
@@ -56,9 +56,9 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        node-version: [18.x, 20.x]
+        node-version: [22.x, 24.x]
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
     - name: Use Node.js ${{ matrix.node-version }}
       uses: actions/setup-node@v4
       with:
@@ -72,10 +72,10 @@ jobs:
   type-check:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
     - uses: actions/setup-node@v4
       with:
-        node-version: '20.x'
+        node-version: '24.x'
     - run: npm ci
     - run: npm run prepare  # TypeScript compilation check
 ```
@@ -92,6 +92,8 @@ This workflow automatically publishes the package to npm when a new GitHub relea
 - **Publish**:
   - Publishes the package to npm with provenance
   - Requires the `NPM_TOKEN` secret to be configured
+
+**Note**: The workflow currently runs on Node.js 20.x (`.github/workflows/npm-publish.yml`). If you rely on `package.json` `engines.node`, keep these aligned.
 
 **Triggering**: 
 - Creating a new GitHub release
@@ -140,6 +142,10 @@ jobs:
   validate:
     # ... validation steps
 ```
+
+### 4. Gemini Automation Workflows (`.github/workflows/gemini-*.yml`)
+
+This repository also includes Gemini automation workflows (dispatch/invoke/review/triage) plus command definitions in `.github/commands/*.toml`. These are orthogonal to the Node.js CI and publishing workflows.
 
 #### Important Syntax Notes:
 

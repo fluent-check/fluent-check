@@ -24,7 +24,7 @@ The generic parameters on `FluentCheck` accumulate the scenario context:
 2. `given` augments the context with derived values (factory or constant)
 3. `when` executes side effects but does not change the context type
 4. `then` receives the full record and must return a boolean
-5. `map` transforms the context while preserving names and types
+5. There is no scenario-level `.map(...)`. To “transform the context”, add derived values with `given(...)`.
 
 TypeScript infers the combined record, so the `then` callback above is typed as:
 ```ts
@@ -36,10 +36,11 @@ Freshness is enforced: reusing an existing name (e.g., a second `forall('user', 
 ## Core Operations
 
 - `fc.scenario()` – create a fluent scenario builder
-- `fc.prop()` – shorthand for simple universal properties (up to five arbitraries)
+- `fc.prop()` – shorthand for simple universal properties (one or more arbitraries)
 - `config(strategyFactory)` – attach a `FluentStrategyFactory` (sample size, shrinking, verbosity, RNG, detailed stats)
 - `withGenerator(builder, seed?)` – override the RNG used for sampling
 - `check(options?)` – run the scenario and return `FluentResult`
+- `checkWithConfidence(level, options?)` – run with confidence-based early termination and return `FluentResult`
 - `checkCoverage({ confidence? })` – run, verify all `cover`/`coverTable` targets, and throw on failure
 
 ## Classification and Coverage
