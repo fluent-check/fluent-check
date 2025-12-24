@@ -70,6 +70,24 @@ Verbosity controls how much detail is included:
 - `Verbosity.Verbose` – detailed statistics
 - `Verbosity.Debug` – detailed statistics plus histograms
 
+### Coverage Reporting
+
+Coverage targets declared with `cover`/`coverTable` are verified by `checkCoverage()`. The returned `FluentResult.statistics.coverageResults` array includes observed percentages, Wilson score confidence intervals, and a `satisfied` flag for each target.
+
+```typescript
+const result = fc.scenario()
+  .forall('n', fc.integer(-10, 10))
+  .cover(50, ({n}) => n < 0, 'negative')
+  .then(({n}) => n + 0 === n)
+  .checkCoverage({ confidence: 0.99 })
+
+for (const entry of result.statistics.coverageResults ?? []) {
+  console.log(entry.label, entry.observedPercentage.toFixed(1), entry.satisfied)
+}
+```
+
+If you want coverage data to flow through a custom reporter, call `check()` with your desired reporting options and then run `verifyCoverage(...)` manually using the returned statistics.
+
 ## Progress reporting
 
 Progress reporting is implemented via `ProgressReporter` implementations:
@@ -143,7 +161,7 @@ The default aggregator produces a `FluentStatistics` object that:
   - Satisfiable: `testsRun = testsPassed + testsDiscarded`
   - Unsatisfiable: `testsRun = testsPassed + testsDiscarded + 1`
 - Computes label and event percentages when counts are present
-- Passes through detailed per-arbitrary, event, target, and shrinking statistics
+- Passes through detailed per-arbitrary, event, target, and shrinking statistics; coverage results are appended by `checkCoverage()`
 
 ## Replacing `DefaultStatisticsAggregator`
 

@@ -1,138 +1,82 @@
 # Fluent, Type-Safe API
 
-FluentCheck's most distinctive feature is its fluent API that is fully integrated with TypeScript's type system. This design decision delivers several key benefits:
-
-## Design Philosophy
-
-The fluent API pattern allows for expressive, chainable method calls that read more like natural language. When combined with TypeScript's strong typing, this creates a powerful, intuitive, and safe way to express test properties.
+FluentCheck models property tests as readable chains that stay fully type-safe from start to finish. Every step extends the scenario context, so your assertions always see the right names and types.
 
 ```typescript
+import * as fc from 'fluent-check'
+
 fc.scenario()
-  .forall('x', fc.integer(0, 100))
-  .forall('y', fc.integer(0, 100))
-  .then(({x, y}) => x + y === y + x)  // Testing commutativity of addition
-  .check()
+  .forall('user', fc.record({ id: fc.integer(), name: fc.string(1, 20) }))
+  .given('normalized', ({user}) => ({ ...user, name: user.name.trim().toLowerCase() }))
+  .when(({normalized}) => save(normalized)) // side effects allowed
+  .classify(({normalized}) => normalized.name === '', 'empty name')
+  .cover(5, ({normalized}) => normalized.name.length < 3, 'short names')
+  .then(({normalized}) => fetch(normalized.id).name === normalized.name)
+  .checkCoverage()
+  .assertSatisfiable()
 ```
 
-As seen in the Math properties tests, this fluent approach enables elegant expression of mathematical properties:
+## How Type Flow Works
+
+The generic parameters on `FluentCheck` accumulate the scenario context:
+
+1. `forall` / `exists` add named arbitraries (e.g., `user: { id: number; name: string }`)
+2. `given` augments the context with derived values (factory or constant)
+3. `when` executes side effects but does not change the context type
+4. `then` receives the full record and must return a boolean
+5. `map` transforms the context while preserving names and types
+
+TypeScript infers the combined record, so the `then` callback above is typed as:
+```ts
+({ user: { id: number; name: string }, normalized: { id: number; name: string } }) => boolean
+```
+
+Freshness is enforced: reusing an existing name (e.g., a second `forall('user', ...)`) produces a type error.
+
+## Core Operations
+
+- `fc.scenario()` – create a fluent scenario builder
+- `fc.prop()` – shorthand for simple universal properties (up to five arbitraries)
+- `config(strategyFactory)` – attach a `FluentStrategyFactory` (sample size, shrinking, verbosity, RNG, detailed stats)
+- `withGenerator(builder, seed?)` – override the RNG used for sampling
+- `check(options?)` – run the scenario and return `FluentResult`
+- `checkCoverage({ confidence? })` – run, verify all `cover`/`coverTable` targets, and throw on failure
+
+## Classification and Coverage
+
+Classification is built into the fluent chain:
+
+- `classify(predicate, label)` – count a label when the predicate is true
+- `label(fn)` – derive one label string per test
+- `collect(fn)` – bucket numeric/string values as labels
+- `cover(percentage, predicate, label)` – enforce a minimum percentage at a chosen confidence level
+- `coverTable(name, categories, getCategory)` – enforce multiple category targets at once
+
+Label counts and coverage verification results are part of `FluentResult.statistics`.
+
+## Results and Assertions
+
+`FluentResult` offers fluent assertions:
+
+- `assertSatisfiable(message?)`
+- `assertNotSatisfiable(message?)`
+- `assertExample(expected, message?)` for partial matches
+
+Every result includes the seed used, classification/coverage stats, and optional detailed statistics when `withDetailedStatistics()` is enabled on the strategy.
+
+## Building Scenarios Explicitly
+
+Call `.buildScenario()` to inspect the immutable AST that will be executed. This is useful for tooling and debugging:
 
 ```typescript
-// From math.test.ts
-it('finds if multiplication is distributive over addition', () => {
-  expect(fc.scenario()
-    .forall('a', fc.integer(-10, 10))
-    .forall('b', fc.integer(-10, 10))
-    .forall('c', fc.integer(-10, 10))
-    .then(({a, b, c}) => (a + b) * c === a * c + b * c)
-    .check()
-  ).to.have.property('satisfiable', true)
-})
+const scenario = fc.scenario()
+  .forall('x', fc.integer())
+  .exists('y', fc.integer())
+  .then(({x, y}) => x + y === y + x)
+  .buildScenario()
+
+console.log(scenario.quantifiers.length) // 2
+console.log(scenario.hasExistential)     // true
 ```
 
-## Type Safety Throughout the Chain
-
-Every step in the chain maintains and propagates type information:
-
-1. When you call `.forall('x', fc.integer())`, TypeScript knows that `x` is of type `number`
-2. When chaining with `.forall('y', fc.string())`, TypeScript knows about both `x: number` and `y: string`
-3. In the `.then()` callback, the parameter is typed as `{x: number, y: string}`
-
-This ensures that all property tests are type-checked at compile time, catching errors early.
-
-## Implementation Details
-
-The implementation uses TypeScript's generic types and record types to build up the context through the chain:
-
-```typescript
-export class FluentCheck<Rec extends ParentRec, ParentRec extends {}> {
-  constructor(
-    public strategy: FluentStrategy = new FluentStrategyFactory().defaultStrategy().build(),
-    protected readonly parent: FluentCheck<ParentRec, any> | undefined = undefined
-  ) {}
-
-  // Universal quantifier - property must hold for all values
-  forall<K extends string, A>(name: K, a: Arbitrary<A>): FluentCheck<Rec & Record<K, A>, Rec> {
-    return new FluentCheckUniversal(this, name, a, this.strategy)
-  }
-
-  // Existential quantifier - property must hold for at least one value
-  exists<K extends string, A>(name: K, a: Arbitrary<A>): FluentCheck<Rec & Record<K, A>, Rec> {
-    return new FluentCheckExistential(this, name, a, this.strategy)
-  }
-
-  // Computed values added to the context
-  given<K extends string, V>(name: K, v: V | ((args: Rec) => V)): FluentCheckGiven<K, V, Rec & Record<K, V>, Rec>
-
-  // Side effects before assertions
-  when(f: (givens: Rec) => void): FluentCheckWhen<Rec, ParentRec>
-
-  // Property assertion
-  then(f: (arg: Rec) => boolean): FluentCheckAssert<Rec, ParentRec>
-}
-```
-
-Each call to `forall` or `exists` returns a new `FluentCheck` instance with an updated type parameter that includes the new variable name and type. The generic type parameters track:
-
-1. `Rec`: The current record of all variables defined so far
-2. `ParentRec`: The previous record, used for maintaining the chain
-
-The result of property tests is encapsulated in the `FluentResult` class:
-
-```typescript
-export class FluentResult {
-  constructor(
-    public readonly satisfiable = false,
-    public example: PickResult<any> = {},
-    public readonly seed?: number) { }
-
-  addExample<A>(name: string, value: FluentPick<A>) {
-    this.example[name] = value
-  }
-}
-```
-
-This allows for rich assertions in tests:
-
-```typescript
-// Check if property is satisfiable
-expect(result).to.have.property('satisfiable', true);
-
-// Check specific example values
-expect(result).to.deep.include({
-  satisfiable: true, 
-  example: {a: 0}  // Example value that satisfies the property
-});
-
-// Check the seed for reproducibility
-console.log('Seed for reproduction:', result.seed);
-```
-
-## Limitations
-
-While the fluent API with type safety provides an excellent developer experience, it does come with some limitations:
-
-1. Type inference complexity: In rare cases with deeply nested chains, TypeScript might struggle with inference
-2. Error messages: When type errors occur, the error messages can be verbose due to the complexity of the types
-3. Performance overhead: Building the type chain adds some overhead at compile time
-
-## Comparison with Other Frameworks
-
-Most other property testing frameworks like FastCheck use a more traditional function-based API, which can be less expressive and type-safe. FluentCheck's approach combines the best of both worlds, offering an intuitive API that leverages TypeScript's type system to catch errors early.
-
-For example, in FastCheck you might write:
-
-```typescript
-fc.property(fc.integer(), fc.integer(), (a, b) => a + b === b + a)
-```
-
-While in FluentCheck, the same property would be:
-
-```typescript
-fc.scenario()
-  .forall('a', fc.integer())
-  .forall('b', fc.integer())
-  .then(({a, b}) => a + b === b + a)
-  .check()
-```
-
-The FluentCheck approach is more verbose but provides named variables, better type inference, and a more readable structure that aligns with how we naturally think about properties. 
+The scenario AST powers both `check()` and `checkCoverage()`, ensuring the same structure is used for execution and reporting.
