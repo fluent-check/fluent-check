@@ -27,7 +27,12 @@
     "evidence:generate": "npx tsx scripts/evidence/calibration.study.ts && npx tsx scripts/evidence/detection.study.ts && npx tsx scripts/evidence/efficiency.study.ts && npx tsx scripts/evidence/exists.study.ts && npx tsx scripts/evidence/shrinking.study.ts && npx tsx scripts/evidence/double-negation.study.ts",
     "evidence:analyze": "./scripts/evidence/run-analysis.sh",
     "evidence": "npm run evidence:generate && npm run evidence:analyze",
-    "evidence:quick": "QUICK_MODE=1 npm run evidence:generate && npm run evidence:analyze"
+    "evidence:quick": "QUICK_MODE=1 npm run evidence:generate && npm run evidence:analyze",
+    "evidence:biased-sampling": "npx tsx scripts/evidence/biased-sampling.study.ts && cd analysis && python biased_sampling.py",
+    "evidence:weighted-union": "npx tsx scripts/evidence/weighted-union.study.ts && cd analysis && python weighted_union.py",
+    "evidence:corner-case-coverage": "npx tsx scripts/evidence/corner-case-coverage.study.ts && cd analysis && python corner_case_coverage.py",
+    "evidence:apparatus": "npm run evidence:biased-sampling && npm run evidence:weighted-union && npm run evidence:corner-case-coverage",
+    "evidence:apparatus:quick": "QUICK_MODE=1 npm run evidence:apparatus"
   },
   "keywords": [
     "testing",
