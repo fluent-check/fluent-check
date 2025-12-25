@@ -35,42 +35,44 @@ def main():
     print(f"  Loaded {len(df)} rows\n")
 
     # 2. Compute aggregate statistics
-    summary = df.groupby(['depth', 'quantifier_index']).agg({
+    summary = df.groupby(['depth', 'quantifier_index', 'explorer']).agg({
         'unique_values': 'mean',
         'expected_unique': 'mean'
     }).reset_index()
 
     # 3. Print summary table
     print("Summary Statistics (Unique Values per Quantifier):")
-    print("=" * 80)
-    print(f"{'Depth':<10} {'Quantifier':<10} {'Observed':<10} {'Expected':<10} {'Efficiency':<10}")
-    print("-" * 80)
+    print("=" * 90)
+    print(f"{'Explorer':<10} {'Depth':<10} {'Quantifier':<10} {'Observed':<10} {'Expected':<10} {'Efficiency':<10}")
+    print("-" * 90)
     
-    unique_depths = sorted(summary['depth'].unique())
-    for d in unique_depths:
-        d_data = summary[summary['depth'] == d]
-        observed = d_data['unique_values'].mean()
-        expected = d_data['expected_unique'].mean()
-        efficiency = observed / 1000 * 100 # Assuming N=1000
-        print(f"{d:<10} {'Avg':<10} {observed:<10.1f} {expected:<10.1f} {efficiency:<9.1f}%")
+    for explorer in ['nested', 'flat']:
+        explorer_data = summary[summary['explorer'] == explorer]
+        unique_depths = sorted(explorer_data['depth'].unique())
+        for d in unique_depths:
+            d_data = explorer_data[explorer_data['depth'] == d]
+            observed = d_data['unique_values'].mean()
+            expected = d_data['expected_unique'].mean()
+            efficiency = observed / 1000 * 100 # Assuming N=1000
+            print(f"{explorer:<10} {d:<10} {'Avg':<10} {observed:<10.1f} {expected:<10.1f} {efficiency:<9.1f}%")
 
     # 4. Create visualizations
     fig, ax = plt.subplots(figsize=(10, 6))
 
-    # Plot observed vs expected
-    sns.lineplot(x='depth', y='unique_values', data=df, marker='o', label='Observed (Mean)', ax=ax, linewidth=2)
+    # Plot observed vs expected with hue for explorer
+    sns.lineplot(x='depth', y='unique_values', hue='explorer', data=df, marker='o', ax=ax, linewidth=2)
     
     # Plot theoretical N^(1/d)
     x = np.linspace(1, 5, 50)
     y = 1000 ** (1/x)
-    ax.plot(x, y, 'r--', label='Theoretical $N^{1/d}$', linewidth=2)
+    ax.plot(x, y, 'r--', label='Theoretical Nested $N^{1/d}$', linewidth=2, alpha=0.5)
     
     # Plot ideal (N)
-    ax.axhline(1000, color='green', linestyle=':', label='Ideal (Random Sampling)')
+    ax.axhline(1000, color='green', linestyle=':', label='Ideal (Flat Target)', alpha=0.5)
 
     ax.set_xlabel('Chain Depth (Number of Quantifiers)')
     ax.set_ylabel('Effective Sample Size (Unique Values)')
-    ax.set_title('Effective Sample Size per Quantifier (N=1000)')
+    ax.set_title('Effective Sample Size: Flat vs Nested (N=1000)')
     ax.grid(True, alpha=0.3)
     ax.legend()
     ax.set_yscale('log')
@@ -80,17 +82,21 @@ def main():
     save_figure(fig, output_path)
 
     # 5. Conclusion
-    print("=" * 80)
+    print("=" * 90)
     print(f"\nConclusion:")
     print("-" * 60)
     
-    depth_3_eff = summary[summary['depth'] == 3]['unique_values'].mean()
-    if depth_3_eff < 100: # 1000^(1/3) = 10
-        print(f"  ✓ Hypothesis supported: Effective sample size collapses with depth.")
-        print(f"    At depth 3, only ~{depth_3_eff:.1f} unique values tested per quantifier (vs 1000 budget).")
-        print(f"    This is a {1000/depth_3_eff:.1f}x reduction in detection power for single-variable bugs.")
+    nested_d3 = summary[(summary['depth'] == 3) & (summary['explorer'] == 'nested')]['unique_values'].mean()
+    flat_d3 = summary[(summary['depth'] == 3) & (summary['explorer'] == 'flat')]['unique_values'].mean()
+    
+    print(f"  Nested Depth 3 Mean: {nested_d3:.1f}")
+    print(f"  Flat Depth 3 Mean:   {flat_d3:.1f}")
+    
+    if flat_d3 > nested_d3 * 5:
+        print(f"  ✓ Hypothesis supported: FlatExplorer significantly outperforms Nested at depth.")
+        print(f"    Improvement factor: {flat_d3/nested_d3:.1f}x")
     else:
-        print(f"  ✗ Hypothesis not supported.")
+        print(f"  ✗ Hypothesis not supported or improvement marginal.")
 
     print(f"\n✓ Sample Budget analysis complete")
 

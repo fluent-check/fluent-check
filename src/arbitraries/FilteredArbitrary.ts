@@ -10,6 +10,19 @@ export class FilteredArbitrary<A> extends WrappedArbitrary<A> {
   constructor(override readonly baseArbitrary: Arbitrary<A>, public readonly f: (a: A) => boolean) {
     super(baseArbitrary)
     this.sizeEstimation = new BetaDistribution(2, 1) // use 1,1 for .mean instead of .mode in point estimation
+
+    // Warm-up with a deterministic seed to prime the estimator
+    // This prevents the "Cold Start" problem where size() is called before any sampling
+    let seed = 0xCAFEBABE
+    const lcg = () => {
+      seed = (Math.imul(seed, 1664525) + 1013904223) | 0
+      return (seed >>> 0) / 4294967296
+    }
+
+    // Sample a few times to get a rough initial estimate
+    for (let i = 0; i < 10; i++) {
+      this.pick(lcg)
+    }
   }
 
   override size(): EstimatedSize {
