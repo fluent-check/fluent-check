@@ -86,7 +86,7 @@ async function runStreamingAccuracyStudy(): Promise<void> {
   const threshold = 0.90 // Use 0.90 to get more interesting mix of true/false near boundary
   const sampleSizes = [100, 500, 1000]
   // We need MANY trials to get good histograms for calibration
-  const trialsPerConfig = getSampleSize(2000, 500) 
+  const trialsPerConfig = getSampleSize(10000, 500) 
   const totalTrials = sampleSizes.length * trialsPerConfig
 
   console.log(`Threshold: ${threshold}`)

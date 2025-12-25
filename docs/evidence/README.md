@@ -33,6 +33,12 @@ FluentCheck's evidence suite validates both confidence-based termination and the
 14. **Shrinking Fairness**: Do earlier quantifiers shrink more aggressively?
 15. **Length Distribution**: Do edge-biased distributions find length bugs faster?
 
+### Advanced Apparatus Studies
+
+16. **Caching Trade-off**: Does caching reduce detection of "any-value" bugs?
+17. **Streaming Statistics Accuracy**: Is the Bayesian confidence calculation calibrated?
+18. **Sample Budget Distribution**: Does `NestedLoopExplorer` cause sample size collapse?
+
 All data is reproducible with deterministic seeds. Raw data available in [`raw/`](raw/).
 
 ---
@@ -601,16 +607,16 @@ npm run evidence:corner-case-coverage
 
 | Bug Type | Biased Detection | Random Detection | Improvement | p-value | Effect Size |
 |----------|------------------|------------------|-------------|---------|-------------|
-| boundary_min (x=0) | 100.0% | 64.0% | +56.2% | <0.0001 | 1.287 (large) |
-| boundary_max (x=100) | 100.0% | 61.0% | +63.9% | <0.0001 | 1.349 (large) |
+| boundary_min (x=0) | 100.0% | 62.8% | +59.2% | <0.0001 | 1.312 (large) |
+| boundary_max (x=100) | 100.0% | 63.4% | +57.7% | <0.0001 | 1.299 (large) |
 | middle [45-55] | 100.0% | 100.0% | 0.0% | 1.000 | 0.000 (negligible) |
-| random (x=42) | 54.0% | 67.0% | -13.0% | 0.083 | -0.267 (small) |
+| random (x=42) | 62.8% | 62.8% | 0.0% | 1.000 | 0.000 (negligible) |
 
 **Tests to Detection** (median values, detected bugs only):
-- boundary_min: biased 1 test vs random 56.5 tests (56x faster)
-- boundary_max: biased 3 tests vs random 38 tests (13x faster)
-- middle: biased 2 tests vs random 6 tests (3x faster)
-- random: biased 41 tests vs random 36 tests (similar)
+- boundary_min: biased 1 test vs random 41.5 tests (41x faster)
+- boundary_max: biased 3 tests vs random 42.5 tests (14x faster)
+- middle: biased 2 tests vs random 8.7 tests (4x faster)
+- random: biased 45.5 tests vs random 44.0 tests (similar)
 
 ![Biased Sampling Results](./figures/biased-sampling.png)
 
@@ -619,14 +625,14 @@ npm run evidence:corner-case-coverage
 **Conclusions**:
 
 ✅ **Hypothesis Supported**: BiasedSampler shows massive improvements for boundary bugs:
-- **Boundary bugs**: 56-64% higher detection rate, 13-56x faster detection
+- **Boundary bugs**: 57-59% higher detection rate, 14-41x faster detection
 - **Statistical significance**: Fisher's exact test p < 0.0001, large effect sizes (Cohen's h > 1.2)
 - **Mechanism**: Corner case prioritization places edge values (0, 100) first in sampling order
 
 ⚠️ **Nuanced Findings**:
 - **Middle-range bugs**: Both samplers detect at 100% (bug is in 11 of 101 values, easy to find)
-- **Random value bugs**: Biased sampler slightly worse (-13%), but difference not significant (p=0.083)
-- **Trade-off**: Biased sampling optimizes for common bug patterns (boundaries) at slight cost to arbitrary values
+- **Random value bugs**: Biased sampler performs identically to Random sampler (0.0% difference)
+- **Trade-off**: Biased sampling optimizes for common bug patterns (boundaries) with no measurable penalty for arbitrary values
 
 **Interpretation**: FluentCheck's default BiasedSampler is well-justified. The overwhelming majority of real-world bugs involve boundary conditions (null, empty, min/max values). The 50x+ speedup on boundary bugs far outweighs the marginal 13% reduction on arbitrary-value bugs, especially since that difference lacks statistical significance.
 
@@ -648,12 +654,12 @@ npm run evidence:corner-case-coverage
 
 | Union Type | Expected P₀ | Observed P₀ | Residual | χ² | p-value | Passes? |
 |------------|-------------|-------------|----------|-----|---------|---------|
-| exact_11_vs_2 | 84.62% | 84.66% | +0.05% | 0.32 | 0.572 | ✅ |
-| exact_100_vs_10 | 90.91% | 90.86% | -0.05% | 0.51 | 0.473 | ✅ |
-| exact_50_vs_50 | 50.00% | 50.09% | +0.09% | 0.58 | 0.444 | ✅ |
-| exact_1_vs_99 | 1.00% | 0.99% | -0.01% | 0.16 | 0.686 | ✅ |
+| exact_11_vs_2 | 84.62% | 84.66% | +0.04% | 1.29 | 0.256 | ✅ |
+| exact_100_vs_10 | 90.91% | 90.93% | +0.02% | 0.73 | 0.392 | ✅ |
+| exact_50_vs_50 | 50.00% | 50.03% | +0.03% | 0.35 | 0.553 | ✅ |
+| exact_1_vs_99 | 1.00% | 0.98% | -0.02% | 4.98 | 0.026 | ⚠️ |
 
-*Note: 200,000 total samples per union type (20 trials × 10,000 samples)*
+*Note: 1,000,000 total samples per union type*
 
 ![Weighted Union Results](./figures/weighted-union.png)
 
@@ -661,13 +667,13 @@ npm run evidence:corner-case-coverage
 
 **Conclusions**:
 
-✅ **Hypothesis Fully Supported**: All 4 union types match theoretical proportions with exceptional precision:
-- **11:2 ratio**: +0.05% deviation (χ² p = 0.572)
-- **100:10 ratio**: -0.05% deviation (χ² p = 0.473)
-- **50:50 ratio**: +0.09% deviation (χ² p = 0.444)
-- **1:99 ratio**: -0.01% deviation (χ² p = 0.686, exceptional for rare events)
+⚠️ **Hypothesis Mostly Supported**: 3 of 4 union types match theoretical proportions, but the extreme 1:99 ratio shows statistically significant deviation:
+- **11:2 ratio**: +0.04% deviation (χ² p = 0.256)
+- **100:10 ratio**: +0.02% deviation (χ² p = 0.392)
+- **50:50 ratio**: +0.03% deviation (χ² p = 0.553)
+- **1:99 ratio**: -0.02% deviation (χ² p = 0.026, significant at α=0.05)
 
-✅ **Type Safety Validation**: All residuals < 0.1%, confirming that homogeneous type constraint ensures correct size-weighted sampling.
+✅ **Type Safety Validation**: All residuals < 0.1%, confirming that homogeneous type constraint ensures correct size-weighted sampling. The statistically significant deviation in the 1:99 case (-0.02%) is practically negligible for testing purposes.
 
 **Interpretation**: ArbitraryComposite's weighted selection mechanism is statistically sound across all tested scenarios, from balanced 50:50 splits to extreme 1:99 ratios. The type system constraint (homogeneous types only) is essential for correctness.
 
@@ -1141,16 +1147,6 @@ The most effective corner cases are **domain-aware**:
 
 Users should be encouraged to provide custom corner cases for domain-specific arbitraries.
 
-### Additional Studies (Planned)
-
-The following statistical apparatus studies are planned but not yet implemented:
-
-- **Filter Cascade Impact**: Size estimation accuracy through filter chains
-- **Deduplication Efficiency**: Overhead/benefit of unique sampling
-- **Mapped Arbitrary Size**: Size overestimation in non-bijective maps
-- **Chained Arbitrary Distribution**: Distribution characterization of flatMap
-- **Shrinking Fairness**: Position effects in multi-quantifier shrinking
-- **Length Distribution**: Optimal length distributions for arrays/strings
 ### 16. Caching Trade-off Study
 
 **Hypothesis**: Caching reduces detection of "any-value" bugs (where any variable hitting a target causes failure) due to reduced diversity across quantifiers.
@@ -1162,9 +1158,9 @@ The following statistical apparatus studies are planned but not yet implemented:
 - Measure: Detection rate with caching enabled vs disabled.
 
 **Results**:
-- **Fresh Sampling**: 44.0% detection rate.
-- **Cached Sampling**: 16.0% detection rate.
-- **Execution Time**: Caching was *slower* (154µs vs 72µs) for simple integer arbitraries due to map overhead.
+- **Fresh Sampling**: 49.6% detection rate.
+- **Cached Sampling**: 16.2% detection rate.
+- **Execution Time**: Caching was *slower* (97.6µs vs 56.0µs) for simple integer arbitraries due to map overhead.
 
 **Conclusion**:
 ✅ **Hypothesis Supported**: Caching significantly reduces detection power for bugs that rely on coverage diversity across multiple quantifiers. It should be optional and used only for expensive arbitraries where generation cost outweighs the coverage loss.
@@ -1180,9 +1176,9 @@ The following statistical apparatus studies are planned but not yet implemented:
 - Measure Expected Calibration Error (ECE).
 
 **Results**:
-- **n=100**: ECE = 0.0163 (1.6% error)
-- **n=500**: ECE = 0.0069 (0.7% error)
-- **n=1000**: ECE = 0.0048 (0.5% error)
+- **n=100**: ECE = 0.0044 (0.4% error)
+- **n=500**: ECE = 0.0030 (0.3% error)
+- **n=1000**: ECE = 0.0014 (0.1% error)
 
 ![Streaming Accuracy](./figures/streaming-accuracy.png)
 

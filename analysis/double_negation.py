@@ -136,10 +136,10 @@ def main():
 
     fc_rates = [r['fc_rate'] for r in results]
     dn_rates = [r['dn_rate'] for r in results]
-    fc_yerr = [[r['fc_rate'] - r['fc_ci'][0] for r in results],
-               [r['fc_ci'][1] - r['fc_rate'] for r in results]]
-    dn_yerr = [[r['dn_rate'] - r['dn_ci'][0] for r in results],
-               [r['dn_ci'][1] - r['dn_rate'] for r in results]]
+    fc_yerr = [[max(0, r['fc_rate'] - r['fc_ci'][0]) for r in results],
+               [max(0, r['fc_ci'][1] - r['fc_rate']) for r in results]]
+    dn_yerr = [[max(0, r['dn_rate'] - r['dn_ci'][0]) for r in results],
+               [max(0, r['dn_ci'][1] - r['dn_rate']) for r in results]]
 
     ax.bar(x_pos - bar_width/2, fc_rates, bar_width,
            label='First-Class .exists()', color='steelblue', alpha=0.7,
