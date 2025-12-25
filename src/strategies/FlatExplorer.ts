@@ -1,14 +1,19 @@
 /* eslint-disable @typescript-eslint/strict-boolean-expressions */
-/* eslint-disable @typescript-eslint/no-explicit-any */
+
 import {type FluentPick} from '../arbitraries/index.js'
 import {
   AbstractExplorer,
   type BoundTestCase,
-  type Explorer,
-  type ExecutableQuantifier
+  type Explorer
 } from './Explorer.js'
+import type {ExecutableQuantifier} from '../ExecutableScenario.js'
 import type {Sampler} from './Sampler.js'
 import type {QuantifierNode} from '../Scenario.js'
+
+type TraversalOutcome =
+  | {kind: 'pass'; witness?: unknown}
+  | {kind: 'fail'; counterexample: unknown}
+  | {kind: 'inconclusive'; budgetExceeded: boolean}
 
 /**
  * FlatExplorer implements a pure random sampling strategy.
@@ -22,7 +27,7 @@ export class FlatExplorer<Rec extends {}> extends AbstractExplorer<Rec> {
   // Map to track the current iteration index for the active traversal
   private indices = new Map<object, number>()
 
-  protected generateSamples(
+  protected override generateSamples(
     quantifiers: readonly ExecutableQuantifier[],
     sampler: Sampler,
     maxTests: number
@@ -92,21 +97,21 @@ export class FlatExplorer<Rec extends {}> extends AbstractExplorer<Rec> {
           break
         }
 
-        const outcome = next(index + 1, newTestCase, ctx)
+        const outcome = next(index + 1, newTestCase, ctx) as TraversalOutcome
 
         if (type === 'forall') {
-          if (outcome.kind === 'fail') return ctx.outcomes.fail(outcome.counterexample)
-          if (outcome.kind === 'inconclusive' && (outcome.budgetExceeded as boolean) === true) {
+          if (outcome.kind === 'fail') return ctx.outcomes.fail(outcome.counterexample as BoundTestCase<Rec>)
+          if (outcome.kind === 'inconclusive' && outcome.budgetExceeded === true) {
             sawBudgetLimit = true
             allPassed = false // Technically unknown, but we stop
             break
           }
           if (outcome.kind === 'pass' && outcome.witness) {
-            witness = outcome.witness
+            witness = outcome.witness as BoundTestCase<Rec>
           }
         } else { // exists
-          if (outcome.kind === 'pass') return ctx.outcomes.pass(outcome.witness ?? newTestCase)
-          if (outcome.kind === 'inconclusive' && (outcome.budgetExceeded as boolean) === true) {
+          if (outcome.kind === 'pass') return ctx.outcomes.pass((outcome.witness as BoundTestCase<Rec>) ?? newTestCase)
+          if (outcome.kind === 'inconclusive' && outcome.budgetExceeded === true) {
             sawBudgetLimit = true
             break
           }

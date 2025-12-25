@@ -1,6 +1,6 @@
 import type {FluentPick, XOR} from './types.js'
 import {Arbitrary} from './internal.js'
-import {estimatedSize} from './util.js'
+import {estimatedSize, stringify} from './util.js'
 
 export class MappedArbitrary<A, B> extends Arbitrary<B> {
   private readonly distinctnessFactor: number
@@ -23,18 +23,26 @@ export class MappedArbitrary<A, B> extends Arbitrary<B> {
       return (seed >>> 0) / 4294967296
     }
 
-        const inputs = new Set<string>()
-        const outputs = new Set<string>()
-        
-        for (let i = 0; i < 10; i++) {      const pick = this.baseArbitrary.pick(lcg)
+    const inputs: A[] = []
+    const outputs: B[] = []
+    const eq = this.baseArbitrary.equals()
+
+    for (let i = 0; i < 10; i++) {
+      const pick = this.baseArbitrary.pick(lcg)
       if (pick !== undefined) {
-        inputs.add(JSON.stringify(pick.value))
-        outputs.add(JSON.stringify(this.f(pick.value)))
+        if (!inputs.some(x => eq(x, pick.value))) {
+          inputs.push(pick.value)
+        }
+
+        const out = this.f(pick.value)
+        if (!outputs.some(y => stringify(y) === stringify(out))) {
+          outputs.push(out)
+        }
       }
     }
 
     // Compare unique outputs to unique inputs to detect collisions regardless of domain size
-    this.distinctnessFactor = inputs.size > 0 ? outputs.size / inputs.size : 1.0
+    this.distinctnessFactor = inputs.length > 0 ? outputs.length / inputs.length : 1.0
   }
 
   mapFluentPick(p: FluentPick<A>): FluentPick<B> {
