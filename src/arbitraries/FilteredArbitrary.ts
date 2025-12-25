@@ -33,10 +33,10 @@ export class FilteredArbitrary<A> extends WrappedArbitrary<A> {
     // for when we know the exact base population size.
     const baseSize = this.baseArbitrary.size()
     const v = baseSize.value
-    
+
     const baseLow = baseSize.type === 'estimated' ? baseSize.credibleInterval[0] : v
     const baseHigh = baseSize.type === 'estimated' ? baseSize.credibleInterval[1] : v
-    
+
     const rateLow = this.sizeEstimation.inv(lowerCredibleInterval)
     const rateHigh = this.sizeEstimation.inv(upperCredibleInterval)
 
