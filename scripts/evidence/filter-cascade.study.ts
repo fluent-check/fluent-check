@@ -142,8 +142,14 @@ function runTrial(
   // Get size estimation with credible interval
   const sizeInfo = arb.size()
   const estimatedSize = sizeInfo.value
-  const credibleIntervalLower = sizeInfo.lowerBound ?? estimatedSize
-  const credibleIntervalUpper = sizeInfo.upperBound ?? estimatedSize
+  
+  let credibleIntervalLower = estimatedSize
+  let credibleIntervalUpper = estimatedSize
+  
+  if (sizeInfo.type === 'estimated') {
+    credibleIntervalLower = sizeInfo.credibleInterval[0]
+    credibleIntervalUpper = sizeInfo.credibleInterval[1]
+  }
 
   // Count actual distinct values
   const actualDistinctValues = countDistinct(arb, 10000)
