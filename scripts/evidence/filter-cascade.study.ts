@@ -15,11 +15,13 @@
  */
 
 import * as fc from '../../src/index.js'
+import { FilteredArbitraryLegacy } from '../../src/arbitraries/FilteredArbitraryLegacy.js'
 import { CSVWriter, ProgressReporter, getSeed, getSampleSize, mulberry32, HighResTimer } from './runner.js'
 import path from 'path'
 
 interface FilterCascadeResult {
   trialId: number
+  implementation: string
   seed: number
   chainDepth: number
   filterPassRate: number
@@ -56,7 +58,7 @@ function countDistinct(arb: fc.Arbitrary<number>, maxSamples: number = 100000): 
     const sizeBefore = seen.size
     // Extract the actual value from the pick result
     const actualValue = typeof pick === 'object' && pick !== null && 'value' in pick ? pick.value : pick
-    seen.add(actualValue)
+    seen.add(actualValue as number)
 
     if (seen.size > sizeBefore) {
       lastNewValue = i
@@ -78,7 +80,8 @@ function countDistinct(arb: fc.Arbitrary<number>, maxSamples: number = 100000): 
 function runTrial(
   trialId: number,
   chainDepth: number,
-  filterPassRate: number
+  filterPassRate: number,
+  useLegacy: boolean
 ): FilterCascadeResult {
   const seed = getSeed(trialId)
   const timer = new HighResTimer()
@@ -125,7 +128,15 @@ function runTrial(
 
   for (let i = 0; i < chainDepth; i++) {
     const layer = i
-    arb = arb.filter(x => isSelected(x, layer, filterPassRate))
+    const pred = (x: number) => isSelected(x, layer, filterPassRate)
+    
+    if (useLegacy) {
+      // Manual wrapping for legacy implementation
+      arb = new FilteredArbitraryLegacy(arb, pred) as unknown as fc.Arbitrary<number>
+    } else {
+      // Standard API for fixed implementation
+      arb = arb.filter(pred)
+    }
   }
 
   // Get size estimation with credible interval
@@ -151,6 +162,7 @@ function runTrial(
 
   return {
     trialId,
+    implementation: useLegacy ? 'legacy' : 'fixed',
     seed,
     chainDepth,
     filterPassRate,
@@ -177,6 +189,7 @@ async function runFilterCascadeStudy(): Promise<void> {
 
   writer.writeHeader([
     'trial_id',
+    'implementation',
     'seed',
     'chain_depth',
     'filter_pass_rate',
@@ -193,11 +206,13 @@ async function runFilterCascadeStudy(): Promise<void> {
   // Study configuration
   const chainDepths = [1, 2, 3, 5]
   const filterPassRates = [0.5, 0.7, 0.9]
+  const implementations = ['legacy', 'fixed']
   const trialsPerConfig = getSampleSize(200, 50)
-  const totalTrials = chainDepths.length * filterPassRates.length * trialsPerConfig
+  const totalTrials = chainDepths.length * filterPassRates.length * implementations.length * trialsPerConfig
 
   // Print study parameters
   console.log(`Base arbitrary: integer(0, 999) (size = 1000)`)
+  console.log(`Implementations: ${implementations.join(', ')}`)
   console.log(`Chain depths: ${chainDepths.join(', ')}`)
   console.log(`Filter pass rates: ${filterPassRates.map(r => `${(r*100).toFixed(0)}%`).join(', ')}`)
   console.log(`Trials per configuration: ${trialsPerConfig}`)
@@ -206,28 +221,32 @@ async function runFilterCascadeStudy(): Promise<void> {
   const progress = new ProgressReporter(totalTrials, 'FilterCascade')
 
   let trialId = 0
-  for (const chainDepth of chainDepths) {
-    for (const filterPassRate of filterPassRates) {
-      for (let i = 0; i < trialsPerConfig; i++) {
-        const result = runTrial(trialId, chainDepth, filterPassRate)
+  for (const impl of implementations) {
+    const useLegacy = impl === 'legacy'
+    for (const chainDepth of chainDepths) {
+      for (const filterPassRate of filterPassRates) {
+        for (let i = 0; i < trialsPerConfig; i++) {
+          const result = runTrial(trialId, chainDepth, filterPassRate, useLegacy)
 
-        writer.writeRow([
-          result.trialId,
-          result.seed,
-          result.chainDepth,
-          result.filterPassRate.toFixed(2),
-          result.compositePassRate.toFixed(4),
-          result.estimatedSize,
-          result.actualDistinctValues,
-          result.credibleIntervalLower,
-          result.credibleIntervalUpper,
-          result.trueValueInCI,
-          result.relativeError.toFixed(6),
-          result.elapsedMicros
-        ])
+          writer.writeRow([
+            result.trialId,
+            result.implementation,
+            result.seed,
+            result.chainDepth,
+            result.filterPassRate.toFixed(2),
+            result.compositePassRate.toFixed(4),
+            result.estimatedSize,
+            result.actualDistinctValues,
+            result.credibleIntervalLower,
+            result.credibleIntervalUpper,
+            result.trueValueInCI,
+            result.relativeError.toFixed(6),
+            result.elapsedMicros
+          ])
 
-        progress.update()
-        trialId++
+          progress.update()
+          trialId++
+        }
       }
     }
   }

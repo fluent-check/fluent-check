@@ -15,11 +15,13 @@
  */
 
 import * as fc from '../../src/index.js'
+import { MappedArbitraryLegacy } from '../../src/arbitraries/MappedArbitraryLegacy.js'
 import { CSVWriter, ProgressReporter, getSeed, getSampleSize, mulberry32, HighResTimer } from './runner.js'
 import path from 'path'
 
 interface MappedSizeResult {
   trialId: number
+  implementation: string
   seed: number
   mapType: 'bijective' | 'surjective_10to1' | 'surjective_5to1'
   baseSize: number
@@ -72,7 +74,8 @@ function countDistinct<T>(arb: fc.Arbitrary<T>, maxSamples: number = 100000): nu
  */
 function runTrial(
   trialId: number,
-  mapType: 'bijective' | 'surjective_10to1' | 'surjective_5to1'
+  mapType: 'bijective' | 'surjective_10to1' | 'surjective_5to1',
+  useLegacy: boolean
 ): MappedSizeResult {
   const seed = getSeed(trialId)
   const timer = new HighResTimer()
@@ -82,20 +85,28 @@ function runTrial(
   const baseSize = 100
 
   // Create mapped arbitrary based on type
-  let arb: fc.Arbitrary<number>
+  let mapFn: (x: number) => number
+
   switch (mapType) {
     case 'bijective':
       // x => x * 2: Still 100 distinct values
-      arb = baseArbitrary.map(x => x * 2)
+      mapFn = x => x * 2
       break
     case 'surjective_10to1':
       // x => x % 10: Maps to 10 distinct values (10-to-1 collision)
-      arb = baseArbitrary.map(x => x % 10)
+      mapFn = x => x % 10
       break
     case 'surjective_5to1':
       // x => x % 20: Maps to 20 distinct values (5-to-1 collision)
-      arb = baseArbitrary.map(x => x % 20)
+      mapFn = x => x % 20
       break
+  }
+
+  let arb: fc.Arbitrary<number>
+  if (useLegacy) {
+    arb = new MappedArbitraryLegacy(baseArbitrary, mapFn) as unknown as fc.Arbitrary<number>
+  } else {
+    arb = baseArbitrary.map(mapFn)
   }
 
   // Get reported size from arbitrary
@@ -112,6 +123,7 @@ function runTrial(
 
   return {
     trialId,
+    implementation: useLegacy ? 'legacy' : 'fixed',
     seed,
     mapType,
     baseSize,
@@ -134,6 +146,7 @@ async function runMappedSizeStudy(): Promise<void> {
 
   writer.writeHeader([
     'trial_id',
+    'implementation',
     'seed',
     'map_type',
     'base_size',
@@ -149,11 +162,13 @@ async function runMappedSizeStudy(): Promise<void> {
     'surjective_10to1',
     'surjective_5to1'
   ]
+  const implementations = ['legacy', 'fixed']
   const trialsPerConfig = getSampleSize(200, 50)
-  const totalTrials = mapTypes.length * trialsPerConfig
+  const totalTrials = mapTypes.length * implementations.length * trialsPerConfig
 
   // Print study parameters
   console.log(`Base arbitrary: integer(0, 99) (100 distinct values)`)
+  console.log(`Implementations: ${implementations.join(', ')}`)
   console.log(`Map types:`)
   console.log(`  - bijective: x => x * 2 (100 distinct values, ratio = 1.0)`)
   console.log(`  - surjective_10to1: x => x % 10 (10 distinct values, ratio = 10.0)`)
@@ -164,23 +179,27 @@ async function runMappedSizeStudy(): Promise<void> {
   const progress = new ProgressReporter(totalTrials, 'MappedSize')
 
   let trialId = 0
-  for (const mapType of mapTypes) {
-    for (let i = 0; i < trialsPerConfig; i++) {
-      const result = runTrial(trialId, mapType)
+  for (const impl of implementations) {
+    const useLegacy = impl === 'legacy'
+    for (const mapType of mapTypes) {
+      for (let i = 0; i < trialsPerConfig; i++) {
+        const result = runTrial(trialId, mapType, useLegacy)
 
-      writer.writeRow([
-        result.trialId,
-        result.seed,
-        result.mapType,
-        result.baseSize,
-        result.reportedSize,
-        result.actualDistinctValues,
-        result.sizeRatio.toFixed(6),
-        result.elapsedMicros
-      ])
+        writer.writeRow([
+          result.trialId,
+          result.implementation,
+          result.seed,
+          result.mapType,
+          result.baseSize,
+          result.reportedSize,
+          result.actualDistinctValues,
+          result.sizeRatio.toFixed(6),
+          result.elapsedMicros
+        ])
 
-      progress.update()
-      trialId++
+        progress.update()
+        trialId++
+      }
     }
   }
 

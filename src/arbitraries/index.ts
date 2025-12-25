@@ -17,6 +17,8 @@ import type {NonEmptyArray, ExactSizeArbitrary} from './types.js'
 export {Arbitrary, type HashFunction, type EqualsFunction} from './internal.js'
 export type {ArbitrarySize} from './types.js'
 export {NoArbitrary} from './NoArbitrary.js'
+export {FilteredArbitraryLegacy} from './FilteredArbitraryLegacy.js'
+export {MappedArbitraryLegacy} from './MappedArbitraryLegacy.js'
 
 // Helper to assert that an Arbitrary is ExactSizeArbitrary at factory boundaries
 const asExact = <A>(arb: Arbitrary<A>): ExactSizeArbitrary<A> => arb as ExactSizeArbitrary<A>
