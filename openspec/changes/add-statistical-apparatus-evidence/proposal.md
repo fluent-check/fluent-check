@@ -67,12 +67,12 @@ Based on user visibility and validation importance:
 | P1 | Biased Sampling Impact | Core differentiator, high user visibility |
 | P1 | Weighted Union Probability | Simple validation, high confidence gain |
 | P1 | Corner Case Coverage | Validates key design decision |
-| P2 | Filter Cascade Impact | Addresses known TODO comments |
+| ✅ | Filter Cascade Impact | Addresses known TODO comments |
 | P2 | Deduplication Efficiency | Important for sampleUnique feature |
 | P2 | Mapped Arbitrary Size | Known limitation worth quantifying |
-| P3 | Chained Arbitrary Distribution | Characterizes flatMap behavior |
-| P3 | Shrinking Fairness | Validates quantifier ordering |
-| P3 | Length Distribution | Potential optimization opportunity |
+| ✅ | Chained Arbitrary Distribution | Characterizes flatMap behavior |
+| ✅ | Shrinking Fairness | Validates quantifier ordering |
+| ✅ | Length Distribution | Potential optimization opportunity |
 | P4 | Caching Trade-off | Low impact, nice to have |
 | P4 | Streaming Statistics Accuracy | Low impact, unit tests may suffice |
 | P4 | Confidence vs Sample Size | Complex, high implementation effort |

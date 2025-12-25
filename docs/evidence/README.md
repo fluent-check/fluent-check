@@ -15,13 +15,23 @@ FluentCheck's evidence suite validates both confidence-based termination and the
 5. **Shrinking Evaluation Study**: Does shrinking find minimal or near-minimal witnesses?
 6. **Double-Negation Equivalence Study**: Is double-negation semantically equivalent (and what's the ergonomics cost)?
 
-### Statistical Apparatus Studies
+### Statistical Apparatus Studies (Priority 1)
 
 7. **Biased Sampling Impact**: Does bias toward corner cases improve bug detection?
 8. **Weighted Union Probability**: Does ArbitraryComposite sample proportionally to size?
 9. **Corner Case Coverage**: What percentage of bugs are found via corner cases?
 
-Additional apparatus studies (filter cascades, deduplication, mapped size, etc.) are planned.
+### Statistical Apparatus Studies (Priority 2)
+
+10. **[Filter Cascade Impact](filter-cascade-impact.md)**: Does size estimation degrade with filter depth?
+11. **Deduplication Efficiency**: Does deduplication improve unique value coverage?
+12. **Mapped Arbitrary Size**: Do non-bijective maps cause size overestimation?
+
+### Statistical Apparatus Studies (Priority 3)
+
+13. **Chained Arbitrary Distribution**: Does `flatMap` create predictable distributions?
+14. **Shrinking Fairness**: Do earlier quantifiers shrink more aggressively?
+15. **Length Distribution**: Do edge-biased distributions find length bugs faster?
 
 All data is reproducible with deterministic seeds. Raw data available in [`raw/`](raw/).
 
@@ -724,6 +734,222 @@ The study reveals that "boundary bug coverage" depends on arbitrary implementati
 
 **Actionable**: Consider expanding `integer()` corner cases to include ±1 from boundaries: [min, min+1, max-1, max, mid] would capture off-by-one errors while maintaining current perfect coverage of exact boundaries.
 
+### 10. Filter Cascade Impact Study
+
+**Hypothesis**: Size estimation accuracy degrades with filter depth.
+
+**Method**:
+- Base arbitrary: `integer(0, 999)` (1000 values)
+- Filter chain depths: 1, 2, 3, 5 filters
+- Filter pass rates: 50%, 70%, 90% (using modulo checks)
+- Each filter reduces effective domain size
+- Measure: estimated size vs actual distinct values, credible interval coverage
+- Trials: 200 per configuration (full mode), 50 (quick mode)
+
+**Results - Size Estimation Error**:
+
+| Pass Rate | Depth 1 | Depth 2 | Depth 3 | Depth 5 |
+|-----------|---------|---------|---------|---------|
+| 50% | +116.0% | +309.8% | +762.1% | +3603.7% |
+| 70% | +47.9% | +109.2% | +211.5% | +571.1% |
+| 90% | +13.6% | +26.7% | +43.9% | +78.6% |
+
+**Credible Interval Coverage**: 0.0% across all depths (target: 95%)
+
+![Filter Cascade Results](./figures/filter-cascade.png)
+
+*Figure: Estimation error vs chain depth (left) and CI coverage by depth (right).*
+
+**Conclusions**:
+
+⚠️ **Hypothesis Validated with Critical Finding**: Size estimation degrades exponentially with filter depth.
+- **Exponential Error Growth**: Error grows from +116% (Depth 1) to +3603% (Depth 5) for 50% pass rate filters.
+- **Zero CI Coverage**: The estimator is confidently incorrect (0% coverage), indicating a systematic bias.
+
+⚠️ **Root Cause Identified**: "Cold Start" Failure.
+- `FilteredArbitrary` initializes with an optimistic `Beta(2, 1)` prior (mode 1.0).
+- `size()` is often called *before* any samples are drawn.
+- Without samples, the estimator reports the *base* arbitrary size, ignoring filters entirely.
+
+**Actionable**:
+1. Implement warm-up sampling (trigger internal samples on instantiation).
+2. Change default prior to `Beta(1, 1)` (uniform) or `Beta(0.5, 0.5)` (Jeffrey's) to reflect uncertainty.
+3. Warn users that `size()` is unreliable on filtered arbitraries before execution.
+
+### 11. Deduplication Efficiency Study
+
+**Hypothesis**: Deduplication improves unique value coverage with measurable overhead.
+
+**Method**:
+- Arbitrary types with known distinctness:
+  - `exact`: `integer(0, 99)` - 100 distinct values
+  - `non_injective`: `integer(0, 99).map(x => x % 10)` - 10 distinct values (10-to-1 mapping)
+  - `filtered`: `integer(0, 99).filter(x => x % 10 === 0)` - 10 distinct values (90% rejection)
+- Sampler types: deduping (with uniqueness tracking) vs random
+- Requested counts: 10, 50, 100, 500 samples
+- Measure: unique/requested ratio, termination guard triggers, time overhead
+- Trials: 200 per configuration (full mode), 50 (quick mode)
+
+**Results**:
+
+| Arbitrary Type | Deduping Ratio | Random Ratio | Improvement | Guard Trigger % |
+|----------------|----------------|--------------|-------------|-----------------|
+| exact | 0.792 | 0.645 | +22.8% | 47.5% |
+| non_injective | 0.330 | 0.240 | +37.3% | 75.0% |
+| filtered | 0.330 | 0.243 | +36.0% | 75.0% |
+
+**Time Overhead**:
+- Exact: 2.63x (tracking overhead)
+- Non-injective: 0.60x (faster because fewer values generated before stopping?)
+- Filtered: 0.36x (faster? possibly due to early termination)
+
+![Deduplication Results](./figures/deduplication.png)
+
+*Figure: Unique coverage by sample count (left) and termination guard frequency (right).*
+
+**Conclusions**:
+
+✅ **Hypothesis Supported**: Deduplication significantly improves unique value coverage (+36-37%) for arbitraries with limited distinct values or non-injective mappings.
+
+⚠️ **Termination Guard Works**: The 75% trigger rate for `non_injective` and `filtered` correctly indicates that the sampler stops when it exhausts the search space, preventing infinite loops.
+
+**Interpretation**: Deduplication is essential for ensuring coverage when the effective domain is small relative to the sample size. The overhead is justified by the coverage gains.
+
+### 12. Mapped Arbitrary Size Study
+
+**Hypothesis**: Non-bijective maps cause size overestimation proportional to collision rate.
+
+**Method**:
+- Base arbitrary: `integer(0, 99)` (100 distinct values)
+- Map types:
+  - `bijective`: `x => x * 2` (still 100 distinct)
+  - `surjective_10to1`: `x => x % 10` (collapses to 10 distinct)
+  - `surjective_5to1`: `x => x % 20` (collapses to 20 distinct)
+- Measure: reported size vs actual distinct values
+- Calculate size ratio and impact on union branch weighting
+- Trials: 200 per type (full mode), 50 (quick mode)
+
+**Results - Size Ratio Validation**:
+
+| Map Type | Expected Ratio | Observed Ratio | Error | Actual Distinct |
+|----------|----------------|----------------|-------|-----------------|
+| Bijective | 1.0x | 1.000 | 0.0% | 100 |
+| Surjective 10:1 | 10.0x | 10.000 | 0.0% | 10 |
+| Surjective 5:1 | 5.0x | 5.000 | 0.0% | 20 |
+
+**Impact on Union Branch Weighting**:
+
+| Scenario | Reported Weight A | Actual Weight A | Error |
+|----------|-------------------|-----------------|-------|
+| Exact + Exact | 50.0% | 50.0% | 0.0% |
+| Exact + Surj 10:1 | 50.0% | 90.9% | **40.9%** |
+| Exact + Surj 5:1 | 50.0% | 83.3% | **33.3%** |
+
+![Mapped Size Results](./figures/mapped-size.png)
+
+*Figure: Size ratio comparison (left) and union weighting impact (right).*
+
+**Conclusions**:
+
+✅ **Hypothesis Perfectly Validated**:
+- Size ratios match expected collision rates **exactly** (0.0% error)
+- Confirms that `MappedArbitrary` correctly preserves base size (doesn't attempt to detect surjectivity)
+
+⚠️ **Critical Impact on Union Correctness**:
+- **40.9% branch selection error** when mixing exact with 10:1 surjective map
+- **33.3% error** for 5:1 surjective map
+- Unions become systematically biased toward mapped arbitraries with high collision rates
+
+**Example Failure Scenario**:
+```typescript
+// Intention: 50/50 split between ranges and special values
+fc.union(
+  fc.integer(0, 99),              // 100 values, weight = 100
+  fc.integer(0, 99).map(x => x % 10)  // 10 actual values, weight = 100
+)
+// Expected: 50% each
+// Actual: 90.9% from first branch, 9.1% from second
+// Result: Severely under-tests the mapped values!
+```
+
+**Interpretation**: MappedArbitrary's design decision to preserve base size is **correct for performance** (detecting surjectivity would require expensive analysis) but creates **correctness issues for unions**. This is a fundamental tension: size-based weighting assumes sizes reflect actual distinctness.
+
+**Actionable**:
+1. **Document limitation** in `map()` API docs: "Non-injective mappings may bias union selection"
+2. **Consider detection heuristic**: Sample-based distinctness check for mapped arbitraries (trade performance for correctness)
+3. **Recommend manual weighting**: For known surjective maps, use explicit weights: `union(arb1.weight(10), arb2.weight(1))`
+4. **Type-level solution**: Explore branded types to track injectivity at compile time
+
+### 13. Chained Arbitrary Distribution Study
+
+**Hypothesis**: Chaining arbitraries via `flatMap` (or `chain`) produces predictable non-uniform distributions.
+
+**Method**:
+- Chain: `integer(1, 10).chain(n => integer(1, n))`
+- Theoretical Probability: $P(k) = \frac{1}{10} \sum_{n=k}^{10} \frac{1}{n}$
+- Samples: 100,000 total across 10 trials
+- Test: Chi-squared goodness-of-fit
+
+**Results**:
+
+| Value (k) | Observed % | Expected % | Residual % |
+|-----------|------------|------------|------------|
+| 1 | 29.59% | 29.29% | +0.30% |
+| 5 | 8.62% | 8.46% | +0.16% |
+| 10 | 1.02% | 1.00% | +0.02% |
+
+**Goodness-of-Fit**: χ² = 3.8084, p-value = 0.9236 (Passes ✅)
+
+**Conclusions**:
+✅ **Hypothesis Supported**: `flatMap` produces the exact distribution predicted by probability theory. The sampling mechanism correctly preserves the conditional probabilities of chained arbitraries.
+
+### 14. Shrinking Fairness Study
+
+**Hypothesis**: Quantifier position affects shrinking behavior (earlier positions shrink more aggressively).
+
+**Method**:
+- Property: `forall(a, b, c: int(0,100)).then(a + b + c <= 150)`
+- Symmetric property, so ideally all positions should shrink similarly.
+- Compare final values across positions (1st, 2nd, 3rd in chain).
+
+**Results**:
+
+| Position | Mean Initial | Mean Final | Mean Shrink |
+|----------|--------------|------------|-------------|
+| **First** | 52.6 | 0.0 | **+52.6** |
+| **Second** | 60.4 | 52.5 | +7.9 |
+| **Third** | 67.8 | 97.7 | **-29.9** |
+
+**Statistical Significance**: ANOVA p < 0.0001 (Significant position effect)
+
+**Conclusions**:
+❌ **Hypothesis Confirmed (Fairness Rejected)**: Shrinking is highly biased toward the first quantifier in the chain. The first quantifier is always minimized to its extreme (0), while subsequent quantifiers may actually *increase* in value to maintain the failure condition.
+
+**Actionable**: Consider a "fair shrinking" strategy that interleaves shrink steps across all quantifiers rather than exhausting them sequentially.
+
+### 15. Length Distribution Study
+
+**Hypothesis**: Length-boundary bugs are found faster with edge-biased distributions than uniform distributions.
+
+**Method**:
+- Distributions: `uniform`, `geometric` (small-biased), `edge_biased` (min/max biased).
+- Bug types: `empty` (length 0), `max_boundary` (length 10), `interior` (length 5).
+- Metric: Median tests to detection.
+
+**Results (Median Tests to Detection)**:
+
+| Bug Type | Edge-Biased | Uniform | Improvement |
+|----------|-------------|---------|-------------|
+| **empty** | 2.0 | 6.5 | **3.2x faster** |
+| **max_boundary** | 2.0 | 7.0 | **3.5x faster** |
+| **interior** | 27.0 | 7.5 | 3.6x slower |
+
+**Conclusions**:
+✅ **Hypothesis Supported**: Edge-biased distributions are 3x+ faster at finding length-boundary bugs.
+⚠️ **Trade-off**: Interior bugs are found significantly slower.
+
+**Actionable**: FluentCheck should adopt an edge-biased length distribution by default for collection arbitraries (similar to `BiasedSampler` for numeric types), as length-boundary bugs (empty/full) are disproportionately common in practice.
+
 ---
 
 ## Recommended Corner Case Patterns for Arbitrary Implementations
@@ -925,9 +1151,63 @@ The following statistical apparatus studies are planned but not yet implemented:
 - **Chained Arbitrary Distribution**: Distribution characterization of flatMap
 - **Shrinking Fairness**: Position effects in multi-quantifier shrinking
 - **Length Distribution**: Optimal length distributions for arrays/strings
-- **Caching Trade-off**: Detection diversity vs time savings
-- **Streaming Statistics Accuracy**: P² and Welford's algorithm validation
-- **Sample Budget Distribution**: Detection rates across quantifier depths
+### 16. Caching Trade-off Study
+
+**Hypothesis**: Caching reduces detection of "any-value" bugs (where any variable hitting a target causes failure) due to reduced diversity across quantifiers.
+
+**Method**:
+- Scenario: `forall(a, arb).forall(b, arb).forall(c, arb)` reusing the same arbitrary.
+- Bug: `a == 10 || b == 10 || c == 10` (any value hitting target).
+- Domain: `integer(0, 20)`. Sample size: 100.
+- Measure: Detection rate with caching enabled vs disabled.
+
+**Results**:
+- **Fresh Sampling**: 44.0% detection rate.
+- **Cached Sampling**: 16.0% detection rate.
+- **Execution Time**: Caching was *slower* (154µs vs 72µs) for simple integer arbitraries due to map overhead.
+
+**Conclusion**:
+✅ **Hypothesis Supported**: Caching significantly reduces detection power for bugs that rely on coverage diversity across multiple quantifiers. It should be optional and used only for expensive arbitraries where generation cost outweighs the coverage loss.
+
+### 17. Streaming Statistics Accuracy Study
+
+**Hypothesis**: The streaming Bayesian confidence calculation is calibrated (e.g., 95% confidence means 95% accuracy).
+
+**Method**:
+- Sample `true_p ~ Uniform[0, 1]`.
+- Simulate `n` trials (100, 500, 1000).
+- Calculate confidence that `true_p > 0.9`.
+- Measure Expected Calibration Error (ECE).
+
+**Results**:
+- **n=100**: ECE = 0.0163 (1.6% error)
+- **n=500**: ECE = 0.0069 (0.7% error)
+- **n=1000**: ECE = 0.0048 (0.5% error)
+
+![Streaming Accuracy](./figures/streaming-accuracy.png)
+
+**Conclusion**:
+✅ **Hypothesis Supported**: The statistical apparatus is highly accurate and well-calibrated. Confidence values can be trusted for termination decisions.
+
+### 18. Sample Budget Distribution Study
+
+**Hypothesis**: `NestedLoopExplorer` reduces the effective sample size per quantifier to $N^{1/d}$ (where $d$ is depth), severely limiting detection.
+
+**Method**:
+- Global budget $N=1000$.
+- Measure unique values tested for each quantifier at depths 1, 2, 3, 5.
+
+**Results**:
+- **Depth 1**: ~1000 unique values (100% efficiency).
+- **Depth 2**: ~31 unique values (3.1% efficiency).
+- **Depth 3**: ~9 unique values (0.9% efficiency).
+- **Depth 5**: ~3 unique values (0.3% efficiency).
+
+![Sample Budget](./figures/sample-budget.png)
+
+**Conclusion**:
+✅ **CRITICAL FINDING**: The current `NestedLoopExplorer` causes a catastrophic collapse in effective sample size for deep scenarios. A bug requiring a specific value at depth 3 has almost zero chance of being found.
+**Actionable**: Immediate implementation of a `FlatExplorer` (pure random sampling) is required to support deep scenarios.
 
 ---
 

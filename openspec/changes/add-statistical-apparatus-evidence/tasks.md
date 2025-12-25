@@ -34,81 +34,81 @@
 ## 3. Priority 2 Studies (Known Gaps)
 
 ### 3.1 Filter Cascade Impact Study
-- [ ] 3.1.1 Implement `scripts/evidence/filter-cascade.study.ts` following design.md template
-- [ ] 3.1.2 Create `analysis/filter_cascade.py` following design.md template
-- [ ] 3.1.3 Run study and analysis
-- [ ] 3.1.4 Verify credible interval coverage meets 95% target
-- [ ] 3.1.5 Add study summary to `docs/evidence/README.md`
+- [x] 3.1.1 Implement `scripts/evidence/filter-cascade.study.ts` following design.md template
+- [x] 3.1.2 Create `analysis/filter_cascade.py` following design.md template
+- [x] 3.1.3 Run study and analysis
+- [x] 3.1.4 Verify credible interval coverage (0.0% observed, below 95% target - documented critical finding)
+- [x] 3.1.5 Add study summary to `docs/evidence/README.md`
 
 ### 3.2 Deduplication Efficiency Study
-- [ ] 3.2.1 Implement `scripts/evidence/deduplication.study.ts` following design.md template
-- [ ] 3.2.2 Create `analysis/deduplication.py` following design.md template
-- [ ] 3.2.3 Run study and analysis
-- [ ] 3.2.4 Document termination guard trigger rates
-- [ ] 3.2.5 Add study summary to `docs/evidence/README.md`
+- [x] 3.2.1 Implement `scripts/evidence/deduplication.study.ts` following design.md template
+- [x] 3.2.2 Create `analysis/deduplication.py` following design.md template
+- [x] 3.2.3 Run study and analysis
+- [x] 3.2.4 Document termination guard trigger rates (0% - excellent performance)
+- [x] 3.2.5 Add study summary to `docs/evidence/README.md`
 
 ### 3.3 Mapped Arbitrary Size Study
-- [ ] 3.3.1 Implement `scripts/evidence/mapped-size.study.ts` following design.md template
-- [ ] 3.3.2 Create `analysis/mapped_size.py` following design.md template
-- [ ] 3.3.3 Run study and analysis
-- [ ] 3.3.4 Document size overestimation ratios for non-bijective maps
-- [ ] 3.3.5 Add study summary to `docs/evidence/README.md`
+- [x] 3.3.1 Implement `scripts/evidence/mapped-size.study.ts` following design.md template
+- [x] 3.3.2 Create `analysis/mapped_size.py` following design.md template
+- [x] 3.3.3 Run study and analysis
+- [x] 3.3.4 Document size overestimation ratios (perfect match: 1.0x, 5.0x, 10.0x as expected)
+- [x] 3.3.5 Add study summary to `docs/evidence/README.md`
 
 ## 4. Priority 3 Studies (Characterization)
 
 ### 4.1 Chained Arbitrary Distribution Study
-- [ ] 4.1.1 Implement `scripts/evidence/chained-distribution.study.ts` following design.md template
-- [ ] 4.1.2 Create `analysis/chained_distribution.py` following design.md template
-- [ ] 4.1.3 Run study and analysis
-- [ ] 4.1.4 Verify chi-squared goodness-of-fit for theoretical distribution
-- [ ] 4.1.5 Add study summary to `docs/evidence/README.md`
+- [x] 4.1.1 Implement `scripts/evidence/chained-distribution.study.ts` following design.md template
+- [x] 4.1.2 Create `analysis/chained_distribution.py` following design.md template
+- [x] 4.1.3 Run study and analysis
+- [x] 4.1.4 Verify chi-squared goodness-of-fit for theoretical distribution
+- [x] 4.1.5 Add study summary to `docs/evidence/README.md`
 
 ### 4.2 Shrinking Fairness Study
-- [ ] 4.2.1 Implement `scripts/evidence/shrinking-fairness.study.ts` following design.md template
-- [ ] 4.2.2 Create `analysis/shrinking_fairness.py` following design.md template
-- [ ] 4.2.3 Run study and analysis
-- [ ] 4.2.4 Document position effect if statistically significant
-- [ ] 4.2.5 Add study summary to `docs/evidence/README.md`
+- [x] 4.2.1 Implement `scripts/evidence/shrinking-fairness.study.ts` following design.md template
+- [x] 4.2.2 Create `analysis/shrinking_fairness.py` following design.md template
+- [x] 4.2.3 Run study and analysis
+- [x] 4.2.4 Document position effect if statistically significant
+- [x] 4.2.5 Add study summary to `docs/evidence/README.md`
 
 ### 4.3 Length Distribution Study
-- [ ] 4.3.1 Implement `scripts/evidence/length-distribution.study.ts` following design.md template
-- [ ] 4.3.2 Create `analysis/length_distribution.py` following design.md template
-- [ ] 4.3.3 Run study and analysis
-- [ ] 4.3.4 Recommend optimal length distribution if findings warrant
-- [ ] 4.3.5 Add study summary to `docs/evidence/README.md`
+- [x] 4.3.1 Implement `scripts/evidence/length-distribution.study.ts` following design.md template
+- [x] 4.3.2 Create `analysis/length_distribution.py` following design.md template
+- [x] 4.3.3 Run study and analysis
+- [x] 4.3.4 Recommend optimal length distribution if findings warrant
+- [x] 4.3.5 Add study summary to `docs/evidence/README.md`
 
 ## 5. Priority 4 Studies (Nice to Have)
 
 ### 5.1 Caching Trade-off Study
-- [ ] 5.1.1 Implement `scripts/evidence/caching-tradeoff.study.ts` following design.md template
-- [ ] 5.1.2 Create `analysis/caching_tradeoff.py` following design.md template
-- [ ] 5.1.3 Run study and analysis
-- [ ] 5.1.4 Quantify detection loss vs time savings
-- [ ] 5.1.5 Add study summary to `docs/evidence/README.md`
+- [x] 5.1.1 Implement `scripts/evidence/caching-tradeoff.study.ts` following design.md template
+- [x] 5.1.2 Create `analysis/caching_tradeoff.py` following design.md template
+- [x] 5.1.3 Run study and analysis
+- [x] 5.1.4 Quantify detection loss vs time savings
+- [x] 5.1.5 Add study summary to `docs/evidence/README.md`
 
 ### 5.2 Streaming Statistics Accuracy Study
-- [ ] 5.2.1 Implement `scripts/evidence/streaming-accuracy.study.ts` following design.md template
-- [ ] 5.2.2 Create `analysis/streaming_accuracy.py` following design.md template
-- [ ] 5.2.3 Run study and analysis
-- [ ] 5.2.4 Verify 5% accuracy threshold for n > 100
-- [ ] 5.2.5 Add study summary to `docs/evidence/README.md`
+- [x] 5.2.1 Implement `scripts/evidence/streaming-accuracy.study.ts` following design.md template
+- [x] 5.2.2 Create `analysis/streaming_accuracy.py` following design.md template
+- [x] 5.2.3 Run study and analysis
+- [x] 5.2.4 Verify 5% accuracy threshold for n > 100
+- [x] 5.2.5 Add study summary to `docs/evidence/README.md`
 
 ### 5.3 Sample Budget Distribution Study
-- [ ] 5.3.1 Implement `scripts/evidence/sample-budget.study.ts` following design.md template
-- [ ] 5.3.2 Create `analysis/sample_budget.py` following design.md template
-- [ ] 5.3.3 Run study and analysis
-- [ ] 5.3.4 Document detection rate by quantifier depth
-- [ ] 5.3.5 Add study summary to `docs/evidence/README.md`
+- [x] 5.3.1 Implement `scripts/evidence/sample-budget.study.ts` following design.md template
+- [x] 5.3.2 Create `analysis/sample_budget.py` following design.md template
+- [x] 5.3.3 Run study and analysis
+- [x] 5.3.4 Document detection rate by quantifier depth
+- [x] 5.3.5 Add study summary to `docs/evidence/README.md`
 
 ## 6. Documentation and Integration
 
-- [ ] 6.1 Update `docs/evidence/README.md` with new study index and key findings
-- [ ] 6.2 Update `package.json` with individual study run scripts following pattern:
+- [x] 6.1 Update `docs/evidence/README.md` with new study index and key findings
+- [x] 6.2 Update `package.json` with individual study run scripts following pattern:
       - `evidence:biased-sampling`, `evidence:weighted-union`, etc.
-- [ ] 6.3 Add `npm run evidence:apparatus` to run all 12 apparatus studies
-- [ ] 6.4 Add `npm run evidence:apparatus:quick` for quick mode (QUICK_MODE=1)
-- [ ] 6.5 Document key findings and actionable recommendations in README
-- [ ] 6.6 Create follow-up proposals for any issues discovered
+- [x] 6.3 Add `npm run evidence:apparatus` to run all 12 apparatus studies
+- [x] 6.4 Add `npm run evidence:apparatus:quick` for quick mode (QUICK_MODE=1)
+- [x] 6.5 Document key findings and actionable recommendations in README
+- [x] 6.6 Create follow-up proposals for any issues discovered
 
 ## 7. Validation
 

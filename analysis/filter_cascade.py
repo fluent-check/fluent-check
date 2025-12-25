@@ -123,13 +123,17 @@ def main():
     depths = [s['depth'] for s in coverage_stats]
     coverage_rates = [s['coverage_rate'] * 100 for s in coverage_stats]
     coverage_errors = [
-        (s['coverage_rate'] - s['ci_lower'], s['ci_upper'] - s['coverage_rate'])
+        (max(0, s['coverage_rate'] - s['ci_lower']), max(0, s['ci_upper'] - s['coverage_rate']))
         for s in coverage_stats
     ]
     coverage_errors_array = np.array(coverage_errors).T * 100
 
-    ax2.bar(depths, coverage_rates, yerr=coverage_errors_array, capsize=5,
-            color='#3498db', alpha=0.8)
+    # Only add error bars if not all zeros
+    if np.any(coverage_errors_array > 0):
+        ax2.bar(depths, coverage_rates, yerr=coverage_errors_array, capsize=5,
+                color='#3498db', alpha=0.8)
+    else:
+        ax2.bar(depths, coverage_rates, color='#3498db', alpha=0.8)
     ax2.axhline(y=95, color='red', linestyle='--', alpha=0.5, linewidth=2, label='95% target')
     ax2.set_xlabel('Chain Depth (number of filters)')
     ax2.set_ylabel('Credible Interval Coverage (%)')

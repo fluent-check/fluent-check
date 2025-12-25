@@ -132,5 +132,6 @@ export {
   pair,
   nullable,
   optional,
-  type Arbitrary
+  Arbitrary
 } from './arbitraries/index.js'
+export type {Arbitrary as ArbitraryType} from './arbitraries/index.js'

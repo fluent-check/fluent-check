@@ -35,24 +35,36 @@ interface FilterCascadeResult {
 
 /**
  * Count actual distinct values by exhaustive enumeration
- * Returns early if we detect saturation (no new values in last 1000 samples)
+ * Uses adaptive sampling with saturation detection
  */
-function countDistinct(arb: fc.Arbitrary<number>, maxSamples: number = 50000): number {
+function countDistinct(arb: fc.Arbitrary<number>, maxSamples: number = 100000): number {
   const seen = new Set<number>()
   const generator = mulberry32(12345)  // Fixed seed for consistent counting
   let lastNewValue = 0
 
+  // Use adaptive threshold based on current set size
+  // Smaller sets need less patience, larger sets need more
+  const getSaturationThreshold = (setSize: number): number => {
+    if (setSize < 10) return 5000
+    if (setSize < 50) return 10000
+    if (setSize < 100) return 20000
+    return 30000
+  }
+
   for (let i = 0; i < maxSamples; i++) {
     const pick = arb.pick(generator)
     const sizeBefore = seen.size
-    seen.add(pick)
+    // Extract the actual value from the pick result
+    const actualValue = typeof pick === 'object' && pick !== null && 'value' in pick ? pick.value : pick
+    seen.add(actualValue)
 
     if (seen.size > sizeBefore) {
       lastNewValue = i
     }
 
-    // Early termination if no new values in 2000 samples
-    if (i - lastNewValue > 2000) {
+    // Adaptive early termination
+    const threshold = getSaturationThreshold(seen.size)
+    if (i - lastNewValue > threshold) {
       break
     }
   }
@@ -78,14 +90,42 @@ function runTrial(
   // Calculate theoretical composite pass rate
   const compositePassRate = Math.pow(filterPassRate, chainDepth)
 
-  // Chain filters using simple modulo checks
-  // Each filter keeps approximately filterPassRate of values
-  const modulus = Math.round(1 / filterPassRate)
+  // MurmurHash3 32-bit mixing function for robust deterministic hashing
+  const hash32 = (value: number, seed: number): number => {
+    let h = seed | 0;
+    let k = value | 0;
+
+    k = Math.imul(k, 0xcc9e2d51);
+    k = (k << 15) | (k >>> 17);
+    k = Math.imul(k, 0x1b873593);
+
+    h ^= k;
+    h = (h << 13) | (h >>> 19);
+    h = Math.imul(h, 5) + 0xe6546b64;
+
+    // Finalize
+    h ^= h >>> 16;
+    h = Math.imul(h, 0x85ebca6b);
+    h ^= h >>> 13;
+    h = Math.imul(h, 0xc2b2ae35);
+    h ^= h >>> 16;
+
+    return h >>> 0;
+  }
+
+  // Chain filters using deterministic hash-based selection
+  // This simulates independent filters with the given pass rate
+  const isSelected = (value: number, layer: number, rate: number): boolean => {
+    // Use layer as seed and value as key
+    const h = hash32(value, layer);
+    // Normalize to [0, 1)
+    const prob = h / 4294967296;
+    return prob < rate;
+  }
 
   for (let i = 0; i < chainDepth; i++) {
-    // Use different offset per filter to avoid 100% overlap
-    const offset = i
-    arb = arb.filter(x => (x + offset) % modulus === 0)
+    const layer = i
+    arb = arb.filter(x => isSelected(x, layer, filterPassRate))
   }
 
   // Get size estimation with credible interval
@@ -102,7 +142,10 @@ function runTrial(
                         actualDistinctValues <= credibleIntervalUpper
 
   // Calculate relative error
-  const relativeError = (estimatedSize - actualDistinctValues) / actualDistinctValues
+  // Handle case where actual is 0 to avoid Infinity
+  const relativeError = actualDistinctValues === 0 
+    ? (estimatedSize === 0 ? 0 : 1.0) // If actual is 0, estimate 0 is perfect, else 100% error
+    : (estimatedSize - actualDistinctValues) / actualDistinctValues
 
   const elapsedMicros = timer.elapsedMicros()
 
