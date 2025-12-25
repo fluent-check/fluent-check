@@ -96,3 +96,15 @@ Because the estimator is biased (optimistic prior) and reports high confidence (
 2.  **Warm-up Sampling**: Trigger a small batch of internal samples (e.g., 10 probes) upon instantiation or the first `size()` call to ground the estimate in reality.
 3.  **Recursive Estimation**: If possible, allow filters to compose estimates. If a user writes `.filter(x => x > 0)`, we can't know the rate. But if we chain known distributions, we might do better. (Hard in general case).
 4.  **Documentation**: Explicitly warn users that `size()` on filtered arbitraries is an upper bound (often loose) until sampling begins.
+
+## Experimental Validation
+
+An experiment implementing **Warm-up Sampling (10 iterations)** and changing the prior to **Beta(2,1)** yielded significant improvements:
+
+### Error Reduction (Depth 5, 50% Pass Rate)
+- **Baseline**: +3603.7% error
+- **With Warm-up**: +62.9% error
+- **Improvement**: ~57x reduction in estimation error.
+
+### Conclusion
+Warm-up sampling successfully mitigates the "Cold Start" problem, bringing estimates within a reasonable order of magnitude even for deep filter chains. While variance remains high for small samples (leading to conservative CI coverage), the systematic exponential bias is eliminated.
