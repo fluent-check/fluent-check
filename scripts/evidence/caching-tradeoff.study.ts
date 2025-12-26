@@ -11,24 +11,29 @@
  */
 
 import { scenario, integer, strategy } from '../../src/index.js'
-import { CSVWriter, ProgressReporter, getSeed, getSampleSize, HighResTimer } from './runner.js'
+import { ExperimentRunner, getSeed, getSampleSize, HighResTimer } from './runner.js'
 import path from 'path'
 
 interface CachingTradeoffResult {
   trialId: number
   seed: number
   cacheEnabled: boolean
-  bugType: 'any_value' | 'diversity_dependent'
+  bugType: 'any_value' | 'combination'
   bugDetected: boolean
   uniqueValuesSeen: number
   elapsedMicros: number
 }
 
-function runTrial(
-  trialId: number,
-  cacheEnabled: boolean,
+interface CachingTradeoffParams {
+  cacheEnabled: boolean
   bugType: 'any_value' | 'combination'
+}
+
+function runTrial(
+  params: CachingTradeoffParams,
+  trialId: number
 ): CachingTradeoffResult {
+  const { cacheEnabled, bugType } = params
   const seed = getSeed(trialId)
   const timer = new HighResTimer()
 
@@ -81,57 +86,37 @@ function runTrial(
 }
 
 async function runCachingTradeoffStudy(): Promise<void> {
-  console.log('=== Caching Trade-off Study ===')
-  console.log('Hypothesis: Caching reduces detection of "any-value" bugs by ~3x (for 3 quantifiers).\n')
-
-  const outputPath = path.join(process.cwd(), 'docs/evidence/raw/caching-tradeoff.csv')
-  const writer = new CSVWriter(outputPath)
-
-  writer.writeHeader([
-    'trial_id',
-    'seed',
-    'cache_enabled',
-    'bug_type',
-    'bug_detected',
-    'unique_values_seen',
-    'elapsed_micros'
-  ])
-
   const bugTypes: ('any_value' | 'combination')[] = ['any_value', 'combination']
   const cacheOptions = [true, false]
-  const trialsPerConfig = getSampleSize(500, 100) // Need high sample count for proportion stability
-  const totalTrials = bugTypes.length * cacheOptions.length * trialsPerConfig
 
-  console.log(`Trials per configuration: ${trialsPerConfig}`)
-  console.log(`Total trials: ${totalTrials}\n`)
-
-  const progress = new ProgressReporter(totalTrials, 'CacheTradeoff')
-
-  let trialId = 0
+  const parameters: CachingTradeoffParams[] = []
   for (const bugType of bugTypes) {
     for (const cacheEnabled of cacheOptions) {
-      for (let i = 0; i < trialsPerConfig; i++) {
-        const result = runTrial(trialId, cacheEnabled, bugType)
-        writer.writeRow([
-          result.trialId,
-          result.seed,
-          result.cacheEnabled,
-          result.bugType,
-          result.bugDetected,
-          result.uniqueValuesSeen,
-          result.elapsedMicros
-        ])
-        progress.update()
-        trialId++
-      }
+      parameters.push({
+        bugType,
+        cacheEnabled
+      })
     }
   }
 
-  progress.finish()
-  await writer.close()
+  const runner = new ExperimentRunner<CachingTradeoffParams, CachingTradeoffResult>({
+    name: 'Caching Trade-off Study',
+    outputPath: path.join(process.cwd(), 'docs/evidence/raw/caching-tradeoff.csv'),
+    csvHeader: [
+      'trial_id', 'seed', 'cache_enabled', 'bug_type', 'bug_detected',
+      'unique_values_seen', 'elapsed_micros'
+    ],
+    trialsPerConfig: getSampleSize(500, 100),
+    resultToRow: (r: CachingTradeoffResult) => [
+      r.trialId, r.seed, r.cacheEnabled, r.bugType, r.bugDetected,
+      r.uniqueValuesSeen, r.elapsedMicros
+    ],
+    preRunInfo: () => {
+      console.log('Hypothesis: Caching reduces detection of "any-value" bugs by ~3x (for 3 quantifiers).\n')
+    }
+  })
 
-  console.log(`\n✓ Caching Trade-off study complete`)
-  console.log(`  Output: ${outputPath}`)
+  await runner.run(parameters, runTrial)
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {

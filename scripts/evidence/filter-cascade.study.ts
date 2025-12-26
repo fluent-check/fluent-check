@@ -16,7 +16,7 @@
 
 import * as fc from '../../src/index.js'
 import { FilteredArbitraryLegacy } from '../../src/arbitraries/FilteredArbitraryLegacy.js'
-import { CSVWriter, ProgressReporter, getSeed, getSampleSize, mulberry32, HighResTimer } from './runner.js'
+import { ExperimentRunner, getSeed, getSampleSize, mulberry32, HighResTimer } from './runner.js'
 import path from 'path'
 
 interface FilterCascadeResult {
@@ -33,6 +33,12 @@ interface FilterCascadeResult {
   trueValueInCI: boolean
   relativeError: number
   elapsedMicros: number
+}
+
+interface FilterCascadeParams {
+  chainDepth: number
+  filterPassRate: number
+  useLegacy: boolean
 }
 
 /**
@@ -78,11 +84,10 @@ function countDistinct(arb: fc.Arbitrary<number>, maxSamples: number = 100000): 
  * Run a single trial measuring filter cascade estimation
  */
 function runTrial(
-  trialId: number,
-  chainDepth: number,
-  filterPassRate: number,
-  useLegacy: boolean
+  params: FilterCascadeParams,
+  trialId: number
 ): FilterCascadeResult {
+  const { chainDepth, filterPassRate, useLegacy } = params
   const seed = getSeed(trialId)
   const timer = new HighResTimer()
 
@@ -187,81 +192,50 @@ function runTrial(
  * Run filter cascade impact study
  */
 async function runFilterCascadeStudy(): Promise<void> {
-  console.log('=== Filter Cascade Impact Study ===')
-  console.log('Hypothesis: Size estimation accuracy degrades with filter depth\n')
-
-  const outputPath = path.join(process.cwd(), 'docs/evidence/raw/filter-cascade.csv')
-  const writer = new CSVWriter(outputPath)
-
-  writer.writeHeader([
-    'trial_id',
-    'implementation',
-    'seed',
-    'chain_depth',
-    'filter_pass_rate',
-    'composite_pass_rate',
-    'estimated_size',
-    'actual_distinct_values',
-    'credible_interval_lower',
-    'credible_interval_upper',
-    'true_value_in_ci',
-    'relative_error',
-    'elapsed_micros'
-  ])
-
-  // Study configuration
   const chainDepths = [1, 2, 3, 5]
   const filterPassRates = [0.5, 0.7, 0.9]
   const implementations = ['legacy', 'fixed']
-  const trialsPerConfig = getSampleSize(200, 50)
-  const totalTrials = chainDepths.length * filterPassRates.length * implementations.length * trialsPerConfig
 
-  // Print study parameters
-  console.log(`Base arbitrary: integer(0, 999) (size = 1000)`)
-  console.log(`Implementations: ${implementations.join(', ')}`)
-  console.log(`Chain depths: ${chainDepths.join(', ')}`)
-  console.log(`Filter pass rates: ${filterPassRates.map(r => `${(r*100).toFixed(0)}%`).join(', ')}`)
-  console.log(`Trials per configuration: ${trialsPerConfig}`)
-  console.log(`Total trials: ${totalTrials}\n`)
-
-  const progress = new ProgressReporter(totalTrials, 'FilterCascade')
-
-  let trialId = 0
+  const parameters: FilterCascadeParams[] = []
   for (const impl of implementations) {
     const useLegacy = impl === 'legacy'
     for (const chainDepth of chainDepths) {
       for (const filterPassRate of filterPassRates) {
-        for (let i = 0; i < trialsPerConfig; i++) {
-          const result = runTrial(trialId, chainDepth, filterPassRate, useLegacy)
-
-          writer.writeRow([
-            result.trialId,
-            result.implementation,
-            result.seed,
-            result.chainDepth,
-            result.filterPassRate.toFixed(2),
-            result.compositePassRate.toFixed(4),
-            result.estimatedSize,
-            result.actualDistinctValues,
-            result.credibleIntervalLower,
-            result.credibleIntervalUpper,
-            result.trueValueInCI,
-            result.relativeError.toFixed(6),
-            result.elapsedMicros
-          ])
-
-          progress.update()
-          trialId++
-        }
+        parameters.push({
+          chainDepth,
+          filterPassRate,
+          useLegacy
+        })
       }
     }
   }
 
-  progress.finish()
-  await writer.close()
+  const runner = new ExperimentRunner<FilterCascadeParams, FilterCascadeResult>({
+    name: 'Filter Cascade Impact Study',
+    outputPath: path.join(process.cwd(), 'docs/evidence/raw/filter-cascade.csv'),
+    csvHeader: [
+      'trial_id', 'implementation', 'seed', 'chain_depth', 'filter_pass_rate',
+      'composite_pass_rate', 'estimated_size', 'actual_distinct_values',
+      'credible_interval_lower', 'credible_interval_upper', 'true_value_in_ci',
+      'relative_error', 'elapsed_micros'
+    ],
+    trialsPerConfig: getSampleSize(200, 50),
+    resultToRow: (r: FilterCascadeResult) => [
+      r.trialId, r.implementation, r.seed, r.chainDepth, r.filterPassRate.toFixed(2),
+      r.compositePassRate.toFixed(4), r.estimatedSize, r.actualDistinctValues,
+      r.credibleIntervalLower, r.credibleIntervalUpper, r.trueValueInCI,
+      r.relativeError.toFixed(6), r.elapsedMicros
+    ],
+    preRunInfo: () => {
+      console.log('Hypothesis: Size estimation accuracy degrades with filter depth\n')
+      console.log(`Base arbitrary: integer(0, 999) (size = 1000)`)
+      console.log(`Implementations: ${implementations.join(', ')}`)
+      console.log(`Chain depths: ${chainDepths.join(', ')}`)
+      console.log(`Filter pass rates: ${filterPassRates.map(r => `${(r*100).toFixed(0)}%`).join(', ')}`)
+    }
+  })
 
-  console.log(`\n✓ Filter cascade study complete`)
-  console.log(`  Output: ${outputPath}`)
+  await runner.run(parameters, runTrial)
 }
 
 // CLI entrypoint

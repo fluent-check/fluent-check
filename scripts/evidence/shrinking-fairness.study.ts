@@ -12,7 +12,7 @@
  */
 
 import { scenario, integer, strategy } from '../../src/index.js'
-import { CSVWriter, ProgressReporter, getSeed, getSampleSize, HighResTimer } from './runner.js'
+import { ExperimentRunner, getSeed, getSampleSize, HighResTimer } from './runner.js'
 import path from 'path'
 
 interface ShrinkingFairnessResult {
@@ -28,10 +28,15 @@ interface ShrinkingFairnessResult {
   elapsedMicros: number
 }
 
-function runTrial(
-  trialId: number,
+interface ShrinkingFairnessParams {
   order: 'abc' | 'bac' | 'cab'
+}
+
+function runTrial(
+  params: ShrinkingFairnessParams,
+  trialId: number
 ): ShrinkingFairnessResult {
+  const { order } = params
   const seed = getSeed(trialId)
   const timer = new HighResTimer()
 
@@ -100,61 +105,29 @@ function runTrial(
 }
 
 async function runShrinkingFairnessStudy(): Promise<void> {
-  console.log('=== Shrinking Fairness Study ===')
-  console.log('Hypothesis: Earlier quantifiers shrink more aggressively.\n')
-
-  const outputPath = path.join(process.cwd(), 'docs/evidence/raw/shrinking-fairness.csv')
-  const writer = new CSVWriter(outputPath)
-
-  writer.writeHeader([
-    'trial_id',
-    'seed',
-    'quantifier_order',
-    'initial_a',
-    'initial_b',
-    'initial_c',
-    'final_a',
-    'final_b',
-    'final_c',
-    'elapsed_micros'
-  ])
-
   const orders: ('abc' | 'bac' | 'cab')[] = ['abc', 'bac', 'cab']
-  const trialsPerConfig = getSampleSize(200, 50)
-  const totalTrials = orders.length * trialsPerConfig
+  
+  const parameters: ShrinkingFairnessParams[] = orders.map(order => ({ order }))
 
-  console.log(`Orders: ${orders.join(', ')}`)
-  console.log(`Trials per order: ${trialsPerConfig}`)
-  console.log(`Total trials: ${totalTrials}\n`)
-
-  const progress = new ProgressReporter(totalTrials, 'ShrinkFair')
-
-  let trialId = 0
-  for (const order of orders) {
-    for (let i = 0; i < trialsPerConfig; i++) {
-      const result = runTrial(trialId, order)
-      writer.writeRow([
-        result.trialId,
-        result.seed,
-        result.quantifierOrder,
-        result.initialA,
-        result.initialB,
-        result.initialC,
-        result.finalA,
-        result.finalB,
-        result.finalC,
-        result.elapsedMicros
-      ])
-      progress.update()
-      trialId++
+  const runner = new ExperimentRunner<ShrinkingFairnessParams, ShrinkingFairnessResult>({
+    name: 'Shrinking Fairness Study',
+    outputPath: path.join(process.cwd(), 'docs/evidence/raw/shrinking-fairness.csv'),
+    csvHeader: [
+      'trial_id', 'seed', 'quantifier_order', 'initial_a', 'initial_b', 'initial_c',
+      'final_a', 'final_b', 'final_c', 'elapsed_micros'
+    ],
+    trialsPerConfig: getSampleSize(200, 50),
+    resultToRow: (r: ShrinkingFairnessResult) => [
+      r.trialId, r.seed, r.quantifierOrder, r.initialA, r.initialB, r.initialC,
+      r.finalA, r.finalB, r.finalC, r.elapsedMicros
+    ],
+    preRunInfo: () => {
+      console.log('Hypothesis: Earlier quantifiers shrink more aggressively.\n')
+      console.log(`Orders: ${orders.join(', ')}`)
     }
-  }
+  })
 
-  progress.finish()
-  await writer.close()
-
-  console.log(`\n✓ Shrinking Fairness study complete`)
-  console.log(`  Output: ${outputPath}`)
+  await runner.run(parameters, runTrial)
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {

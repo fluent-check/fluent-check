@@ -16,7 +16,7 @@
 
 import * as fc from '../../src/index.js'
 import { MappedArbitraryLegacy } from '../../src/arbitraries/MappedArbitraryLegacy.js'
-import { CSVWriter, ProgressReporter, getSeed, getSampleSize, mulberry32, HighResTimer } from './runner.js'
+import { ExperimentRunner, getSeed, getSampleSize, mulberry32, HighResTimer } from './runner.js'
 import path from 'path'
 
 interface MappedSizeResult {
@@ -29,6 +29,11 @@ interface MappedSizeResult {
   actualDistinctValues: number
   sizeRatio: number
   elapsedMicros: number
+}
+
+interface MappedSizeParams {
+  mapType: 'bijective' | 'surjective_10to1' | 'surjective_5to1'
+  useLegacy: boolean
 }
 
 /**
@@ -73,10 +78,10 @@ function countDistinct<T>(arb: fc.Arbitrary<T>, maxSamples: number = 100000): nu
  * Run a single trial measuring mapped arbitrary size
  */
 function runTrial(
-  trialId: number,
-  mapType: 'bijective' | 'surjective_10to1' | 'surjective_5to1',
-  useLegacy: boolean
+  params: MappedSizeParams,
+  trialId: number
 ): MappedSizeResult {
+  const { mapType, useLegacy } = params
   const seed = getSeed(trialId)
   const timer = new HighResTimer()
 
@@ -138,76 +143,48 @@ function runTrial(
  * Run mapped arbitrary size study
  */
 async function runMappedSizeStudy(): Promise<void> {
-  console.log('=== Mapped Arbitrary Size Study ===')
-  console.log('Hypothesis: Non-bijective maps cause size overestimation proportional to collision rate\n')
-
-  const outputPath = path.join(process.cwd(), 'docs/evidence/raw/mapped-size.csv')
-  const writer = new CSVWriter(outputPath)
-
-  writer.writeHeader([
-    'trial_id',
-    'implementation',
-    'seed',
-    'map_type',
-    'base_size',
-    'reported_size',
-    'actual_distinct_values',
-    'size_ratio',
-    'elapsed_micros'
-  ])
-
-  // Study configuration
   const mapTypes: Array<'bijective' | 'surjective_10to1' | 'surjective_5to1'> = [
     'bijective',
     'surjective_10to1',
     'surjective_5to1'
   ]
   const implementations = ['legacy', 'fixed']
-  const trialsPerConfig = getSampleSize(200, 50)
-  const totalTrials = mapTypes.length * implementations.length * trialsPerConfig
 
-  // Print study parameters
-  console.log(`Base arbitrary: integer(0, 99) (100 distinct values)`)
-  console.log(`Implementations: ${implementations.join(', ')}`)
-  console.log(`Map types:`)
-  console.log(`  - bijective: x => x * 2 (100 distinct values, ratio = 1.0)`)
-  console.log(`  - surjective_10to1: x => x % 10 (10 distinct values, ratio = 10.0)`)
-  console.log(`  - surjective_5to1: x => x % 20 (20 distinct values, ratio = 5.0)`)
-  console.log(`Trials per configuration: ${trialsPerConfig}`)
-  console.log(`Total trials: ${totalTrials}\n`)
-
-  const progress = new ProgressReporter(totalTrials, 'MappedSize')
-
-  let trialId = 0
+  const parameters: MappedSizeParams[] = []
   for (const impl of implementations) {
     const useLegacy = impl === 'legacy'
     for (const mapType of mapTypes) {
-      for (let i = 0; i < trialsPerConfig; i++) {
-        const result = runTrial(trialId, mapType, useLegacy)
-
-        writer.writeRow([
-          result.trialId,
-          result.implementation,
-          result.seed,
-          result.mapType,
-          result.baseSize,
-          result.reportedSize,
-          result.actualDistinctValues,
-          result.sizeRatio.toFixed(6),
-          result.elapsedMicros
-        ])
-
-        progress.update()
-        trialId++
-      }
+      parameters.push({
+        mapType,
+        useLegacy
+      })
     }
   }
 
-  progress.finish()
-  await writer.close()
+  const runner = new ExperimentRunner<MappedSizeParams, MappedSizeResult>({
+    name: 'Mapped Arbitrary Size Study',
+    outputPath: path.join(process.cwd(), 'docs/evidence/raw/mapped-size.csv'),
+    csvHeader: [
+      'trial_id', 'implementation', 'seed', 'map_type', 'base_size',
+      'reported_size', 'actual_distinct_values', 'size_ratio', 'elapsed_micros'
+    ],
+    trialsPerConfig: getSampleSize(200, 50),
+    resultToRow: (r: MappedSizeResult) => [
+      r.trialId, r.implementation, r.seed, r.mapType, r.baseSize,
+      r.reportedSize, r.actualDistinctValues, r.sizeRatio.toFixed(6), r.elapsedMicros
+    ],
+    preRunInfo: () => {
+      console.log('Hypothesis: Non-bijective maps cause size overestimation proportional to collision rate\n')
+      console.log(`Base arbitrary: integer(0, 99) (100 distinct values)`)
+      console.log(`Implementations: ${implementations.join(', ')}`)
+      console.log(`Map types:`)
+      console.log(`  - bijective: x => x * 2 (100 distinct values, ratio = 1.0)`)
+      console.log(`  - surjective_10to1: x => x % 10 (10 distinct values, ratio = 10.0)`)
+      console.log(`  - surjective_5to1: x => x % 20 (20 distinct values, ratio = 5.0)`)
+    }
+  })
 
-  console.log(`\n✓ Mapped size study complete`)
-  console.log(`  Output: ${outputPath}`)
+  await runner.run(parameters, runTrial)
 }
 
 // CLI entrypoint

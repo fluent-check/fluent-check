@@ -10,7 +10,7 @@
  */
 
 import { integer, Arbitrary } from '../../src/index.js'
-import { CSVWriter, ProgressReporter, getSeed, getSampleSize, HighResTimer, mulberry32 } from './runner.js'
+import { ExperimentRunner, getSeed, getSampleSize, HighResTimer, mulberry32 } from './runner.js'
 import path from 'path'
 
 interface LengthDistributionResult {
@@ -22,6 +22,11 @@ interface LengthDistributionResult {
   testsToDetection: number | null
   testsRun: number
   elapsedMicros: number
+}
+
+interface LengthDistributionParams {
+  distType: 'uniform' | 'geometric' | 'edge_biased'
+  bugConfig: { name: string, predicate: (arr: any[]) => boolean }
 }
 
 /**
@@ -72,10 +77,10 @@ class CustomArrayArbitrary<A> extends Arbitrary<A[]> {
 }
 
 function runTrial(
-  trialId: number,
-  distType: 'uniform' | 'geometric' | 'edge_biased',
-  bugConfig: { name: string, predicate: (arr: any[]) => boolean }
+  params: LengthDistributionParams,
+  trialId: number
 ): LengthDistributionResult {
+  const { distType, bugConfig } = params
   const seed = getSeed(trialId)
   const generator = mulberry32(seed)
   const timer = new HighResTimer()
@@ -110,23 +115,6 @@ function runTrial(
 }
 
 async function runLengthDistributionStudy(): Promise<void> {
-  console.log('=== Length Distribution Study ===')
-  console.log('Hypothesis: Length-boundary bugs are found faster with edge-biased distribution.\n')
-
-  const outputPath = path.join(process.cwd(), 'docs/evidence/raw/length-distribution.csv')
-  const writer = new CSVWriter(outputPath)
-
-  writer.writeHeader([
-    'trial_id',
-    'seed',
-    'length_distribution',
-    'bug_type',
-    'bug_detected',
-    'tests_to_detection',
-    'tests_run',
-    'elapsed_micros'
-  ])
-
   const distributions: ('uniform' | 'geometric' | 'edge_biased')[] = ['uniform', 'geometric', 'edge_biased']
   const bugTypes = [
     { name: 'empty', predicate: (arr: any[]) => arr.length !== 0 },
@@ -135,42 +123,36 @@ async function runLengthDistributionStudy(): Promise<void> {
     { name: 'interior', predicate: (arr: any[]) => arr.length !== 5 }
   ]
 
-  const trialsPerConfig = getSampleSize(500, 100)
-  const totalTrials = distributions.length * bugTypes.length * trialsPerConfig
-
-  console.log(`Distributions: ${distributions.join(', ')}`)
-  console.log(`Bug Types: ${bugTypes.map(b => b.name).join(', ')}`)
-  console.log(`Trials per configuration: ${trialsPerConfig}`)
-  console.log(`Total trials: ${totalTrials}\n`)
-
-  const progress = new ProgressReporter(totalTrials, 'LengthDist')
-
-  let trialId = 0
-  for (const dist of distributions) {
-    for (const bug of bugTypes) {
-      for (let i = 0; i < trialsPerConfig; i++) {
-        const result = runTrial(trialId, dist, bug)
-        writer.writeRow([
-          result.trialId,
-          result.seed,
-          result.lengthDistribution,
-          result.bugType,
-          result.bugDetected,
-          result.testsToDetection,
-          result.testsRun,
-          result.elapsedMicros
-        ])
-        progress.update()
-        trialId++
-      }
+  const parameters: LengthDistributionParams[] = []
+  for (const distType of distributions) {
+    for (const bugConfig of bugTypes) {
+      parameters.push({
+        distType,
+        bugConfig
+      })
     }
   }
 
-  progress.finish()
-  await writer.close()
+  const runner = new ExperimentRunner<LengthDistributionParams, LengthDistributionResult>({
+    name: 'Length Distribution Study',
+    outputPath: path.join(process.cwd(), 'docs/evidence/raw/length-distribution.csv'),
+    csvHeader: [
+      'trial_id', 'seed', 'length_distribution', 'bug_type', 'bug_detected',
+      'tests_to_detection', 'tests_run', 'elapsed_micros'
+    ],
+    trialsPerConfig: getSampleSize(500, 100),
+    resultToRow: (r: LengthDistributionResult) => [
+      r.trialId, r.seed, r.lengthDistribution, r.bugType, r.bugDetected,
+      r.testsToDetection, r.testsRun, r.elapsedMicros
+    ],
+    preRunInfo: () => {
+      console.log('Hypothesis: Length-boundary bugs are found faster with edge-biased distribution.\n')
+      console.log(`Distributions: ${distributions.join(', ')}`)
+      console.log(`Bug Types: ${bugTypes.map(b => b.name).join(', ')}`)
+    }
+  })
 
-  console.log(`\n✓ Length Distribution study complete`)
-  console.log(`  Output: ${outputPath}`)
+  await runner.run(parameters, runTrial)
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {

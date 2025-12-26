@@ -20,7 +20,7 @@
  */
 
 import * as fc from '../../src/index.js'
-import { CSVWriter, ProgressReporter, getSeed, getSampleSize, mulberry32, HighResTimer } from './runner.js'
+import { ExperimentRunner, getSeed, getSampleSize, mulberry32, HighResTimer } from './runner.js'
 import path from 'path'
 
 // Large range for meaningful testing
@@ -42,17 +42,26 @@ interface DoubleNegationResult {
   shrinkImprovementsMade: number
 }
 
+interface DoubleNegationParams {
+  scenario: {
+    name: string
+    predicate: (x: number) => boolean
+    density: number
+    description: string
+  }
+  sampleSize: number
+  approach: 'first_class' | 'double_negation'
+}
+
 /**
  * Run first-class exists: .exists('x', arb).then(P)
  */
 function runFirstClassExists(
-  trialId: number,
-  sampleSize: number,
-  seed: number,
-  predicate: (x: number) => boolean,
-  scenario: string,
-  density: number
+  params: DoubleNegationParams,
+  trialId: number
 ): DoubleNegationResult {
+  const { scenario, sampleSize } = params
+  const seed = getSeed(trialId)
   const timer = new HighResTimer()
 
   const result = fc.scenario()
@@ -60,7 +69,7 @@ function runFirstClassExists(
       .withSampleSize(sampleSize)
       .withRandomGenerator(mulberry32, seed))
     .exists('x', fc.integer(LARGE_RANGE_MIN, LARGE_RANGE_MAX))
-    .then(({ x }) => predicate(x))
+    .then(({ x }) => scenario.predicate(x))
     .check()
 
   const elapsedMicros = timer.elapsedMicros()
@@ -69,9 +78,9 @@ function runFirstClassExists(
   return {
     trialId,
     seed,
-    scenario,
+    scenario: scenario.name,
     approach: 'first_class',
-    witnessDensity: density,
+    witnessDensity: scenario.density,
     sampleSize,
     witnessFound: result.satisfiable,
     testsRun: result.statistics.testsRun,
@@ -84,16 +93,13 @@ function runFirstClassExists(
 
 /**
  * Run double-negation emulation: .forall('x', arb).then(!P)
- * If this FAILS (counterexample found), the counterexample IS our witness for P
  */
 function runDoubleNegation(
-  trialId: number,
-  sampleSize: number,
-  seed: number,
-  predicate: (x: number) => boolean,
-  scenario: string,
-  density: number
+  params: DoubleNegationParams,
+  trialId: number
 ): DoubleNegationResult {
+  const { scenario, sampleSize } = params
+  const seed = getSeed(trialId)
   const timer = new HighResTimer()
 
   // ∃x. P(x) ≡ ¬∀x. ¬P(x)
@@ -104,7 +110,7 @@ function runDoubleNegation(
       .withSampleSize(sampleSize)
       .withRandomGenerator(mulberry32, seed))
     .forall('x', fc.integer(LARGE_RANGE_MIN, LARGE_RANGE_MAX))
-    .then(({ x }) => !predicate(x)) // ¬P(x)
+    .then(({ x }) => !scenario.predicate(x)) // ¬P(x)
     .check()
 
   const elapsedMicros = timer.elapsedMicros()
@@ -118,9 +124,9 @@ function runDoubleNegation(
   return {
     trialId,
     seed,
-    scenario,
+    scenario: scenario.name,
     approach: 'double_negation',
-    witnessDensity: density,
+    witnessDensity: scenario.density,
     sampleSize,
     witnessFound,
     testsRun: result.statistics.testsRun,
@@ -163,11 +169,6 @@ const SCENARIOS = [
 
 /**
  * Composition complexity demonstration
- *
- * First-class: exists(a).forall(b).then(P)
- * Double-negation: ∃a. ∀b. P(a,b) ≡ ¬∀a. ¬∀b. P(a,b) ≡ ¬∀a. ∃b. ¬P(a,b)
- *
- * The double-negation version requires nested scenarios - demonstrably more complex.
  */
 interface CompositionResult {
   trialId: number
@@ -180,7 +181,14 @@ interface CompositionResult {
   linesOfCode: number  // Conceptual complexity measure
 }
 
-function runFirstClassComposition(trialId: number, sampleSize: number, seed: number): CompositionResult {
+interface CompositionParams {
+  approach: 'first_class' | 'double_negation'
+  sampleSize: number
+}
+
+function runFirstClassComposition(params: CompositionParams, trialId: number): CompositionResult {
+  const { sampleSize } = params
+  const seed = getSeed(trialId + 10000) // Offset seed to match original logic
   const timer = new HighResTimer()
 
   // Find 'a' such that for all 'b' in range, a + b >= 500000
@@ -208,7 +216,9 @@ function runFirstClassComposition(trialId: number, sampleSize: number, seed: num
   }
 }
 
-function runDoubleNegationComposition(trialId: number, sampleSize: number, seed: number): CompositionResult {
+function runDoubleNegationComposition(params: CompositionParams, trialId: number): CompositionResult {
+  const { sampleSize } = params
+  const seed = getSeed(trialId + 10000) // Offset seed
   const timer = new HighResTimer()
   let totalTestsRun = 0
   let foundA: number | null = null
@@ -216,11 +226,6 @@ function runDoubleNegationComposition(trialId: number, sampleSize: number, seed:
   // ∃a. ∀b. P(a,b) ≡ ¬∀a. ∃b. ¬P(a,b)
   // We need to test: ∀a. ∃b. ¬P(a,b)
   // If this FAILS, we have our 'a' value where no 'b' violates P
-
-  // This is fundamentally harder to express because we need to:
-  // 1. Sample 'a' values
-  // 2. For each 'a', try to find a 'b' where ¬P(a,b)
-  // 3. If we can't find such a 'b' for some 'a', that 'a' is our witness
 
   // The best we can do with forall:
   const outerResult = fc.scenario()
@@ -272,171 +277,83 @@ function runDoubleNegationComposition(trialId: number, sampleSize: number, seed:
  * Run double-negation equivalence study
  */
 async function runDoubleNegationStudy(): Promise<void> {
-  console.log('\n=== Double-Negation Equivalence Study ===')
-  console.log('Hypothesis: First-class exists provides equal detection with better ergonomics')
-  console.log(`Search space: [${LARGE_RANGE_MIN.toLocaleString()}, ${LARGE_RANGE_MAX.toLocaleString()}]\n`)
-
   const outputPath = path.join(process.cwd(), 'docs/evidence/raw/double_negation.csv')
   const compositionPath = path.join(process.cwd(), 'docs/evidence/raw/composition.csv')
-
-  // Part 1: Simple exists comparison
-  const writer = new CSVWriter(outputPath)
-  writer.writeHeader([
-    'trial_id',
-    'seed',
-    'scenario',
-    'approach',
-    'witness_density',
-    'sample_size',
-    'witness_found',
-    'tests_run',
-    'elapsed_micros',
-    'witness_value',
-    'shrink_candidates_tested',
-    'shrink_improvements_made'
-  ])
 
   const trialsPerConfig = getSampleSize(100, 25)
   const sampleSizes = [100, 200, 500]
 
-  const totalSimpleTrials = SCENARIOS.length * sampleSizes.length * trialsPerConfig * 2 // *2 for both approaches
-
-  console.log('Part 1: Simple Exists Comparison')
-  console.log('Scenarios:')
-  for (const s of SCENARIOS) {
-    console.log(`  - ${s.name}: density ${s.description}`)
-  }
-  console.log(`Sample sizes: ${sampleSizes.join(', ')}`)
-  console.log(`Trials per configuration: ${trialsPerConfig}`)
-  console.log(`Total trials: ${totalSimpleTrials}\n`)
-
-  const progress = new ProgressReporter(totalSimpleTrials, 'DoubleNeg')
-
-  let trialId = 0
+  // Part 1: Simple exists comparison
+  const simpleParams: DoubleNegationParams[] = []
   for (const scenario of SCENARIOS) {
     for (const sampleSize of sampleSizes) {
-      for (let i = 0; i < trialsPerConfig; i++) {
-        const seed = getSeed(trialId)
-
-        // Run first-class exists
-        const firstClassResult = runFirstClassExists(
-          trialId,
-          sampleSize,
-          seed,
-          scenario.predicate,
-          scenario.name,
-          scenario.density
-        )
-
-        writer.writeRow([
-          firstClassResult.trialId,
-          firstClassResult.seed,
-          firstClassResult.scenario,
-          firstClassResult.approach,
-          firstClassResult.witnessDensity,
-          firstClassResult.sampleSize,
-          firstClassResult.witnessFound,
-          firstClassResult.testsRun,
-          firstClassResult.elapsedMicros,
-          firstClassResult.witnessValue ?? '',
-          firstClassResult.shrinkCandidatesTested,
-          firstClassResult.shrinkImprovementsMade
-        ])
-        progress.update()
-
-        // Run double-negation with same seed for fair comparison
-        const doubleNegResult = runDoubleNegation(
-          trialId,
-          sampleSize,
-          seed,
-          scenario.predicate,
-          scenario.name,
-          scenario.density
-        )
-
-        writer.writeRow([
-          doubleNegResult.trialId,
-          doubleNegResult.seed,
-          doubleNegResult.scenario,
-          doubleNegResult.approach,
-          doubleNegResult.witnessDensity,
-          doubleNegResult.sampleSize,
-          doubleNegResult.witnessFound,
-          doubleNegResult.testsRun,
-          doubleNegResult.elapsedMicros,
-          doubleNegResult.witnessValue ?? '',
-          doubleNegResult.shrinkCandidatesTested,
-          doubleNegResult.shrinkImprovementsMade
-        ])
-        progress.update()
-
-        trialId++
-      }
+      simpleParams.push({ scenario, sampleSize, approach: 'first_class' })
+      simpleParams.push({ scenario, sampleSize, approach: 'double_negation' })
     }
   }
 
-  progress.finish()
-  await writer.close()
-  console.log(`  Output: ${outputPath}`)
+  const simpleRunner = new ExperimentRunner<DoubleNegationParams, DoubleNegationResult>({
+    name: 'Double-Negation Equivalence Study - Part 1: Simple Exists',
+    outputPath,
+    csvHeader: [
+      'trial_id', 'seed', 'scenario', 'approach', 'witness_density', 'sample_size',
+      'witness_found', 'tests_run', 'elapsed_micros', 'witness_value',
+      'shrink_candidates_tested', 'shrink_improvements_made'
+    ],
+    trialsPerConfig,
+    resultToRow: (r: DoubleNegationResult) => [
+      r.trialId, r.seed, r.scenario, r.approach, r.witnessDensity, r.sampleSize,
+      r.witnessFound, r.testsRun, r.elapsedMicros, r.witnessValue ?? '',
+      r.shrinkCandidatesTested, r.shrinkImprovementsMade
+    ],
+    preRunInfo: () => {
+      console.log('Hypothesis: First-class exists provides equal detection with better ergonomics')
+      console.log(`Search space: [${LARGE_RANGE_MIN.toLocaleString()}, ${LARGE_RANGE_MAX.toLocaleString()}]\n`)
+      console.log('Scenarios:')
+      for (const s of SCENARIOS) {
+        console.log(`  - ${s.name}: density ${s.description}`)
+      }
+      console.log(`Sample sizes: ${sampleSizes.join(', ')}`)
+    }
+  })
+
+  await simpleRunner.run(simpleParams, (params, id) => {
+    return params.approach === 'first_class' 
+      ? runFirstClassExists(params, id) 
+      : runDoubleNegation(params, id)
+  })
 
   // Part 2: Composition complexity comparison
-  console.log('\nPart 2: Composition Complexity (exists-forall pattern)')
-
-  const compositionWriter = new CSVWriter(compositionPath)
-  compositionWriter.writeHeader([
-    'trial_id',
-    'seed',
-    'approach',
-    'witness_found',
-    'tests_run',
-    'elapsed_micros',
-    'a_value',
-    'lines_of_code'
-  ])
-
   const compositionTrials = getSampleSize(50, 15)
   const compositionSampleSize = 200
+  const compositionParams: CompositionParams[] = [
+    { approach: 'first_class', sampleSize: compositionSampleSize },
+    { approach: 'double_negation', sampleSize: compositionSampleSize }
+  ]
 
-  console.log(`Trials: ${compositionTrials}`)
-  console.log(`Sample size: ${compositionSampleSize}\n`)
+  const compositionRunner = new ExperimentRunner<CompositionParams, CompositionResult>({
+    name: 'Double-Negation Equivalence Study - Part 2: Composition Complexity',
+    outputPath: compositionPath,
+    csvHeader: [
+      'trial_id', 'seed', 'approach', 'witness_found', 'tests_run',
+      'elapsed_micros', 'a_value', 'lines_of_code'
+    ],
+    trialsPerConfig: compositionTrials,
+    resultToRow: (r: CompositionResult) => [
+      r.trialId, r.seed, r.approach, r.witnessFound, r.testsRun,
+      r.elapsedMicros, r.aValue ?? '', r.linesOfCode
+    ],
+    preRunInfo: () => {
+      console.log('Comparing exists-forall pattern complexity')
+      console.log(`Sample size: ${compositionSampleSize}`)
+    }
+  })
 
-  const compositionProgress = new ProgressReporter(compositionTrials * 2, 'Composition')
-
-  for (let i = 0; i < compositionTrials; i++) {
-    const seed = getSeed(i + 10000) // Different seed range
-
-    const firstClassResult = runFirstClassComposition(i, compositionSampleSize, seed)
-    compositionWriter.writeRow([
-      firstClassResult.trialId,
-      firstClassResult.seed,
-      firstClassResult.approach,
-      firstClassResult.witnessFound,
-      firstClassResult.testsRun,
-      firstClassResult.elapsedMicros,
-      firstClassResult.aValue ?? '',
-      firstClassResult.linesOfCode
-    ])
-    compositionProgress.update()
-
-    const doubleNegResult = runDoubleNegationComposition(i, compositionSampleSize, seed)
-    compositionWriter.writeRow([
-      doubleNegResult.trialId,
-      doubleNegResult.seed,
-      doubleNegResult.approach,
-      doubleNegResult.witnessFound,
-      doubleNegResult.testsRun,
-      doubleNegResult.elapsedMicros,
-      doubleNegResult.aValue ?? '',
-      doubleNegResult.linesOfCode
-    ])
-    compositionProgress.update()
-  }
-
-  compositionProgress.finish()
-  await compositionWriter.close()
-
-  console.log(`  Output: ${compositionPath}`)
-  console.log(`\n✓ Double-negation equivalence study complete`)
+  await compositionRunner.run(compositionParams, (params, id) => {
+    return params.approach === 'first_class'
+      ? runFirstClassComposition(params, id)
+      : runDoubleNegationComposition(params, id)
+  })
 }
 
 // Run if executed directly

@@ -13,7 +13,7 @@
  */
 
 import { integer } from '../../src/index.js'
-import { CSVWriter, ProgressReporter, getSeed, getSampleSize, HighResTimer, mulberry32 } from './runner.js'
+import { ExperimentRunner, getSeed, getSampleSize, HighResTimer, mulberry32, CSVWriter, ProgressReporter } from './runner.js'
 import path from 'path'
 
 interface ChainedDistributionResult {
@@ -24,13 +24,18 @@ interface ChainedDistributionResult {
   elapsedMicros: number
 }
 
+interface ChainedDistributionParams {
+  samplesPerTrial: number
+}
+
 /**
  * Single trial function - generates samples for the chained distribution
  */
 function runTrial(
-  trialId: number,
-  samplesPerTrial: number
+  params: ChainedDistributionParams,
+  trialId: number
 ): ChainedDistributionResult[] {
+  const { samplesPerTrial } = params
   const seed = getSeed(trialId)
   const timer = new HighResTimer()
 
@@ -52,33 +57,41 @@ function runTrial(
 }
 
 async function runChainedDistributionStudy(): Promise<void> {
-  console.log('=== Chained Distribution Study ===')
-  console.log('Hypothesis: flatMap creates predictable non-uniform distributions.\n')
-
-  const outputPath = path.join(process.cwd(), 'docs/evidence/raw/chained-distribution.csv')
-  const writer = new CSVWriter(outputPath)
-
-  writer.writeHeader([
-    'trial_id',
-    'seed',
-    'base_value',
-    'result_value',
-    'elapsed_micros'
-  ])
-
   const samplesPerTrial = getSampleSize(50000, 5000)
-  const trialsPerConfig = getSampleSize(10, 2)
-  const totalTrials = trialsPerConfig
+  
+  // Only one configuration needed: sample size
+  const parameters: ChainedDistributionParams[] = [{ samplesPerTrial }]
 
-  console.log(`Samples per trial: ${samplesPerTrial}`)
+  const runner = new ExperimentRunner<ChainedDistributionParams, ChainedDistributionResult[]>({
+    name: 'Chained Distribution Study',
+    outputPath: path.join(process.cwd(), 'docs/evidence/raw/chained-distribution.csv'),
+    csvHeader: [
+      'trial_id', 'seed', 'base_value', 'result_value', 'elapsed_micros'
+    ],
+    trialsPerConfig: getSampleSize(10, 2),
+    resultToRow: (_r: ChainedDistributionResult[]) => [], // Not used because we override writeRow loop logic
+    preRunInfo: () => {
+      console.log('Hypothesis: flatMap creates predictable non-uniform distributions.\n')
+      console.log(`Samples per trial: ${samplesPerTrial}`)
+    }
+  })
+
+  // Custom runner execution because this study produces multiple rows per trial
+  console.log(`\n=== ${runner.config.name} ===`)
+  if (runner.config.preRunInfo) runner.config.preRunInfo()
+  
+  const writer = new CSVWriter(runner.config.outputPath)
+  writer.writeHeader(runner.config.csvHeader)
+  
+  const trialsPerConfig = runner.config.trialsPerConfig
+  const totalTrials = trialsPerConfig
   console.log(`Trials: ${trialsPerConfig}`)
   console.log(`Total samples: ${samplesPerTrial * trialsPerConfig}\n`)
-
+  
   const progress = new ProgressReporter(totalTrials, 'ChainedDist')
-
+  
   for (let i = 0; i < trialsPerConfig; i++) {
-    const results = runTrial(i, samplesPerTrial)
-
+    const results = runTrial(parameters[0], i)
     for (const result of results) {
       writer.writeRow([
         result.trialId,
@@ -88,15 +101,14 @@ async function runChainedDistributionStudy(): Promise<void> {
         result.elapsedMicros
       ])
     }
-
     progress.update()
   }
-
+  
   progress.finish()
   await writer.close()
-
-  console.log(`\n✓ Chained Distribution study complete`)
-  console.log(`  Output: ${outputPath}`)
+  
+  console.log(`\n✓ ${runner.config.name} complete`)
+  console.log(`  Output: ${runner.config.outputPath}`)
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {

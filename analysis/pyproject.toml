@@ -1,7 +1,7 @@
 [project]
 name = "fluent-check-evidence"
 version = "0.1.0"
-description = "Evidence analysis and visualization for FluentCheck confidence-based termination"
+description = "Evidence analysis and visualization for FluentCheck algorithms"
 requires-python = ">=3.10"
 dependencies = [
     "matplotlib>=3.8.0",

@@ -13,7 +13,7 @@
  */
 
 import { calculateBayesianConfidence } from '../../src/index.js'
-import { CSVWriter, ProgressReporter, getSeed, getSampleSize, mulberry32 } from './runner.js'
+import { ExperimentRunner, getSeed, getSampleSize, mulberry32 } from './runner.js'
 import path from 'path'
 
 interface AccuracyResult {
@@ -27,11 +27,16 @@ interface AccuracyResult {
   truth: boolean // trueP > threshold
 }
 
-function runTrial(
-  trialId: number,
-  n: number,
+interface StreamingAccuracyParams {
+  n: number
   threshold: number
+}
+
+function runTrial(
+  params: StreamingAccuracyParams,
+  trialId: number
 ): AccuracyResult {
+  const { n, threshold } = params
   const seed = getSeed(trialId)
   const rng = mulberry32(seed)
   
@@ -65,61 +70,32 @@ function runTrial(
 }
 
 async function runStreamingAccuracyStudy(): Promise<void> {
-  console.log('=== Streaming Statistics Accuracy Study ===')
-  console.log('Hypothesis: Bayesian confidence is calibrated within 5% for n > 100.\n')
-
-  const outputPath = path.join(process.cwd(), 'docs/evidence/raw/streaming-accuracy.csv')
-  const writer = new CSVWriter(outputPath)
-
-  writer.writeHeader([
-    'trial_id',
-    'seed',
-    'n',
-    'true_p',
-    'threshold',
-    'successes',
-    'confidence',
-    'truth'
-  ])
-
-  // Study parameters
   const threshold = 0.90 // Use 0.90 to get more interesting mix of true/false near boundary
   const sampleSizes = [100, 500, 1000]
-  // We need MANY trials to get good histograms for calibration
-  const trialsPerConfig = getSampleSize(10000, 500) 
-  const totalTrials = sampleSizes.length * trialsPerConfig
+  
+  const parameters: StreamingAccuracyParams[] = sampleSizes.map(n => ({
+    n,
+    threshold
+  }))
 
-  console.log(`Threshold: ${threshold}`)
-  console.log(`Sample sizes: ${sampleSizes.join(', ')}`)
-  console.log(`Trials per configuration: ${trialsPerConfig}`)
-  console.log(`Total trials: ${totalTrials}\n`)
-
-  const progress = new ProgressReporter(totalTrials, 'StreamingAccuracy')
-
-  let trialId = 0
-  for (const n of sampleSizes) {
-    for (let i = 0; i < trialsPerConfig; i++) {
-      const result = runTrial(trialId, n, threshold)
-      writer.writeRow([
-        result.trialId,
-        result.seed,
-        result.n,
-        result.trueP,
-        result.threshold,
-        result.successes,
-        result.confidence,
-        result.truth
-      ])
-      progress.update()
-      trialId++
+  const runner = new ExperimentRunner<StreamingAccuracyParams, AccuracyResult>({
+    name: 'Streaming Statistics Accuracy Study',
+    outputPath: path.join(process.cwd(), 'docs/evidence/raw/streaming-accuracy.csv'),
+    csvHeader: [
+      'trial_id', 'seed', 'n', 'true_p', 'threshold', 'successes', 'confidence', 'truth'
+    ],
+    trialsPerConfig: getSampleSize(10000, 500),
+    resultToRow: (r: AccuracyResult) => [
+      r.trialId, r.seed, r.n, r.trueP, r.threshold, r.successes, r.confidence, r.truth
+    ],
+    preRunInfo: () => {
+      console.log('Hypothesis: Bayesian confidence is calibrated within 5% for n > 100.\n')
+      console.log(`Threshold: ${threshold}`)
+      console.log(`Sample sizes: ${sampleSizes.join(', ')}`)
     }
-  }
+  })
 
-  progress.finish()
-  await writer.close()
-
-  console.log(`\n✓ Streaming Accuracy study complete`)
-  console.log(`  Output: ${outputPath}`)
+  await runner.run(parameters, runTrial)
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {

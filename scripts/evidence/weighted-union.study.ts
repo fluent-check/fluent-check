@@ -14,7 +14,7 @@
  */
 
 import * as fc from '../../src/index.js'
-import { CSVWriter, ProgressReporter, getSeed, getSampleSize, mulberry32, HighResTimer } from './runner.js'
+import { ExperimentRunner, getSeed, getSampleSize, mulberry32, HighResTimer } from './runner.js'
 import path from 'path'
 
 interface WeightedUnionResult {
@@ -29,16 +29,21 @@ interface WeightedUnionResult {
   elapsedMicros: number
 }
 
+interface WeightedUnionParams {
+  name: string
+  arb0: fc.Arbitrary<any>
+  arb1: fc.Arbitrary<any>
+  samplesPerTrial: number
+}
+
 /**
  * Run a single trial sampling from a union and counting branch selection
  */
 function runTrial(
-  trialId: number,
-  unionType: string,
-  arb0: fc.Arbitrary<any>,
-  arb1: fc.Arbitrary<any>,
-  samplesPerTrial: number
+  params: WeightedUnionParams,
+  trialId: number
 ): WeightedUnionResult {
+  const { name, arb0, arb1, samplesPerTrial } = params
   const seed = getSeed(trialId)
   const timer = new HighResTimer()
   const generator = mulberry32(seed)
@@ -75,7 +80,7 @@ function runTrial(
   return {
     trialId,
     seed,
-    unionType,
+    unionType: name,
     branchSizes: JSON.stringify([size0, size1]),
     branch0Count,
     branch1Count,
@@ -89,104 +94,64 @@ function runTrial(
  * Run weighted union probability study
  */
 async function runWeightedUnionStudy(): Promise<void> {
-  console.log('=== Weighted Union Probability Study ===')
-  console.log('Hypothesis: ArbitraryComposite samples each branch proportionally to its size\n')
-
-  const outputPath = path.join(process.cwd(), 'docs/evidence/raw/weighted-union.csv')
-  const writer = new CSVWriter(outputPath)
-
-  writer.writeHeader([
-    'trial_id',
-    'seed',
-    'union_type',
-    'branch_sizes',
-    'branch0_count',
-    'branch1_count',
-    'samples_per_trial',
-    'expected_p0',
-    'elapsed_micros'
-  ])
-
-  // Study configuration - different union scenarios with known sizes
-  // NOTE: ArbitraryComposite requires homogeneous types (all Arbitrary<A>)
   const unionScenarios = [
     {
       name: 'exact_11_vs_2',
       arb0: fc.integer(0, 10),     // size = 11
       arb1: fc.integer(11, 12),    // size = 2 (disjoint range)
-      // Expected: 11/13 ≈ 0.846 for branch 0
     },
     {
       name: 'exact_100_vs_10',
       arb0: fc.integer(0, 99),      // size = 100
       arb1: fc.integer(100, 109),   // size = 10 (disjoint range)
-      // Expected: 100/110 ≈ 0.909 for branch 0
     },
     {
       name: 'exact_50_vs_50',
       arb0: fc.integer(0, 49),      // size = 50
       arb1: fc.integer(50, 99),     // size = 50 (disjoint range)
-      // Expected: 50/100 = 0.5 for branch 0
     },
     {
       name: 'exact_1_vs_99',
       arb0: fc.constant(0),         // size = 1
       arb1: fc.integer(1, 99),      // size = 99 (disjoint range)
-      // Expected: 1/100 = 0.01 for branch 0
     }
   ]
 
   const samplesPerTrial = 10000  // Enough for stable frequency estimates
-  const trialsPerConfig = getSampleSize(100, 20)
-  const totalTrials = unionScenarios.length * trialsPerConfig
+  
+  const parameters: WeightedUnionParams[] = unionScenarios.map(s => ({
+    name: s.name,
+    arb0: s.arb0,
+    arb1: s.arb1,
+    samplesPerTrial
+  }))
 
-  // Print study parameters
-  console.log(`Samples per trial: ${samplesPerTrial}`)
-  console.log('Union scenarios (homogeneous integer types):')
-  for (const scenario of unionScenarios) {
-    const size0 = scenario.arb0.size().value
-    const size1 = scenario.arb1.size().value
-    const expectedP0 = size0 / (size0 + size1)
-    console.log(`  - ${scenario.name}: sizes [${size0}, ${size1}], expected P(branch0) = ${expectedP0.toFixed(3)}`)
-  }
-  console.log(`Trials per configuration: ${trialsPerConfig}`)
-  console.log(`Total trials: ${totalTrials}\n`)
-
-  const progress = new ProgressReporter(totalTrials, 'WeightedUnion')
-
-  let trialId = 0
-  for (const scenario of unionScenarios) {
-    for (let i = 0; i < trialsPerConfig; i++) {
-      const result = runTrial(
-        trialId,
-        scenario.name,
-        scenario.arb0,
-        scenario.arb1,
-        samplesPerTrial
-      )
-
-      writer.writeRow([
-        result.trialId,
-        result.seed,
-        result.unionType,
-        result.branchSizes,
-        result.branch0Count,
-        result.branch1Count,
-        result.samplesPerTrial,
-        result.expectedP0.toFixed(6),
-        result.elapsedMicros
-      ])
-
-      progress.update()
-      trialId++
+  const runner = new ExperimentRunner<WeightedUnionParams, WeightedUnionResult>({
+    name: 'Weighted Union Probability Study',
+    outputPath: path.join(process.cwd(), 'docs/evidence/raw/weighted-union.csv'),
+    csvHeader: [
+      'trial_id', 'seed', 'union_type', 'branch_sizes', 'branch0_count',
+      'branch1_count', 'samples_per_trial', 'expected_p0', 'elapsed_micros'
+    ],
+    trialsPerConfig: getSampleSize(100, 20),
+    resultToRow: (r: WeightedUnionResult) => [
+      r.trialId, r.seed, r.unionType, r.branchSizes, r.branch0Count,
+      r.branch1Count, r.samplesPerTrial, r.expectedP0.toFixed(6), r.elapsedMicros
+    ],
+    preRunInfo: () => {
+      console.log('Hypothesis: ArbitraryComposite samples each branch proportionally to its size\n')
+      console.log(`Samples per trial: ${samplesPerTrial}`)
+      console.log('Union scenarios (homogeneous integer types):')
+      for (const scenario of unionScenarios) {
+        const size0 = scenario.arb0.size().value
+        const size1 = scenario.arb1.size().value
+        const expectedP0 = size0 / (size0 + size1)
+        console.log(`  - ${scenario.name}: sizes [${size0}, ${size1}], expected P(branch0) = ${expectedP0.toFixed(3)}`)
+      }
     }
-  }
+  })
 
-  progress.finish()
-  await writer.close()
-
-  console.log(`\n✓ Weighted union study complete`)
-  console.log(`  Output: ${outputPath}`)
+  await runner.run(parameters, runTrial)
 }
 
 // CLI entrypoint

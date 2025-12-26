@@ -176,3 +176,71 @@ export function isQuickMode(): boolean {
 export function getSampleSize(normal: number, quick: number): number {
   return isQuickMode() ? quick : normal
 }
+
+/**
+ * Configuration for an experiment
+ */
+export interface ExperimentConfig<TParams, TResult> {
+  /** Name of the experiment (for display) */
+  name: string
+  /** Path to output CSV file */
+  outputPath: string
+  /** CSV header columns */
+  csvHeader: string[]
+  /** Number of trials to run per parameter configuration */
+  trialsPerConfig: number
+  /** Function to map a result object to a CSV row (array of values) */
+  resultToRow: (result: TResult) => (string | number | boolean | undefined)[]
+  /** Optional function to print experiment info before starting */
+  preRunInfo?: () => void
+}
+
+/**
+ * Generic runner for experiments
+ * Handles boilerplate: CSV writing, progress reporting, looping
+ */
+export class ExperimentRunner<TParams, TResult> {
+  constructor(public readonly config: ExperimentConfig<TParams, TResult>) {}
+
+  /**
+   * Run the experiment with the given parameter sets
+   * @param parameterSets List of parameter configurations to test
+   * @param runTrial Function to run a single trial
+   */
+  async run(
+    parameterSets: TParams[], 
+    runTrial: (params: TParams, trialId: number) => TResult
+  ): Promise<void> {
+    console.log(`\n=== ${this.config.name} ===`)
+    
+    if (this.config.preRunInfo) {
+      this.config.preRunInfo()
+    }
+
+    const writer = new CSVWriter(this.config.outputPath)
+    writer.writeHeader(this.config.csvHeader)
+
+    const totalTrials = parameterSets.length * this.config.trialsPerConfig
+    console.log(`Configurations: ${parameterSets.length}`)
+    console.log(`Trials per configuration: ${this.config.trialsPerConfig}`)
+    console.log(`Total trials: ${totalTrials}\n`)
+
+    const progress = new ProgressReporter(totalTrials, this.config.name)
+    let trialId = 0
+
+    for (const params of parameterSets) {
+      for (let i = 0; i < this.config.trialsPerConfig; i++) {
+        const result = runTrial(params, trialId)
+        writer.writeRow(this.config.resultToRow(result))
+        progress.update()
+        trialId++
+      }
+    }
+
+    progress.finish()
+    await writer.close()
+
+    console.log(`\n✓ ${this.config.name} complete`)
+    console.log(`  Output: ${this.config.outputPath}`)
+  }
+}

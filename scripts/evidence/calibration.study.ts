@@ -17,7 +17,7 @@
  */
 
 import * as fc from '../../src/index.js'
-import { CSVWriter, ProgressReporter, getSeed, getSampleSize, mulberry32, HighResTimer } from './runner.js'
+import { ExperimentRunner, getSeed, getSampleSize, mulberry32, HighResTimer } from './runner.js'
 import path from 'path'
 
 interface CalibrationResult {
@@ -36,15 +36,20 @@ interface CalibrationResult {
   outcome: 'TP' | 'FN' | 'TN' | 'FP'
 }
 
+interface CalibrationParams {
+  truePassRate: number
+  threshold: number
+  targetConfidence: number
+}
+
 /**
  * Run a single calibration trial
  */
 function runTrial(
-  trialId: number,
-  truePassRate: number,
-  threshold: number,
-  targetConfidence: number
+  params: CalibrationParams,
+  trialId: number
 ): CalibrationResult {
+  const { truePassRate, threshold, targetConfidence } = params
   const seed = getSeed(trialId)
   const timer = new HighResTimer()
 
@@ -108,28 +113,6 @@ function runTrial(
  * Run calibration study
  */
 async function runCalibrationStudy(): Promise<void> {
-  console.log('=== Calibration Study ===')
-  console.log('Tests sensitivity/specificity of confidence-based termination\n')
-
-  const outputPath = path.join(process.cwd(), 'docs/evidence/raw/calibration.csv')
-  const writer = new CSVWriter(outputPath)
-
-  // Write CSV header
-  writer.writeHeader([
-    'trial_id',
-    'seed',
-    'tests_run',
-    'bug_found',
-    'claimed_confidence',
-    'true_pass_rate',
-    'threshold',
-    'target_confidence',
-    'threshold_actually_met',
-    'termination_reason',
-    'elapsed_micros',
-    'outcome'
-  ])
-
   // Study parameters
   // Test both cases: threshold met and threshold not met
   // Use threshold = 0.95 as the decision boundary
@@ -152,60 +135,47 @@ async function runCalibrationStudy(): Promise<void> {
   ]
 
   const confidenceLevels = [0.90, 0.95, 0.99]
-  const trialsPerConfig = getSampleSize(200, 50)
-
-  const totalTrials = scenarios.length * confidenceLevels.length * trialsPerConfig
   
-  console.log(`Decision threshold: ${threshold} (asking "is pass_rate > ${threshold*100}%?")\n`)
-  console.log('Scenarios:')
-  for (const s of scenarios) {
-    const met = s.truePassRate > threshold ? '✓ MET' : '✗ NOT MET'
-    const margin = ((s.truePassRate - threshold) * 100).toFixed(1)
-    console.log(`  - ${s.label}: pass_rate=${(s.truePassRate * 100).toFixed(1)}% [${met}, margin=${margin}%]`)
-  }
-  console.log(`\nTarget confidence levels: ${confidenceLevels.join(', ')}`)
-  console.log(`Trials per configuration: ${trialsPerConfig}`)
-  console.log(`Total trials: ${totalTrials}\n`)
-
-  const progress = new ProgressReporter(totalTrials, 'Calibration')
-
-  let trialId = 0
+  // Flatten parameters
+  const parameters: CalibrationParams[] = []
   for (const scenario of scenarios) {
     for (const targetConfidence of confidenceLevels) {
-      for (let i = 0; i < trialsPerConfig; i++) {
-        const result = runTrial(
-          trialId,
-          scenario.truePassRate,
-          threshold,
-          targetConfidence
-        )
-        
-        writer.writeRow([
-          result.trialId,
-          result.seed,
-          result.testsRun,
-          result.bugFound,
-          result.claimedConfidence.toFixed(6),
-          result.truePassRate,
-          result.threshold,
-          result.targetConfidence,
-          result.thresholdActuallyMet,
-          result.terminationReason,
-          result.elapsedMicros,
-          result.outcome
-        ])
-
-        progress.update()
-        trialId++
-      }
+      parameters.push({
+        truePassRate: scenario.truePassRate,
+        threshold,
+        targetConfidence
+      })
     }
   }
 
-  progress.finish()
-  await writer.close()
+  const runner = new ExperimentRunner<CalibrationParams, CalibrationResult>({
+    name: 'Calibration Study',
+    outputPath: path.join(process.cwd(), 'docs/evidence/raw/calibration.csv'),
+    csvHeader: [
+      'trial_id', 'seed', 'tests_run', 'bug_found', 'claimed_confidence',
+      'true_pass_rate', 'threshold', 'target_confidence',
+      'threshold_actually_met', 'termination_reason', 'elapsed_micros', 'outcome'
+    ],
+    trialsPerConfig: getSampleSize(200, 50),
+    resultToRow: (r: CalibrationResult) => [
+      r.trialId, r.seed, r.testsRun, r.bugFound, r.claimedConfidence.toFixed(6),
+      r.truePassRate, r.threshold, r.targetConfidence,
+      r.thresholdActuallyMet, r.terminationReason, r.elapsedMicros, r.outcome
+    ],
+    preRunInfo: () => {
+      console.log('Tests sensitivity/specificity of confidence-based termination\n')
+      console.log(`Decision threshold: ${threshold} (asking "is pass_rate > ${threshold*100}%?")\n`)
+      console.log('Scenarios:')
+      for (const s of scenarios) {
+        const met = s.truePassRate > threshold ? '✓ MET' : '✗ NOT MET'
+        const margin = ((s.truePassRate - threshold) * 100).toFixed(1)
+        console.log(`  - ${s.label}: pass_rate=${(s.truePassRate * 100).toFixed(1)}% [${met}, margin=${margin}%]`)
+      }
+      console.log(`\nTarget confidence levels: ${confidenceLevels.join(', ')}`)
+    }
+  })
 
-  console.log(`\n✓ Calibration study complete`)
-  console.log(`  Output: ${outputPath}`)
+  await runner.run(parameters, runTrial)
 }
 
 // Run if executed directly

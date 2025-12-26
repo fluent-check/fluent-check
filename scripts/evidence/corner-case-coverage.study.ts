@@ -16,7 +16,7 @@
  */
 
 import * as fc from '../../src/index.js'
-import { CSVWriter, ProgressReporter, getSeed, getSampleSize, mulberry32, HighResTimer } from './runner.js'
+import { ExperimentRunner, getSeed, getSampleSize, mulberry32, HighResTimer } from './runner.js'
 import path from 'path'
 
 interface CornerCaseCoverageResult {
@@ -31,15 +31,20 @@ interface CornerCaseCoverageResult {
   elapsedMicros: number
 }
 
+interface CornerCaseCoverageParams {
+  bugType: 'zero_boundary' | 'empty_boundary' | 'off_by_one' | 'interior'
+  samplingMode: 'corner_only' | 'random_only' | 'hybrid'
+  maxTests: number
+}
+
 /**
  * Run a single trial testing corner case coverage
  */
 function runTrial(
-  trialId: number,
-  bugType: 'zero_boundary' | 'empty_boundary' | 'off_by_one' | 'interior',
-  samplingMode: 'corner_only' | 'random_only' | 'hybrid',
-  maxTests: number
+  params: CornerCaseCoverageParams,
+  trialId: number
 ): CornerCaseCoverageResult {
+  const { bugType, samplingMode, maxTests } = params
   const seed = getSeed(trialId)
   const timer = new HighResTimer()
   const generator = mulberry32(seed)
@@ -131,25 +136,6 @@ function runTrial(
  * Run corner case coverage study
  */
 async function runCornerCaseCoverageStudy(): Promise<void> {
-  console.log('=== Corner Case Coverage Study ===')
-  console.log('Hypothesis: >50% of boundary bugs are found via corner cases alone\n')
-
-  const outputPath = path.join(process.cwd(), 'docs/evidence/raw/corner-case-coverage.csv')
-  const writer = new CSVWriter(outputPath)
-
-  writer.writeHeader([
-    'trial_id',
-    'seed',
-    'bug_type',
-    'sampling_mode',
-    'bug_detected',
-    'detected_by_corner_case',
-    'tests_run',
-    'corner_cases_used',
-    'elapsed_micros'
-  ])
-
-  // Study configuration
   const bugTypes: Array<'zero_boundary' | 'empty_boundary' | 'off_by_one' | 'interior'> = [
     'zero_boundary',
     'empty_boundary',
@@ -162,54 +148,46 @@ async function runCornerCaseCoverageStudy(): Promise<void> {
     'hybrid'
   ]
   const maxTests = 100
-  const trialsPerConfig = getSampleSize(500, 100)
-  const totalTrials = bugTypes.length * samplingModes.length * trialsPerConfig
 
-  // Print study parameters
-  console.log(`Max tests per trial: ${maxTests}`)
-  console.log('Bug types:')
-  console.log('  - zero_boundary: Fails at x=0 (boundary)')
-  console.log('  - empty_boundary: Fails at x=0 and x=100 (both edges)')
-  console.log('  - off_by_one: Fails at x=1 and x=99 (near edges)')
-  console.log('  - interior: Fails at x=50 (not a boundary)')
-  console.log('Sampling modes:')
-  console.log('  - corner_only: Test only corner cases')
-  console.log('  - random_only: Test only random samples')
-  console.log('  - hybrid: Corner cases first, then random')
-  console.log(`Trials per configuration: ${trialsPerConfig}`)
-  console.log(`Total trials: ${totalTrials}\n`)
-
-  const progress = new ProgressReporter(totalTrials, 'CornerCoverage')
-
-  let trialId = 0
+  const parameters: CornerCaseCoverageParams[] = []
   for (const bugType of bugTypes) {
     for (const samplingMode of samplingModes) {
-      for (let i = 0; i < trialsPerConfig; i++) {
-        const result = runTrial(trialId, bugType, samplingMode, maxTests)
-
-        writer.writeRow([
-          result.trialId,
-          result.seed,
-          result.bugType,
-          result.samplingMode,
-          result.bugDetected,
-          result.detectedByCornerCase,
-          result.testsRun,
-          result.cornerCasesUsed,
-          result.elapsedMicros
-        ])
-
-        progress.update()
-        trialId++
-      }
+      parameters.push({
+        bugType,
+        samplingMode,
+        maxTests
+      })
     }
   }
 
-  progress.finish()
-  await writer.close()
+  const runner = new ExperimentRunner<CornerCaseCoverageParams, CornerCaseCoverageResult>({
+    name: 'Corner Case Coverage Study',
+    outputPath: path.join(process.cwd(), 'docs/evidence/raw/corner-case-coverage.csv'),
+    csvHeader: [
+      'trial_id', 'seed', 'bug_type', 'sampling_mode', 'bug_detected',
+      'detected_by_corner_case', 'tests_run', 'corner_cases_used', 'elapsed_micros'
+    ],
+    trialsPerConfig: getSampleSize(500, 100),
+    resultToRow: (r: CornerCaseCoverageResult) => [
+      r.trialId, r.seed, r.bugType, r.samplingMode, r.bugDetected,
+      r.detectedByCornerCase, r.testsRun, r.cornerCasesUsed, r.elapsedMicros
+    ],
+    preRunInfo: () => {
+      console.log('Hypothesis: >50% of boundary bugs are found via corner cases alone\n')
+      console.log(`Max tests per trial: ${maxTests}`)
+      console.log('Bug types:')
+      console.log('  - zero_boundary: Fails at x=0 (boundary)')
+      console.log('  - empty_boundary: Fails at x=0 and x=100 (both edges)')
+      console.log('  - off_by_one: Fails at x=1 and x=99 (near edges)')
+      console.log('  - interior: Fails at x=50 (not a boundary)')
+      console.log('Sampling modes:')
+      console.log('  - corner_only: Test only corner cases')
+      console.log('  - random_only: Test only random samples')
+      console.log('  - hybrid: Corner cases first, then random')
+    }
+  })
 
-  console.log(`\n✓ Corner case coverage study complete`)
-  console.log(`  Output: ${outputPath}`)
+  await runner.run(parameters, runTrial)
 }
 
 // CLI entrypoint

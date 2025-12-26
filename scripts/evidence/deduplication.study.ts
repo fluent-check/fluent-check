@@ -15,7 +15,7 @@
  */
 
 import * as fc from '../../src/index.js'
-import { CSVWriter, ProgressReporter, getSeed, getSampleSize, mulberry32, HighResTimer } from './runner.js'
+import { ExperimentRunner, getSeed, getSampleSize, mulberry32, HighResTimer } from './runner.js'
 import path from 'path'
 
 interface DeduplicationResult {
@@ -28,6 +28,12 @@ interface DeduplicationResult {
   uniqueCount: number
   terminationGuardTriggered: boolean
   elapsedMicros: number
+}
+
+interface DeduplicationParams {
+  arbitraryType: 'exact' | 'non_injective' | 'filtered'
+  samplerType: 'deduping' | 'random'
+  requestedCount: number
 }
 
 /**
@@ -97,11 +103,10 @@ function sampleWithoutDedup<T>(
  * Run a single trial measuring deduplication efficiency
  */
 function runTrial(
-  trialId: number,
-  arbitraryType: 'exact' | 'non_injective' | 'filtered',
-  samplerType: 'deduping' | 'random',
-  requestedCount: number
+  params: DeduplicationParams,
+  trialId: number
 ): DeduplicationResult {
+  const { arbitraryType, samplerType, requestedCount } = params
   const seed = getSeed(trialId)
   const rng = mulberry32(seed)
   const timer = new HighResTimer()
@@ -159,25 +164,6 @@ function runTrial(
  * Run deduplication efficiency study
  */
 async function runDeduplicationStudy(): Promise<void> {
-  console.log('=== Deduplication Efficiency Study ===')
-  console.log('Hypothesis: Deduplication improves unique value coverage with measurable overhead\n')
-
-  const outputPath = path.join(process.cwd(), 'docs/evidence/raw/deduplication.csv')
-  const writer = new CSVWriter(outputPath)
-
-  writer.writeHeader([
-    'trial_id',
-    'seed',
-    'arbitrary_type',
-    'sampler_type',
-    'requested_count',
-    'actual_count',
-    'unique_count',
-    'termination_guard_triggered',
-    'elapsed_micros'
-  ])
-
-  // Study configuration
   const arbitraryTypes: Array<'exact' | 'non_injective' | 'filtered'> = [
     'exact',
     'non_injective',
@@ -185,52 +171,44 @@ async function runDeduplicationStudy(): Promise<void> {
   ]
   const samplerTypes: Array<'deduping' | 'random'> = ['deduping', 'random']
   const requestedCounts = [10, 50, 100, 500]
-  const trialsPerConfig = getSampleSize(200, 50)
-  const totalTrials = arbitraryTypes.length * samplerTypes.length * requestedCounts.length * trialsPerConfig
 
-  // Print study parameters
-  console.log(`Arbitrary types:`)
-  console.log(`  - exact: integer(0, 99) - 100 distinct values`)
-  console.log(`  - non_injective: integer(0, 99).map(x => x % 10) - 10 distinct after map`)
-  console.log(`  - filtered: integer(0, 99).filter(x => x % 10 === 0) - 10 distinct after filter`)
-  console.log(`Sampler types: ${samplerTypes.join(', ')}`)
-  console.log(`Requested counts: ${requestedCounts.join(', ')}`)
-  console.log(`Trials per configuration: ${trialsPerConfig}`)
-  console.log(`Total trials: ${totalTrials}\n`)
-
-  const progress = new ProgressReporter(totalTrials, 'Deduplication')
-
-  let trialId = 0
+  const parameters: DeduplicationParams[] = []
   for (const arbitraryType of arbitraryTypes) {
     for (const samplerType of samplerTypes) {
       for (const requestedCount of requestedCounts) {
-        for (let i = 0; i < trialsPerConfig; i++) {
-          const result = runTrial(trialId, arbitraryType, samplerType, requestedCount)
-
-          writer.writeRow([
-            result.trialId,
-            result.seed,
-            result.arbitraryType,
-            result.samplerType,
-            result.requestedCount,
-            result.actualCount,
-            result.uniqueCount,
-            result.terminationGuardTriggered,
-            result.elapsedMicros
-          ])
-
-          progress.update()
-          trialId++
-        }
+        parameters.push({
+          arbitraryType,
+          samplerType,
+          requestedCount
+        })
       }
     }
   }
 
-  progress.finish()
-  await writer.close()
+  const runner = new ExperimentRunner<DeduplicationParams, DeduplicationResult>({
+    name: 'Deduplication Efficiency Study',
+    outputPath: path.join(process.cwd(), 'docs/evidence/raw/deduplication.csv'),
+    csvHeader: [
+      'trial_id', 'seed', 'arbitrary_type', 'sampler_type', 'requested_count',
+      'actual_count', 'unique_count', 'termination_guard_triggered', 'elapsed_micros'
+    ],
+    trialsPerConfig: getSampleSize(200, 50),
+    resultToRow: (r: DeduplicationResult) => [
+      r.trialId, r.seed, r.arbitraryType, r.samplerType, r.requestedCount,
+      r.actualCount, r.uniqueCount, r.terminationGuardTriggered, r.elapsedMicros
+    ],
+    preRunInfo: () => {
+      console.log('Hypothesis: Deduplication improves unique value coverage with measurable overhead\n')
+      console.log(`Arbitrary types:`)
+      console.log(`  - exact: integer(0, 99) - 100 distinct values`)
+      console.log(`  - non_injective: integer(0, 99).map(x => x % 10) - 10 distinct after map`)
+      console.log(`  - filtered: integer(0, 99).filter(x => x % 10 === 0) - 10 distinct after filter`)
+      console.log(`Sampler types: ${samplerTypes.join(', ')}`)
+      console.log(`Requested counts: ${requestedCounts.join(', ')}`)
+    }
+  })
 
-  console.log(`\n✓ Deduplication study complete`)
-  console.log(`  Output: ${outputPath}`)
+  await runner.run(parameters, runTrial)
 }
 
 // CLI entrypoint
