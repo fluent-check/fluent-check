@@ -17,212 +17,211 @@ Generates:
 import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
-from pathlib import Path
-from util import wilson_score_interval, format_ci, save_figure, cohens_h, effect_size_interpretation
 
-# Paths
-PROJECT_ROOT = Path(__file__).parent.parent
-CSV_PATH = PROJECT_ROOT / "docs/evidence/raw/corner-case-coverage.csv"
-OUTPUT_DIR = PROJECT_ROOT / "docs/evidence/figures"
-OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+from base import AnalysisBase
+from stats import wilson_score_interval, format_ci
+from viz import save_figure
 
-def main():
-    print("=== Corner Case Coverage Analysis ===\n")
 
-    # Load data
-    print(f"Loading: {CSV_PATH}")
-    df = pd.read_csv(CSV_PATH)
-    print(f"  Loaded {len(df)} trials\n")
+class CornerCaseCoverageAnalysis(AnalysisBase):
+    """Analysis of corner case coverage effectiveness."""
 
-    # Compute detection rates by bug type × sampling mode
-    print("Detection Rates by Bug Type × Sampling Mode:")
-    print("=" * 80)
+    @property
+    def name(self) -> str:
+        return "Corner Case Coverage Analysis"
 
-    results = []
-    for bug_type in ['zero_boundary', 'empty_boundary', 'off_by_one', 'interior']:
-        print(f"\n{bug_type.replace('_', ' ').title()}:")
+    @property
+    def csv_filename(self) -> str:
+        return "corner-case-coverage.csv"
 
-        mode_results = {}
-        for mode in ['corner_only', 'random_only', 'hybrid']:
-            mode_data = df[(df['bug_type'] == bug_type) & (df['sampling_mode'] == mode)]
+    def analyze(self) -> None:
+        """Perform the corner case coverage analysis."""
+        self._compute_detection_rates()
+        self._compute_attribution()
+        self._create_visualization()
+        self._print_conclusion()
 
-            detected = mode_data['bug_detected'].sum()
-            total = len(mode_data)
-            rate = detected / total if total > 0 else 0
+    def _compute_detection_rates(self) -> None:
+        """Compute detection rates by bug type and sampling mode."""
+        self.print_section("DETECTION RATES BY BUG TYPE x SAMPLING MODE")
 
-            # Handle edge case where total is 0
-            if total > 0:
-                ci = wilson_score_interval(detected, total)
-            else:
-                ci = (0.0, 0.0)
-
-            mode_results[mode] = {
-                'rate': rate,
-                'ci_lower': ci[0],
-                'ci_upper': ci[1],
-                'detected': detected,
-                'total': total
-            }
-
-            if total > 0:
-                print(f"  {mode:15s}: {rate*100:5.1f}% {format_ci(*ci)} ({detected}/{total})")
-            else:
-                print(f"  {mode:15s}: N/A (no data)")
-
-        results.append({
-            'bug_type': bug_type,
-            **mode_results
-        })
-
-    print("=" * 80)
-
-    # Attribution analysis: In hybrid mode, how many detections came from corner cases?
-    print("\n\nAttribution in Hybrid Mode (among detected bugs):")
-    print("=" * 80)
-
-    attribution_results = []
-    hybrid_detected = df[(df['sampling_mode'] == 'hybrid') & (df['bug_detected'] == True)]
-
-    for bug_type in ['zero_boundary', 'empty_boundary', 'off_by_one', 'interior']:
-        bug_hybrid = hybrid_detected[hybrid_detected['bug_type'] == bug_type]
-
-        # Count attributions
-        corner_detections = (bug_hybrid['detected_by_corner_case'] == True).sum()
-        random_detections = (bug_hybrid['detected_by_corner_case'] == False).sum()
-        total_detections = len(bug_hybrid)
-
-        if total_detections > 0:
-            corner_pct = corner_detections / total_detections
-            ci = wilson_score_interval(corner_detections, total_detections)
-
+        self.results = []
+        for bug_type in ['zero_boundary', 'empty_boundary', 'off_by_one', 'interior']:
             print(f"\n{bug_type.replace('_', ' ').title()}:")
-            print(f"  Corner case detections: {corner_detections}/{total_detections} ({corner_pct*100:.1f}%) {format_ci(*ci)}")
-            print(f"  Random detections:      {random_detections}/{total_detections} ({(1-corner_pct)*100:.1f}%)")
 
-            attribution_results.append({
+            mode_results = {}
+            for mode in ['corner_only', 'random_only', 'hybrid']:
+                mode_data = self.df[(self.df['bug_type'] == bug_type) & (self.df['sampling_mode'] == mode)]
+
+                detected = mode_data['bug_detected'].sum()
+                total = len(mode_data)
+                rate = detected / total if total > 0 else 0
+
+                if total > 0:
+                    ci = wilson_score_interval(detected, total)
+                else:
+                    ci = (0.0, 0.0)
+
+                mode_results[mode] = {
+                    'rate': rate,
+                    'ci_lower': ci[0],
+                    'ci_upper': ci[1],
+                    'detected': detected,
+                    'total': total
+                }
+
+                if total > 0:
+                    print(f"  {mode:15s}: {rate*100:5.1f}% {format_ci(*ci)} ({detected}/{total})")
+                else:
+                    print(f"  {mode:15s}: N/A (no data)")
+
+            self.results.append({
                 'bug_type': bug_type,
-                'corner_pct': corner_pct,
-                'corner_count': corner_detections,
-                'random_count': random_detections,
-                'total': total_detections
+                **mode_results
             })
 
-    print("=" * 80)
+    def _compute_attribution(self) -> None:
+        """Compute attribution in hybrid mode."""
+        self.print_section("ATTRIBUTION IN HYBRID MODE (AMONG DETECTED BUGS)")
 
-    # Create visualizations
-    fig, axes = plt.subplots(1, 2, figsize=(14, 6))
+        self.attribution_results = []
+        hybrid_detected = self.df[(self.df['sampling_mode'] == 'hybrid') & (self.df['bug_detected'] == True)]
 
-    # Left panel: Detection rates grouped bar chart
-    ax1 = axes[0]
+        for bug_type in ['zero_boundary', 'empty_boundary', 'off_by_one', 'interior']:
+            bug_hybrid = hybrid_detected[hybrid_detected['bug_type'] == bug_type]
 
-    bug_labels = ['Zero\nBoundary\n(x=0)', 'Empty\nBoundary\n(x=0,100)', 'Off By\nOne\n(x=1,99)', 'Interior\n(x=50)']
-    x = np.arange(len(bug_labels))
-    width = 0.25
+            corner_detections = (bug_hybrid['detected_by_corner_case'] == True).sum()
+            random_detections = (bug_hybrid['detected_by_corner_case'] == False).sum()
+            total_detections = len(bug_hybrid)
 
-    corner_rates = [r['corner_only']['rate'] for r in results]
-    random_rates = [r['random_only']['rate'] for r in results]
-    hybrid_rates = [r['hybrid']['rate'] for r in results]
+            if total_detections > 0:
+                corner_pct = corner_detections / total_detections
+                ci = wilson_score_interval(corner_detections, total_detections)
 
-    # Calculate error bars, ensuring non-negative values
-    corner_errors = []
-    random_errors = []
-    hybrid_errors = []
+                print(f"\n{bug_type.replace('_', ' ').title()}:")
+                print(f"  Corner case detections: {corner_detections}/{total_detections} ({corner_pct*100:.1f}%) {format_ci(*ci)}")
+                print(f"  Random detections:      {random_detections}/{total_detections} ({(1-corner_pct)*100:.1f}%)")
 
-    for r in results:
-        # Corner errors
-        lower_err = max(0, r['corner_only']['rate'] - r['corner_only']['ci_lower'])
-        upper_err = max(0, r['corner_only']['ci_upper'] - r['corner_only']['rate'])
-        corner_errors.append((lower_err, upper_err))
+                self.attribution_results.append({
+                    'bug_type': bug_type,
+                    'corner_pct': corner_pct,
+                    'corner_count': corner_detections,
+                    'random_count': random_detections,
+                    'total': total_detections
+                })
 
-        # Random errors
-        lower_err = max(0, r['random_only']['rate'] - r['random_only']['ci_lower'])
-        upper_err = max(0, r['random_only']['ci_upper'] - r['random_only']['rate'])
-        random_errors.append((lower_err, upper_err))
+    def _create_visualization(self) -> None:
+        """Create corner case coverage visualization."""
+        fig, axes = plt.subplots(1, 2, figsize=(14, 6))
 
-        # Hybrid errors
-        lower_err = max(0, r['hybrid']['rate'] - r['hybrid']['ci_lower'])
-        upper_err = max(0, r['hybrid']['ci_upper'] - r['hybrid']['rate'])
-        hybrid_errors.append((lower_err, upper_err))
+        self._create_detection_chart(axes[0])
+        self._create_attribution_chart(axes[1])
 
-    corner_errors_array = np.array(corner_errors).T
-    random_errors_array = np.array(random_errors).T
-    hybrid_errors_array = np.array(hybrid_errors).T
+        save_figure(fig, self.get_output_path("corner-case-coverage.png"))
 
-    ax1.bar(x - width, corner_rates, width, label='Corner Only',
-            yerr=corner_errors_array, capsize=3, color='#e74c3c', alpha=0.8)
-    ax1.bar(x, random_rates, width, label='Random Only',
-            yerr=random_errors_array, capsize=3, color='#3498db', alpha=0.8)
-    ax1.bar(x + width, hybrid_rates, width, label='Hybrid',
-            yerr=hybrid_errors_array, capsize=3, color='#2ecc71', alpha=0.8)
+    def _create_detection_chart(self, ax) -> None:
+        """Create detection rates chart."""
+        bug_labels = ['Zero\nBoundary\n(x=0)', 'Empty\nBoundary\n(x=0,100)', 'Off By\nOne\n(x=1,99)', 'Interior\n(x=50)']
+        x = np.arange(len(bug_labels))
+        width = 0.25
 
-    ax1.set_xlabel('Bug Type')
-    ax1.set_ylabel('Detection Rate')
-    ax1.set_title('Detection Rate by Bug Type and Sampling Mode')
-    ax1.set_xticks(x)
-    ax1.set_xticklabels(bug_labels, fontsize=9)
-    ax1.set_ylim(0, 1.05)
-    ax1.legend()
-    ax1.grid(True, axis='y', alpha=0.3)
+        corner_rates = [r['corner_only']['rate'] for r in self.results]
+        random_rates = [r['random_only']['rate'] for r in self.results]
+        hybrid_rates = [r['hybrid']['rate'] for r in self.results]
 
-    # Right panel: Attribution pie charts or stacked bar
-    ax2 = axes[1]
+        corner_errors = []
+        random_errors = []
+        hybrid_errors = []
 
-    # Stacked bar chart showing corner vs random attribution in hybrid mode
-    if attribution_results:
-        labels = [r['bug_type'].replace('_', '\n').title() for r in attribution_results]
-        corner_pcts = [r['corner_pct'] * 100 for r in attribution_results]
-        random_pcts = [(1 - r['corner_pct']) * 100 for r in attribution_results]
+        for r in self.results:
+            lower_err = max(0, r['corner_only']['rate'] - r['corner_only']['ci_lower'])
+            upper_err = max(0, r['corner_only']['ci_upper'] - r['corner_only']['rate'])
+            corner_errors.append((lower_err, upper_err))
 
-        x_attr = np.arange(len(labels))
-        ax2.bar(x_attr, corner_pcts, label='Corner Case', color='#e74c3c', alpha=0.8)
-        ax2.bar(x_attr, random_pcts, bottom=corner_pcts, label='Random Sample', color='#3498db', alpha=0.8)
+            lower_err = max(0, r['random_only']['rate'] - r['random_only']['ci_lower'])
+            upper_err = max(0, r['random_only']['ci_upper'] - r['random_only']['rate'])
+            random_errors.append((lower_err, upper_err))
 
-        ax2.set_xlabel('Bug Type')
-        ax2.set_ylabel('Percentage of Detections')
-        ax2.set_title('Attribution in Hybrid Mode (Detected Bugs Only)')
-        ax2.set_xticks(x_attr)
-        ax2.set_xticklabels(labels, fontsize=9)
-        ax2.set_ylim(0, 105)
-        ax2.legend()
-        ax2.grid(True, axis='y', alpha=0.3)
+            lower_err = max(0, r['hybrid']['rate'] - r['hybrid']['ci_lower'])
+            upper_err = max(0, r['hybrid']['ci_upper'] - r['hybrid']['rate'])
+            hybrid_errors.append((lower_err, upper_err))
 
-        # Add 50% reference line
-        ax2.axhline(y=50, color='red', linestyle='--', alpha=0.5, linewidth=1, label='50%')
+        corner_errors_array = np.array(corner_errors).T
+        random_errors_array = np.array(random_errors).T
+        hybrid_errors_array = np.array(hybrid_errors).T
 
-    plt.tight_layout()
-    output_path = OUTPUT_DIR / "corner-case-coverage.png"
-    save_figure(fig, output_path)
+        ax.bar(x - width, corner_rates, width, label='Corner Only',
+               yerr=corner_errors_array, capsize=3, color='#e74c3c', alpha=0.8)
+        ax.bar(x, random_rates, width, label='Random Only',
+               yerr=random_errors_array, capsize=3, color='#3498db', alpha=0.8)
+        ax.bar(x + width, hybrid_rates, width, label='Hybrid',
+               yerr=hybrid_errors_array, capsize=3, color='#2ecc71', alpha=0.8)
 
-    # Print conclusion
-    print(f"\nConclusion:")
-    print("-" * 80)
+        ax.set_xlabel('Bug Type')
+        ax.set_ylabel('Detection Rate')
+        ax.set_title('Detection Rate by Bug Type and Sampling Mode')
+        ax.set_xticks(x)
+        ax.set_xticklabels(bug_labels, fontsize=9)
+        ax.set_ylim(0, 1.05)
+        ax.legend()
+        ax.grid(True, axis='y', alpha=0.3)
 
-    # Check hypothesis: >50% of boundary bugs found via corner cases
-    boundary_types = ['zero_boundary', 'empty_boundary', 'off_by_one']
-    boundary_attributions = [r for r in attribution_results if r['bug_type'] in boundary_types]
+    def _create_attribution_chart(self, ax) -> None:
+        """Create attribution chart."""
+        if self.attribution_results:
+            labels = [r['bug_type'].replace('_', '\n').title() for r in self.attribution_results]
+            corner_pcts = [r['corner_pct'] * 100 for r in self.attribution_results]
+            random_pcts = [(1 - r['corner_pct']) * 100 for r in self.attribution_results]
 
-    if boundary_attributions:
-        avg_corner_pct = np.mean([r['corner_pct'] for r in boundary_attributions])
-        all_above_50 = all(r['corner_pct'] > 0.5 for r in boundary_attributions)
+            x_attr = np.arange(len(labels))
+            ax.bar(x_attr, corner_pcts, label='Corner Case', color='#e74c3c', alpha=0.8)
+            ax.bar(x_attr, random_pcts, bottom=corner_pcts, label='Random Sample', color='#3498db', alpha=0.8)
 
-        if all_above_50:
-            print(f"  ✓ Hypothesis supported: >50% of boundary bugs found via corner cases")
-            print(f"    Average across boundary bugs: {avg_corner_pct*100:.1f}%")
-        else:
-            print(f"  ✗ Hypothesis not fully supported:")
-            print(f"    Average corner case attribution: {avg_corner_pct*100:.1f}%")
+            ax.set_xlabel('Bug Type')
+            ax.set_ylabel('Percentage of Detections')
+            ax.set_title('Attribution in Hybrid Mode (Detected Bugs Only)')
+            ax.set_xticks(x_attr)
+            ax.set_xticklabels(labels, fontsize=9)
+            ax.set_ylim(0, 105)
+            ax.legend()
+            ax.grid(True, axis='y', alpha=0.3)
 
-        for r in boundary_attributions:
-            print(f"    • {r['bug_type']}: {r['corner_pct']*100:.1f}% from corner cases")
+            ax.axhline(y=50, color='red', linestyle='--', alpha=0.5, linewidth=1)
 
-    # Report corner-only coverage
-    print(f"\n  Corner-only detection rates:")
-    for r in results:
-        if r['bug_type'] in boundary_types:
-            rate = r['corner_only']['rate']
-            print(f"    • {r['bug_type']}: {rate*100:.1f}%")
+    def _print_conclusion(self) -> None:
+        """Print conclusion."""
+        self.print_section("CONCLUSION")
 
-    print(f"\n✓ Corner case coverage analysis complete")
+        boundary_types = ['zero_boundary', 'empty_boundary', 'off_by_one']
+        boundary_attributions = [r for r in self.attribution_results if r['bug_type'] in boundary_types]
+
+        if boundary_attributions:
+            avg_corner_pct = np.mean([r['corner_pct'] for r in boundary_attributions])
+            all_above_50 = all(r['corner_pct'] > 0.5 for r in boundary_attributions)
+
+            if all_above_50:
+                print(f"  {self.check_mark} Hypothesis supported: >50% of boundary bugs found via corner cases")
+                print(f"    Average across boundary bugs: {avg_corner_pct*100:.1f}%")
+            else:
+                print(f"  x Hypothesis not fully supported:")
+                print(f"    Average corner case attribution: {avg_corner_pct*100:.1f}%")
+
+            for r in boundary_attributions:
+                print(f"    - {r['bug_type']}: {r['corner_pct']*100:.1f}% from corner cases")
+
+        print(f"\n  Corner-only detection rates:")
+        for r in self.results:
+            if r['bug_type'] in boundary_types:
+                rate = r['corner_only']['rate']
+                print(f"    - {r['bug_type']}: {rate*100:.1f}%")
+
+        print(f"\n  {self.check_mark} Corner case coverage analysis complete")
+
+
+def main():
+    analysis = CornerCaseCoverageAnalysis()
+    analysis.run()
+
 
 if __name__ == "__main__":
     main()

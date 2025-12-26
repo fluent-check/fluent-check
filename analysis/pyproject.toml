@@ -11,9 +11,6 @@ dependencies = [
     "scipy>=1.11.0",
 ]
 
-[build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
-
-[tool.hatch.build.targets.wheel]
-packages = []
+[tool.uv]
+# This is a scripts-only project, not a package
+package = false

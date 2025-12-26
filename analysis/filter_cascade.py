@@ -14,160 +14,173 @@ Generates:
 - filter-cascade.png: Estimation error and CI coverage analysis (Legacy vs Fixed)
 """
 
-import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
-from pathlib import Path
-from util import wilson_score_interval, save_figure
 
-# Paths
-PROJECT_ROOT = Path(__file__).parent.parent
-CSV_PATH = PROJECT_ROOT / "docs/evidence/raw/filter-cascade.csv"
-OUTPUT_DIR = PROJECT_ROOT / "docs/evidence/figures"
-OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+from base import AnalysisBase
+from stats import wilson_score_interval
+from viz import save_figure
 
-def main():
-    print("=== Filter Cascade Impact Analysis ===\n")
 
-    # Load data
-    print(f"Loading: {CSV_PATH}")
-    df = pd.read_csv(CSV_PATH)
-    print(f"  Loaded {len(df)} trials\n")
+class FilterCascadeAnalysis(AnalysisBase):
+    """Analysis of filter cascade impact on size estimation."""
 
-    # Filter to 50% pass rate for the main comparison (worst case)
-    target_pass_rate = 0.5
-    print(f"Analyzing worst-case scenario (Pass Rate = {target_pass_rate*100:.0f}%):")
-    
-    stats = []
-    
-    for impl in ['legacy', 'fixed']:
-        print(f"\nImplementation: {impl}")
-        print("-" * 40)
-        
-        for depth in [1, 2, 3, 5]:
-            data = df[
-                (df['chain_depth'] == depth) & 
-                (df['filter_pass_rate'] == target_pass_rate) &
-                (df['implementation'] == impl)
-            ]
-            
-            if len(data) == 0:
+    @property
+    def name(self) -> str:
+        return "Filter Cascade Impact Analysis"
+
+    @property
+    def csv_filename(self) -> str:
+        return "filter-cascade.csv"
+
+    def analyze(self) -> None:
+        """Perform the filter cascade analysis."""
+        self._compute_statistics()
+        self._create_visualization()
+        self._print_conclusion()
+
+    def _compute_statistics(self) -> None:
+        """Compute error and coverage statistics."""
+        # Filter to 50% pass rate for the main comparison (worst case)
+        self.target_pass_rate = 0.5
+        self.print_section(f"ANALYSIS (PASS RATE = {self.target_pass_rate*100:.0f}%)")
+
+        self.stats = []
+
+        for impl in ['legacy', 'fixed']:
+            print(f"\nImplementation: {impl}")
+            self.print_divider(width=40)
+
+            for depth in [1, 2, 3, 5]:
+                data = self.df[
+                    (self.df['chain_depth'] == depth) &
+                    (self.df['filter_pass_rate'] == self.target_pass_rate) &
+                    (self.df['implementation'] == impl)
+                ]
+
+                if len(data) == 0:
+                    continue
+
+                # Error stats
+                errors = data['relative_error']
+                mean_error = errors.mean()
+                std_error = errors.std()
+
+                # Coverage stats
+                coverage_count = data['true_value_in_ci'].sum()
+                total = len(data)
+                coverage_rate = coverage_count / total
+                ci = wilson_score_interval(coverage_count, total)
+
+                print(f"  Depth {depth}: Error={mean_error*100:+.0f}% (std={std_error*100:.0f}%), CI Coverage={coverage_rate*100:.1f}%")
+
+                self.stats.append({
+                    'implementation': impl,
+                    'depth': depth,
+                    'mean_error': mean_error,
+                    'std_error': std_error,
+                    'coverage_rate': coverage_rate,
+                    'ci_lower': ci[0],
+                    'ci_upper': ci[1]
+                })
+
+    def _create_visualization(self) -> None:
+        """Create filter cascade visualization."""
+        fig, axes = plt.subplots(1, 2, figsize=(14, 6))
+
+        self._create_error_chart(axes[0])
+        self._create_coverage_chart(axes[1])
+
+        save_figure(fig, self.get_output_path("filter-cascade.png"))
+
+    def _create_error_chart(self, ax) -> None:
+        """Create relative error chart."""
+        colors = {'legacy': '#e74c3c', 'fixed': '#2ecc71'}
+        labels = {'legacy': 'Legacy (No Warm-up)', 'fixed': 'Fixed (Warm-up)'}
+        markers = {'legacy': 'x', 'fixed': 'o'}
+        linestyles = {'legacy': '--', 'fixed': '-'}
+
+        for impl in ['legacy', 'fixed']:
+            impl_stats = [s for s in self.stats if s['implementation'] == impl]
+            if not impl_stats:
                 continue
 
-            # Error stats
-            errors = data['relative_error']
-            mean_error = errors.mean()
-            std_error = errors.std()
-            
-            # Coverage stats
-            coverage_count = data['true_value_in_ci'].sum()
-            total = len(data)
-            coverage_rate = coverage_count / total
-            ci = wilson_score_interval(coverage_count, total)
+            depths = [s['depth'] for s in impl_stats]
+            mean_errors = [s['mean_error'] * 100 for s in impl_stats]
+            std_errors = [s['std_error'] * 100 for s in impl_stats]
 
-            print(f"  Depth {depth}: Error={mean_error*100:+.0f}% (std={std_error*100:.0f}%), CI Coverage={coverage_rate*100:.1f}%")
+            ax.plot(depths, mean_errors, marker=markers[impl], label=labels[impl],
+                    color=colors[impl], linestyle=linestyles[impl], linewidth=2)
+            ax.fill_between(depths,
+                            [m - s for m, s in zip(mean_errors, std_errors)],
+                            [m + s for m, s in zip(mean_errors, std_errors)],
+                            alpha=0.1, color=colors[impl])
 
-            stats.append({
-                'implementation': impl,
-                'depth': depth,
-                'mean_error': mean_error,
-                'std_error': std_error,
-                'coverage_rate': coverage_rate,
-                'ci_lower': ci[0],
-                'ci_upper': ci[1]
-            })
+        ax.axhline(y=0, color='black', linestyle='-', alpha=0.3, linewidth=1)
+        ax.set_xlabel('Chain Depth (number of filters)')
+        ax.set_ylabel('Relative Estimation Error (%)')
+        ax.set_title(f'Size Estimation Error (Pass Rate {self.target_pass_rate*100:.0f}%)')
+        ax.set_xticks([1, 2, 3, 5])
+        ax.legend()
+        ax.grid(True, alpha=0.3)
 
-    print("=" * 80)
+    def _create_coverage_chart(self, ax) -> None:
+        """Create CI coverage chart."""
+        colors = {'legacy': '#e74c3c', 'fixed': '#2ecc71'}
+        labels = {'legacy': 'Legacy (No Warm-up)', 'fixed': 'Fixed (Warm-up)'}
 
-    # Create visualizations
-    fig, axes = plt.subplots(1, 2, figsize=(14, 6))
+        width = 0.35
+        depths = np.array([1, 2, 3, 5])
 
-    # Left panel: Relative error vs chain depth (Legacy vs Fixed)
-    ax1 = axes[0]
-    
-    colors = {'legacy': '#e74c3c', 'fixed': '#2ecc71'}
-    labels = {'legacy': 'Legacy (No Warm-up)', 'fixed': 'Fixed (Warm-up)'}
-    markers = {'legacy': 'x', 'fixed': 'o'}
-    linestyles = {'legacy': '--', 'fixed': '-'}
+        for i, impl in enumerate(['legacy', 'fixed']):
+            impl_stats = [s for s in self.stats if s['implementation'] == impl]
+            if not impl_stats:
+                continue
 
-    for impl in ['legacy', 'fixed']:
-        impl_stats = [s for s in stats if s['implementation'] == impl]
-        if not impl_stats: continue
-        
-        depths = [s['depth'] for s in impl_stats]
-        mean_errors = [s['mean_error'] * 100 for s in impl_stats]
-        std_errors = [s['std_error'] * 100 for s in impl_stats]
+            # Ensure alignment
+            impl_depths = [s['depth'] for s in impl_stats]
+            if impl_depths != list(depths):
+                continue
 
-        ax1.plot(depths, mean_errors, marker=markers[impl], label=labels[impl],
-                color=colors[impl], linestyle=linestyles[impl], linewidth=2)
-        ax1.fill_between(depths,
-                         [m - s for m, s in zip(mean_errors, std_errors)],
-                         [m + s for m, s in zip(mean_errors, std_errors)],
-                         alpha=0.1, color=colors[impl])
+            rates = [s['coverage_rate'] * 100 for s in impl_stats]
 
-    ax1.axhline(y=0, color='black', linestyle='-', alpha=0.3, linewidth=1)
-    ax1.set_xlabel('Chain Depth (number of filters)')
-    ax1.set_ylabel('Relative Estimation Error (%)')
-    ax1.set_title(f'Size Estimation Error (Pass Rate {target_pass_rate*100:.0f}%)')
-    ax1.set_xticks([1, 2, 3, 5])
-    ax1.legend()
-    ax1.grid(True, alpha=0.3)
-    
-    # Log scale y-axis if error is massive (Legacy goes to +3000%)
-    # But Fixed stays near 0. Let's try symlog or just let it scale.
-    # Given +3600% vs +60%, a linear scale hides the fixed detail, but shows the improvement.
-    # Let's use symlog to show both? Or just linear to emphasize the fix magnitude.
-    # Linear is fine to show "Look how bad it was".
+            # Offset bars
+            x_pos = depths - width/2 + i*width
 
-    # Right panel: CI coverage rate (Legacy vs Fixed)
-    ax2 = axes[1]
-    
-    width = 0.35
-    depths = np.array([1, 2, 3, 5])
-    
-    for i, impl in enumerate(['legacy', 'fixed']):
-        impl_stats = [s for s in stats if s['implementation'] == impl]
-        if not impl_stats: continue
-        
-        # Ensure alignment
-        impl_depths = [s['depth'] for s in impl_stats]
-        if impl_depths != list(depths): continue # Skip if mismatched
-        
-        rates = [s['coverage_rate'] * 100 for s in impl_stats]
-        
-        # Offset bars
-        x_pos = depths - width/2 + i*width
-        
-        ax2.bar(x_pos, rates, width, label=labels[impl], color=colors[impl], alpha=0.8)
+            ax.bar(x_pos, rates, width, label=labels[impl], color=colors[impl], alpha=0.8)
 
-    ax2.axhline(y=95, color='black', linestyle='--', alpha=0.5, linewidth=2, label='Target (95%)')
-    ax2.set_xlabel('Chain Depth')
-    ax2.set_ylabel('CI Coverage (%)')
-    ax2.set_title(f'Credible Interval Validity (Pass Rate {target_pass_rate*100:.0f}%)')
-    ax2.set_xticks(depths)
-    ax2.set_ylim(0, 105)
-    ax2.legend()
-    ax2.grid(True, axis='y', alpha=0.3)
+        ax.axhline(y=95, color='black', linestyle='--', alpha=0.5, linewidth=2, label='Target (95%)')
+        ax.set_xlabel('Chain Depth')
+        ax.set_ylabel('CI Coverage (%)')
+        ax.set_title(f'Credible Interval Validity (Pass Rate {self.target_pass_rate*100:.0f}%)')
+        ax.set_xticks(depths)
+        ax.set_ylim(0, 105)
+        ax.legend()
+        ax.grid(True, axis='y', alpha=0.3)
 
-    plt.tight_layout()
-    output_path = OUTPUT_DIR / "filter-cascade.png"
-    save_figure(fig, output_path)
+    def _print_conclusion(self) -> None:
+        """Print conclusion."""
+        self.print_section("CONCLUSION (DEPTH 5)")
 
-    # Comparison summary
-    print(f"\nConclusion (Depth 5):")
-    legacy_d5 = next((s for s in stats if s['implementation'] == 'legacy' and s['depth'] == 5), None)
-    fixed_d5 = next((s for s in stats if s['implementation'] == 'fixed' and s['depth'] == 5), None)
-    
-    if legacy_d5 and fixed_d5:
-        legacy_err = legacy_d5['mean_error'] * 100
-        fixed_err = fixed_d5['mean_error'] * 100
-        reduction = legacy_err / fixed_err if fixed_err != 0 else 0
-        
-        print(f"  Legacy Error: {legacy_err:+.1f}%")
-        print(f"  Fixed Error:  {fixed_err:+.1f}%")
-        print(f"  Improvement:  Error reduced by factor of ~{reduction:.1f}x")
+        legacy_d5 = next((s for s in self.stats if s['implementation'] == 'legacy' and s['depth'] == 5), None)
+        fixed_d5 = next((s for s in self.stats if s['implementation'] == 'fixed' and s['depth'] == 5), None)
 
-    print(f"\n✓ Filter cascade analysis complete")
+        if legacy_d5 and fixed_d5:
+            legacy_err = legacy_d5['mean_error'] * 100
+            fixed_err = fixed_d5['mean_error'] * 100
+            reduction = legacy_err / fixed_err if fixed_err != 0 else 0
+
+            print(f"  Legacy Error: {legacy_err:+.1f}%")
+            print(f"  Fixed Error:  {fixed_err:+.1f}%")
+            print(f"  Improvement:  Error reduced by factor of ~{reduction:.1f}x")
+
+        print(f"\n  {self.check_mark} Filter cascade analysis complete")
+
+
+def main():
+    analysis = FilterCascadeAnalysis()
+    analysis.run()
+
 
 if __name__ == "__main__":
     main()
