@@ -18,7 +18,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
 from pathlib import Path
-from util import wilson_score_interval, format_ci, save_figure, chi_squared_test, cohens_h, effect_size_interpretation
+from util import wilson_score_interval, format_ci, save_figure, cohens_h, effect_size_interpretation
 
 # Paths
 PROJECT_ROOT = Path(__file__).parent.parent

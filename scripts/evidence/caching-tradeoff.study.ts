@@ -10,7 +10,7 @@
  * 3. Execution time savings
  */
 
-import { scenario, integer, strategy, Arbitrary } from '../../src/index.js'
+import { scenario, integer, strategy } from '../../src/index.js'
 import { CSVWriter, ProgressReporter, getSeed, getSampleSize, HighResTimer } from './runner.js'
 import path from 'path'
 

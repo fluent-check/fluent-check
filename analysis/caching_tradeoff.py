@@ -14,10 +14,9 @@ Generates:
 
 import pandas as pd
 import matplotlib.pyplot as plt
-import numpy as np
 import seaborn as sns
 from pathlib import Path
-from util import wilson_score_interval, save_figure
+from util import save_figure
 
 # Paths
 PROJECT_ROOT = Path(__file__).parent.parent

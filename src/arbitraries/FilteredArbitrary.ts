@@ -13,14 +13,16 @@ export class FilteredArbitrary<A> extends WrappedArbitrary<A> {
 
     // Warm-up with a deterministic seed to prime the estimator
     // This prevents the "Cold Start" problem where size() is called before any sampling
-    let seed = 0xCAFEBABE
+    const WARMUP_SEED = 0xCAFEBABE
+    const WARMUP_SAMPLES = 10
+    let seed = WARMUP_SEED
     const lcg = () => {
       seed = (Math.imul(seed, 1664525) + 1013904223) | 0
       return (seed >>> 0) / 4294967296
     }
 
     // Sample a few times to get a rough initial estimate
-    for (let i = 0; i < 10; i++) {
+    for (let i = 0; i < WARMUP_SAMPLES; i++) {
       this.pick(lcg)
     }
   }

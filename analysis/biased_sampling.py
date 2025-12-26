@@ -146,7 +146,6 @@ def main():
 
     ttd_data = []
     positions = []
-    labels = []
     colors = []
 
     pos = 0

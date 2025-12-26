@@ -17,7 +17,9 @@ export class MappedArbitrary<A, B> extends Arbitrary<B> {
     // Heuristic: Sample a few values to estimate injectivity
     // If f is 1-to-1, unique/total should be 1.0
     // If f is many-to-1, unique/total < 1.0
-    let seed = 0xCAFEBABE
+    const DISTINCTNESS_HEURISTIC_SEED = 0xCAFEBABE
+    const DISTINCTNESS_HEURISTIC_SAMPLES = 10
+    let seed = DISTINCTNESS_HEURISTIC_SEED
     const lcg = () => {
       seed = (Math.imul(seed, 1664525) + 1013904223) | 0
       return (seed >>> 0) / 4294967296
@@ -27,7 +29,7 @@ export class MappedArbitrary<A, B> extends Arbitrary<B> {
     const outputs: B[] = []
     const eq = this.baseArbitrary.equals()
 
-    for (let i = 0; i < 10; i++) {
+    for (let i = 0; i < DISTINCTNESS_HEURISTIC_SAMPLES; i++) {
       const pick = this.baseArbitrary.pick(lcg)
       if (pick !== undefined) {
         if (!inputs.some(x => eq(x, pick.value))) {

@@ -75,13 +75,13 @@ def main():
     legacy_means = [next((s['mean_ratio'] for s in stats if s['implementation'] == 'legacy' and s['map_type'] == mt), 0) for mt in map_types]
     legacy_errs = [next((s['std_ratio'] for s in stats if s['implementation'] == 'legacy' and s['map_type'] == mt), 0) for mt in map_types]
     
-    rects1 = ax1.bar(x - width/2, legacy_means, width, label='Legacy (Naive)', color='#e74c3c', yerr=legacy_errs, capsize=5, alpha=0.8)
+    ax1.bar(x - width/2, legacy_means, width, label='Legacy (Naive)', color='#e74c3c', yerr=legacy_errs, capsize=5, alpha=0.8)
     
     # Plot Fixed
     fixed_means = [next((s['mean_ratio'] for s in stats if s['implementation'] == 'fixed' and s['map_type'] == mt), 0) for mt in map_types]
     fixed_errs = [next((s['std_ratio'] for s in stats if s['implementation'] == 'fixed' and s['map_type'] == mt), 0) for mt in map_types]
     
-    rects2 = ax1.bar(x + width/2, fixed_means, width, label='Fixed (Heuristic)', color='#2ecc71', yerr=fixed_errs, capsize=5, alpha=0.8)
+    ax1.bar(x + width/2, fixed_means, width, label='Fixed (Heuristic)', color='#2ecc71', yerr=fixed_errs, capsize=5, alpha=0.8)
     
     ax1.set_ylabel('Size Ratio (Reported / Actual)')
     ax1.set_title('Size Overestimation Ratio')

@@ -52,8 +52,10 @@ class CustomArrayArbitrary<A> extends Arbitrary<A[]> {
       size = Math.floor(rand * rand * (range + 1)) + this.min
     } else { // edge_biased
       // Favor min and max
-      if (rand < 0.4) size = this.min
-      else if (rand < 0.8) size = this.max
+      const MIN_BIASED_PROBABILITY = 0.4
+      const MAX_BIASED_PROBABILITY = 0.8
+      if (rand < MIN_BIASED_PROBABILITY) size = this.min
+      else if (rand < MAX_BIASED_PROBABILITY) size = this.max
       else size = Math.floor(generator() * (range + 1)) + this.min
     }
 

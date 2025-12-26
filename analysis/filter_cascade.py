@@ -18,7 +18,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
 from pathlib import Path
-from util import wilson_score_interval, format_ci, save_figure
+from util import wilson_score_interval, save_figure
 
 # Paths
 PROJECT_ROOT = Path(__file__).parent.parent
@@ -57,7 +57,6 @@ def main():
             # Error stats
             errors = data['relative_error']
             mean_error = errors.mean()
-            median_error = errors.median()
             std_error = errors.std()
             
             # Coverage stats

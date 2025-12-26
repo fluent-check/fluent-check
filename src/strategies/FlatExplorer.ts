@@ -8,7 +8,6 @@ import {
 } from './Explorer.js'
 import type {ExecutableQuantifier} from '../ExecutableScenario.js'
 import type {Sampler} from './Sampler.js'
-import type {QuantifierNode} from '../Scenario.js'
 
 type TraversalOutcome =
   | {kind: 'pass'; witness?: unknown}
@@ -148,50 +147,6 @@ export class FlatExplorer<Rec extends {}> extends AbstractExplorer<Rec> {
       const newTestCase = {...frame.testCase, [quantifier.name]: sample}
 
       return next(index + 1, newTestCase, ctx)
-    }
-  }
-
-  /**
-   * Track statistics for a sample value.
-   * Duplicated from NestedLoopExplorer for the experiment.
-   */
-  private trackSampleStatistics(
-    frame: any,
-    sample: FluentPick<unknown>
-  ): void {
-    if (frame.ctx.statisticsContext === undefined || frame.ctx.detailedStatisticsEnabled !== true) {
-      return
-    }
-
-    const collector = frame.ctx.statisticsContext.getCollector(frame.quantifier.name)
-
-    // Get arbitrary from scenario nodes (for corner cases).
-    const quantifierNode = frame.ctx.executableScenario.nodes.find(
-      (n: any): n is QuantifierNode =>
-        (n.type === 'forall' || n.type === 'exists') && n.name === frame.quantifier.name
-    )
-
-    if (quantifierNode !== undefined) {
-      collector.recordSample(sample.value, quantifierNode.arbitrary)
-    } else {
-      // Fallback
-      collector.recordSample(sample.value, {
-        cornerCases: () => [],
-        hashCode: () => (a: unknown) => typeof a === 'number' ? a | 0 : 0,
-        equals: () => (a: unknown, b: unknown) => a === b
-      })
-    }
-
-    // Track numeric values for distribution
-    if (typeof sample.value === 'number' && Number.isFinite(sample.value)) {
-      collector.recordNumericValue(sample.value)
-    }
-
-    // Track array/string lengths separately
-    if (Array.isArray(sample.value)) {
-      collector.recordArrayLength(sample.value.length)
-    } else if (typeof sample.value === 'string') {
-      collector.recordStringLength(sample.value.length)
     }
   }
 }

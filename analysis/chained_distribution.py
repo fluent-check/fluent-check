@@ -19,7 +19,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import seaborn as sns
 from pathlib import Path
-from util import save_figure, chi_squared_test
+from util import save_figure
 
 # Paths
 PROJECT_ROOT = Path(__file__).parent.parent

@@ -50,7 +50,7 @@ function sampleWithDedup<T>(
   let attempts = 0
   const maxAttempts = count * 100 // Guard to prevent infinite loops
   let noProgressCount = 0
-  let lastSize = 0
+  const NO_PROGRESS_ATTEMPTS_THRESHOLD = 50
 
   while (values.length < count && attempts < maxAttempts) {
     const pick = arb.pick(rng)
@@ -59,11 +59,10 @@ function sampleWithDedup<T>(
       seen.add(pick.value)
       values.push(pick.value)
       noProgressCount = 0
-      lastSize = values.length
     } else {
       noProgressCount++
       // Trigger guard if no progress in 50 attempts
-      if (noProgressCount >= 50) {
+      if (noProgressCount >= NO_PROGRESS_ATTEMPTS_THRESHOLD) {
         return { values, guardTriggered: true }
       }
     }
