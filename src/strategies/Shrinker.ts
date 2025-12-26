@@ -7,6 +7,8 @@ import type {ExecutableScenario, ExecutableQuantifier} from '../ExecutableScenar
 import type {Sampler} from './Sampler.js'
 import type {Explorer} from './Explorer.js'
 import type {BoundTestCase} from './types.js'
+import type {ShrinkRoundStrategy} from './shrinking/ShrinkRoundStrategy.js'
+import {SequentialExhaustiveStrategy} from './shrinking/SequentialExhaustiveStrategy.js'
 
 interface ShrinkMode<Rec extends {}> {
   quantifiers: (scenario: ExecutableScenario<Rec>) => readonly ExecutableQuantifier[]
@@ -171,6 +173,11 @@ export interface Shrinker<Rec extends {}> {
  * - For each quantifier, try progressively simpler values
  * - Use the Explorer to re-verify nested quantifiers
  * - Continue until budget exhausted or no simpler value found
+ *
+ * Supports configurable shrinking strategies via ShrinkRoundStrategy:
+ * - Sequential Exhaustive: Legacy behavior (biased but fast)
+ * - Round-Robin: Balanced fairness with minimal overhead
+ * - Delta Debugging: Maximum fairness with higher overhead
  */
 export class PerArbitraryShrinker<Rec extends {}> implements Shrinker<Rec> {
   #counterexampleMode: ShrinkMode<Rec> = {
@@ -181,6 +188,17 @@ export class PerArbitraryShrinker<Rec extends {}> implements Shrinker<Rec> {
   #witnessMode: ShrinkMode<Rec> = {
     quantifiers: scenario => scenario.quantifiers.filter(q => q.type === 'exists'),
     accept: (result, candidate) => (result.outcome === 'passed' ? result.witness ?? candidate : null)
+  }
+
+  #strategy: ShrinkRoundStrategy
+
+  /**
+   * Creates a PerArbitraryShrinker with a configurable shrinking strategy.
+   *
+   * @param strategy - The shrinking strategy to use (defaults to SequentialExhaustiveStrategy for backward compatibility)
+   */
+  constructor(strategy?: ShrinkRoundStrategy) {
+    this.#strategy = strategy ?? new SequentialExhaustiveStrategy()
   }
 
   shrink(
@@ -256,15 +274,9 @@ export class PerArbitraryShrinker<Rec extends {}> implements Shrinker<Rec> {
 
     while (rounds < budget.maxRounds && attempts < budget.maxAttempts) {
       roundsCompleted++
-      let foundSmaller = false
 
-      for (const quantifier of quantifiers) {
-        if (attempts >= budget.maxAttempts) break
-        if (shrinkQuantifier(quantifier)) {
-          foundSmaller = true
-          break
-        }
-      }
+      // Use the configured strategy to perform one round of shrinking
+      const foundSmaller = this.#strategy.shrinkRound(quantifiers, shrinkQuantifier)
 
       if (!foundSmaller) break
     }
