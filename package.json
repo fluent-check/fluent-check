@@ -40,7 +40,8 @@
     "evidence:sample-budget": "npx tsx scripts/evidence/sample-budget.study.ts && cd analysis && source .venv/bin/activate && python sample_budget.py",
     "evidence:deduplication": "npx tsx scripts/evidence/deduplication.study.ts && cd analysis && source .venv/bin/activate && python deduplication.py",
     "evidence:mapped-size": "npx tsx scripts/evidence/mapped-size.study.ts && cd analysis && source .venv/bin/activate && python mapped_size.py",
-    "evidence:apparatus": "npm run evidence:biased-sampling && npm run evidence:weighted-union && npm run evidence:corner-case-coverage && npm run evidence:filter-cascade && npm run evidence:deduplication && npm run evidence:mapped-size && npm run evidence:chained-distribution && npm run evidence:shrinking-fairness && npm run evidence:length-distribution && npm run evidence:caching-tradeoff && npm run evidence:streaming-accuracy && npm run evidence:sample-budget",
+    "evidence:shrinking-strategies": "npx tsx scripts/evidence/shrinking-strategies-comparison.study.ts && cd analysis && source .venv/bin/activate && python shrinking_strategies_comparison.py",
+    "evidence:apparatus": "npm run evidence:biased-sampling && npm run evidence:weighted-union && npm run evidence:corner-case-coverage && npm run evidence:filter-cascade && npm run evidence:deduplication && npm run evidence:mapped-size && npm run evidence:chained-distribution && npm run evidence:shrinking-fairness && npm run evidence:shrinking-strategies && npm run evidence:length-distribution && npm run evidence:caching-tradeoff && npm run evidence:streaming-accuracy && npm run evidence:sample-budget",
     "evidence:apparatus:quick": "QUICK_MODE=1 npm run evidence:apparatus"
   },
   "keywords": [

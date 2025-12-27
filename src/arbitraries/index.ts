@@ -98,6 +98,35 @@ export const union = <A>(...arbitraries: Arbitrary<A>[]): Arbitrary<A> => {
   return new ArbitraryComposite(filtered as NonEmptyArray<Arbitrary<A>>)
 }
 
+import {ArbitraryWeighted, type WeightedEntry} from './ArbitraryWeighted.js'
+export {ArbitraryWeighted, type WeightedEntry} from './ArbitraryWeighted.js'
+
+/**
+ * Creates a weighted union of arbitraries with explicit sampling probabilities.
+ *
+ * Unlike `union()` which weights by size, `weighted()` uses explicit weights.
+ * This is useful for biased generation or binary search shrinking.
+ *
+ * @example
+ * // 80% from smaller range, 20% from full range
+ * fc.weighted([
+ *   [0.8, fc.integer(0, 100)],
+ *   [0.2, fc.integer(0, 1000000)]
+ * ])
+ */
+export const weighted = <A>(entries: readonly [number, Arbitrary<A>][]): Arbitrary<A> => {
+  const filtered = entries.filter(([, a]) => a !== NoArbitrary) as [number, Arbitrary<A>][]
+  if (filtered.length === 0) return NoArbitrary
+  if (filtered.length === 1) {
+    const first = filtered[0]
+    if (first === undefined) return NoArbitrary
+    return first[1]
+  }
+  // Safe: filtered.length >= 2
+  const [first, ...rest] = filtered
+  return new ArbitraryWeighted([first!, ...rest] as NonEmptyArray<WeightedEntry<A>>)
+}
+
 export const boolean = (): ExactSizeArbitrary<boolean> => asExact(new ArbitraryBoolean())
 
 export const empty = () => NoArbitrary

@@ -2,398 +2,283 @@
 
 ## Purpose
 
-This document provides empirical evidence comparing different shrinking strategies to inform implementation decisions and validate improvements. All metrics are derived from running controlled experiments on symmetric properties.
+This document provides empirical evidence comparing different shrinking strategies and shrink candidate generation approaches to inform implementation decisions and validate improvements. All metrics are derived from running controlled experiments on independent threshold properties.
+
+## Executive Summary
+
+**Key Finding**: Shrinking efficiency depends on two orthogonal factors:
+1. **Shrinking Strategy** (which quantifier to try next): Round-Robin > Delta-Debugging > Sequential Exhaustive
+2. **Shrink Candidate Generation** (how to sample from shrink space): Weighted (80/20) > Union > Random
+
+**Best Configuration**: Round-Robin strategy + Weighted shrink candidate generation achieves **62.5% distance reduction** vs baseline with all positions converging more fairly.
 
 ## Methodology
 
-### Test Properties
+### Test Property
 
-We use symmetric properties where quantifiers are mathematically interchangeable, making fairness measurable:
+We use an independent threshold property where the optimal counterexample is NOT at a corner case (0), making positional bias clearly observable:
 
-1. **Sum Constraint**: `forall(a, b, c: int(0,100)).then(a + b + c <= 150)`
-2. **Product Constraint**: `forall(x, y: int(1,50)).then(x * y <= 100)`
-3. **Triangle Inequality**: `forall(a, b, c: int(0,100)).then(a + b >= c && b + c >= a && a + c >= b)`
+```typescript
+forall(a, b, c, d, e: int(0, 10_000_000)).then(a < 10 || b < 10 || c < 10 || d < 10 || e < 10)
+```
+
+**Property characteristics**:
+- **Passes** when ANY variable is < 10
+- **Fails** when ALL variables are >= 10 (counterexamples)
+- **Optimal counterexample**: (10, 10, 10, 10, 10)
+- **Initial counterexamples**: ~5,000,000 per variable (random)
+- **Shrinking goal**: From ~5M toward 10 for each variable
+
+**Why this property?**
+- 5 independent quantifiers reveal positional bias more clearly than 3
+- Optimal value (10) is NOT at corner (0), so corner-case optimization doesn't help
+- Large range (0-10M) requires ~23 binary search steps per quantifier
 
 ### Metrics
 
-For each strategy, we measure:
-
 | Metric | Definition | Interpretation |
 |--------|------------|----------------|
-| **Variance** | `var([a, b, c])` | Lower = more balanced (fairer) |
-| **Mean Distance** | `mean([a, b, c])` | Lower = smaller counterexample |
-| **Attempts** | Total shrink candidates tested | Lower = more efficient |
-| **Rounds** | Successful shrink iterations | Lower = faster convergence |
-| **Time** | Wall-clock time (microseconds) | Lower = better performance |
+| **Distance** | `value - 10` | Distance from optimal (lower = better) |
+| **Total Distance** | `sum(distances)` | Overall shrinking quality |
+| **Optimal %** | Percentage reaching value 10 | Convergence rate |
+| **Distance Reduction** | `(baseline - strategy) / baseline` | Improvement vs Sequential Exhaustive |
 
 ### Experimental Design
 
-- **Sample size**: 200 trials per configuration
-- **Seeds**: Fixed for reproducibility
-- **Initial counterexamples**: Random (uniform distribution)
-- **Statistical test**: ANOVA for variance comparison, followed by Tukey HSD post-hoc
+- **Sample size**: 1,350 trials (3 strategies × 3 budgets × 3 orders × 50 trials)
+- **Budget levels**: 100, 500, 2000 shrink attempts
+- **Quantifier orders**: abcde, edcba, caebd (to test order independence)
+- **Statistical tests**: ANOVA with Tukey HSD post-hoc
 
 ## Results
 
-### Property 1: Sum Constraint (`a + b + c <= 150`)
+### Visualization
 
-#### Summary Statistics
+![Shrinking Strategies Comparison](figures/shrinking-strategies-comparison.png)
 
-| Strategy | Mean Variance | Mean Distance | Mean Attempts | Mean Rounds | Mean Time (μs) |
-|----------|---------------|---------------|---------------|-------------|----------------|
-| **Sequential Exhaustive** | 2074 | 76.3 | 45.2 | 8.3 | 1250 |
-| **Round-Robin** | 554 | 50.3 | 48.1 | 6.1 | 1310 |
-| **Delta Debugging** | 63 | 51.7 | 72.4 | 4.2 | 2050 |
+**Figure interpretation**:
+1. **Top-left (Bar chart)**: Total distance by strategy and budget - Round-Robin and Delta-Debugging consistently outperform Sequential Exhaustive
+2. **Top-right (Line plot)**: Convergence curves showing logarithmic improvement with budget
+3. **Middle-left (Box plot, Budget=100)**: Distance by position showing positional bias under tight budget
+4. **Middle-right (Box plot)**: Total distance distribution per strategy
+5. **Bottom-left (Box plot, Budget=2000)**: Distance by position with higher budget - Pos 1-2 converge, Pos 3-5 partially converge
+6. **Bottom-right (Line plot)**: Distance reduction percentage vs baseline
 
-#### Example Counterexamples (seed=42)
+### Summary Statistics
 
-Initial: `(80, 85, 90)` (sum = 255)
+#### Budget = 100 attempts (Tight)
 
-| Strategy | Final Counterexample | Sum | Variance |
-|----------|---------------------|-----|----------|
-| Sequential Exhaustive | `(0, 70, 81)` | 151 | 2156 |
-| Round-Robin | `(26, 52, 73)` | 151 | 554 |
-| Delta Debugging | `(50, 50, 51)` | 151 | 0.33 |
+| Strategy | Dist1 | Dist2 | Dist3 | Dist4 | Dist5 | Opt1% | Total Distance | Reduction |
+|----------|-------|-------|-------|-------|-------|-------|----------------|-----------|
+| Sequential Exhaustive | 0 | 4.8M | 5.0M | 4.7M | 5.3M | 94% | 19.8M | baseline |
+| Round-Robin | 0 | 1.8M | 1.9M | 2.0M | 1.7M | 75% | 7.4M | **62.5%** |
+| Delta-Debugging | 0 | 2.2M | 1.8M | 2.1M | 1.9M | 79% | 8.0M | **59.7%** |
 
-#### Quantifier Order Independence
+#### Budget = 500 attempts (Medium)
 
-Testing same seed with different quantifier orders:
+| Strategy | Dist1 | Dist2 | Dist3 | Dist4 | Dist5 | Opt1% | Opt2% | Total Distance |
+|----------|-------|-------|-------|-------|-------|-------|-------|----------------|
+| Sequential Exhaustive | 0 | 70K | 4.7M | 4.9M | 5.1M | 100% | 0% | 14.7M |
+| Round-Robin | 0 | 50K | 1.5M | 1.8M | 1.8M | 100% | 0% | 5.1M |
+| Delta-Debugging | 0 | 36K | 1.8M | 2.1M | 2.1M | 100% | 0% | 6.0M |
 
-**Sequential Exhaustive:**
-```
-forall(a, b, c) → (0, 70, 81)   variance = 2156
-forall(b, a, c) → (70, 0, 81)   variance = 2156
-forall(c, b, a) → (81, 70, 0)   variance = 2156
-```
-**Order effect**: ✗ High — final value completely determined by order
+#### Budget = 2000 attempts (High)
 
-**Round-Robin:**
-```
-forall(a, b, c) → (26, 52, 73)  variance = 554
-forall(b, a, c) → (52, 26, 73)  variance = 554
-forall(c, b, a) → (73, 52, 26)  variance = 554
-```
-**Order effect**: ≈ Medium — values permuted but variance identical
+| Strategy | Dist1 | Dist2 | Dist3 | Dist4 | Dist5 | Opt1% | Opt2% | Opt3% |
+|----------|-------|-------|-------|-------|-------|-------|-------|-------|
+| Sequential Exhaustive | 0 | 0 | 332K | 4.7M | 4.8M | 100% | 99% | 0.7% |
+| Round-Robin | 0 | 0 | 118K | 1.8M | 1.7M | 100% | **100%** | 0.7% |
+| Delta-Debugging | 0 | 0 | 143K | 1.8M | 1.6M | 100% | **100%** | **1.3%** |
 
-**Delta Debugging:**
-```
-forall(a, b, c) → (50, 50, 51)  variance = 0.33
-forall(b, a, c) → (50, 51, 50)  variance = 0.33
-forall(c, b, a) → (51, 50, 50)  variance = 0.33
-```
-**Order effect**: ✓ Minimal — nearly order-independent
+### Statistical Analysis
 
-#### Statistical Significance (ANOVA)
+#### ANOVA Results
 
-Testing null hypothesis: "Strategy has no effect on variance"
+| Budget | F-statistic | p-value | Conclusion |
+|--------|-------------|---------|------------|
+| 100 | 321.74 | 0.0000 | Highly significant |
+| 500 | 265.22 | 0.0000 | Highly significant |
+| 2000 | 206.53 | 0.0000 | Highly significant |
 
-```
-F-statistic = 892.47
-p-value < 0.0001
-Conclusion: REJECT null hypothesis (highly significant)
-```
+#### Tukey HSD Post-hoc (Budget=100)
 
-**Tukey HSD Post-hoc Test:**
+| Comparison | Mean Difference | p-value | Significant? |
+|------------|-----------------|---------|--------------|
+| Sequential vs Round-Robin | 12.3M | 0.0000 | **Yes** |
+| Sequential vs Delta-Debugging | 11.8M | 0.0000 | **Yes** |
+| Round-Robin vs Delta-Debugging | 546K | 0.5811 | No |
 
-| Comparison | Mean Diff | p-value | Significant? |
-|------------|-----------|---------|--------------|
-| Round-Robin vs Sequential | -1520 | <0.0001 | ✓ Yes |
-| Delta vs Sequential | -2011 | <0.0001 | ✓ Yes |
-| Delta vs Round-Robin | -491 | <0.0001 | ✓ Yes |
+**Conclusion**: Round-Robin and Delta-Debugging are both significantly better than Sequential Exhaustive, but NOT significantly different from each other.
 
-**Conclusion**: All strategies are statistically different from each other (p < 0.0001).
+## Investigation: Shrink Candidate Generation
 
-### Property 2: Product Constraint (`x * y <= 100`)
+During the initial analysis, we observed that **positional bias persists across all strategies**. Investigation revealed that the issue was in **how shrink candidates are generated**, not just which quantifier to try.
 
-#### Summary Statistics
+### Approach 1: sampleWithBias() - WORSE
 
-| Strategy | Mean Variance | Mean Distance | Mean Attempts | Mean Rounds |
-|----------|---------------|---------------|---------------|-------------|
-| Sequential Exhaustive | 418 | 32.5 | 38.1 | 7.2 |
-| Round-Robin | 112 | 21.3 | 41.3 | 5.8 |
-| Delta Debugging | 8.2 | 20.1 | 58.7 | 3.9 |
-
-#### Example Counterexamples (seed=123)
-
-Initial: `(45, 38)` (product = 1710)
-
-| Strategy | Final Counterexample | Product | Variance |
-|----------|---------------------|---------|----------|
-| Sequential Exhaustive | `(0, 150)` | 0 ≤ 100 ✗ | 11250 |
-| Round-Robin | `(10, 11)` | 110 | 0.5 |
-| Delta Debugging | `(10, 11)` | 110 | 0.5 |
-
-**Note**: Sequential Exhaustive found `(0, 150)` which **doesn't violate** the property! This is a bug — shrinking went too far. This happens ~2% of the time due to the aggressive minimization of the first quantifier.
-
-### Property 3: Triangle Inequality
-
-Initial: `(5, 8, 95)` (violates a + b >= c)
-
-| Strategy | Final Counterexample | Variance |
-|----------|---------------------|----------|
-| Sequential Exhaustive | `(0, 0, 1)` | 0.33 |
-| Round-Robin | `(0, 1, 2)` | 0.67 |
-| Delta Debugging | `(1, 1, 2)` | 0.33 |
-
-**Observation**: For this property, Sequential Exhaustive accidentally produces a balanced result because the constraint structure forces it. This demonstrates that fairness depends on property structure.
-
-## Comparison Dimensions
-
-### 1. Fairness (Variance)
-
-**Winner: Delta Debugging** (97% reduction vs Sequential)
-
-```
-Sequential Exhaustive: ░░░░░░░░░░ (variance = 2074)
-Round-Robin:          ░░░        (variance = 554, -73%)
-Delta Debugging:      ░          (variance = 63, -97%)
-```
-
-### 2. Efficiency (Attempts)
-
-**Winner: Sequential Exhaustive** (baseline)
-
-```
-Sequential Exhaustive: ░░░░░      (45 attempts)
-Round-Robin:          ░░░░░░     (48 attempts, +7%)
-Delta Debugging:      ░░░░░░░░░░ (72 attempts, +60%)
-```
-
-### 3. Convergence Speed (Rounds)
-
-**Winner: Delta Debugging** (50% fewer rounds)
-
-```
-Sequential Exhaustive: ░░░░░░░░   (8.3 rounds)
-Round-Robin:          ░░░░░░     (6.1 rounds, -27%)
-Delta Debugging:      ░░░░       (4.2 rounds, -49%)
-```
-
-### 4. Wall-Clock Time
-
-**Winner: Sequential Exhaustive** (baseline)
-
-```
-Sequential Exhaustive: ░░░░░      (1250 μs)
-Round-Robin:          ░░░░░░     (1310 μs, +5%)
-Delta Debugging:      ░░░░░░░░░░ (2050 μs, +64%)
-```
-
-### 5. Quantifier Order Dependence
-
-**Winner: Delta Debugging** (order-independent)
-
-| Strategy | Order Dependence | Severity |
-|----------|------------------|----------|
-| Sequential Exhaustive | **Complete** | ✗✗✗ Critical |
-| Round-Robin | **Permutation** | ≈ Moderate |
-| Delta Debugging | **Minimal** | ✓ Acceptable |
-
-### 6. Counterexample Readability
-
-Based on user studies (N=10 developers):
-
-| Strategy | Mean Readability (1-5) | Example |
-|----------|------------------------|---------|
-| Sequential Exhaustive | 2.3 | `(0, 70, 81)` — "Why is one zero?" |
-| Round-Robin | 4.1 | `(26, 52, 73)` — "Balanced, makes sense" |
-| Delta Debugging | 4.8 | `(50, 50, 51)` — "Perfect, very clear" |
-
-## Trade-off Analysis
-
-### Round-Robin vs Sequential Exhaustive
-
-**Gains**:
-- ✓ 73% reduction in variance (fairness)
-- ✓ 27% faster convergence (fewer rounds)
-- ✓ 78% improvement in readability
-
-**Costs**:
-- ✗ 7% more shrink attempts
-- ✗ 5% slower wall-clock time
-
-**Verdict**: **Strong recommendation** for Round-Robin as default.
-
-**Cost-benefit ratio**: 0.05 / 0.73 = **0.07** (pay 5% time for 73% fairness)
-
-### Delta Debugging vs Round-Robin
-
-**Gains**:
-- ✓ 89% further variance reduction
-- ✓ 31% faster convergence
-- ✓ 17% improvement in readability
-
-**Costs**:
-- ✗ 50% more shrink attempts
-- ✗ 56% slower wall-clock time
-
-**Verdict**: **Opt-in** for critical debugging scenarios.
-
-**Cost-benefit ratio**: 0.56 / 0.89 = **0.63** (pay 56% time for 89% additional fairness)
-
-## Recommended Configuration Strategy
-
-### Default: Round-Robin
-
-**Rationale**:
-1. Massive fairness improvement (73% variance reduction)
-2. Minimal performance cost (5% overhead)
-3. Better convergence (27% fewer rounds)
-4. Significantly more readable counterexamples
-
-**When to override**:
-- **Use Sequential Exhaustive** only for:
-  - Backwards compatibility (tests depending on exact shrunk values)
-  - Extreme performance sensitivity (embedded systems, CI/CD bottlenecks)
-
-- **Use Delta Debugging** for:
-  - Critical bugs requiring absolute minimal counterexamples
-  - Production issue reproduction
-  - Formal verification contexts
-  - When debugging time >> test execution time
-
-### Configuration Examples
+We tested using `sampleWithBias()` instead of `sample()` for shrink candidates:
 
 ```typescript
-// Default (recommended for 95% of use cases)
-fc.scenario()
-  .config(fc.strategy().withShrinking())  // Round-Robin by default
-  .forall('a', fc.integer(0, 100))
-  .check()
-
-// Legacy compatibility
-fc.scenario()
-  .config(fc.strategy()
-    .withShrinking()
-    .withShrinkingStrategy('sequential-exhaustive'))
-  .check()
-
-// Maximum quality for critical bugs
-fc.scenario()
-  .config(fc.strategy()
-    .withShrinking()
-    .withShrinkingStrategy('delta-debugging'))
-  .check()
+// Changed from:
+sampler.sample(q.arbitrary.shrink(pick), count)
+// To:
+sampler.sampleWithBias(q.arbitrary.shrink(pick), count)
 ```
 
-## Validation Checklist
+**Result**: Performance degraded significantly.
 
-When implementing shrinking strategies, validate against these benchmarks:
+| Budget | Metric | Random (`sample`) | Biased (`sampleWithBias`) |
+|--------|--------|-------------------|---------------------------|
+| 2000 | Pos2 Distance | 4 | 28 |
+| 2000 | Pos2 Optimal% | 83.7% | 21.3% |
 
-### Quantitative Metrics
+**Why it failed**:
+- Corner case 0 is always tried first but REJECTED (property passes at 0)
+- Corner case midpoint (2.5M) is accepted but still far from optimal (10)
+- Binary search toward 0, but 0 is never valid!
 
-- [ ] Round-Robin variance is 50-80% lower than Sequential Exhaustive
-- [ ] Round-Robin overhead is <10% (attempts and time)
-- [ ] Round-Robin rounds are 20-30% fewer than Sequential Exhaustive
-- [ ] Delta Debugging variance is <100 for sum constraint
-- [ ] Sequential Exhaustive still available and produces identical results to v0.x
+### Approach 2: Union of Intervals - BETTER
 
-### Qualitative Metrics
+Changed `ArbitraryInteger.shrink()` to return a union:
 
-- [ ] Round-Robin counterexamples are more balanced (visual inspection)
-- [ ] Quantifier order has minimal effect on Round-Robin results
-- [ ] Delta Debugging produces near-optimal balanced results
-- [ ] No correctness regressions (all shrunk counterexamples still fail the property)
+```typescript
+// Instead of: fc.integer(target, current)
+// Return: fc.union(fc.integer(target, mid), fc.integer(target, current))
+```
 
-### Statistical Validation
+**Result**: Improved from 45.5% to 56.0% reduction.
 
-- [ ] ANOVA confirms significant difference between strategies (p < 0.05)
-- [ ] Tukey HSD shows all pairwise comparisons are significant
-- [ ] Re-run Study 14 shows improved metrics
-- [ ] Generate new visualizations (box plots, variance histograms)
+**Problem**: ArbitraryComposite weights by SIZE, so 99% of samples come from the larger interval.
 
-## Data Collection
+### Approach 3: Weighted Union - BEST
 
-### Running Comparison Studies
+Created `ArbitraryWeighted` with explicit weights (80% smaller half, 20% larger half):
+
+```typescript
+override shrink(initial: FluentPick<number>): Arbitrary<number> {
+  const mid = Math.floor((target + current) / 2)
+  return fc.weighted([
+    [0.8, fc.integer(target, mid)],      // 80% from smaller half
+    [0.2, fc.integer(mid + 1, current)]  // 20% from larger half
+  ])
+}
+```
+
+**Result**: Best performance - 62.5% reduction with Position 2 reaching 100% optimal.
+
+### Comparison of Shrink Candidate Approaches
+
+| Approach | Budget=100 RR Reduction | Budget=2000 Pos3 Dist | Pos2 Optimal% |
+|----------|------------------------|----------------------|---------------|
+| Random (baseline) | 45.5% | 1,222,625 | 80.8% |
+| sampleWithBias() | worse | worse | 21.3% |
+| Union (size-weighted) | 56.0% | 444,830 | 98.7% |
+| **Weighted (80/20)** | **62.5%** | **117,878** | **100.0%** |
+
+## Key Findings
+
+### 1. Shrinking Strategy Matters
+- Round-Robin and Delta-Debugging achieve 60%+ distance reduction vs Sequential Exhaustive
+- No significant difference between Round-Robin and Delta-Debugging
+- **Recommendation**: Use Round-Robin as default (simpler, equivalent performance)
+
+### 2. Shrink Candidate Generation is Critical
+- Random sampling from full shrink range is inefficient
+- Biased sampling toward corner cases can be WORSE when optimal isn't at corner
+- **Weighted sampling** (80% smaller half, 20% larger half) achieves best results
+
+### 3. Positional Bias is Fundamental
+- First quantifiers always shrink more (they're tried first)
+- Fair strategies distribute budget more evenly but don't eliminate bias
+- Higher budgets allow more positions to converge
+
+### 4. Logarithmic Budget Requirements
+- Shrinking from 10M to 10 requires ~23 binary search steps per quantifier
+- With 5 quantifiers: ~115 successful shrink steps minimum
+- Budget of 100 barely shrinks Position 1; Budget of 2000 shrinks Positions 1-3
+
+## Implementation
+
+### Files Modified
+
+1. **`src/arbitraries/ArbitraryInteger.ts`**
+   - Added weighted shrink candidate generation
+   - 80% from `[target, mid]`, 20% from `[mid+1, current]`
+
+2. **`src/arbitraries/ArbitraryWeighted.ts`** (NEW)
+   - Weighted union arbitrary with explicit sampling probabilities
+   - Used by `fc.weighted()` factory function
+
+3. **`src/arbitraries/index.ts`**
+   - Added `weighted()` factory function
+
+### Usage Example
+
+```typescript
+// Weighted arbitrary for custom biased generation
+fc.weighted([
+  [0.8, fc.integer(0, 100)],     // 80% from [0, 100]
+  [0.2, fc.integer(101, 10000)]  // 20% from [101, 10000]
+])
+```
+
+## Recommendations
+
+### Default Configuration
+1. **Strategy**: Round-Robin (enabled by default with `withShrinking()`)
+2. **Shrink candidates**: Weighted 80/20 (automatic for integers)
+
+### When to Override
+- **Sequential Exhaustive**: Legacy compatibility only
+- **Delta-Debugging**: Critical bugs requiring maximum fairness
+- **Higher budget**: When dealing with very large value ranges
+
+## Future Work / Hypotheses to Test
+
+### 1. Lazy Evaluation for True Binary Search
+Current architecture samples candidates upfront. Lazy evaluation would:
+- Try smaller interval first
+- Only expand to larger interval if all smaller candidates rejected
+- True O(log N) convergence guaranteed
+
+### 2. Adaptive Weighting
+Could adjust weights based on acceptance rate:
+- If smaller interval candidates keep getting rejected, increase larger interval weight
+- Learn the "acceptance boundary" dynamically
+
+### 3. Per-Arbitrary Shrink Strategies
+Different arbitraries might benefit from different approaches:
+- Integers: Binary search (weighted 80/20)
+- Strings: Character-by-character reduction
+- Arrays: Delta debugging (remove elements)
+
+### 4. Budget Allocation Strategies
+Fair budget allocation across quantifiers:
+- Track shrink success rate per quantifier
+- Allocate more budget to quantifiers making progress
+- Early termination for converged quantifiers
+
+## Appendix: Running the Analysis
 
 ```bash
-# Generate data for all three strategies
-npm run evidence:shrinking-comparison
+# Run the study
+QUICK_MODE=1 npx tsx scripts/evidence/shrinking-strategies-comparison.study.ts
 
-# Analyze results
-python3 analysis/shrinking_strategies_comparison.py
-
-# Generate visualizations
-# → docs/evidence/shrinking-strategies-comparison.png
-# → docs/evidence/shrinking-strategies-variance.png
+# Generate analysis and visualizations
+source analysis/.venv/bin/activate
+python analysis/shrinking_strategies_comparison.py
 ```
 
-### Expected Output Files
-
-1. **`docs/evidence/raw/shrinking-strategies.csv`**
-   ```
-   trial_id,seed,strategy,quantifier_order,property,initial_values,final_values,variance,attempts,rounds,elapsed_micros
-   1,42,sequential,abc,sum,[80;85;90],[0;70;81],2156,45,8,1250
-   2,42,round-robin,abc,sum,[80;85;90],[26;52;73],554,48,6,1310
-   3,42,delta,abc,sum,[80;85;90],[50;50;51],0.33,72,4,2050
-   ...
-   ```
-
-2. **Analysis Script** (`analysis/shrinking_strategies_comparison.py`)
-   - Compute summary statistics per strategy
-   - Run ANOVA and Tukey HSD tests
-   - Generate comparison visualizations
-   - Output statistical conclusions
-
-## References
-
-- Study 14 (Shrinking Fairness): `docs/evidence/README.md:912-935`
-- Fair Shrinking Strategies: `docs/research/fair-shrinking-strategies.md`
-- Implementation Spec: `openspec/changes/improve-shrinking-fairness/specs/strategies/spec.md`
-
-## Appendix: Raw Data Format
-
-### CSV Schema
-
-```typescript
-interface ShrinkingStrategyResult {
-  trialId: number
-  seed: number
-  strategy: 'sequential' | 'round-robin' | 'delta'
-  quantifierOrder: string  // e.g., 'abc', 'bac', 'cab'
-  property: string         // e.g., 'sum', 'product', 'triangle'
-  initialValues: number[]
-  finalValues: number[]
-  variance: number
-  meanDistance: number
-  attempts: number
-  rounds: number
-  elapsedMicros: number
-}
-```
-
-### Analysis Outputs
-
-```python
-# Expected statistical outputs
-{
-  'anova': {
-    'F': 892.47,
-    'p': 0.0000,
-    'conclusion': 'Strategies are significantly different'
-  },
-  'tukey_hsd': {
-    'round-robin vs sequential': {'diff': -1520, 'p': 0.0000},
-    'delta vs sequential': {'diff': -2011, 'p': 0.0000},
-    'delta vs round-robin': {'diff': -491, 'p': 0.0000}
-  },
-  'summary': {
-    'sequential': {'mean_variance': 2074, 'std': 342},
-    'round-robin': {'mean_variance': 554, 'std': 89},
-    'delta': {'mean_variance': 63, 'std': 12}
-  }
-}
-```
+**Output files**:
+- `docs/evidence/raw/shrinking-strategies.csv` - Raw trial data
+- `docs/evidence/figures/shrinking-strategies-comparison.png` - Visualization
 
 ## Conclusion
 
-The evidence overwhelmingly supports **Round-Robin as the default** shrinking strategy:
+The evidence supports a two-pronged approach to improving shrinking:
 
-1. **Massive fairness improvement** (73% variance reduction)
-2. **Negligible performance cost** (5% overhead)
-3. **Better user experience** (balanced, readable counterexamples)
-4. **Statistical significance** (p < 0.0001)
+1. **Fair shrinking strategies** (Round-Robin) distribute budget across quantifiers, achieving 60%+ distance reduction with minimal overhead.
 
-Delta Debugging should be available as an opt-in for scenarios requiring maximum quality, while Sequential Exhaustive should be maintained only for backwards compatibility.
+2. **Weighted shrink candidate generation** biases sampling toward smaller values (80/20 split), enabling binary-search-like convergence even when optimal values aren't at corners.
 
-This evidence-based approach ensures that the implementation is validated by empirical data rather than theoretical assumptions.
+Together, these changes transform shrinking from a random walk into a directed search, significantly improving counterexample quality while maintaining backward compatibility.
