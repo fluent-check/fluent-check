@@ -92,13 +92,63 @@ Figures are saved to `../docs/evidence/figures/`:
 
 See [`pyproject.toml`](pyproject.toml) for complete dependency specifications.
 
-## Utilities
+## Module Structure
 
-`util.py` provides shared functions:
-- `wilson_score_interval()` - Confidence intervals for proportions
-- `save_figure()` - Consistent figure saving
-- `compute_summary_stats()` - Summary statistics
-- `print_summary_table()` - Formatted output
+The analysis scripts use a modular architecture to eliminate code duplication:
+
+### Core Modules
+
+- **`constants.py`** - Shared configuration and constants
+  - Scenario definitions (density, shrinking, etc.)
+  - Color schemes and styling
+  - Output paths and thresholds
+
+- **`stats.py`** - Statistical functions
+  - `wilson_score_interval()` - Confidence intervals for proportions
+  - `chi_squared_test()` - Hypothesis testing
+  - `cohens_h()` - Effect size calculation
+  - `mann_whitney_test()` - Non-parametric comparison
+  - `compute_summary_stats()` - Summary statistics
+
+- **`viz.py`** - Visualization utilities
+  - `save_figure()` - Consistent figure saving
+  - `create_figure()` - Standard figure creation
+  - `create_bar_chart_with_ci()` - Bar charts with confidence intervals
+  - `create_grouped_bar_chart()` - Grouped comparisons
+  - `add_reference_line()` - Reference lines
+
+- **`base.py`** - Base classes for analysis scripts
+  - `AnalysisBase` - Template pattern for single-file analyses
+  - `MultiFileAnalysis` - For analyses loading multiple CSVs
+
+- **`util.py`** - Backward compatibility module (re-exports from stats/viz)
+
+### Writing New Analysis Scripts
+
+New scripts should inherit from `AnalysisBase`:
+
+```python
+from base import AnalysisBase
+from constants import DENSITY_SCENARIO_ORDER
+from stats import wilson_score_interval
+from viz import save_figure, create_figure
+
+class MyAnalysis(AnalysisBase):
+    @property
+    def name(self) -> str:
+        return "My Analysis"
+
+    @property
+    def csv_filename(self) -> str:
+        return "my_data.csv"
+
+    def analyze(self) -> None:
+        # Analysis implementation
+        pass
+
+if __name__ == "__main__":
+    MyAnalysis().run()
+```
 
 ## Troubleshooting
 

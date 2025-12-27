@@ -27,7 +27,22 @@
     "evidence:generate": "npx tsx scripts/evidence/calibration.study.ts && npx tsx scripts/evidence/detection.study.ts && npx tsx scripts/evidence/efficiency.study.ts && npx tsx scripts/evidence/exists.study.ts && npx tsx scripts/evidence/shrinking.study.ts && npx tsx scripts/evidence/double-negation.study.ts",
     "evidence:analyze": "./scripts/evidence/run-analysis.sh",
     "evidence": "npm run evidence:generate && npm run evidence:analyze",
-    "evidence:quick": "QUICK_MODE=1 npm run evidence:generate && npm run evidence:analyze"
+    "evidence:quick": "QUICK_MODE=1 npm run evidence:generate && npm run evidence:analyze",
+    "evidence:biased-sampling": "npx tsx scripts/evidence/biased-sampling.study.ts && cd analysis && source .venv/bin/activate && python biased_sampling.py",
+    "evidence:weighted-union": "npx tsx scripts/evidence/weighted-union.study.ts && cd analysis && source .venv/bin/activate && python weighted_union.py",
+    "evidence:corner-case-coverage": "npx tsx scripts/evidence/corner-case-coverage.study.ts && cd analysis && source .venv/bin/activate && python corner_case_coverage.py",
+    "evidence:filter-cascade": "npx tsx scripts/evidence/filter-cascade.study.ts && cd analysis && source .venv/bin/activate && python filter_cascade.py",
+    "evidence:chained-distribution": "npx tsx scripts/evidence/chained-distribution.study.ts && cd analysis && source .venv/bin/activate && python chained_distribution.py",
+    "evidence:shrinking-fairness": "npx tsx scripts/evidence/shrinking-fairness.study.ts && cd analysis && source .venv/bin/activate && python shrinking_fairness.py",
+    "evidence:length-distribution": "npx tsx scripts/evidence/length-distribution.study.ts && cd analysis && source .venv/bin/activate && python length_distribution.py",
+    "evidence:caching-tradeoff": "npx tsx scripts/evidence/caching-tradeoff.study.ts && cd analysis && source .venv/bin/activate && python caching_tradeoff.py",
+    "evidence:streaming-accuracy": "npx tsx scripts/evidence/streaming-accuracy.study.ts && cd analysis && source .venv/bin/activate && python streaming_accuracy.py",
+    "evidence:sample-budget": "npx tsx scripts/evidence/sample-budget.study.ts && cd analysis && source .venv/bin/activate && python sample_budget.py",
+    "evidence:deduplication": "npx tsx scripts/evidence/deduplication.study.ts && cd analysis && source .venv/bin/activate && python deduplication.py",
+    "evidence:mapped-size": "npx tsx scripts/evidence/mapped-size.study.ts && cd analysis && source .venv/bin/activate && python mapped_size.py",
+    "evidence:shrinking-strategies": "npx tsx scripts/evidence/shrinking-strategies-comparison.study.ts && cd analysis && source .venv/bin/activate && python shrinking_strategies_comparison.py",
+    "evidence:apparatus": "npm run evidence:biased-sampling && npm run evidence:weighted-union && npm run evidence:corner-case-coverage && npm run evidence:filter-cascade && npm run evidence:deduplication && npm run evidence:mapped-size && npm run evidence:chained-distribution && npm run evidence:shrinking-fairness && npm run evidence:shrinking-strategies && npm run evidence:length-distribution && npm run evidence:caching-tradeoff && npm run evidence:streaming-accuracy && npm run evidence:sample-budget",
+    "evidence:apparatus:quick": "QUICK_MODE=1 npm run evidence:apparatus"
   },
   "keywords": [
     "testing",

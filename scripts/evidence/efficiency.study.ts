@@ -16,7 +16,7 @@
  */
 
 import * as fc from '../../src/index.js'
-import { CSVWriter, ProgressReporter, getSeed, getSampleSize, mulberry32, HighResTimer } from './runner.js'
+import { ExperimentRunner, getSeed, getSampleSize, mulberry32, HighResTimer } from './runner.js'
 import path from 'path'
 
 interface EfficiencyResult {
@@ -33,16 +33,21 @@ interface EfficiencyResult {
   elapsedMicros: number
 }
 
+interface EfficiencyParams {
+  propertyType: string
+  failureRate: number
+  targetConfidence: number
+  passRateThreshold: number
+}
+
 /**
  * Run a single efficiency trial with configurable pass rate
  */
 function runTrial(
-  trialId: number,
-  propertyType: string,
-  failureRate: number,
-  targetConfidence: number,
-  passRateThreshold: number
+  params: EfficiencyParams,
+  trialId: number
 ): EfficiencyResult {
+  const { propertyType, failureRate, targetConfidence, passRateThreshold } = params
   const seed = getSeed(trialId)
   const timer = new HighResTimer()
 
@@ -92,29 +97,6 @@ function runTrial(
  * Run efficiency study
  */
 async function runEfficiencyStudy(): Promise<void> {
-  console.log('\n=== Efficiency Study ===')
-  console.log('Hypothesis: Confidence-based termination adapts to property complexity\n')
-  console.log('Note: Confidence checked every 100 tests (minimum termination point)\n')
-
-  const outputPath = path.join(process.cwd(), 'docs/evidence/raw/efficiency.csv')
-  const writer = new CSVWriter(outputPath)
-
-  writer.writeHeader([
-    'trial_id',
-    'seed',
-    'tests_run',
-    'bug_found',
-    'claimed_confidence',
-    'property_type',
-    'true_pass_rate',
-    'target_confidence',
-    'pass_rate_threshold',
-    'termination_reason',
-    'elapsed_micros'
-  ])
-
-  // Study parameters
-  // Using threshold of 0.80 to easily achieve confidence for high pass-rate properties
   const targetConfidence = 0.95
   const passRateThreshold = 0.80
   
@@ -127,58 +109,43 @@ async function runEfficiencyStudy(): Promise<void> {
     { name: 'frequent_failure', failureRate: 0.05 }    // 95% pass rate (1 in 20)
   ]
 
-  const trialsPerProperty = getSampleSize(200, 50)
-  const totalTrials = properties.length * trialsPerProperty
+  const parameters: EfficiencyParams[] = properties.map(p => ({
+    propertyType: p.name,
+    failureRate: p.failureRate,
+    targetConfidence,
+    passRateThreshold
+  }))
 
-  console.log(`Target confidence: ${targetConfidence}`)
-  console.log(`Pass rate threshold: ${passRateThreshold} (asking "is pass rate > 80%?")`)
-  console.log(`\nProperty types:`)
-  for (const p of properties) {
-    const expected = p.failureRate === 0 
-      ? 'terminates at 100 (first check)'
-      : `~${Math.round(1/p.failureRate)} tests to first failure on average`
-    console.log(`  - ${p.name}: ${((1 - p.failureRate) * 100).toFixed(1)}% pass rate (${expected})`)
-  }
-  console.log(`\nTrials per property: ${trialsPerProperty}`)
-  console.log(`Total trials: ${totalTrials}\n`)
-
-  const progress = new ProgressReporter(totalTrials, 'Efficiency')
-
-  let trialId = 0
-  for (const prop of properties) {
-    for (let i = 0; i < trialsPerProperty; i++) {
-      const result = runTrial(
-        trialId,
-        prop.name,
-        prop.failureRate,
-        targetConfidence,
-        passRateThreshold
-      )
-
-      writer.writeRow([
-        result.trialId,
-        result.seed,
-        result.testsRun,
-        result.bugFound,
-        result.claimedConfidence.toFixed(6),
-        result.propertyType,
-        result.truePassRate.toFixed(4),
-        result.targetConfidence,
-        result.passRateThreshold,
-        result.terminationReason,
-        result.elapsedMicros
-      ])
-
-      progress.update()
-      trialId++
+  const runner = new ExperimentRunner<EfficiencyParams, EfficiencyResult>({
+    name: 'Efficiency Study',
+    outputPath: path.join(process.cwd(), 'docs/evidence/raw/efficiency.csv'),
+    csvHeader: [
+      'trial_id', 'seed', 'tests_run', 'bug_found', 'claimed_confidence',
+      'property_type', 'true_pass_rate', 'target_confidence',
+      'pass_rate_threshold', 'termination_reason', 'elapsed_micros'
+    ],
+    trialsPerConfig: getSampleSize(200, 50),
+    resultToRow: (r: EfficiencyResult) => [
+      r.trialId, r.seed, r.testsRun, r.bugFound, r.claimedConfidence.toFixed(6),
+      r.propertyType, r.truePassRate.toFixed(4), r.targetConfidence,
+      r.passRateThreshold, r.terminationReason, r.elapsedMicros
+    ],
+    preRunInfo: () => {
+      console.log('Hypothesis: Confidence-based termination adapts to property complexity\n')
+      console.log('Note: Confidence checked every 100 tests (minimum termination point)\n')
+      console.log(`Target confidence: ${targetConfidence}`)
+      console.log(`Pass rate threshold: ${passRateThreshold} (asking "is pass rate > 80%?")`)
+      console.log(`\nProperty types:`)
+      for (const p of properties) {
+        const expected = p.failureRate === 0 
+          ? 'terminates at 100 (first check)'
+          : `~${Math.round(1/p.failureRate)} tests to first failure on average`
+        console.log(`  - ${p.name}: ${((1 - p.failureRate) * 100).toFixed(1)}% pass rate (${expected})`)
+      }
     }
-  }
+  })
 
-  progress.finish()
-  await writer.close()
-
-  console.log(`\n✓ Efficiency study complete`)
-  console.log(`  Output: ${outputPath}`)
+  await runner.run(parameters, runTrial)
 }
 
 // Run if executed directly

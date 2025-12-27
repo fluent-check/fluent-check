@@ -748,6 +748,54 @@ export abstract class AbstractExplorer<Rec extends {}> implements Explorer<Rec> 
   protected isPreconditionFailure(e: unknown): e is PreconditionFailure {
     return e instanceof PreconditionFailure
   }
+
+  /**
+   * Track statistics for a sample value.
+   * This helper method eliminates code duplication between exists() and forall().
+   */
+  protected trackSampleStatistics(
+    frame: QuantifierFrame<Rec> | any, // Use union to allow FlatExplorer's any usage or strict QuantifierFrame
+    sample: FluentPick<unknown>
+  ): void {
+    if (frame.ctx.statisticsContext === undefined || frame.ctx.detailedStatisticsEnabled !== true) {
+      return
+    }
+
+    const collector = frame.ctx.statisticsContext.getCollector(frame.quantifier.name)
+
+    // Get arbitrary from scenario nodes (for corner cases).
+    // Note: ExecutableQuantifier doesn't contain the original Arbitrary, so we must
+    // look it up from the nodes array. The quantifier should always exist in nodes
+    // since ExecutableScenario is created from Scenario which includes quantifier nodes.
+    const quantifierNode = frame.ctx.executableScenario.nodes.find(
+      (n: any): n is QuantifierNode =>
+        (n.type === 'forall' || n.type === 'exists') && n.name === frame.quantifier.name
+    )
+
+    if (quantifierNode !== undefined) {
+      collector.recordSample(sample.value, quantifierNode.arbitrary)
+    } else {
+      // Fallback: record sample without corner case checking.
+      // This should be rare - only if quantifier node is missing from nodes array.
+      collector.recordSample(sample.value, {
+        cornerCases: () => [],
+        hashCode: () => (a: unknown) => typeof a === 'number' ? a | 0 : 0,
+        equals: () => (a: unknown, b: unknown) => a === b
+      })
+    }
+
+    // Track numeric values for distribution
+    if (typeof sample.value === 'number' && Number.isFinite(sample.value)) {
+      collector.recordNumericValue(sample.value)
+    }
+
+    // Track array/string lengths separately
+    if (Array.isArray(sample.value)) {
+      collector.recordArrayLength(sample.value.length)
+    } else if (typeof sample.value === 'string') {
+      collector.recordStringLength(sample.value.length)
+    }
+  }
 }
 
 /**

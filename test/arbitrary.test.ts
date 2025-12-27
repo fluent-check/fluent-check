@@ -426,6 +426,9 @@ describe('Arbitrary tests', () => {
     })
 
     it('should return the correct size of shrinked integer arbitraries', () => {
+      // Shrinking uses weighted union of [target, mid] and [mid+1, current]
+      // For value 5: target=0, current=4, mid=2
+      // Weighted of integer(0,2) [size 3] and integer(3,4) [size 2] = 5
       expect(fc.integer(0, 10).shrink({value: 5}).size().value).to.equal(5)
     })
 

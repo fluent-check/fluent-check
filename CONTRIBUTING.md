@@ -112,6 +112,26 @@ For test coverage:
 npm run coverage
 ```
 
+## Evidence-Based Validation
+
+FluentCheck uses a statistical evidence suite to validate its core claims (uniformity, coverage, shrinking optimality).
+
+### When to Run Evidence Studies
+- When modifying `Arbitrary` core logic (generation, shrinking, size estimation).
+- When changing `FluentStrategy` or `Explorer` implementations.
+- When adding new statistical features.
+
+### How to Run
+```bash
+# Run the full apparatus (biased sampling, weighted union, etc.)
+npm run evidence:apparatus
+
+# Quick mode (fewer samples)
+npm run evidence:apparatus:quick
+```
+
+See [docs/evidence/README.md](docs/evidence/README.md) for detailed study methodologies and findings.
+
 ## Performance Profiling
 
 FluentCheck includes profiling tools to identify performance bottlenecks.

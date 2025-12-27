@@ -29,19 +29,37 @@ export class ArbitraryInteger extends Arbitrary<number> {
 
   override shrink(initial: FluentPick<number>): Arbitrary<number> {
     if (initial.value > 0) {
-      const lower = Math.max(0, this.min)
-      const upper = initial.value - 1
+      const target = Math.max(0, this.min)
+      const current = initial.value - 1
 
-      if (upper < lower) return NoArbitrary
+      if (current < target) return NoArbitrary
 
-      return fc.integer(lower, upper)
+      // Binary search: weighted union heavily favoring smaller interval
+      // 80% from [target, mid], 20% from [mid+1, current]
+      // This gives O(log N) convergence while still allowing exploration
+      const mid = Math.floor((target + current) / 2)
+      if (mid > target && mid < current) {
+        return fc.weighted([
+          [0.8, fc.integer(target, mid)],
+          [0.2, fc.integer(mid + 1, current)]
+        ])
+      }
+      return fc.integer(target, current)
     } else if (initial.value < 0) {
-      const upper = Math.min(0, this.max)
-      const lower = initial.value + 1
+      const target = Math.min(0, this.max)
+      const current = initial.value + 1
 
-      if (lower > upper) return NoArbitrary
+      if (current > target) return NoArbitrary
 
-      return fc.integer(lower, upper)
+      // Binary search: weighted union heavily favoring smaller interval
+      const mid = Math.ceil((current + target) / 2)
+      if (mid < target && mid > current) {
+        return fc.weighted([
+          [0.8, fc.integer(mid, target)],
+          [0.2, fc.integer(current, mid - 1)]
+        ])
+      }
+      return fc.integer(current, target)
     }
 
     return NoArbitrary

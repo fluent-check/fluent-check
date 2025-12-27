@@ -41,6 +41,7 @@ export {
   type ExplorationExhausted,
   type BoundTestCase
 } from './strategies/Explorer.js'
+export {type ShrinkingStrategy} from './strategies/types.js'
 export {
   createExecutableScenario,
   type ExecutableScenario,
@@ -55,6 +56,10 @@ export {
   type ShrinkBudget,
   type ShrinkResult
 } from './strategies/Shrinker.js'
+export {type ShrinkRoundStrategy} from './strategies/shrinking/ShrinkRoundStrategy.js'
+export {SequentialExhaustiveStrategy} from './strategies/shrinking/SequentialExhaustiveStrategy.js'
+export {RoundRobinStrategy} from './strategies/shrinking/RoundRobinStrategy.js'
+export {DeltaDebuggingStrategy} from './strategies/shrinking/DeltaDebuggingStrategy.js'
 export {
   Verbosity,
   StreamingMeanVariance,
@@ -132,5 +137,6 @@ export {
   pair,
   nullable,
   optional,
-  type Arbitrary
+  Arbitrary
 } from './arbitraries/index.js'
+export type {Arbitrary as ArbitraryType} from './arbitraries/index.js'

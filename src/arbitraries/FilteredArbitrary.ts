@@ -10,6 +10,21 @@ export class FilteredArbitrary<A> extends WrappedArbitrary<A> {
   constructor(override readonly baseArbitrary: Arbitrary<A>, public readonly f: (a: A) => boolean) {
     super(baseArbitrary)
     this.sizeEstimation = new BetaDistribution(2, 1) // use 1,1 for .mean instead of .mode in point estimation
+
+    // Warm-up with a deterministic seed to prime the estimator
+    // This prevents the "Cold Start" problem where size() is called before any sampling
+    const WARMUP_SEED = 0xCAFEBABE
+    const WARMUP_SAMPLES = 10
+    let seed = WARMUP_SEED
+    const lcg = () => {
+      seed = (Math.imul(seed, 1664525) + 1013904223) | 0
+      return (seed >>> 0) / 4294967296
+    }
+
+    // Sample a few times to get a rough initial estimate
+    for (let i = 0; i < WARMUP_SAMPLES; i++) {
+      this.pick(lcg)
+    }
   }
 
   override size(): EstimatedSize {
@@ -20,11 +35,18 @@ export class FilteredArbitrary<A> extends WrappedArbitrary<A> {
     // for when we know the exact base population size.
     const baseSize = this.baseArbitrary.size()
     const v = baseSize.value
+
+    const baseLow = baseSize.type === 'estimated' ? baseSize.credibleInterval[0] : v
+    const baseHigh = baseSize.type === 'estimated' ? baseSize.credibleInterval[1] : v
+
+    const rateLow = this.sizeEstimation.inv(lowerCredibleInterval)
+    const rateHigh = this.sizeEstimation.inv(upperCredibleInterval)
+
     return estimatedSize(
       Math.round(v * this.sizeEstimation.mode()),
       [
-        v * this.sizeEstimation.inv(lowerCredibleInterval),
-        v * this.sizeEstimation.inv(upperCredibleInterval)
+        Math.floor(baseLow * rateLow),
+        Math.ceil(baseHigh * rateHigh)
       ]
     )
   }

@@ -14,7 +14,7 @@
  */
 
 import * as fc from '../../src/index.js'
-import { CSVWriter, ProgressReporter, getSeed, getSampleSize, mulberry32, HighResTimer } from './runner.js'
+import { ExperimentRunner, getSeed, getSampleSize, mulberry32, HighResTimer } from './runner.js'
 import path from 'path'
 
 // Large range for meaningful shrinking potential
@@ -38,12 +38,16 @@ interface ShrinkingResult {
   totalElapsedMicros: number
 }
 
+interface ShrinkingParams {
+  name: string
+  description: string
+  runner: (trialId: number, sampleSize: number) => ShrinkingResult
+  sampleSize: number
+}
+
 /**
  * Scenario 1: Threshold predicate (x > 100)
  * Minimal witness: 101
- *
- * This predicate has a dense solution space (99.99% of range satisfies),
- * but there's a clear minimal witness. Good test of shrinking.
  */
 function runThresholdTrial(trialId: number, sampleSize: number): ShrinkingResult {
   const seed = getSeed(trialId)
@@ -69,9 +73,7 @@ function runThresholdTrial(trialId: number, sampleSize: number): ShrinkingResult
     seed,
     scenario: 'threshold_gt_100',
     witnessFound: result.satisfiable,
-    // Note: We can't directly capture the pre-shrink value from the API,
-    // but we can infer shrinking quality from the final result and statistics
-    initialWitness: null, // Would need API changes to capture
+    initialWitness: null,
     finalWitness: witness,
     expectedMinimal,
     isMinimal: witness === expectedMinimal,
@@ -87,9 +89,6 @@ function runThresholdTrial(trialId: number, sampleSize: number): ShrinkingResult
 /**
  * Scenario 2: Modular predicate (x % 10000 === 0)
  * Minimal witness: 10000
- *
- * Sparse solution space (0.01%) with clear minimal. Tests shrinking
- * when witnesses are rare and improvements matter more.
  */
 function runModularTrial(trialId: number, sampleSize: number): ShrinkingResult {
   const seed = getSeed(trialId)
@@ -131,9 +130,6 @@ function runModularTrial(trialId: number, sampleSize: number): ShrinkingResult {
 /**
  * Scenario 3: Square root predicate (x * x > 50000)
  * Minimal witness: 224 (since 223² = 49729, 224² = 50176)
- *
- * Non-linear predicate where the minimal witness isn't obvious
- * from the predicate structure.
  */
 function runSquareRootTrial(trialId: number, sampleSize: number): ShrinkingResult {
   const seed = getSeed(trialId)
@@ -175,8 +171,6 @@ function runSquareRootTrial(trialId: number, sampleSize: number): ShrinkingResul
 /**
  * Scenario 4: Range predicate (1000 <= x <= 10000)
  * Minimal witness: 1000
- *
- * Tests shrinking when there's a clear bounded range.
  */
 function runRangeTrial(trialId: number, sampleSize: number): ShrinkingResult {
   const seed = getSeed(trialId)
@@ -218,8 +212,6 @@ function runRangeTrial(trialId: number, sampleSize: number): ShrinkingResult {
 /**
  * Scenario 5: Composite predicate (x > 100 AND x % 7 === 0)
  * Minimal witness: 105 (first multiple of 7 greater than 100)
- *
- * Tests shrinking with compound conditions.
  */
 function runCompositeTrial(trialId: number, sampleSize: number): ShrinkingResult {
   const seed = getSeed(trialId)
@@ -259,37 +251,21 @@ function runCompositeTrial(trialId: number, sampleSize: number): ShrinkingResult
 }
 
 /**
+ * Dispatcher for running trials
+ */
+function runTrial(
+  params: ShrinkingParams,
+  trialId: number
+): ShrinkingResult {
+  return params.runner(trialId, params.sampleSize)
+}
+
+/**
  * Run shrinking evaluation study
  */
 async function runShrinkingStudy(): Promise<void> {
-  console.log('\n=== Shrinking Evaluation Study ===')
-  console.log('Hypothesis: FluentCheck effectively minimizes witnesses to near-minimal values')
-  console.log(`Search space: [${LARGE_RANGE_MIN.toLocaleString()}, ${LARGE_RANGE_MAX.toLocaleString()}]\n`)
-
-  const outputPath = path.join(process.cwd(), 'docs/evidence/raw/shrinking.csv')
-  const writer = new CSVWriter(outputPath)
-
-  writer.writeHeader([
-    'trial_id',
-    'seed',
-    'scenario',
-    'witness_found',
-    'initial_witness',
-    'final_witness',
-    'expected_minimal',
-    'is_minimal',
-    'shrink_candidates_tested',
-    'shrink_rounds_completed',
-    'shrink_improvements_made',
-    'exploration_time_ms',
-    'shrinking_time_ms',
-    'total_elapsed_micros'
-  ])
-
-  // Increased sample sizes for more reliable results, especially for sparse scenarios
-  // Statistical target: CI width < 4% for most scenarios, at least 30-50 minimal witnesses for rare events
-  const trialsPerScenario = getSampleSize(2000, 300) // 2000 trials in full mode for reliable statistics (was 1000)
-  const sampleSize = 2000 // Higher sample size to ensure witness finding for sparse predicates (was 500)
+  const sampleSize = 2000 // Higher sample size to ensure witness finding for sparse predicates
+  const trialsPerScenario = getSampleSize(2000, 300)
 
   const scenarios = [
     { name: 'threshold_gt_100', runner: runThresholdTrial, description: 'x > 100 (minimal: 101)' },
@@ -299,50 +275,41 @@ async function runShrinkingStudy(): Promise<void> {
     { name: 'composite_gt100_mod7', runner: runCompositeTrial, description: 'x > 100 ∧ x % 7 === 0 (minimal: 105)' }
   ]
 
-  const totalTrials = scenarios.length * trialsPerScenario
+  const parameters: ShrinkingParams[] = scenarios.map(s => ({
+    name: s.name,
+    description: s.description,
+    runner: s.runner,
+    sampleSize
+  }))
 
-  console.log('Scenarios:')
-  for (const s of scenarios) {
-    console.log(`  - ${s.name}: ${s.description}`)
-  }
-  console.log(`\nSample size: ${sampleSize}`)
-  console.log(`Trials per scenario: ${trialsPerScenario}`)
-  console.log(`Total trials: ${totalTrials}\n`)
-
-  const progress = new ProgressReporter(totalTrials, 'Shrinking')
-
-  let trialId = 0
-  for (const scenario of scenarios) {
-    for (let i = 0; i < trialsPerScenario; i++) {
-      const result = scenario.runner(trialId, sampleSize)
-
-      writer.writeRow([
-        result.trialId,
-        result.seed,
-        result.scenario,
-        result.witnessFound,
-        result.initialWitness ?? '',
-        result.finalWitness ?? '',
-        result.expectedMinimal,
-        result.isMinimal,
-        result.shrinkCandidatesTested,
-        result.shrinkRoundsCompleted,
-        result.shrinkImprovementsMade,
-        result.explorationTimeMs,
-        result.shrinkingTimeMs,
-        result.totalElapsedMicros
-      ])
-
-      progress.update()
-      trialId++
+  const runner = new ExperimentRunner<ShrinkingParams, ShrinkingResult>({
+    name: 'Shrinking Evaluation Study',
+    outputPath: path.join(process.cwd(), 'docs/evidence/raw/shrinking.csv'),
+    csvHeader: [
+      'trial_id', 'seed', 'scenario', 'witness_found', 'initial_witness',
+      'final_witness', 'expected_minimal', 'is_minimal',
+      'shrink_candidates_tested', 'shrink_rounds_completed', 'shrink_improvements_made',
+      'exploration_time_ms', 'shrinking_time_ms', 'total_elapsed_micros'
+    ],
+    trialsPerConfig: trialsPerScenario,
+    resultToRow: (r: ShrinkingResult) => [
+      r.trialId, r.seed, r.scenario, r.witnessFound, r.initialWitness ?? '',
+      r.finalWitness ?? '', r.expectedMinimal, r.isMinimal,
+      r.shrinkCandidatesTested, r.shrinkRoundsCompleted, r.shrinkImprovementsMade,
+      r.explorationTimeMs, r.shrinkingTimeMs, r.totalElapsedMicros
+    ],
+    preRunInfo: () => {
+      console.log('Hypothesis: FluentCheck effectively minimizes witnesses to near-minimal values')
+      console.log(`Search space: [${LARGE_RANGE_MIN.toLocaleString()}, ${LARGE_RANGE_MAX.toLocaleString()}]\n`)
+      console.log('Scenarios:')
+      for (const s of scenarios) {
+        console.log(`  - ${s.name}: ${s.description}`)
+      }
+      console.log(`\nSample size: ${sampleSize}`)
     }
-  }
+  })
 
-  progress.finish()
-  await writer.close()
-
-  console.log(`\n✓ Shrinking evaluation study complete`)
-  console.log(`  Output: ${outputPath}`)
+  await runner.run(parameters, runTrial)
 }
 
 // Run if executed directly
