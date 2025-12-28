@@ -49,6 +49,9 @@ class DoubleNegationAnalysis(MultiFileAnalysis):
 
     def analyze(self) -> None:
         """Perform the double-negation equivalence analysis."""
+        print("H_0: First-class .exists() and Double-Negation emulation are semantically equivalent (equal detection rates).")
+        print("H_1: First-class .exists() provides significantly different detection rates compared to emulation.\n")
+
         self._analyze_detection_rates()
         self._analyze_shrinking()
         self._analyze_composition()
@@ -58,7 +61,6 @@ class DoubleNegationAnalysis(MultiFileAnalysis):
     def _analyze_detection_rates(self) -> None:
         """Part 1: Detection Rate Comparison."""
         self.print_section("PART 1: DETECTION RATE COMPARISON (Semantic Equivalence)")
-        print("\nIf both approaches are semantically equivalent, detection rates should be identical.")
 
         first_class = self.df[self.df['approach'] == 'first_class']
         double_neg = self.df[self.df['approach'] == 'double_negation']
@@ -107,6 +109,16 @@ class DoubleNegationAnalysis(MultiFileAnalysis):
 
         self._print_detection_table(results)
         self._create_detection_chart(results)
+        
+        # Scientific conclusion for Part 1
+        any_sig = any(r['significant'] for r in results)
+        if not any_sig:
+            print(f"\n  {self.check_mark} We fail to reject the null hypothesis H_0.")
+            print("    Detection rates are statistically equivalent across all tested scenarios.")
+        else:
+            print("\n  ⚠ We reject the null hypothesis H_0 for at least one scenario.")
+            print("    Significant differences in detection were found, suggesting implementation-specific variances.")
+
         self.detection_results = results
 
     def _print_detection_table(self, results: list) -> None:
@@ -126,10 +138,6 @@ class DoubleNegationAnalysis(MultiFileAnalysis):
 
         self.print_divider(width=80)
         print("** = statistically significant difference at alpha=0.05")
-
-        all_equivalent = not any(r['significant'] for r in results)
-        status = f"{self.check_mark} CONFIRMED" if all_equivalent else "X DIFFERENCES FOUND"
-        print(f"\n  Overall semantic equivalence: {status}")
 
     def _create_detection_chart(self, results: list) -> None:
         """Create detection rate comparison bar chart."""
@@ -191,8 +199,8 @@ class DoubleNegationAnalysis(MultiFileAnalysis):
         dn_candidates = dn_found_df['shrink_candidates_tested'].mean()
         dn_improvements = dn_found_df['shrink_improvements_made'].mean()
 
-        print(f"{'First-Class':<20} {fc_candidates:<18.1f} {fc_improvements:<18.1f}")
-        print(f"{'Double-Negation':<20} {dn_candidates:<18.1f} {dn_improvements:<18.1f}")
+        print(f"{ 'First-Class':<20} {fc_candidates:<18.1f} {fc_improvements:<18.1f}")
+        print(f"{ 'Double-Negation':<20} {dn_candidates:<18.1f} {dn_improvements:<18.1f}")
         self.print_divider(width=60)
 
         # Statistical test for shrinking difference
@@ -212,6 +220,12 @@ class DoubleNegationAnalysis(MultiFileAnalysis):
         """Create shrinking comparison charts."""
         fig, axes = plt.subplots(1, 2, figsize=(14, 6))
 
+        # Consistent palette mapping
+        palette = {
+            'First-Class': APPROACH_COLORS['first_class'],
+            'Double-Negation': APPROACH_COLORS['double_negation']
+        }
+
         # Candidates tested
         ax = axes[0]
         shrink_data = pd.concat([
@@ -219,10 +233,10 @@ class DoubleNegationAnalysis(MultiFileAnalysis):
             dn_df[['shrink_candidates_tested', 'scenario']].assign(approach='Double-Negation')
         ])
         sns.boxplot(data=shrink_data, x='scenario', y='shrink_candidates_tested',
-                    hue='approach', order=SIMPLE_DENSITY_ORDER, ax=ax)
+                    hue='approach', order=SIMPLE_DENSITY_ORDER, ax=ax, palette=palette)
         ax.set_xlabel('Scenario', fontsize=12)
         ax.set_ylabel('Shrink Candidates Tested', fontsize=12)
-        ax.set_title('Shrinking Effort Comparison', fontsize=14)
+        ax.set_title('Shrinking Effort Comparison')
         ax.legend(title='Approach')
         ax.grid(True, axis='y', alpha=0.3)
 
@@ -233,10 +247,10 @@ class DoubleNegationAnalysis(MultiFileAnalysis):
             dn_df[['shrink_improvements_made', 'scenario']].assign(approach='Double-Negation')
         ])
         sns.boxplot(data=improve_data, x='scenario', y='shrink_improvements_made',
-                    hue='approach', order=SIMPLE_DENSITY_ORDER, ax=ax)
+                    hue='approach', order=SIMPLE_DENSITY_ORDER, ax=ax, palette=palette)
         ax.set_xlabel('Scenario', fontsize=12)
         ax.set_ylabel('Successful Shrink Steps', fontsize=12)
-        ax.set_title('Shrinking Progress Comparison', fontsize=14)
+        ax.set_title('Shrinking Progress Comparison')
         ax.legend(title='Approach')
         ax.grid(True, axis='y', alpha=0.3)
 
@@ -267,13 +281,13 @@ class DoubleNegationAnalysis(MultiFileAnalysis):
         fc_loc = self.safe_first(fc_comp, 'lines_of_code', 'N/A')
         dn_loc = self.safe_first(dn_comp, 'lines_of_code', 'N/A')
 
-        print(f"{'First-Class':<20} "
+        print(f"{ 'First-Class':<20} "
               f"{fc_found/fc_total*100:.1f}% "
               f"{fc_comp['tests_run'].mean():<12.1f} "
               f"{fc_comp['elapsed_micros'].mean():<15.1f} "
               f"{fc_loc:<8}")
 
-        print(f"{'Double-Negation':<20} "
+        print(f"{ 'Double-Negation':<20} "
               f"{dn_found/dn_total*100:.1f}% "
               f"{dn_comp['tests_run'].mean():<12.1f} "
               f"{dn_comp['elapsed_micros'].mean():<15.1f} "
@@ -340,21 +354,25 @@ class DoubleNegationAnalysis(MultiFileAnalysis):
         first_class = self.df[self.df['approach'] == 'first_class']
         double_neg = self.df[self.df['approach'] == 'double_negation']
 
-        # Merge on trial_id to get paired comparisons
+        # Merge on seed and scenario to get paired comparisons
         merged = pd.merge(
-            first_class[['trial_id', 'scenario', 'witness_found', 'witness_value']],
-            double_neg[['trial_id', 'scenario', 'witness_found', 'witness_value']],
-            on=['trial_id', 'scenario'],
+            first_class[['seed', 'scenario', 'witness_found', 'witness_value']],
+            double_neg[['seed', 'scenario', 'witness_found', 'witness_value']],
+            on=['seed', 'scenario'],
             suffixes=('_fc', '_dn')
         )
+
+        total_pairs = len(merged)
+        if total_pairs == 0:
+            print("\n  No paired trials found for agreement analysis.")
+            return
 
         both_found = (merged['witness_found_fc'] & merged['witness_found_dn']).sum()
         both_not_found = (~merged['witness_found_fc'] & ~merged['witness_found_dn']).sum()
         fc_only = (merged['witness_found_fc'] & ~merged['witness_found_dn']).sum()
         dn_only = (~merged['witness_found_fc'] & merged['witness_found_dn']).sum()
 
-        total_pairs = len(merged)
-        agreement_rate = (both_found + both_not_found) / total_pairs if total_pairs > 0 else 0
+        agreement_rate = (both_found + both_not_found) / total_pairs
 
         print(f"\n  Both found witness: {both_found} ({both_found/total_pairs*100:.1f}%)")
         print(f"  Both missed: {both_not_found} ({both_not_found/total_pairs*100:.1f}%)")

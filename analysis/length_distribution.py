@@ -16,6 +16,7 @@ Generates:
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
+import numpy as np
 
 from base import AnalysisBase
 from stats import wilson_score_interval
@@ -35,6 +36,9 @@ class LengthDistributionAnalysis(AnalysisBase):
 
     def analyze(self) -> None:
         """Perform the length distribution analysis."""
+        print("H_0: Length distribution (uniform, geometric, edge-biased) has no effect on bug detection rates or efficiency.")
+        print("H_1: Biased distributions significantly improve detection speed for specific length-related bugs.\n")
+
         self._compute_summary()
         self._create_visualization()
         self._print_conclusion()
@@ -61,56 +65,56 @@ class LengthDistributionAnalysis(AnalysisBase):
         """Create length distribution visualization."""
         fig, axes = plt.subplots(1, 2, figsize=(14, 6))
 
-        self._create_detection_chart(axes[0])
-        self._create_tests_chart(axes[1])
+        # Consistent palette mapping for distributions
+        dists = sorted(self.df['length_distribution'].unique())
+        palette = dict(zip(dists, sns.color_palette("muted", len(dists))))
+
+        self._create_detection_chart(axes[0], palette)
+        self._create_tests_chart(axes[1], palette)
 
         save_figure(fig, self.get_output_path("length-distribution.png"))
 
-    def _create_detection_chart(self, ax) -> None:
+    def _create_detection_chart(self, ax, palette) -> None:
         """Create detection rate chart."""
         sns.barplot(x='bug_type', y='detection_rate', hue='length_distribution',
-                    data=self.summary, ax=ax, palette='muted')
+                    data=self.summary, ax=ax, palette=palette)
         ax.set_xlabel('Bug Type')
         ax.set_ylabel('Detection Rate')
         ax.set_title('Detection Rate by Bug Type and Distribution')
         ax.set_ylim(0, 1.1)
         ax.grid(True, axis='y', alpha=0.3)
 
-    def _create_tests_chart(self, ax) -> None:
+    def _create_tests_chart(self, ax, palette) -> None:
         """Create tests to detection chart."""
         detected_df = self.df[self.df['bug_detected'] == True]
         sns.boxplot(x='bug_type', y='tests_to_detection', hue='length_distribution',
-                    data=detected_df, ax=ax, palette='muted')
+                    data=detected_df, ax=ax, palette=palette)
         ax.set_xlabel('Bug Type')
         ax.set_ylabel('Tests to Detection')
         ax.set_title('Tests to Detection (Detected Trials Only)')
         ax.grid(True, axis='y', alpha=0.3)
 
     def _print_conclusion(self) -> None:
-        """Print conclusion."""
-        self.print_section("CONCLUSION")
+        """Print conclusion with scientific rigor."""
+        self.print_section("SCIENTIFIC CONCLUSION")
 
-        # Check if edge_biased is generally faster for boundary bugs
-        boundary_bugs = ['empty', 'max_boundary']
-        edge_results = self.summary[self.summary['bug_type'].isin(boundary_bugs)]
-
-        faster_count = 0
-        for bug in boundary_bugs:
-            bug_data = edge_results[edge_results['bug_type'] == bug]
-            if len(bug_data) == 0:
-                continue
-            edge_data = bug_data[bug_data['length_distribution'] == 'edge_biased']['median_tests']
-            uniform_data = bug_data[bug_data['length_distribution'] == 'uniform']['median_tests']
-            if len(edge_data) > 0 and len(uniform_data) > 0:
-                edge_tests = edge_data.values[0]
-                uniform_tests = uniform_data.values[0]
-                if edge_tests < uniform_tests:
-                    faster_count += 1
-
-        if faster_count > 0:
-            print(f"  {self.check_mark} Hypothesis supported: Edge-biased distribution found {faster_count} boundary bug types faster than uniform.")
+        from scipy.stats import kruskal
+        
+        # Test if tests_to_detection differs across distributions for 'empty' bug
+        groups = []
+        for dist in self.df['length_distribution'].unique():
+            groups.append(self.df[(self.df['bug_type'] == 'empty') & 
+                                  (self.df['length_distribution'] == dist) & 
+                                  (self.df['bug_detected'])]['tests_to_detection'])
+        
+        stat, p_val = kruskal(*groups)
+        
+        if p_val < 0.05:
+            print(f"  {self.check_mark} We reject the null hypothesis H_0 (p={p_val:.4e}).")
+            print("    Statistically significant evidence that length distribution affects bug detection efficiency.")
         else:
-            print(f"  x Hypothesis rejected: Edge-biased distribution showed no speed improvement.")
+            print(f"  ✗ We fail to reject the null hypothesis H_0 (p={p_val:.4f}).")
+            print("    No significant difference in detection efficiency was observed across the tested distributions.")
 
         print(f"\n  {self.check_mark} Length Distribution analysis complete")
 

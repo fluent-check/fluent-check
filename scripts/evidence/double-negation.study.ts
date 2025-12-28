@@ -58,10 +58,11 @@ interface DoubleNegationParams {
  */
 function runFirstClassExists(
   params: DoubleNegationParams,
-  trialId: number
+  trialId: number,
+  indexInConfig: number
 ): DoubleNegationResult {
   const { scenario, sampleSize } = params
-  const seed = getSeed(trialId)
+  const seed = getSeed(indexInConfig) // Use index in config for consistent seed across approaches
   const timer = new HighResTimer()
 
   const result = fc.scenario()
@@ -86,8 +87,8 @@ function runFirstClassExists(
     testsRun: result.statistics.testsRun,
     elapsedMicros,
     witnessValue: result.satisfiable ? (result.example as { x: number }).x : null,
-    shrinkCandidatesTested: shrinkingStats?.candidatesTested ?? 0,
-    shrinkImprovementsMade: shrinkingStats?.improvementsMade ?? 0
+    shrinkCandidatesTested: shrinkingStats?.shrinkAttempts ?? 0,
+    shrinkImprovementsMade: shrinkingStats?.shrinkRounds ?? 0
   }
 }
 
@@ -96,10 +97,11 @@ function runFirstClassExists(
  */
 function runDoubleNegation(
   params: DoubleNegationParams,
-  trialId: number
+  trialId: number,
+  indexInConfig: number
 ): DoubleNegationResult {
   const { scenario, sampleSize } = params
-  const seed = getSeed(trialId)
+  const seed = getSeed(indexInConfig) // Use index in config for consistent seed
   const timer = new HighResTimer()
 
   // ∃x. P(x) ≡ ¬∀x. ¬P(x)
@@ -132,8 +134,8 @@ function runDoubleNegation(
     testsRun: result.statistics.testsRun,
     elapsedMicros,
     witnessValue,
-    shrinkCandidatesTested: shrinkingStats?.candidatesTested ?? 0,
-    shrinkImprovementsMade: shrinkingStats?.improvementsMade ?? 0
+    shrinkCandidatesTested: shrinkingStats?.shrinkAttempts ?? 0,
+    shrinkImprovementsMade: shrinkingStats?.shrinkRounds ?? 0
   }
 }
 
@@ -308,7 +310,8 @@ async function runDoubleNegationStudy(): Promise<void> {
     ],
     preRunInfo: () => {
       console.log('Hypothesis: First-class exists provides equal detection with better ergonomics')
-      console.log(`Search space: [${LARGE_RANGE_MIN.toLocaleString()}, ${LARGE_RANGE_MAX.toLocaleString()}]\n`)
+      console.log(`Search space: [${LARGE_RANGE_MIN.toLocaleString()}, ${LARGE_RANGE_MAX.toLocaleString()}]
+`)
       console.log('Scenarios:')
       for (const s of SCENARIOS) {
         console.log(`  - ${s.name}: density ${s.description}`)
@@ -317,10 +320,10 @@ async function runDoubleNegationStudy(): Promise<void> {
     }
   })
 
-  await simpleRunner.run(simpleParams, (params, id) => {
+  await simpleRunner.run(simpleParams, (params, id, index) => {
     return params.approach === 'first_class' 
-      ? runFirstClassExists(params, id) 
-      : runDoubleNegation(params, id)
+      ? runFirstClassExists(params, id, index) 
+      : runDoubleNegation(params, id, index)
   })
 
   // Part 2: Composition complexity comparison

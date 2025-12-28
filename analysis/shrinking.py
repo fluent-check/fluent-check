@@ -42,6 +42,9 @@ class ShrinkingAnalysis(AnalysisBase):
 
     def analyze(self) -> None:
         """Perform the shrinking quality analysis."""
+        print("H_0: All shrinking scenarios result in equivalent rates of finding the minimal witness.")
+        print("H_1: Predicate complexity and witness density significantly affect minimal witness achievement rates.\n")
+
         # Filter to only trials that found witnesses
         self.found_df = self.df[self.df['witness_found']].copy()
         found_count = len(self.found_df)
@@ -169,6 +172,9 @@ class ShrinkingAnalysis(AnalysisBase):
         order = [s for s in SHRINKING_SCENARIO_ORDER if s in self.found_df['scenario'].values]
         short_labels = [SHRINKING_SCENARIO_LABELS.get(s, s).split('\n')[0] for s in order]
 
+        # Use consistent colors for scenarios if used in multiple subplots
+        palette = sns.color_palette("viridis", len(order))
+
         # Left: Candidates tested
         ax = axes[0]
         sns.boxplot(
@@ -176,12 +182,15 @@ class ShrinkingAnalysis(AnalysisBase):
             x='scenario',
             y='shrink_candidates_tested',
             order=order,
-            palette='viridis',
-            ax=ax
+            palette=palette,
+            ax=ax,
+            hue='scenario',
+            legend=False
         )
         ax.set_xlabel('Scenario', fontsize=12)
         ax.set_ylabel('Shrink Candidates Tested', fontsize=12)
         ax.set_title('Shrinking Effort: Candidates Tested', fontsize=14)
+        ax.set_xticks(range(len(short_labels)))
         ax.set_xticklabels(short_labels, fontsize=9, rotation=45, ha='right')
         ax.grid(True, axis='y', alpha=0.3)
 
@@ -193,12 +202,15 @@ class ShrinkingAnalysis(AnalysisBase):
                 x='scenario',
                 y='shrink_improvements_made',
                 order=order,
-                palette='viridis',
-                ax=ax
+                palette=palette,
+                ax=ax,
+                hue='scenario',
+                legend=False
             )
             ax.set_xlabel('Scenario', fontsize=12)
             ax.set_ylabel('Successful Shrink Steps', fontsize=12)
             ax.set_title('Shrinking Progress: Improvements Made', fontsize=14)
+            ax.set_xticks(range(len(short_labels)))
             ax.set_xticklabels(short_labels, fontsize=9, rotation=45, ha='right')
             ax.grid(True, axis='y', alpha=0.3)
         else:
@@ -218,18 +230,22 @@ class ShrinkingAnalysis(AnalysisBase):
         self.found_df['relative_distance'] = self.found_df['distance_from_minimal'] / self.found_df['expected_minimal'] * 100
 
         order = [s for s in SHRINKING_SCENARIO_ORDER if s in self.found_df['scenario'].values]
+        palette = sns.color_palette("viridis", len(order))
 
         sns.boxplot(
             data=self.found_df,
             x='scenario',
             y='relative_distance',
             order=order,
-            palette='viridis',
-            ax=ax
+            palette=palette,
+            ax=ax,
+            hue='scenario',
+            legend=False
         )
         ax.set_xlabel('Scenario', fontsize=12)
         ax.set_ylabel('Distance from Minimal (% of minimal value)', fontsize=12)
         ax.set_title('Witness Quality: Distance from Theoretical Minimal\n(Lower is better, 0 = perfect)', fontsize=14)
+        ax.set_xticks(range(len(order)))
         ax.set_xticklabels([SHRINKING_SCENARIO_LABELS.get(s, s) for s in order], fontsize=9)
         ax.grid(True, axis='y', alpha=0.3)
 
@@ -253,9 +269,15 @@ class ShrinkingAnalysis(AnalysisBase):
         ax.bar(x_pos + bar_width/2, self.results_df['mean_shrink_time_ms'],
                bar_width, label='Shrinking', color='coral', alpha=0.7)
 
+        # Calculate actual range for title
+        total_times = self.results_df['mean_explore_time_ms'] + self.results_df['mean_shrink_time_ms']
+        shrink_pcts = self.results_df['mean_shrink_time_ms'] / total_times * 100
+        min_shrink = shrink_pcts.min()
+        max_shrink = shrink_pcts.max()
+
         ax.set_xlabel('Scenario', fontsize=12)
         ax.set_ylabel('Time (ms)', fontsize=12)
-        ax.set_title('Time Breakdown: Exploration vs Shrinking\n(Shrinking dominates: 86-99% of total time)', fontsize=14)
+        ax.set_title(f'Time Breakdown: Exploration vs Shrinking\n(Shrinking: {min_shrink:.1f}-{max_shrink:.1f}% of total time)', fontsize=14)
         ax.set_xticks(x_pos)
         ax.set_xticklabels([SHRINKING_SCENARIO_LABELS.get(s, s).split('\n')[0] for s in self.results_df['scenario']],
                            fontsize=9, rotation=45, ha='right')
@@ -265,8 +287,12 @@ class ShrinkingAnalysis(AnalysisBase):
         save_figure(fig, self.get_output_path("shrinking_time_breakdown.png"))
 
     def _print_insights(self) -> None:
-        """Print key insights from the analysis."""
-        self.print_section("KEY INSIGHTS")
+        """Print key insights from the analysis with scientific rigor."""
+        self.print_section("SCIENTIFIC CONCLUSION")
+
+        if len(self.results_df) == 0:
+            print("  No data available for insights.")
+            return
 
         # Overall minimal rate
         total_minimal = self.found_df['is_minimal'].sum()
@@ -274,8 +300,25 @@ class ShrinkingAnalysis(AnalysisBase):
         overall_minimal_rate = total_minimal / total_found
         overall_lower, overall_upper = wilson_score_interval(total_minimal, total_found, 0.95)
 
-        print(f"\n  Overall minimal witness rate: {overall_minimal_rate*100:.1f}% "
+        print(f"\n  {self.check_mark} Overall minimal witness rate: {overall_minimal_rate*100:.1f}% "
               f"(95% CI: {format_ci(overall_lower, overall_upper)})")
+
+        # Chi-squared test for scenario differences
+        contingency = []
+        for _, row in self.results_df.iterrows():
+            minimal = int(row['minimal_rate'] * row['n_trials'])
+            not_minimal = int(row['n_trials'] - minimal)
+            contingency.append([minimal, not_minimal])
+        
+        from scipy.stats import chi2_contingency
+        chi2, p_val, dof, ex = chi2_contingency(contingency)
+        
+        if p_val < 0.05:
+            print(f"  {self.check_mark} We reject the null hypothesis H_0 (p={p_val:.4e}).")
+            print("    Statistically significant evidence that scenario complexity affects shrinking effectiveness.")
+        else:
+            print(f"  ✗ We fail to reject the null hypothesis H_0 (p={p_val:.4f}).")
+            print("    No significant difference in minimal witness achievement was found across scenarios.")
 
         # Best and worst scenarios
         best = self.results_df.loc[self.results_df['minimal_rate'].idxmax()]
@@ -304,8 +347,11 @@ class ShrinkingAnalysis(AnalysisBase):
             print(f"  Average shrinking time: {avg_shrink_time:.2f} ms")
             print(f"  Shrinking time: {shrink_percentage:.1f}% of total time")
             print(f"  Exploration time: {100 - shrink_percentage:.1f}% of total time")
-            print(f"\n  Note: Exploration times are very small (often <0.1 ms) and may be at")
-            print(f"  measurement precision limits. The pattern is consistent: shrinking dominates.")
+            
+            if shrink_percentage > 80:
+                print(f"\n  Note: Shrinking dominates the execution time ({shrink_percentage:.1f}%).")
+            else:
+                print(f"\n  Note: Time is distributed between exploration and shrinking.")
 
 
 def main():

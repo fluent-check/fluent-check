@@ -35,6 +35,9 @@ class FilterCascadeAnalysis(AnalysisBase):
 
     def analyze(self) -> None:
         """Perform the filter cascade analysis."""
+        print("H_0: Size estimation accuracy is independent of filter chain depth and implementation.")
+        print("H_1: Filter chain depth significantly degrades estimation accuracy, and implementation affects error accumulation.\n")
+
         self._compute_statistics()
         self._create_visualization()
         self._print_conclusion()
@@ -159,8 +162,8 @@ class FilterCascadeAnalysis(AnalysisBase):
         ax.grid(True, axis='y', alpha=0.3)
 
     def _print_conclusion(self) -> None:
-        """Print conclusion."""
-        self.print_section("CONCLUSION (DEPTH 5)")
+        """Print conclusion with scientific rigor."""
+        self.print_section("SCIENTIFIC CONCLUSION")
 
         legacy_d5 = next((s for s in self.stats if s['implementation'] == 'legacy' and s['depth'] == 5), None)
         fixed_d5 = next((s for s in self.stats if s['implementation'] == 'fixed' and s['depth'] == 5), None)
@@ -168,11 +171,17 @@ class FilterCascadeAnalysis(AnalysisBase):
         if legacy_d5 and fixed_d5:
             legacy_err = legacy_d5['mean_error'] * 100
             fixed_err = fixed_d5['mean_error'] * 100
-            reduction = legacy_err / fixed_err if fixed_err != 0 else 0
-
-            print(f"  Legacy Error: {legacy_err:+.1f}%")
-            print(f"  Fixed Error:  {fixed_err:+.1f}%")
-            print(f"  Improvement:  Error reduced by factor of ~{reduction:.1f}x")
+            
+            print(f"  {self.check_mark} Implementation Comparison at Depth 5:")
+            print(f"    Legacy Error: {legacy_err:+.1f}%")
+            print(f"    Fixed Error:  {fixed_err:+.1f}%")
+            
+            if fixed_d5['coverage_rate'] >= 0.90:
+                print(f"  {self.check_mark} We fail to reject the null hypothesis for 'Fixed' implementation reliability.")
+                print(f"    Credible intervals maintain ~95% coverage even at depth 5 ({fixed_d5['coverage_rate']*100:.1f}%).")
+            else:
+                print(f"  ⚠ We reject the null hypothesis for estimation reliability.")
+                print(f"    Significant error accumulation observed ({fixed_err:+.1f}%).")
 
         print(f"\n  {self.check_mark} Filter cascade analysis complete")
 

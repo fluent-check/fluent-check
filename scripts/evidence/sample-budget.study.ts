@@ -35,10 +35,11 @@ interface SampleBudgetParams {
 
 function runTrial(
   params: SampleBudgetParams,
-  trialId: number
+  trialId: number,
+  indexInConfig: number
 ): BudgetResult[] {
   const { depth, explorer, totalTests } = params
-  const seed = getSeed(trialId)
+  const seed = getSeed(indexInConfig) // Use index in config for consistent seed
   
   // Calculate expected distinct samples per quantifier (floor(N^(1/d))) for nested
   // For flat, we expect close to totalTests (N)
@@ -140,7 +141,7 @@ async function runSampleBudgetStudy(): Promise<void> {
   let trialId = 0
   for (const params of parameters) {
     for (let i = 0; i < trialsPerConfig; i++) {
-      const results = runTrial(params, trialId)
+      const results = runTrial(params, trialId, i)
       for (const res of results) {
         writer.writeRow([
           res.trialId,

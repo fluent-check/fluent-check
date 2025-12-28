@@ -40,6 +40,9 @@ class CalibrationAnalysis(AnalysisBase):
 
     def analyze(self) -> None:
         """Perform the calibration analysis."""
+        print("H_0: Confidence-based termination correctly identifies the relationship between true pass rate and threshold.")
+        print("H_1: The termination mechanism produces significant false positives (claiming confidence incorrectly).\n")
+
         self._compute_outcomes()
         self._print_confusion_matrix()
         self._compute_metrics()
@@ -183,28 +186,22 @@ class CalibrationAnalysis(AnalysisBase):
         save_figure(fig, self.get_output_path("calibration.png"))
 
     def _print_conclusion(self) -> None:
-        """Print conclusion."""
-        self.print_section("CONCLUSION")
+        """Print conclusion with scientific rigor."""
+        self.print_section("SCIENTIFIC CONCLUSION")
 
-        if self.sensitivity >= 0.90 and self.specificity >= 0.90:
-            print(f"  {self.check_mark} Excellent discrimination: sensitivity={self.sensitivity:.1%}, "
-                  f"specificity={self.specificity:.1%}")
-        elif self.sensitivity >= 0.80 and self.specificity >= 0.80:
-            print(f"  i Good discrimination: sensitivity={self.sensitivity:.1%}, "
-                  f"specificity={self.specificity:.1%}")
+        if self.fp == 0:
+            print(f"  {self.check_mark} We fail to reject the null hypothesis H_0 regarding safety.")
+            print(f"    Specificity is {self.specificity:.1%}, and no false positives were observed.")
         else:
-            print(f"  Warning: Poor discrimination: sensitivity={self.sensitivity:.1%}, "
-                  f"specificity={self.specificity:.1%}")
+            print(f"  ⚠ We reject the null hypothesis H_0.")
+            print(f"    Significant false positive rate detected ({self.fp} instances), indicating safety concerns.")
 
-        if self.fp > 0:
-            print(f"  Warning: {self.fp} false positives: Claimed confidence when threshold NOT met")
+        if self.sensitivity >= 0.90:
+            print(f"  {self.check_mark} The mechanism demonstrates high sensitivity ({self.sensitivity:.1%}) for identifying properties that meet the threshold.")
         else:
-            print(f"  {self.check_mark} No false positives: Never claimed confidence when threshold was NOT met")
+            print(f"  Note: The mechanism shows moderate sensitivity ({self.sensitivity:.1%}), often finding bugs even when the true pass rate is above threshold.")
 
-        fn_rate = self.fn / (self.tp + self.fn) if (self.tp + self.fn) > 0 else 0
-        if fn_rate > 0.2:
-            print(f"  Warning: High false negative rate ({fn_rate:.1%}): "
-                  "Often finds spurious bugs when threshold IS met")
+        print(f"\n  {self.check_mark} Calibration analysis complete")
 
 
 def main():

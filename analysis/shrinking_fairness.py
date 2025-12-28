@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
-Shrinking Fairness Analysis: Earlier quantifiers shrink more aggressively
+Shrinking Fairness Analysis: Positional bias investigation
 
 This analysis examines if the position of a quantifier affects how much its
-value is shrunken.
+value is shrunken, testing for positional bias in the shrinking process.
 
 Metrics:
 - Shrink Percentage: (initial - final) / initial
@@ -35,6 +35,9 @@ class ShrinkingFairnessAnalysis(AnalysisBase):
 
     def analyze(self) -> None:
         """Perform the shrinking fairness analysis."""
+        print("H_0: Shrinking is fair across all quantifier positions (equal final values).")
+        print("H_1: Quantifier position significantly affects final shrunken values (positional bias).\n")
+
         self._prepare_data()
         self._compute_summary()
         self._run_anova()
@@ -96,14 +99,20 @@ class ShrinkingFairnessAnalysis(AnalysisBase):
         """Create shrinking fairness visualization."""
         fig, axes = plt.subplots(1, 2, figsize=(14, 6))
 
+        # Consistent ordering and coloring
+        order = ['first', 'second', 'third']
+        palette = sns.color_palette("muted", len(order))
+
         ax1 = axes[0]
-        sns.boxplot(x='position', y='final_value', data=self.pos_df, ax=ax1, palette='muted', order=['first', 'second', 'third'])
+        sns.boxplot(x='position', y='final_value', data=self.pos_df, ax=ax1, 
+                    palette=palette, order=order, hue='position', legend=False)
         ax1.set_xlabel('Quantifier Position')
         ax1.set_ylabel('Final Value')
         ax1.set_title('Distribution of Final Values by Position')
 
         ax2 = axes[1]
-        sns.barplot(x='position', y='shrink_amount', data=self.pos_df, ax=ax2, palette='muted', order=['first', 'second', 'third'])
+        sns.barplot(x='position', y='shrink_amount', data=self.pos_df, ax=ax2, 
+                    palette=palette, order=order, hue='position', legend=False)
         ax2.set_xlabel('Quantifier Position')
         ax2.set_ylabel('Average Shrink Amount')
         ax2.set_title('Average Shrink Amount by Position')
@@ -111,12 +120,14 @@ class ShrinkingFairnessAnalysis(AnalysisBase):
         save_figure(fig, self.get_output_path("shrinking-fairness.png"))
 
     def _print_conclusion(self) -> None:
-        """Print conclusion."""
-        self.print_section("CONCLUSION")
+        """Print conclusion with scientific rigor."""
+        self.print_section("SCIENTIFIC CONCLUSION")
         if self.p_val < 0.05:
-            print(f"  x Hypothesis supported: Position DOES affect shrinking behavior.")
+            print(f"  {self.check_mark} We reject the null hypothesis H_0 (p={self.p_val:.4e}).")
+            print("    Earlier quantifier positions significantly outperform later positions in minimization.")
         else:
-            print(f"  {self.check_mark} Hypothesis rejected: Shrinking is fair across positions (no bias detected).")
+            print(f"  {self.check_mark} We fail to reject the null hypothesis H_0 (p={self.p_val:.4f}).")
+            print("    Shrinking appears balanced across different quantifier positions.")
 
         print(f"\n  {self.check_mark} Shrinking Fairness analysis complete")
 

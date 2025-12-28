@@ -27,6 +27,21 @@ import type {FluentResult} from '../src/FluentCheck.js'
 // ============================================================================
 
 /**
+ * Standard PRNG builder for reproducible tests.
+ * Uses a linear congruential generator (same as generation.test.ts).
+ */
+export const testPrng = (seed: number) => () => (seed = seed * 16807 % 2147483647) / 2147483647
+
+/**
+ * Creates a scenario with a fixed seed for reproducible results.
+ * @param seed - RNG seed (default: 12345)
+ * @returns A configured scenario builder with fixed seed
+ */
+export function seededScenario(seed = 12345) {
+  return fc.scenario().withGenerator(testPrng, seed)
+}
+
+/**
  * Creates a scenario with a specified sample size.
  * @param sampleSize - Number of test cases to run (default: 100)
  * @returns A configured scenario builder

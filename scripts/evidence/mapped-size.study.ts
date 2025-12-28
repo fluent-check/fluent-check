@@ -79,10 +79,11 @@ function countDistinct<T>(arb: fc.Arbitrary<T>, maxSamples: number = 100000): nu
  */
 function runTrial(
   params: MappedSizeParams,
-  trialId: number
+  trialId: number,
+  indexInConfig: number
 ): MappedSizeResult {
   const { mapType, useLegacy } = params
-  const seed = getSeed(trialId)
+  const seed = getSeed(indexInConfig) // Use index in config for consistent seed
   const timer = new HighResTimer()
 
   // Base arbitrary: integer(0, 99) with 100 distinct values
@@ -184,7 +185,7 @@ async function runMappedSizeStudy(): Promise<void> {
     }
   })
 
-  await runner.run(parameters, runTrial)
+  await runner.run(parameters, (p, id, idx) => runTrial(p, id, idx))
 }
 
 // CLI entrypoint

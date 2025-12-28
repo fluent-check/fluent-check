@@ -1,4 +1,5 @@
 import {FluentRandomGenerator} from '../arbitraries/index.js'
+import {mulberry32} from '../arbitraries/util.js'
 import {FluentStrategy, type FluentConfig} from './FluentStrategy.js'
 import type {StrategyBindings} from './FluentStrategyTypes.js'
 import {RandomSampler, BiasedSampler, CachedSampler, DedupingSampler, type Sampler} from './Sampler.js'
@@ -41,8 +42,8 @@ export class FluentStrategyFactory<Rec extends StrategyBindings = StrategyBindin
   /**
    * RNG configuration for deterministic generation
    */
-  private rngBuilder: (seed: number) => () => number = (_: number) => Math.random
-  private rngSeed: number = Math.floor(Math.random() * 0x100000000)
+  private rngBuilder: (seed: number) => () => number = mulberry32
+  private rngSeed = 0xCAFEBABE
 
   /**
    * Explorer factory function for creating explorers.
@@ -194,8 +195,13 @@ export class FluentStrategyFactory<Rec extends StrategyBindings = StrategyBindin
   #updateShrinkerFactory() {
     // This should only be called when shrinking is enabled
     const strategyInstance = this.#createStrategyInstance(this.shrinkingStrategy)
+    
+    // For Round-Robin and Delta-Debugging, use a small batch size (1) to ensure fairness.
+    // For Sequential, use a large batch size (100) to ensure thorough search.
+    const batchSize = this.shrinkingStrategy === 'sequential-exhaustive' ? 100 : 1
+    
     this.shrinkerFactory = <R extends StrategyBindings>() =>
-      new PerArbitraryShrinker<R>(strategyInstance)
+      new PerArbitraryShrinker<R>(strategyInstance, batchSize)
   }
 
   #createStrategyInstance(strategy: ShrinkingStrategy) {

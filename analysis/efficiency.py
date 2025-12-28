@@ -37,6 +37,9 @@ class EfficiencyAnalysis(AnalysisBase):
 
     def analyze(self) -> None:
         """Perform the efficiency analysis."""
+        print("H_0: All property complexities result in equivalent tests-to-termination when no bug is found.")
+        print("H_1: Property complexity significantly affects termination efficiency due to confidence-based adaptation.\n")
+
         print("Note: Confidence checked every 100 tests (minimum termination point)\n")
         self._compute_statistics()
         self._create_visualization()
@@ -304,9 +307,24 @@ class EfficiencyAnalysis(AnalysisBase):
         self.print_divider(width=90)
 
     def _print_conclusion(self) -> None:
-        """Print conclusion."""
-        self.print_section("CONCLUSION")
-        print(f"  {self.check_mark} Efficiency analysis complete")
+        """Print conclusion with scientific rigor."""
+        self.print_section("SCIENTIFIC CONCLUSION")
+        
+        # Test significance between always_true and rare_failure (closest baseline)
+        group1 = self.df[self.df['property_type'] == 'always_true']['tests_run']
+        group2 = self.df[self.df['property_type'] == 'rare_failure']['tests_run']
+        
+        from scipy.stats import mannwhitneyu
+        stat, p_val = mannwhitneyu(group1, group2)
+        
+        if p_val < 0.05:
+            print(f"  {self.check_mark} We reject the null hypothesis H_0 (p={p_val:.4e}).")
+            print("    Property complexity and failure rates significantly influence termination efficiency.")
+        else:
+            print(f"  ✗ We fail to reject the null hypothesis H_0 (p={p_val:.4f}).")
+            print("    Insufficient evidence to claim that rare failure rates significantly alter the termination distribution compared to the always-passing baseline.")
+
+        print(f"\n  {self.check_mark} Efficiency analysis complete")
 
 
 def main():

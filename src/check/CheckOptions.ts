@@ -61,4 +61,10 @@ export interface CheckOptions {
     logger: Logger | undefined
     defaultFactory: (options: CheckOptions, effectiveVerbosity: Verbosity, logger?: Logger) => ResultReporter
   }) => ResultReporter
+  /**
+   * Seed for the random number generator.
+   * If provided, this overrides the seed configured in the strategy or defaults.
+   * Useful for reproducing specific test failures.
+   */
+  seed?: number
 }

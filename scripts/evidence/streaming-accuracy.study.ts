@@ -34,10 +34,11 @@ interface StreamingAccuracyParams {
 
 function runTrial(
   params: StreamingAccuracyParams,
-  trialId: number
+  trialId: number,
+  indexInConfig: number
 ): AccuracyResult {
   const { n, threshold } = params
-  const seed = getSeed(trialId)
+  const seed = getSeed(indexInConfig) // Use index in config for consistent seed
   const rng = mulberry32(seed)
   
   // 1. Sample true_p from Uniform[0, 1]
@@ -95,7 +96,7 @@ async function runStreamingAccuracyStudy(): Promise<void> {
     }
   })
 
-  await runner.run(parameters, runTrial)
+  await runner.run(parameters, (p, id, idx) => runTrial(p, id, idx))
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {

@@ -51,9 +51,10 @@ interface ExistsParams {
  */
 function runSparseTrial(
   trialId: number,
-  sampleSize: number
+  sampleSize: number,
+  indexInConfig: number
 ): ExistsResult {
-  const seed = getSeed(trialId)
+  const seed = getSeed(indexInConfig)
   const timer = new HighResTimer()
 
   const result = fc.scenario()
@@ -85,9 +86,10 @@ function runSparseTrial(
  */
 function runDenseTrial(
   trialId: number,
-  sampleSize: number
+  sampleSize: number,
+  indexInConfig: number
 ): ExistsResult {
-  const seed = getSeed(trialId)
+  const seed = getSeed(indexInConfig)
   const timer = new HighResTimer()
 
   const result = fc.scenario()
@@ -119,9 +121,10 @@ function runDenseTrial(
  */
 function runModerateTrial(
   trialId: number,
-  sampleSize: number
+  sampleSize: number,
+  indexInConfig: number
 ): ExistsResult {
-  const seed = getSeed(trialId)
+  const seed = getSeed(indexInConfig)
   const timer = new HighResTimer()
 
   const result = fc.scenario()
@@ -153,9 +156,10 @@ function runModerateTrial(
  */
 function runExistsForallTrial(
   trialId: number,
-  sampleSize: number
+  sampleSize: number,
+  indexInConfig: number
 ): ExistsResult {
-  const seed = getSeed(trialId)
+  const seed = getSeed(indexInConfig)
   const timer = new HighResTimer()
 
   const result = fc.scenario()
@@ -188,9 +192,10 @@ function runExistsForallTrial(
  */
 function runForallExistsTrial(
   trialId: number,
-  sampleSize: number
+  sampleSize: number,
+  indexInConfig: number
 ): ExistsResult {
-  const seed = getSeed(trialId)
+  const seed = getSeed(indexInConfig)
   const timer = new HighResTimer()
 
   const result = fc.scenario()
@@ -224,9 +229,10 @@ function runForallExistsTrial(
  */
 function runRareTrial(
   trialId: number,
-  sampleSize: number
+  sampleSize: number,
+  indexInConfig: number
 ): ExistsResult {
-  const seed = getSeed(trialId)
+  const seed = getSeed(indexInConfig)
   const timer = new HighResTimer()
 
   const result = fc.scenario()
@@ -257,9 +263,10 @@ function runRareTrial(
  */
 function runTrial(
   params: ExistsParams,
-  trialId: number
+  trialId: number,
+  indexInConfig: number
 ): ExistsResult {
-  return params.runner(trialId, params.sampleSize)
+  return params.runner(trialId, params.sampleSize, indexInConfig)
 }
 
 /**
@@ -312,7 +319,7 @@ async function runExistsStudy(): Promise<void> {
     }
   })
 
-  await runner.run(parameters, runTrial)
+  await runner.run(parameters, (p, id, idx) => runTrial(p, id, idx))
 }
 
 // Run if executed directly

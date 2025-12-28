@@ -31,10 +31,11 @@ interface CachingTradeoffParams {
 
 function runTrial(
   params: CachingTradeoffParams,
-  trialId: number
+  trialId: number,
+  indexInConfig: number
 ): CachingTradeoffResult {
   const { cacheEnabled, bugType } = params
-  const seed = getSeed(trialId)
+  const seed = getSeed(indexInConfig) // Use index in config for consistent seed
   const timer = new HighResTimer()
 
   // Reuse the SAME arbitrary instance to trigger caching
@@ -116,7 +117,7 @@ async function runCachingTradeoffStudy(): Promise<void> {
     }
   })
 
-  await runner.run(parameters, runTrial)
+  await runner.run(parameters, (p, id, idx) => runTrial(p, id, idx))
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {

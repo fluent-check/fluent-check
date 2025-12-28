@@ -71,11 +71,13 @@ export interface EstimatedSizeArbitrary<A> extends ArbitraryBase<A> {
 type Without<T, U> = { [P in Exclude<keyof T, keyof U>]?: never }
 export type XOR<T, U> = (T | U) extends object ? (Without<T, U> & U) | (Without<U, T> & T) : T | U
 
+import {mulberry32} from './util.js'
+
 export class FluentRandomGenerator {
   generator!: () => number
 
   constructor(
-    public readonly builder: (seed: number) => () => number = (_: number) => Math.random,
+    public readonly builder: (seed: number) => () => number = mulberry32,
     public readonly seed: number = Math.floor(Math.random() * 0x100000000)) {
 
     this.initialize()
@@ -154,3 +156,52 @@ export type Validated<T extends Record<string, unknown>> = Required<T>
  * ```
  */
 export type NonEmptyArray<T> = [T, ...T[]]
+
+/**
+ * A lazy iterator for generating shrink candidates with feedback support.
+ *
+ * Unlike eager shrinking which pre-samples candidates, ShrinkIterator generates
+ * candidates on-demand and uses feedback to guide the search (e.g., binary search).
+ *
+ * @typeParam A - The type of values being shrunk
+ */
+export interface ShrinkIterator<A> extends Iterator<FluentPick<A>> {
+  /**
+   * Signal that the last yielded candidate was accepted (property still failed).
+   * The iterator should focus on finding even smaller values.
+   */
+  acceptSmaller(): void
+
+  /**
+   * Signal that the last yielded candidate was rejected (property passed).
+   * The iterator should try larger values within the remaining search space.
+   */
+  rejectSmaller(): void
+
+  /**
+   * Get the current search bounds for diagnostics.
+   * Returns undefined if bounds are not applicable (e.g., for non-numeric types).
+   */
+  getBounds?(): { lower: A; upper: A }
+
+  /**
+   * Makes the iterator iterable (for use in for...of loops).
+   */
+  [Symbol.iterator](): ShrinkIterator<A>
+}
+
+/**
+ * Result type for ShrinkIterator.next() that includes the iterator result.
+ */
+export type ShrinkIteratorResult<A> = IteratorResult<FluentPick<A>>
+
+/**
+ * Options for creating a ShrinkIterator.
+ */
+export interface ShrinkIteratorOptions {
+  /**
+   * Random number generator to use for sampling candidates.
+   * If not provided, defaults to Math.random.
+   */
+  generator?: () => number
+}

@@ -42,10 +42,11 @@ interface CornerCaseCoverageParams {
  */
 function runTrial(
   params: CornerCaseCoverageParams,
-  trialId: number
+  trialId: number,
+  indexInConfig: number
 ): CornerCaseCoverageResult {
   const { bugType, samplingMode, maxTests } = params
-  const seed = getSeed(trialId)
+  const seed = getSeed(indexInConfig) // Use index in config for consistent seed
   const timer = new HighResTimer()
   const generator = mulberry32(seed)
 
@@ -187,7 +188,7 @@ async function runCornerCaseCoverageStudy(): Promise<void> {
     }
   })
 
-  await runner.run(parameters, runTrial)
+  await runner.run(parameters, (p, id, idx) => runTrial(p, id, idx))
 }
 
 // CLI entrypoint

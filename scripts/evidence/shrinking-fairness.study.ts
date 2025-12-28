@@ -34,10 +34,11 @@ interface ShrinkingFairnessParams {
 
 function runTrial(
   params: ShrinkingFairnessParams,
-  trialId: number
+  trialId: number,
+  indexInConfig: number
 ): ShrinkingFairnessResult {
   const { order } = params
-  const seed = getSeed(trialId)
+  const seed = getSeed(indexInConfig) // Use index in config for consistent seed
   const timer = new HighResTimer()
 
   const arbA = integer(0, 100)
@@ -127,7 +128,7 @@ async function runShrinkingFairnessStudy(): Promise<void> {
     }
   })
 
-  await runner.run(parameters, runTrial)
+  await runner.run(parameters, (p, id, idx) => runTrial(p, id, idx))
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {

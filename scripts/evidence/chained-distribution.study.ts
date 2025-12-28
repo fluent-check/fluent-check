@@ -33,10 +33,11 @@ interface ChainedDistributionParams {
  */
 function runTrial(
   params: ChainedDistributionParams,
-  trialId: number
+  trialId: number,
+  indexInConfig: number
 ): ChainedDistributionResult[] {
   const { samplesPerTrial } = params
-  const seed = getSeed(trialId)
+  const seed = getSeed(indexInConfig) // Use index in config for consistent seed
   const timer = new HighResTimer()
 
   const capturingArb = integer(1, 10).chain(baseValue => 
@@ -91,7 +92,7 @@ async function runChainedDistributionStudy(): Promise<void> {
   const progress = new ProgressReporter(totalTrials, 'ChainedDist')
   
   for (let i = 0; i < trialsPerConfig; i++) {
-    const results = runTrial(parameters[0], i)
+    const results = runTrial(parameters[0], i, i)
     for (const result of results) {
       writer.writeRow([
         result.trialId,
