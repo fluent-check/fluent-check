@@ -201,7 +201,7 @@ export type ShrinkIteratorResult<A> = IteratorResult<FluentPick<A>>
 export interface ShrinkIteratorOptions {
   /**
    * Random number generator to use for sampling candidates.
-   * If not provided, defaults to Math.random.
+   * Must be provided to ensure deterministic shrinking.
    */
-  generator?: () => number
+  generator: () => number
 }

@@ -112,7 +112,6 @@ function weightedSamplingShrink(
     const mid = Math.floor((target + current) / 2)
 
     for (let i = 0; i < sampleSize; i++) {
-      if (current <= target) break
 
       if (rng() < 0.8 && mid >= target) {
         // 80% from smaller half [target, mid]
@@ -302,7 +301,7 @@ async function runLazyShrinkingSimulationStudy(): Promise<void> {
     }
   })
 
-  await runner.run(parameters, (p, id, idx) => runTrial(p, id, idx))
+  await runner.run(parameters, (p, id, idx) => runTrial(p, id))
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {

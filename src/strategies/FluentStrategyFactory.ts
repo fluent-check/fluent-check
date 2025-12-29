@@ -42,8 +42,15 @@ export class FluentStrategyFactory<Rec extends StrategyBindings = StrategyBindin
   /**
    * RNG configuration for deterministic generation
    */
-  private rngBuilder: (seed: number) => () => number = mulberry32
+  private _rngBuilder: (seed: number) => () => number = mulberry32
   private rngSeed = 0xCAFEBABE
+
+  /**
+   * Gets the current random number generator builder.
+   */
+  public get rngBuilder(): (seed: number) => () => number {
+    return this._rngBuilder
+  }
 
   /**
    * Explorer factory function for creating explorers.
@@ -84,7 +91,7 @@ export class FluentStrategyFactory<Rec extends StrategyBindings = StrategyBindin
    * @param seed - Optional seed value (random if not provided)
    */
   withRandomGenerator(builder: (seed: number) => () => number, seed?: number) {
-    this.rngBuilder = builder
+    this._rngBuilder = builder
     if (seed !== undefined) {
       this.rngSeed = seed
     }
@@ -459,7 +466,7 @@ export class FluentStrategyFactory<Rec extends StrategyBindings = StrategyBindin
    * Builds the random generator based on configuration.
    */
   private buildRandomGenerator(): FluentRandomGenerator {
-    return new FluentRandomGenerator(this.rngBuilder, this.rngSeed)
+    return new FluentRandomGenerator(this._rngBuilder, this.rngSeed)
   }
 
   /**
@@ -531,7 +538,7 @@ export class FluentStrategyFactory<Rec extends StrategyBindings = StrategyBindin
     cloned.samplerConfig = {...this.samplerConfig}
     cloned.enableShrinking = this.enableShrinking
     cloned.shrinkingStrategy = this.shrinkingStrategy
-    cloned.rngBuilder = this.rngBuilder
+    cloned._rngBuilder = this._rngBuilder
     cloned.rngSeed = this.rngSeed
     cloned.explorerFactory = this.explorerFactory
     cloned.shrinkerFactory = this.shrinkerFactory

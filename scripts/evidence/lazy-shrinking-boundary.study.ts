@@ -293,7 +293,6 @@ async function runBoundaryShrinkStudy(): Promise<void> {
       console.log('Goal: Find smallest failing value (the threshold)\n')
       console.log('Scenarios:')
       for (const s of scenarios) {
-        const range = s.start - s.threshold
         const rejectRatio = s.threshold / s.start * 100
         console.log(`  - ${s.start} → ${s.threshold}: ~${rejectRatio.toFixed(1)}% of [0,start] passes (rejected)`)
       }
@@ -303,7 +302,7 @@ async function runBoundaryShrinkStudy(): Promise<void> {
     }
   })
 
-  await runner.run(parameters, (p, id, idx) => runTrial(p, id, idx))
+  await runner.run(parameters, (p, id, idx) => runTrial(p, id))
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {

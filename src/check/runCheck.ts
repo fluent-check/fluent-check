@@ -45,7 +45,7 @@ export function prepareCheckExecution<Rec extends {}>(
     factory.withRandomGenerator(rngBuilder, options?.seed ?? seed)
   } else if (options?.seed !== undefined) {
     // If no specific builder configured, use factory defaults but override seed
-    factory.withRandomGenerator(factory['rngBuilder'], options.seed)
+    factory.withRandomGenerator(factory.rngBuilder, options.seed)
   }
 
   // Build components from factory

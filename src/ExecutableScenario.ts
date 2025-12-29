@@ -15,7 +15,7 @@ export interface ExecutableQuantifier<A = unknown> {
    * Returns a lazy iterator for shrink candidates with binary search support.
    * Uses feedback from acceptSmaller()/rejectSmaller() to guide the search.
    */
-  shrinkIterator(pick: FluentPick<A>, options?: ShrinkIteratorOptions): ShrinkIterator<A>
+  shrinkIterator(pick: FluentPick<A>, options: ShrinkIteratorOptions): ShrinkIterator<A>
   isShrunken(candidate: FluentPick<A>, current: FluentPick<A>): boolean
 }
 
@@ -51,7 +51,7 @@ function compileQuantifier<A>(q: QuantifierNode<A>): ExecutableQuantifier<A> {
   const sampleWithBias = (sampler: Sampler, count: number) => sampler.sampleWithBias(q.arbitrary, count)
   const shrink = (pick: FluentPick<A>, sampler: Sampler, count: number) =>
     sampler.sample(q.arbitrary.shrink(pick), count)
-  const shrinkIterator = (pick: FluentPick<A>, options?: ShrinkIteratorOptions): ShrinkIterator<A> =>
+  const shrinkIterator = (pick: FluentPick<A>, options: ShrinkIteratorOptions): ShrinkIterator<A> =>
     q.arbitrary.shrinkIterator(pick, options)
   const isShrunken = (candidate: FluentPick<A>, current: FluentPick<A>) =>
     q.arbitrary.isShrunken(candidate, current)

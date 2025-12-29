@@ -236,9 +236,9 @@ export abstract class Arbitrary<A> {
    * @param options - Options including an optional RNG for deterministic sampling
    * @returns A ShrinkIterator that yields shrink candidates lazily
    */
-  shrinkIterator<B extends A>(initial: FluentPick<B>, options?: ShrinkIteratorOptions): ShrinkIterator<A> {
+  shrinkIterator<B extends A>(initial: FluentPick<B>, options: ShrinkIteratorOptions): ShrinkIterator<A> {
     const shrinkArb = this.shrink(initial)
-    const generator = options?.generator ?? Math.random
+    const generator = options.generator
     let exhausted = false
 
     return {

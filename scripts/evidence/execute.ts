@@ -111,17 +111,7 @@ async function main() {
       console.log(`> Analyzing results...`)
       // Run inside analysis dir so imports work
       const pyScriptPath = path.resolve(study.py)
-      const cwd = path.dirname(pyScriptPath)
-      const pyScriptBase = path.basename(pyScriptPath)
-      
-      const pyResult = spawnSync(VENV_PYTHON, [pyScriptBase], { 
-        stdio: 'inherit', 
-        cwd: path.join(process.cwd(), 'analysis'), // Analysis scripts expect CWD to be analysis/
-        env 
-      })
-
-      if (pyResult.error) throw pyResult.error
-      if (pyResult.status !== 0) process.exit(pyResult.status ?? 1)
+      runCommand(VENV_PYTHON, [pyScriptPath], { ...env, PYTHONPATH: path.dirname(pyScriptPath) })
     }
   }
 

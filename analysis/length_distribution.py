@@ -16,7 +16,7 @@ Generates:
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
-import numpy as np
+
 
 from base import AnalysisBase
 from stats import wilson_score_interval

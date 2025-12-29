@@ -173,7 +173,17 @@ class DeduplicationAnalysis(AnalysisBase):
         trigger_rates = [next(s['trigger_rate'] for s in self.guard_stats if s['arb_type'] == at) * 100
                          for at in arb_types]
         
+        trigger_errors = []
+        for at in arb_types:
+            stat = next(s for s in self.guard_stats if s['arb_type'] == at)
+            lower_err = (stat['trigger_rate'] - stat['ci_lower']) * 100
+            upper_err = (stat['ci_upper'] - stat['trigger_rate']) * 100
+            trigger_errors.append((lower_err, upper_err))
+
+        trigger_errors_array = np.array(trigger_errors).T
+        
         ax.bar(np.arange(len(arb_types)), trigger_rates, 
+               yerr=trigger_errors_array, capsize=5,
                color=[ARBITRARY_COLORS[at] for at in arb_types], alpha=0.8)
         
         ax.set_xlabel('Arbitrary Type')

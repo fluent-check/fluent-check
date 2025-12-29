@@ -31,12 +31,6 @@ def main():
     print("CONVERGENCE RATES BY ALGORITHM AND SCENARIO")
     print("-" * 80)
 
-    scenarios = df.groupby(['algorithm', 'start_value', 'budget']).agg({
-        'converged': 'mean',
-        'distance': 'mean',
-        'attempts_used': 'mean',
-        'convergence_attempt': lambda x: x.dropna().mean() if x.dropna().any() else np.nan
-    }).round(2)
 
     print("\nConvergence Rate (% reaching optimal):")
     pivot_converge = df.pivot_table(
