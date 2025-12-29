@@ -24,47 +24,35 @@ npm run evidence:quick
 npm run evidence
 ```
 
+**All Studies** (Core + Apparatus):
+```bash
+npm run evidence:all
+```
+
 ## Individual Commands
 
-### TypeScript Experiments → CSV
+You can run specific studies using the helper command:
 
 ```bash
-npm run evidence:generate
+# Run a specific study (TS generation + Python analysis)
+npm run evidence:study calibration
+
+# Run in quick mode
+npm run evidence:study calibration --quick
+
+# Run all apparatus studies
+npm run evidence:apparatus
 ```
-
-Runs three studies:
-- `calibration.study.ts` - Tests confidence calibration accuracy
-- `detection.study.ts` - Compares bug detection rates
-- `efficiency.study.ts` - Tests adaptation to property complexity
-
-Output: `docs/evidence/raw/*.csv`
-
-### Python Analysis → PNG
-
-```bash
-npm run evidence:analyze
-```
-
-Reads CSV files and generates visualizations:
-- `calibration.py` - Calibration curve
-- `detection.py` - Detection rate charts
-- `efficiency.py` - Efficiency box plots
-
-Output: `docs/evidence/figures/*.png`
 
 ## Scripts
 
-### Shell Scripts
+### Executor Script
 
-- **`setup-python.sh`** - One-time Python environment setup
-  - Creates virtual environment in `analysis/.venv`
-  - Installs matplotlib, seaborn, pandas, numpy, scipy
-  - Checks for uv installation
-
-- **`run-analysis.sh`** - Run Python analysis with automatic venv activation
-  - Activates `.venv` automatically
-  - Runs all three analysis scripts
-  - Deactivates when done
+- **`execute.ts`** - The main entry point. Orchestrates:
+  1. Parsing arguments
+  2. Setting environment variables (`QUICK_MODE`)
+  3. Running TypeScript generation scripts
+  4. Running Python analysis scripts (in `.venv`)
 
 ### TypeScript Scripts
 
@@ -74,16 +62,16 @@ Output: `docs/evidence/figures/*.png`
   - `ProgressReporter` - Progress bars
   - `getSeed` - Deterministic seed generation
 
-- **`calibration.study.ts`** - Calibration experiments
-- **`detection.study.ts`** - Detection rate experiments
-- **`efficiency.study.ts`** - Efficiency experiments
+- **`registry.ts`** - Registry of all available studies and their metadata
+
+### Individual Studies
+
+All study scripts follow the pattern `*.study.ts` and are registered in `registry.ts`.
 
 ## Environment Variables
 
 - `QUICK_MODE=1` - Use reduced sample sizes for faster iteration
-  - Calibration: 100 trials per level (instead of 1000)
-  - Detection: 50 trials per method (instead of 500)
-  - Efficiency: 50 trials per property (instead of 200)
+  - Automatically set by adding `--quick` flag to commands.
 
 ## Troubleshooting
 
@@ -101,13 +89,6 @@ Recreate the environment:
 npm run evidence:setup
 ```
 
-### Missing CSV files
-
-Generate data first:
-```bash
-npm run evidence:generate
-```
-
 ### TypeScript compilation errors
 
 Rebuild:
@@ -122,10 +103,9 @@ docs/evidence/
 ├── raw/                    # CSV data (version-controlled)
 │   ├── calibration.csv
 │   ├── detection.csv
-│   └── efficiency.csv
+│   └── ...
 └── figures/                # PNG visualizations (version-controlled)
     ├── calibration.png
     ├── detection_rates.png
-    ├── detection_ecdf.png
-    └── efficiency_boxplot.png
+    └── ...
 ```

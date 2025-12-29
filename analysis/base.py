@@ -105,7 +105,7 @@ class AnalysisBase(ABC):
 
         if not self.csv_path.exists():
             print(f"ERROR: {self.csv_path} not found.")
-            print("  Run the study first: npm run evidence:generate")
+            print(f"  Run the study first: npm run evidence:study {self.csv_filename.replace('.csv', '')}")
             return False
 
         try:
