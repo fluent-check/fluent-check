@@ -101,55 +101,23 @@ async function runCIConvergenceStudy(): Promise<void> {
   const passRates = [0.01, 0.05, 0.1, 0.25, 0.5, 0.75, 0.9, 0.99]
   const params: CIConvergenceParams[] = passRates.map(p => ({ passRate: p }))
 
-  console.log(`
-=== CI Convergence Dynamics Study ===`)
-  
-    
-  
-    const writer = new CSVWriter(path.join(process.cwd(), 'docs/evidence/raw/ci-convergence.csv'))
-  
-    writer.writeHeader([
-  
-        'trial_id', 'seed', 'pass_rate', 'sample_count', 'true_size', 
-  
-        'estimated_size', 'ci_lower', 'ci_upper', 'ci_width', 'true_in_ci', 
-  
-        'relative_error'
-  
-    ])
-  
-  
-  
-    const trialsPerConfig = getSampleSize(100, 20)
-  
-    const totalTrials = params.length * trialsPerConfig
-  
-    const progress = new ProgressReporter(totalTrials, 'CI Convergence')
-  
-    
-  
-    let trialId = 0
-  for (const p of params) {
-    for (let i = 0; i < trialsPerConfig; i++) {
-      const results = runTrial(p, trialId, i)
-      for (const res of results) {
-        writer.writeRow([
-          res.trialId, res.seed, res.passRate, res.sampleCount, res.trueSize,
-          res.estimatedSize, res.ciLower.toFixed(2), res.ciUpper.toFixed(2), 
-          res.ciWidth.toFixed(2), res.trueInCI, res.relativeError.toFixed(6)
-        ])
-      }
-      progress.update()
-      trialId++
-    }
-  }
+  const runner = new ExperimentRunner<CIConvergenceParams, CIConvergenceResult>({
+    name: 'CI Convergence Dynamics Study',
+    outputPath: path.join(process.cwd(), 'docs/evidence/raw/ci-convergence.csv'),
+    csvHeader: [
+      'trial_id', 'seed', 'pass_rate', 'sample_count', 'true_size', 
+      'estimated_size', 'ci_lower', 'ci_upper', 'ci_width', 'true_in_ci', 
+      'relative_error'
+    ],
+    trialsPerConfig: getSampleSize(100, 20),
+    resultToRow: (r: CIConvergenceResult) => [
+      r.trialId, r.seed, r.passRate, r.sampleCount, r.trueSize,
+      r.estimatedSize, r.ciLower.toFixed(2), r.ciUpper.toFixed(2), 
+      r.ciWidth.toFixed(2), r.trueInCI, r.relativeError.toFixed(6)
+    ]
+  })
 
-  progress.finish()
-  await writer.close()
-  
-  console.log(`
-✓ CI Convergence Study complete`)
-  console.log(`  Output: docs/evidence/raw/ci-convergence.csv`)
+  await runner.runSeries(params, (p, id, idx) => runTrial(p, id, idx))
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {

@@ -63,53 +63,23 @@ async function runChainedDistributionStudy(): Promise<void> {
   // Only one configuration needed: sample size
   const parameters: ChainedDistributionParams[] = [{ samplesPerTrial }]
 
-  const runner = new ExperimentRunner<ChainedDistributionParams, ChainedDistributionResult[]>({
+  const runner = new ExperimentRunner<ChainedDistributionParams, ChainedDistributionResult>({
     name: 'Chained Distribution Study',
     outputPath: path.join(process.cwd(), 'docs/evidence/raw/chained-distribution.csv'),
     csvHeader: [
       'trial_id', 'seed', 'base_value', 'result_value', 'elapsed_micros'
     ],
     trialsPerConfig: getSampleSize(10, 2),
-    resultToRow: (_r: ChainedDistributionResult[]) => [], // Not used because we override writeRow loop logic
+    resultToRow: (r: ChainedDistributionResult) => [
+      r.trialId, r.seed, r.baseValue, r.resultValue, r.elapsedMicros
+    ],
     preRunInfo: () => {
       console.log('Hypothesis: flatMap creates predictable non-uniform distributions.\n')
       console.log(`Samples per trial: ${samplesPerTrial}`)
     }
   })
 
-  // Custom runner execution because this study produces multiple rows per trial
-  console.log(`\n=== ${runner.config.name} ===`)
-  if (runner.config.preRunInfo) runner.config.preRunInfo()
-  
-  const writer = new CSVWriter(runner.config.outputPath)
-  writer.writeHeader(runner.config.csvHeader)
-  
-  const trialsPerConfig = runner.config.trialsPerConfig
-  const totalTrials = trialsPerConfig
-  console.log(`Trials: ${trialsPerConfig}`)
-  console.log(`Total samples: ${samplesPerTrial * trialsPerConfig}\n`)
-  
-  const progress = new ProgressReporter(totalTrials, 'ChainedDist')
-  
-  for (let i = 0; i < trialsPerConfig; i++) {
-    const results = runTrial(parameters[0], i, i)
-    for (const result of results) {
-      writer.writeRow([
-        result.trialId,
-        result.seed,
-        result.baseValue,
-        result.resultValue,
-        result.elapsedMicros
-      ])
-    }
-    progress.update()
-  }
-  
-  progress.finish()
-  await writer.close()
-  
-  console.log(`\n✓ ${runner.config.name} complete`)
-  console.log(`  Output: ${runner.config.outputPath}`)
+  await runner.runSeries(parameters, (p, id, idx) => runTrial(p, id, idx))
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {

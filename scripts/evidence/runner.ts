@@ -243,4 +243,48 @@ export class ExperimentRunner<TParams, TResult> {
     console.log(`\n✓ ${this.config.name} complete`)
     console.log(`  Output: ${this.config.outputPath}`)
   }
+
+  /**
+   * Run the experiment where each trial produces multiple result rows (Series/TimeSeries data)
+   * @param parameterSets List of parameter configurations to test
+   * @param runTrial Function to run a single trial returning an array of results
+   */
+  async runSeries(
+    parameterSets: TParams[],
+    runTrial: (params: TParams, trialId: number, indexInConfig: number) => TResult[]
+  ): Promise<void> {
+    console.log(`\n=== ${this.config.name} ===`)
+
+    if (this.config.preRunInfo) {
+      this.config.preRunInfo()
+    }
+
+    const writer = new CSVWriter(this.config.outputPath)
+    writer.writeHeader(this.config.csvHeader)
+
+    const totalTrials = parameterSets.length * this.config.trialsPerConfig
+    console.log(`Configurations: ${parameterSets.length}`)
+    console.log(`Trials per configuration: ${this.config.trialsPerConfig}`)
+    console.log(`Total trials: ${totalTrials}\n`)
+
+    const progress = new ProgressReporter(totalTrials, this.config.name)
+    let trialId = 0
+
+    for (const params of parameterSets) {
+      for (let i = 0; i < this.config.trialsPerConfig; i++) {
+        const results = runTrial(params, trialId, i)
+        for (const result of results) {
+          writer.writeRow(this.config.resultToRow(result))
+        }
+        progress.update()
+        trialId++
+      }
+    }
+
+    progress.finish()
+    await writer.close()
+
+    console.log(`\n✓ ${this.config.name} complete`)
+    console.log(`  Output: ${this.config.outputPath}`)
+  }
 }
