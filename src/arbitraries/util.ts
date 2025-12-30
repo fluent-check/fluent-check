@@ -92,8 +92,81 @@ export function mapArbitrarySize(sz: ArbitrarySize, f: (v: number) => ArbitraryS
   return estimatedSize(result.value, interval)
 }
 
-export function stringify(object: any) {
-  return object instanceof Object || object instanceof Array ? JSON.stringify(object) : object
+/**
+ * Computes the combined size of multiple arbitraries.
+ *
+ * For products (tuples, records): sizes are multiplied, intervals are multiplied.
+ * For sums (unions): sizes are added, intervals are added.
+ *
+ * @param arbitraries - Iterable of arbitraries to combine
+ * @param operation - 'product' for cartesian product (tuples, records), 'sum' for union types
+ * @returns Combined size, marked as estimated if any input is estimated
+ */
+export function combineArbitrarySizes(
+  arbitraries: Iterable<{size(): ArbitrarySize}>,
+  operation: 'product' | 'sum'
+): ArbitrarySize {
+  let value = operation === 'product' ? 1 : 0
+  let lower = operation === 'product' ? 1 : 0
+  let upper = operation === 'product' ? 1 : 0
+  let isEstimated = false
+
+  for (const a of arbitraries) {
+    const size = a.size()
+    if (size.type === 'estimated') {
+      isEstimated = true
+      const [lo, hi] = size.credibleInterval
+      if (operation === 'product') {
+        lower *= lo
+        upper *= hi
+      } else {
+        lower += lo
+        upper += hi
+      }
+    } else {
+      if (operation === 'product') {
+        lower *= size.value
+        upper *= size.value
+      } else {
+        lower += size.value
+        upper += size.value
+      }
+    }
+    value = operation === 'product' ? value * size.value : value + size.value
+  }
+
+  return isEstimated ? estimatedSize(value, [lower, upper]) : exactSize(value)
+}
+
+export function stringify(object: unknown): string {
+  if (object instanceof Object || Array.isArray(object)) {
+    return JSON.stringify(object)
+  }
+  return String(object)
+}
+
+// ============================================================================
+// Collection Utilities
+// ============================================================================
+
+/**
+ * Computes shrink bounds for binary-search shrinking of collections.
+ * Returns null if already at minimum size (no shrinking possible).
+ *
+ * @param currentLength - Current collection length
+ * @param min - Minimum allowed length
+ * @returns Shrink bounds [lowerMin, lowerMax, upperMin, upperMax] or null
+ */
+export function shrinkBounds(
+  currentLength: number,
+  min: number
+): [number, number, number, number] | null {
+  if (min === currentLength) return null
+
+  const middle = Math.floor((min + currentLength) / 2)
+  const end = currentLength - 1
+
+  return [min, middle, middle + 1, end]
 }
 
 /**

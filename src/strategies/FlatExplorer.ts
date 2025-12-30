@@ -1,18 +1,15 @@
-/* eslint-disable @typescript-eslint/strict-boolean-expressions */
-
 import {type FluentPick} from '../arbitraries/index.js'
 import {
   AbstractExplorer,
   type BoundTestCase,
-  type Explorer
+  type Explorer,
+  type QuantifierFrame,
+  type QuantifierSemantics,
+  type TraversalOutcome,
+  type TraverseNext
 } from './explorer/index.js'
 import type {ExecutableQuantifier} from '../ExecutableScenario.js'
 import type {Sampler} from './Sampler.js'
-
-type TraversalOutcome =
-  | {kind: 'pass'; witness?: unknown}
-  | {kind: 'fail'; counterexample: unknown}
-  | {kind: 'inconclusive'; budgetExceeded: boolean}
 
 /**
  * FlatExplorer implements a pure random sampling strategy.
@@ -50,26 +47,26 @@ export class FlatExplorer<Rec extends {}> extends AbstractExplorer<Rec> {
     return samples
   }
 
-  protected quantifierSemantics() {
+  protected quantifierSemantics(): QuantifierSemantics<Rec> {
     return {
-      exists: (frame: any, next: any) => {
+      exists: (frame: QuantifierFrame<Rec>, next: TraverseNext<Rec>): TraversalOutcome<Rec> => {
         // Exists behaves like ForAll in Flat mode - it just consumes the stream
         // If we find a witness, we pass. If we run out, we fail (exhausted).
         // For mixed quantifiers, this simple "zip" approach implies we assume
         // independence between quantifiers.
         return this.handleQuantifier(frame, next, 'exists')
       },
-      forall: (frame: any, next: any) => {
+      forall: (frame: QuantifierFrame<Rec>, next: TraverseNext<Rec>): TraversalOutcome<Rec> => {
         return this.handleQuantifier(frame, next, 'forall')
       }
     }
   }
 
   private handleQuantifier(
-    frame: any,
-    next: any,
+    frame: QuantifierFrame<Rec>,
+    next: TraverseNext<Rec>,
     type: 'forall' | 'exists'
-  ): any {
+  ): TraversalOutcome<Rec> {
     const {index, quantifier, ctx} = frame
     const samples = ctx.samples.get(quantifier.name) ?? []
 
@@ -85,6 +82,7 @@ export class FlatExplorer<Rec extends {}> extends AbstractExplorer<Rec> {
         this.indices.set(ctx, i)
 
         const sample = samples[i]
+        if (sample === undefined) continue
         this.trackSampleStatistics(frame, sample)
         const newTestCase = {...frame.testCase, [quantifier.name]: sample}
 
@@ -96,20 +94,20 @@ export class FlatExplorer<Rec extends {}> extends AbstractExplorer<Rec> {
           break
         }
 
-        const outcome = next(index + 1, newTestCase, ctx) as TraversalOutcome
+        const outcome = next(index + 1, newTestCase, ctx)
 
         if (type === 'forall') {
-          if (outcome.kind === 'fail') return ctx.outcomes.fail(outcome.counterexample as BoundTestCase<Rec>)
+          if (outcome.kind === 'fail') return ctx.outcomes.fail(outcome.counterexample)
           if (outcome.kind === 'inconclusive' && outcome.budgetExceeded === true) {
             sawBudgetLimit = true
             allPassed = false // Technically unknown, but we stop
             break
           }
           if (outcome.kind === 'pass' && outcome.witness) {
-            witness = outcome.witness as BoundTestCase<Rec>
+            witness = outcome.witness
           }
         } else { // exists
-          if (outcome.kind === 'pass') return ctx.outcomes.pass((outcome.witness as BoundTestCase<Rec>) ?? newTestCase)
+          if (outcome.kind === 'pass') return ctx.outcomes.pass(outcome.witness ?? newTestCase)
           if (outcome.kind === 'inconclusive' && outcome.budgetExceeded === true) {
             sawBudgetLimit = true
             break
@@ -143,6 +141,9 @@ export class FlatExplorer<Rec extends {}> extends AbstractExplorer<Rec> {
       }
 
       const sample = samples[idx]
+      if (sample === undefined) {
+        return ctx.outcomes.inconclusive(false)
+      }
       this.trackSampleStatistics(frame, sample)
       const newTestCase = {...frame.testCase, [quantifier.name]: sample}
 

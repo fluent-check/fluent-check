@@ -1,7 +1,7 @@
 import {Arbitrary} from './internal.js'
-import type {ArbitrarySize, FluentPick, NonEmptyArray} from './types.js'
+import type {FluentPick, NonEmptyArray} from './types.js'
 import type {HashFunction, EqualsFunction} from './Arbitrary.js'
-import {exactSize, estimatedSize} from './util.js'
+import {combineArbitrarySizes} from './util.js'
 import * as fc from './index.js'
 import {assertInBounds} from '../util/assertions.js'
 
@@ -55,17 +55,10 @@ export class ArbitraryWeighted<A> extends Arbitrary<A> {
     this.totalWeight = total
   }
 
-  override size(): ArbitrarySize {
-    let value = 0
-    let isEstimated = false
-
-    for (const [, arbitrary] of this.entries) {
-      const size = arbitrary.size()
-      if (size.type === 'estimated') isEstimated = true
-      value += size.value
-    }
-
-    return isEstimated ? estimatedSize(value, [value, value]) : exactSize(value)
+  override size() {
+    // Extract arbitraries from weighted entries for size calculation
+    const arbitraries = this.entries.map(([, arb]) => arb)
+    return combineArbitrarySizes(arbitraries, 'sum')
   }
 
   override pick(generator: () => number): FluentPick<A> | undefined {

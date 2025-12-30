@@ -1,7 +1,7 @@
 import {Arbitrary} from './internal.js'
-import type {ArbitrarySize, FluentPick, NonEmptyArray} from './types.js'
+import type {FluentPick, NonEmptyArray} from './types.js'
 import type {HashFunction, EqualsFunction} from './Arbitrary.js'
-import {exactSize, estimatedSize} from './util.js'
+import {combineArbitrarySizes} from './util.js'
 import * as fc from './index.js'
 import {assertInBounds} from '../util/assertions.js'
 
@@ -25,18 +25,8 @@ export class ArbitraryComposite<A> extends Arbitrary<A> {
     }
   }
 
-  override size(): ArbitrarySize {
-    let value = 0
-    let isEstimated = false
-
-    for (const a of this.arbitraries) {
-      const size = a.size()
-      if (size.type === 'estimated') isEstimated = true
-      value += size.value
-    }
-
-    // todo: fix credible interval for estimated sizes
-    return isEstimated ? estimatedSize(value, [value, value]) : exactSize(value)
+  override size() {
+    return combineArbitrarySizes(this.arbitraries, 'sum')
   }
 
   override pick(generator: () => number) {

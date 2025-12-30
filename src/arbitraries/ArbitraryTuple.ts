@@ -1,7 +1,7 @@
-import type {ArbitrarySize, FluentPick} from './types.js'
+import type {FluentPick} from './types.js'
 import type {HashFunction, EqualsFunction} from './Arbitrary.js'
 import {Arbitrary} from './internal.js'
-import {exactSize, estimatedSize, FNV_OFFSET_BASIS, mix} from './util.js'
+import {combineArbitrarySizes, FNV_OFFSET_BASIS, mix} from './util.js'
 import * as fc from './index.js'
 
 type UnwrapArbitrary<T> = { [P in keyof T]: T[P] extends Arbitrary<infer E> ? E : never }
@@ -11,23 +11,13 @@ export class ArbitraryTuple<U extends Arbitrary<any>[], A = UnwrapArbitrary<U>> 
     super()
   }
 
-  override size(): ArbitrarySize {
-    let value = 1
-    let isEstimated = false
-
-    for (const a of this.arbitraries) {
-      const size = a.size()
-      if (size.type === 'estimated') isEstimated = true
-      value *= size.value
-    }
-
-    // todo: fix credible interval for estimated sizes
-    return isEstimated ? estimatedSize(value, [value, value]) : exactSize(value)
+  override size() {
+    return combineArbitrarySizes(this.arbitraries, 'product')
   }
 
   override pick(generator: () => number): FluentPick<A> | undefined {
-    const value: any = []
-    const original: any[] = []
+    const value: unknown[] = []
+    const original: unknown[] = []
 
     for (const a of this.arbitraries) {
       const pick = a.pick(generator)
@@ -38,16 +28,16 @@ export class ArbitraryTuple<U extends Arbitrary<any>[], A = UnwrapArbitrary<U>> 
       }
     }
 
-    return {value, original}
+    return {value: value as A, original}
   }
 
   override cornerCases(): FluentPick<A>[] {
     const cornerCases = this.arbitraries.map(a => a.cornerCases())
 
     return cornerCases.reduce((acc, cc) => acc.flatMap(a => cc.map(b => ({
-      value: [...a.value, b.value],
-      original: [...a.original, b.original]
-    }))), [{value: [], original: []}])
+      value: [...(a.value as unknown[]), b.value],
+      original: [...(a.original as unknown[]), b.original]
+    }))), [{value: [] as unknown[], original: [] as unknown[]}]) as FluentPick<A>[]
   }
 
   override shrink(initial: FluentPick<A>): Arbitrary<A> {

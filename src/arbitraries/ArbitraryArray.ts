@@ -1,6 +1,6 @@
 import type {FluentPick} from './types.js'
 import type {HashFunction, EqualsFunction} from './Arbitrary.js'
-import {mapArbitrarySize, exactSize, FNV_OFFSET_BASIS, mix} from './util.js'
+import {mapArbitrarySize, exactSize, shrinkBounds, FNV_OFFSET_BASIS, mix} from './util.js'
 import {Arbitrary} from './internal.js'
 import * as fc from './index.js'
 
@@ -34,13 +34,10 @@ export class ArbitraryArray<A> extends Arbitrary<A[]> {
   }
 
   override shrink(initial: FluentPick<A[]>): Arbitrary<A[]> {
-    if (this.min === initial.value.length) return fc.empty()
-
-    const start = this.min
-    const middle = Math.floor((this.min + initial.value.length) / 2)
-    const end = initial.value.length - 1
-
-    return fc.union(fc.array(this.arbitrary, start, middle), fc.array(this.arbitrary, middle + 1, end))
+    const bounds = shrinkBounds(initial.value.length, this.min)
+    if (bounds === null) return fc.empty()
+    const [lMin, lMax, uMin, uMax] = bounds
+    return fc.union(fc.array(this.arbitrary, lMin, lMax), fc.array(this.arbitrary, uMin, uMax))
   }
 
   override canGenerate(pick: FluentPick<A[]>) {
