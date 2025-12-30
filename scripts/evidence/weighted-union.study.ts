@@ -49,6 +49,12 @@ function runTrial(
   const timer = new HighResTimer()
   const generator = mulberry32(seed)
 
+  // Warmup arbitraries to ensure size estimates are accurate (for FilteredArbitrary)
+  for (let i = 0; i < 200; i++) {
+    try { arb0.pick(generator) } catch (e) { }
+    try { arb1.pick(generator) } catch (e) { }
+  }
+
   // Create union
   const union = fc.union(arb0, arb1)
 
@@ -115,6 +121,16 @@ async function runWeightedUnionStudy(): Promise<void> {
       name: 'exact_1_vs_99',
       arb0: fc.constant(0),         // size = 1
       arb1: fc.integer(1, 99),      // size = 99 (disjoint range)
+    },
+    {
+      name: 'filtered_50pct_vs_exact',
+      arb0: fc.integer(0, 99).filter(x => x % 2 === 0), // size ~50
+      arb1: fc.integer(100, 149),   // size = 50 (disjoint)
+    },
+    {
+      name: 'filtered_30pct_vs_filtered_70pct',
+      arb0: fc.integer(0, 99).filter(x => x % 3 === 0), // size ~33
+      arb1: fc.integer(100, 199).filter(x => x % 10 < 7), // size ~70
     }
   ]
 

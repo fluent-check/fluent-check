@@ -150,5 +150,33 @@ export const registry: Record<string, StudyConfig> = {
     py: 'analysis/ci_calibration.py',
     category: 'apparatus',
     description: 'Tests credible interval calibration for size estimation'
+  },
+  'ci-convergence': {
+    id: 'ci-convergence',
+    ts: 'scripts/evidence/ci-convergence.study.ts',
+    py: 'analysis/ci_convergence.py',
+    category: 'apparatus',
+    description: 'Tests convergence of credible intervals'
+  },
+  'early-termination': {
+    id: 'early-termination',
+    ts: 'scripts/evidence/early-termination.study.ts',
+    py: 'analysis/early_termination.py',
+    category: 'apparatus',
+    description: 'Tests correctness of early termination decisions'
+  },
+  'adversarial-patterns': {
+    id: 'adversarial-patterns',
+    ts: 'scripts/evidence/adversarial-patterns.study.ts',
+    py: 'analysis/adversarial_patterns.py',
+    category: 'apparatus',
+    description: 'Tests calibration under adversarial filter patterns'
+  },
+  'composition-depth': {
+    id: 'composition-depth',
+    ts: 'scripts/evidence/composition-depth.study.ts',
+    py: 'analysis/composition_depth.py',
+    category: 'apparatus',
+    description: 'Tests impact of composition depth on coverage'
   }
 }
