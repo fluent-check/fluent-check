@@ -14,6 +14,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from base import AnalysisBase
 from viz import save_figure
+from stats import wilson_score_interval
 
 class CIConvergenceAnalysis(AnalysisBase):
     def __init__(self):
@@ -112,14 +113,34 @@ class CIConvergenceAnalysis(AnalysisBase):
         # Use colormap for distinct lines
         colors = plt.cm.viridis(np.linspace(0, 1, len(width_trends)))
         
-        for idx, (pass_rate, row) in enumerate(width_trends.iterrows()):
-            ax1.plot(row.index, row.values, marker='o', color=colors[idx], label=f'Rate {pass_rate}')
+        # Base size for theoretical calculation (assuming baseSize=1000 from study config)
+        base_size = 1000 
         
+        for idx, (pass_rate, row) in enumerate(width_trends.iterrows()):
+            # Plot Observed
+            ax1.plot(row.index, row.values, marker='o', color=colors[idx], label=f'Rate {pass_rate}')
+            
+            # Calculate Theoretical (Wilson Score Interval Width)
+            # Width = (Upper - Lower) * BaseSize
+            theoretical_widths = []
+            for n in row.index:
+                # Wilson interval for k successes in n trials
+                # k = expected successes = n * pass_rate
+                k = n * pass_rate
+                lower, upper = wilson_score_interval(k, n, confidence=0.90) # 90% confidence used in study
+                theoretical_widths.append((upper - lower) * base_size)
+            
+            # Plot Theoretical (Dashed)
+            ax1.plot(row.index, theoretical_widths, linestyle='--', color=colors[idx], alpha=0.7)
+        
+        # Add dummy entry for theoretical legend
+        ax1.plot([], [], color='gray', linestyle='--', label='Theoretical')
+
         ax1.set_xscale('log')
         ax1.set_xlabel('Sample Count')
         ax1.set_ylabel('CI Width')
         ax1.set_title('CI Width vs Sample Count (Log Scale)')
-        ax1.legend(title="True Pass Rate")
+        ax1.legend(title="True Pass Rate", fontsize='small', ncol=2)
         ax1.grid(True, which="both", ls="-", alpha=0.5)
         
         # Right: Coverage stability

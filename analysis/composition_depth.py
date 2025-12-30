@@ -95,6 +95,10 @@ class CompositionDepthAnalysis(AnalysisBase):
             widths = [data[data['depth'] == d]['rel_width'].mean() for d in depths]
             ax2.plot(depths, widths, marker='s', label=f"{struct} Width", linestyle='-')
 
+        # Add Baseline for Depth 1 (Theoretical "No Nesting Cost" reference)
+        baseline_d1 = self.df[self.df['depth'] == 1]['rel_width'].mean()
+        ax2.axhline(baseline_d1, color='gray', linestyle='--', label='Depth 1 Baseline')
+
         ax2.set_xlabel('Nesting Depth')
         ax2.set_ylabel('Mean Relative CI Width (Width / TrueSize)')
         ax2.set_title('Interval Conservativeness vs Depth')
