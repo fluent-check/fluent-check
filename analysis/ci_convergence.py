@@ -108,30 +108,52 @@ class CIConvergenceAnalysis(AnalysisBase):
         # Left: Width decay
         ax1 = axes[0]
         width_trends = self.df.groupby(['pass_rate', 'sample_count'])['ci_width'].mean().unstack()
-        for pass_rate, row in width_trends.iterrows():
-            ax1.plot(row.index, row.values, marker='o', label=f'Rate {pass_rate}')
+        
+        # Use colormap for distinct lines
+        colors = plt.cm.viridis(np.linspace(0, 1, len(width_trends)))
+        
+        for idx, (pass_rate, row) in enumerate(width_trends.iterrows()):
+            ax1.plot(row.index, row.values, marker='o', color=colors[idx], label=f'Rate {pass_rate}')
         
         ax1.set_xscale('log')
         ax1.set_xlabel('Sample Count')
         ax1.set_ylabel('CI Width')
-        ax1.set_title('CI Width vs Sample Count')
-        ax1.legend()
-        ax1.grid(True)
+        ax1.set_title('CI Width vs Sample Count (Log Scale)')
+        ax1.legend(title="True Pass Rate")
+        ax1.grid(True, which="both", ls="-", alpha=0.5)
         
         # Right: Coverage stability
         ax2 = axes[1]
+        
+        # Aggregate coverage statistics across all pass rates per sample count
+        # This shows the "global calibration" of the system
+        agg_stats = self.df.groupby('sample_count')['true_in_ci'].agg(['mean', 'std', 'count'])
+        agg_stats['se'] = agg_stats['std'] / np.sqrt(agg_stats['count'])
+        # 95% CI for the coverage proportion itself
+        agg_stats['ci95'] = 1.96 * agg_stats['se'] 
+        
+        # Plot individual lines faintly
         coverage_trends = self.df.groupby(['pass_rate', 'sample_count'])['true_in_ci'].mean().unstack()
-        for pass_rate, row in coverage_trends.iterrows():
-            ax2.plot(row.index, row.values, marker='x', label=f'Rate {pass_rate}')
+        for idx, (pass_rate, row) in enumerate(coverage_trends.iterrows()):
+            ax2.plot(row.index, row.values, marker='', color=colors[idx], alpha=0.2, linewidth=1)
             
-        ax2.axhline(0.90, color='blue', linestyle='--', label='Target 90%')
+        # Plot aggregate mean
+        ax2.plot(agg_stats.index, agg_stats['mean'], color='black', linewidth=3, marker='o', label='Global Mean Coverage')
+        ax2.fill_between(
+            agg_stats.index, 
+            agg_stats['mean'] - agg_stats['ci95'], 
+            agg_stats['mean'] + agg_stats['ci95'], 
+            color='black', alpha=0.1, label='95% Confidence Band'
+        )
+            
+        ax2.axhline(0.90, color='blue', linestyle='--', label='Target 90%', linewidth=2)
         ax2.set_xscale('log')
         ax2.set_xlabel('Sample Count')
-        ax2.set_ylabel('Coverage')
-        ax2.set_title('Coverage vs Sample Count')
-        ax2.set_ylim(0.5, 1.05)
-        ax2.legend()
-        ax2.grid(True)
+        ax2.set_ylabel('Coverage Proportion')
+        ax2.set_title('Global Coverage Reliability vs Sample Count')
+        ax2.set_ylim(0.7, 1.0) # Zoom in on the relevant high-coverage area
+        ax2.legend(loc='lower right')
+        ax2.grid(True, which="both", ls="-", alpha=0.5)
         
         save_figure(fig, self.get_output_path("ci-convergence.png"))
 
