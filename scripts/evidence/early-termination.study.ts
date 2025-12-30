@@ -1,14 +1,24 @@
 /**
  * Study B: Early Termination Correctness
  *
- * Does termination happen at the right time?
+ * Does the early termination decision rule make correct decisions?
+ *
+ * Background:
+ * FilteredArbitrary stops trying when: baseSize * sizeEstimation.inv(0.95) < 1
+ * This uses the 95th percentile of the posterior over pass rates (one-sided).
  *
  * Hypotheses:
- * B1: When terminating early, the true size is actually < 1 with ≥90% confidence
- * B2: False positive rate (terminate when size > 1) is ≤ 10%
- * B3: False negative rate (keep trying when size = 0) is minimized
+ * B1: When decision rule triggers (95th percentile estimate < 1), true size < 1 in ≥95% of cases
+ *     (Rationale: 95th percentile should have 5% false positive rate by definition)
+ * B2: False negative rate (continue trying when true size = 0) ≤ 50%
+ *     (Rationale: Acceptable to waste effort, but should terminate eventually)
+ * B3: For filters with true size ≥ 10, early termination never triggers
+ *     (Rationale: Decision rule should only stop for genuinely empty/tiny spaces)
  *
- * Method: Create filters with edge-case pass rates (0%, 0.1%, 1%, 10%), track termination decisions.
+ * Method: Create filters with known true sizes: 0, 1, 5, 10, 50, 100
+ * Measure: P(true size < 1 | early termination), P(early termination | true size = 0)
+ *
+ * FIXED: Previous version confused decision rule (95th percentile) with calibration question.
  */
 
 import * as fc from '../../src/index.js'
@@ -116,20 +126,30 @@ function runTrial(
 }
 
 async function runEarlyTerminationStudy(): Promise<void> {
-  // Test cases:
-  // 0% (true size 0) -> Should terminate
-  // 0.05% of 1000 (size 0.5 -> 0) -> Should terminate
-  // 0.1% of 1000 (size 1) -> Should NOT terminate
-  // 1% of 1000 (size 10) -> Should NOT terminate
-  
+  // Test cases with known true sizes: 0, 1, 5, 10, 50, 100
+  // We use small base sizes for exact control
+
   const scenarios: EarlyTerminationParams[] = [
-    { passRate: 0, baseSize: 100 },       // Smaller base size -> faster termination
-    { passRate: 0, baseSize: 1000 },
-    { passRate: 0.0005, baseSize: 1000 }, // 0.5 -> 0
-    { passRate: 0.001, baseSize: 1000 },  // 1
-    { passRate: 0.002, baseSize: 1000 },  // 2
-    { passRate: 0.01, baseSize: 1000 },   // 10
-    { passRate: 0.1, baseSize: 1000 }     // 100
+    // True size 0 (impossible filter)
+    { passRate: 0, baseSize: 100 },
+
+    // True size 1 (exactly one value passes)
+    { passRate: 0.01, baseSize: 100 },  // 100 * 0.01 = 1
+
+    // True size 5
+    { passRate: 0.05, baseSize: 100 },  // 100 * 0.05 = 5
+
+    // True size 10
+    { passRate: 0.1, baseSize: 100 },   // 100 * 0.1 = 10
+
+    // True size 50
+    { passRate: 0.5, baseSize: 100 },   // 100 * 0.5 = 50
+
+    // True size 100 (all values pass)
+    { passRate: 1.0, baseSize: 100 },   // 100 * 1.0 = 100
+
+    // Edge case: Very rare filter (0.1% pass rate)
+    { passRate: 0.001, baseSize: 1000 } // 1000 * 0.001 = 1
   ]
 
   const runner = new ExperimentRunner<EarlyTerminationParams, EarlyTerminationResult>({
@@ -140,7 +160,7 @@ async function runEarlyTerminationStudy(): Promise<void> {
       'samples_taken', 'terminated', 'estimated_size', 'ci_upper', 
       'false_termination', 'failed_termination'
     ],
-    trialsPerConfig: getSampleSize(200, 50),
+    trialsPerConfig: getSampleSize(500, 100), // 500 trials for 80% power
     resultToRow: (r: EarlyTerminationResult) => [
       r.trialId, r.seed, r.passRate, r.baseSize, r.trueSize,
       r.samplesTaken, r.terminated, r.estimatedSize, r.ciUpper.toFixed(4),

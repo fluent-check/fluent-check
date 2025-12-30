@@ -178,5 +178,19 @@ export const registry: Record<string, StudyConfig> = {
     py: 'analysis/composition_depth.py',
     category: 'apparatus',
     description: 'Tests impact of composition depth on coverage'
+  },
+  'shrinking-ci-calibration': {
+    id: 'shrinking-ci-calibration',
+    ts: 'scripts/evidence/shrinking-ci-calibration.study.ts',
+    py: 'analysis/shrinking_ci_calibration.py',
+    category: 'apparatus',
+    description: 'Tests CI calibration for shrunk filtered arbitraries (cold-start)'
+  },
+  'chained-ci-validation': {
+    id: 'chained-ci-validation',
+    ts: 'scripts/evidence/chained-ci-validation.study.ts',
+    py: 'analysis/chained_ci_validation.py',
+    category: 'apparatus',
+    description: 'Tests size propagation through ChainedArbitrary (flatMap)'
   }
 }
