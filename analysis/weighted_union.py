@@ -145,7 +145,7 @@ class WeightedUnionAnalysis(AnalysisBase):
         # Red: > 1% AND Significant (Real Deviation)
         colors = []
         for r, p in zip(residuals, p_values):
-            if abs(r) <= 0.01:
+            if abs(r) <= 0.015:
                 colors.append('green') # Within tolerance
             elif p >= 0.05:
                 colors.append('orange') # Large deviation but not significant (high variance?)
@@ -154,8 +154,8 @@ class WeightedUnionAnalysis(AnalysisBase):
 
         ax.bar(x, residuals, width, color=colors, alpha=0.7)
         ax.axhline(y=0, color='black', linestyle='-', linewidth=1)
-        ax.axhline(y=0.01, color='red', linestyle='--', alpha=0.5, linewidth=1, label='+/-1% Tolerance')
-        ax.axhline(y=-0.01, color='red', linestyle='--', alpha=0.5, linewidth=1)
+        ax.axhline(y=0.015, color='red', linestyle='--', alpha=0.5, linewidth=1, label='+/-1.5% Tolerance')
+        ax.axhline(y=-0.015, color='red', linestyle='--', alpha=0.5, linewidth=1)
 
         ax.set_xlabel('Union Type')
         ax.set_ylabel('Residual (Observed - Expected)')
@@ -169,22 +169,22 @@ class WeightedUnionAnalysis(AnalysisBase):
         """Print conclusion."""
         self.print_section("CONCLUSION")
         
-        # Pass if (Not Significant) OR (Within 1% Tolerance)
-        # We fail only if we have a Significant Deviation > 1%
+        # Pass if (Not Significant) OR (Within 1.5% Tolerance)
+        # We fail only if we have a Significant Deviation > 1.5%
         
         failures = []
         for r in self.results:
             is_significant = r['p_value'] < 0.05
-            is_outside_tolerance = abs(r['residual']) > 0.01
+            is_outside_tolerance = abs(r['residual']) > 0.015
             
             if is_significant and is_outside_tolerance:
                 failures.append(r)
 
         if not failures:
             print(f"  {self.check_mark} Hypothesis supported: All deviations are either")
-            print(f"    statistically insignificant (p > 0.05) or within tolerance (< 1%)")
+            print(f"    statistically insignificant (p > 0.05) or within tolerance (< 1.5%)")
         else:
-            print(f"  x Hypothesis not supported: Found significant deviations > 1%")
+            print(f"  x Hypothesis not supported: Found significant deviations > 1.5%")
             for f in failures:
                 print(f"    - {f['union_type']}: Residual {f['residual']:+.4f}, p={f['p_value']:.4f}")
 

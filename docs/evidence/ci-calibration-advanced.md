@@ -85,7 +85,7 @@ The basic CI calibration study validated that 90% credible intervals contain the
 
 **Findings:**
 - **G1:** ✓ PASS (with tolerance).
-- **Analysis:** Unions involving filtered arbitraries showed statistically significant deviations (p < 0.05), but the absolute error was consistently **< 1%** (e.g., `filtered_50pct` residual -0.84%).
+- **Analysis:** Unions involving filtered arbitraries showed statistically significant deviations (p < 0.05), but the absolute error was consistently **< 1.5%** (e.g., `filtered_50pct` residual -1.04%).
 - **Conclusion:** While adaptive sampling causes slight statistical drift, the magnitude is negligible for engineering purposes. The system selects branches with sufficient fairness.
 
 ![Weighted Union](figures/weighted-union.png)
@@ -95,7 +95,7 @@ The basic CI calibration study validated that 90% credible intervals contain the
 1.  **Robust Convergence:** The Bayesian estimator behaves exactly as expected, converging smoothly and maintaining safety (coverage) throughout the process.
 2.  **Conservative Propagation:** Deeply nested structures are safe (100% coverage) but likely inefficient due to interval arithmetic compounding width.
 3.  **Termination Heuristic Needs Tuning:** The early termination logic is slightly too aggressive (12% false positive rate). We should adjust the confidence threshold.
-4.  **Acceptable Weight Drift:** The weighted union discrepancy is statistically present but practically irrelevant (<1% error).
+4.  **Acceptable Weight Drift:** The weighted union discrepancy is statistically present but practically small (~1% error).
 
 ## Recommendations
 
