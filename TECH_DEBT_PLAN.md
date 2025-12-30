@@ -2,18 +2,26 @@
 
 This document outlines a systematic approach to address accumulated technical debt in the fluent-check codebase following recent refactorings and feature additions.
 
+**Last Updated:** 2025-12-29
+
 ---
 
 ## Executive Summary
 
-| Category | Issues Found | Priority Items |
-|----------|-------------|----------------|
-| Unsafe Type Casts | 21 `as` assertions, 26+ `any` usages | 5 high-risk |
-| Unused/Dead Code | 3 notebook files, 6 TODO items | 3 files to remove |
-| Style Inconsistencies | 11 categories identified | 3 high priority |
-| Redundant Code | 6 major duplication patterns | 3 consolidation opportunities |
-| Architectural Issues | 4 god classes, coupling issues | 3 major refactors |
-| Type System Issues | Loose typing, missing annotations | 8 fixes needed |
+| Category | Issues Found | Priority Items | Status |
+|----------|-------------|----------------|--------|
+| Unsafe Type Casts | 21 `as` assertions, ~12 `any` usages | 5 high-risk | Partially addressed |
+| Unused/Dead Code | ~~3 notebook files~~, 4 TODO items | ~~3 files to remove~~ | ✅ Notebooks removed |
+| Style Inconsistencies | 11 categories identified | 3 high priority | Unchanged |
+| Redundant Code | 6 major duplication patterns | 3 consolidation opportunities | Unchanged |
+| Architectural Issues | ~~4 god classes~~, coupling issues | ~~3 major refactors~~ | ✅ 2 modularized, 1 analyzed, 1 deferred |
+| Type System Issues | Loose typing, missing annotations | 8 fixes needed | Unchanged |
+
+### Phase 4 Summary
+- **4.1 statistics.ts** ✅ Modularized to `src/statistics/` (13 files)
+- **4.2 Explorer.ts** ✅ Modularized to `src/strategies/explorer/` (9 files)
+- **4.3 FluentCheck.ts** ⚠️ Not recommended (circular dependency issues)
+- **4.4 arbitraries/** ⏸️ Deferred (low value vs high effort)
 
 ---
 
@@ -23,54 +31,63 @@ This document outlines a systematic approach to address accumulated technical de
 
 Address the fundamental flaws identified by the statistical apparatus studies.
 
-### 0.1 Fix Sample Budget Collapse (Validated)
+### 0.1 Fix Sample Budget Collapse ✅ COMPLETED
 **Finding:** `NestedLoopExplorer` partitions budget $N$ into $N^{1/d}$, resulting in single-digit sample sizes at depth > 3.
 **Experiment:** `FlatExplorer` prototype maintained 99.9% effective sample size at depth 5 (vs 0.3% for Nested). **111x improvement**.
-**Action:** Implement `FlatExplorer` (Pure Random) and make it the default for deep scenarios.
+**Action:** ~~Implement `FlatExplorer` (Pure Random) and make it the default for deep scenarios.~~
+**Status:** ✅ `FlatExplorer` implemented in `src/strategies/FlatExplorer.ts` (157 lines). Generates `maxTests` samples for EVERY quantifier, preventing budget collapse.
 **Reference:** [Sample Budget Study](docs/evidence/README.md#18-sample-budget-distribution-study)
 
-### 0.2 Fix Filter Size Estimation (Validated)
+### 0.2 Fix Filter Size Estimation ✅ COMPLETED
 **Finding:** `FilteredArbitrary` uses an optimistic prior before sampling, leading to 0% CI coverage and exponential error growth.
 **Experiment:** Warm-up sampling (10 iterations) reduced error from +3603% to +63% at depth 5.
-**Action:** Implement "Warm-up Sampling" to seed the estimator on instantiation.
+**Action:** ~~Implement "Warm-up Sampling" to seed the estimator on instantiation.~~
+**Status:** ✅ Warm-up sampling implemented in `FilteredArbitrary` constructor (lines 14-27). Uses deterministic seed `0xCAFEBABE` with 10 warm-up samples.
 **Reference:** [Filter Cascade Study](docs/evidence/filter-cascade-impact.md)
 
-### 0.3 Fix Weighted Union Bias (Validated)
+### 0.3 Fix Weighted Union Bias ✅ COMPLETED
 **Finding:** `MappedArbitrary` assumes bijectivity, causing `UnionArbitrary` to miscalculate weights for surjective maps.
 **Experiment:** Distinctness heuristic (10 samples) reduced size overestimation by ~30% for 10-to-1 maps.
-**Action:** Implement distinctness heuristic or allow manual weight overrides.
+**Action:** ~~Implement distinctness heuristic or allow manual weight overrides.~~
+**Status:** ✅ Distinctness heuristic implemented in `MappedArbitrary` constructor (lines 17-48). Computes `distinctnessFactor` by sampling 10 values and comparing unique outputs to inputs.
 **Reference:** [Mapped Arbitrary Size Study](docs/evidence/README.md#12-mapped-arbitrary-size-study)
 
-### 0.4 Fix Shrinking Fairness
+### 0.4 Fix Shrinking Fairness ✅ COMPLETED
 **Finding:** Shrinking is sequentially biased; earlier quantifiers shrink fully before later ones start.
-**Action:** Implement "Interleaved Shrinking" strategy.
+**Action:** ~~Implement "Interleaved Shrinking" strategy.~~
+**Status:** ✅ `RoundRobinStrategy` (interleaved shrinking) implemented in `src/strategies/shrinking/RoundRobinStrategy.ts`. Achieves 73% variance reduction vs Sequential Exhaustive with ~5% overhead.
 **Reference:** [Shrinking Fairness Study](docs/evidence/README.md#14-shrinking-fairness-study)
 
 ## Phase 1: Quick Wins (Low Risk, High Impact)
 
-### 1.1 Remove Development Artifacts
+### 1.1 Remove Development Artifacts ✅ COMPLETED
 
 **Priority:** High | **Effort:** Minimal | **Risk:** None
 
-Remove notebook/playground files that are being compiled into dist:
+~~Remove notebook/playground files that are being compiled into dist:~~
 
-| File | Lines | Action |
-|------|-------|--------|
-| `src/notebook.ts` | 26 | Delete |
-| `src/notebook2.ts` | 11 | Delete |
-| `src/notebook4.ts` | 28 | Delete |
+| File | Lines | Action | Status |
+|------|-------|--------|--------|
+| `src/notebook.ts` | 26 | Delete | ✅ Removed |
+| `src/notebook2.ts` | 11 | Delete | ✅ Removed |
+| `src/notebook4.ts` | 28 | Delete | ✅ Removed |
 
-**Alternative:** Add to tsconfig.json `exclude` array if files are needed for development.
+**Status:** ✅ All notebook files have been removed from the codebase.
 
 ### 1.2 Replace `any` with `unknown`
 
 **Priority:** High | **Effort:** Low | **Risk:** Low
 
-| File | Line | Current | Replacement |
-|------|------|---------|-------------|
-| `src/arbitraries/types.ts` | 3 | `original?: any` | `original?: unknown` |
-| `src/arbitraries/util.ts` | 82 | `stringify(object: any)` | `stringify(object: unknown)` |
-| `src/arbitraries/ArbitraryTuple.ts` | 29-30 | `const value: any = []` | `const value: unknown[] = []` |
+**Current `any` usages (12 remaining):**
+
+| File | Line | Current | Status |
+|------|------|---------|--------|
+| `src/arbitraries/types.ts` | 3 | `original?: any` | ⏳ Pending |
+| `src/arbitraries/util.ts` | 95 | `stringify(object: any)` | ⏳ Pending |
+| `src/arbitraries/ArbitraryTuple.ts` | 29-30 | `const value: any = []` | ⏳ Pending |
+| `src/strategies/Explorer.ts` | 771 | `(n: any): n is QuantifierNode` | ⏳ Pending |
+| `src/strategies/FlatExplorer.ts` | 55, 62, 69-72 | Various `any` params | ⏳ Pending (5 usages) |
+| `src/arbitraries/NoArbitrary.ts` | 21, 26 | `map(_: (a: any) => any)` | ⏳ Pending (low priority - internal)
 
 ### 1.3 Standardize Private Field Naming
 
@@ -258,90 +275,109 @@ export function shrinkCollection<T>(
 
 ## Phase 4: Architectural Refactoring
 
-### 4.1 Split `statistics.ts` (1232 lines → ~6 modules)
+### 4.1 Split `statistics.ts` (1245 lines → ~6 modules) ✅ COMPLETED
 
 **Priority:** High | **Effort:** High | **Risk:** Medium
 
-**Current file:** `src/statistics.ts` (1232 lines)
+**Status:** ✅ Completed. New modular structure created in `src/statistics/`:
 
-**Proposed structure:**
 ```
 src/statistics/
 ├── index.ts                          # Re-exports public API
+├── types.ts                          # Shared type definitions
 ├── distributions/
 │   ├── Distribution.ts               # Abstract base interface
-│   ├── BetaDistribution.ts           # Lines 27-83
-│   ├── BetaBinomialDistribution.ts   # Lines 85-130
-│   └── IntegerDistribution.ts        # Lines 132-200
+│   ├── IntegerDistribution.ts        # Integer domain distribution
+│   ├── BetaDistribution.ts           # Beta distribution implementation
+│   └── BetaBinomialDistribution.ts   # Beta-binomial implementation
 ├── confidence/
-│   ├── wilsonScore.ts                # Lines 150-180
-│   ├── bayesianConfidence.ts         # Lines 280-340
-│   └── credibleInterval.ts           # Lines 200-250
+│   ├── wilsonScore.ts                # Wilson score interval
+│   ├── bayesianConfidence.ts         # Bayesian confidence computation
+│   └── sampleSize.ts                 # Sample size calculations
 ├── streaming/
-│   ├── StreamingMeanVariance.ts      # Lines 450-520
-│   ├── StreamingMinMax.ts            # Lines 522-560
-│   ├── StreamingQuantiles.ts         # Lines 562-640
-│   └── DistributionTracker.ts        # Lines 700-900
-├── collectors/
-│   ├── ArbitraryStatisticsCollector.ts  # Lines 900-1000
-│   └── StatisticsContext.ts             # Lines 1050-1210
-└── types.ts                          # Shared type definitions
+│   ├── StreamingMeanVariance.ts      # Welford's algorithm
+│   ├── StreamingMinMax.ts            # Min/max tracking
+│   ├── StreamingQuantiles.ts         # P² quantile estimation
+│   └── DistributionTracker.ts        # Composite tracker
+└── collectors/
+    ├── ArbitraryStatisticsCollector.ts  # Per-arbitrary collector
+    └── StatisticsContext.ts             # Statistics aggregation context
 ```
 
-**Migration steps:**
-1. Create directory structure
-2. Move classes one at a time with their tests
-3. Update imports across codebase
-4. Deprecate old file, then remove
+The old `src/statistics.ts` now re-exports from the new module for backwards compatibility.
 
-### 4.2 Split `Explorer.ts` (903 lines → ~5 modules)
+### 4.2 Split `Explorer.ts` (954 lines → ~5 modules) ✅ COMPLETED
 
 **Priority:** High | **Effort:** High | **Risk:** Medium
 
-**Current file:** `src/strategies/Explorer.ts` (903 lines)
+**Status:** ✅ Completed. New modular structure created in `src/strategies/explorer/`:
 
-**Proposed structure:**
 ```
 src/strategies/explorer/
-├── index.ts                      # Re-exports
+├── index.ts                      # Re-exports public API
 ├── types/
-│   ├── ExplorationResult.ts      # Lines 81-131
-│   ├── ExplorationBudget.ts      # Lines 22-64
-│   ├── ExplorationState.ts       # Lines 133-145
-│   └── TraversalContext.ts       # Lines 147-180
-├── AbstractExplorer.ts           # Lines 200-650
-├── NestedLoopExplorer.ts         # Lines 650-900
-└── builders/
-    ├── TraversalOutcomeBuilder.ts    # Lines 182-220
-    └── ExplorationResultBuilder.ts   # Lines 222-280
+│   ├── ExplorationBudget.ts      # Budget allocation types
+│   ├── ExplorationResult.ts      # Result types
+│   ├── ExplorationState.ts       # State tracking
+│   └── TraversalContext.ts       # Traversal context
+├── builders/
+│   ├── TraversalOutcomeBuilder.ts    # Outcome construction
+│   └── ExplorationResultBuilder.ts   # Result construction
+├── AbstractExplorer.ts           # Abstract base class
+└── NestedLoopExplorer.ts         # Nested loop implementation
 ```
 
-### 4.3 Extract FluentCheck Subclasses
+The old `src/strategies/Explorer.ts` now re-exports from the new module for backwards compatibility.
+`FlatExplorer.ts` has been updated to import from the new module.
 
-**Priority:** Medium | **Effort:** Medium | **Risk:** Low
+### 4.3 Extract FluentCheck Subclasses ⚠️ NOT RECOMMENDED
 
-**Current file:** `src/FluentCheck.ts` (734 lines with 13+ inner classes)
+**Priority:** Medium | **Effort:** Medium | **Risk:** HIGH (Circular Dependencies)
 
-**Proposed structure:**
+**Current file:** `src/FluentCheck.ts` (733 lines with 13+ inner classes)
+
+**Analysis:** This refactoring is **not recommended** due to inherent circular dependencies in the fluent builder pattern:
+- The `FluentCheck` base class has methods like `given()`, `forall()`, `then()` that return subclass instances
+- These subclasses must extend `FluentCheck` to inherit all builder methods
+- Extracting subclasses to separate files creates circular imports that cannot be resolved without breaking the API
+
+**Original proposed structure:**
 ```
 src/fluent/
 ├── FluentCheck.ts                # Base class only (~200 lines)
 ├── builders/
-│   ├── FluentCheckGiven.ts
-│   ├── FluentCheckWhen.ts
-│   ├── FluentCheckQuantifier.ts
-│   ├── FluentCheckClassify.ts
-│   └── FluentCheckCover.ts
-└── index.ts                      # Re-exports FluentCheck
+│   ├── FluentCheckGiven.ts       # ❌ Needs to extend FluentCheck
+│   ├── FluentCheckWhen.ts        # ❌ Needs to extend FluentCheck
+│   ├── FluentCheckQuantifier.ts  # ❌ Needs to extend FluentCheck
+│   └── ...
+└── index.ts
 ```
 
-### 4.4 Reorganize `arbitraries/` Directory
+**Alternatives considered:**
+1. **Mixin pattern** - Would break the existing API and require significant refactoring
+2. **Interface + factory pattern** - Loses type safety of the fluent API
+3. **Keep as single file** - ✅ Recommended: The 733-line file is well-organized with logical class groupings
+
+**Recommendation:** Keep `FluentCheck.ts` as a single file. The class hierarchy is cohesive and the fluent builder pattern inherently requires tight coupling between the base class and its builders.
+
+### 4.4 Reorganize `arbitraries/` Directory ⏸️ DEFERRED
 
 **Priority:** Low | **Effort:** High | **Risk:** Medium
 
-**Current:** 30+ files in flat structure
+**Status:** ⏸️ Deferred. The current flat structure with 27 files works well and the reorganization provides primarily organizational benefits at significant refactoring cost.
 
-**Proposed structure:**
+**Current:** 27 files in flat structure (~3500 LOC total)
+- No file exceeds 650 lines (regex.ts is the largest at 648 lines)
+- Most files are under 150 lines
+- Clear naming conventions (`Arbitrary*.ts` for types, lower-case for utilities)
+
+**Rationale for deferral:**
+1. High effort: All imports across the codebase would need updating
+2. Complex interdependencies via `internal.ts` and `types.ts`
+3. Risk of circular dependency issues (similar to FluentCheck refactor)
+4. Limited benefit: Files are already well-organized by naming convention
+
+**Original proposed structure** (preserved for future consideration):
 ```
 src/arbitraries/
 ├── core/
@@ -379,21 +415,23 @@ src/arbitraries/
 
 ## Phase 5: Complete TODO Items
 
+**Current TODO count in codebase: 4** (reduced from 6)
+
 ### 5.1 High Priority TODOs
 
-| File | Line | TODO | Effort |
-|------|------|------|--------|
-| `src/statistics.ts` | 101 | Implement efficient CDF for BetaBinomial (currently O(trials)) | High |
-| `src/arbitraries/FilteredArbitrary.ts` | 16 | Decide mode vs mean for size estimation | Medium |
-| `src/arbitraries/MappedArbitrary.ts` | 27 | Handle non-bijective mappings in size calculation | Medium |
+| File | Line | TODO | Effort | Status |
+|------|------|------|--------|--------|
+| `src/statistics.ts` | 105 | Implement efficient CDF for BetaBinomial (currently O(trials)) | High | ⏳ Pending |
+| `src/arbitraries/FilteredArbitrary.ts` | 31 | Decide mode vs mean for size estimation | Medium | ⏳ Pending |
+| ~~`src/arbitraries/MappedArbitrary.ts`~~ | ~~27~~ | ~~Handle non-bijective mappings in size calculation~~ | ~~Medium~~ | ✅ Fixed (distinctness heuristic) |
 
 ### 5.2 Low Priority TODOs
 
-| File | Line | TODO | Effort |
-|------|------|------|--------|
-| `src/arbitraries/Arbitrary.ts` | 36 | Consider "unknown" result for canGenerate | Low |
-| `src/arbitraries/FilteredArbitrary.ts` | 35 | Update size estimation on pick termination | Low |
-| `src/arbitraries/ArbitraryTuple.ts` | 24 | Fix credible interval for estimated sizes | Low |
+| File | Line | TODO | Effort | Status |
+|------|------|------|--------|--------|
+| `src/arbitraries/Arbitrary.ts` | 36 | Consider "unknown" result for canGenerate | Low | ⏳ Pending |
+| `src/arbitraries/FilteredArbitrary.ts` | 57 | Update size estimation on pick termination | Low | ⏳ Pending |
+| ~~`src/arbitraries/ArbitraryTuple.ts`~~ | ~~24~~ | ~~Fix credible interval for estimated sizes~~ | ~~Low~~ | ✅ Removed (no longer present)
 
 ---
 
@@ -455,44 +493,50 @@ Add/update ESLint rules to enforce standards:
 
 ## Implementation Roadmap
 
-### Sprint 1: Quick Wins (1-2 days)
-- [ ] Remove notebook files or add to tsconfig exclude
-- [ ] Replace `any` with `unknown` in 3 locations
+### Sprint 0: Critical Fixes ✅ COMPLETED
+- [x] Implement `FlatExplorer` for sample budget collapse fix
+- [x] Implement warm-up sampling in `FilteredArbitrary`
+- [x] Implement distinctness heuristic in `MappedArbitrary`
+- [x] Implement `RoundRobinStrategy` for shrinking fairness
+
+### Sprint 1: Quick Wins (Partially Complete)
+- [x] Remove notebook files or add to tsconfig exclude
+- [ ] Replace `any` with `unknown` in remaining 12 locations
 - [ ] Add JSDoc to high-risk type assertions
 
-### Sprint 2: Type System (2-3 days)
+### Sprint 2: Type System
 - [ ] Create `src/arbitraries/typeUtils.ts`
 - [ ] Consolidate duplicate type utilities
 - [ ] Add missing return type annotations
 
-### Sprint 3: Code Consolidation (3-4 days)
+### Sprint 3: Code Consolidation
 - [ ] Create `src/arbitraries/sizeUtils.ts`
 - [ ] Create `src/arbitraries/hashEqualsUtils.ts`
 - [ ] Update all consuming files
 
-### Sprint 4: Statistics Refactor (1 week)
-- [ ] Create `src/statistics/` directory structure
-- [ ] Migrate distribution classes
-- [ ] Migrate confidence calculations
-- [ ] Migrate streaming algorithms
-- [ ] Update all imports
+### Sprint 4: Statistics Refactor ✅ COMPLETED
+- [x] Create `src/statistics/` directory structure
+- [x] Migrate distribution classes
+- [x] Migrate confidence calculations
+- [x] Migrate streaming algorithms
+- [x] Update all imports
 
-### Sprint 5: Explorer Refactor (1 week)
-- [ ] Create `src/strategies/explorer/` structure
-- [ ] Extract types and builders
-- [ ] Split AbstractExplorer and NestedLoopExplorer
-- [ ] Update all imports
+### Sprint 5: Explorer Refactor ✅ COMPLETED
+- [x] Create `src/strategies/explorer/` structure
+- [x] Extract types and builders
+- [x] Split AbstractExplorer and NestedLoopExplorer
+- [x] Update all imports
 
-### Sprint 6: FluentCheck Refactor (3-4 days)
-- [ ] Create `src/fluent/` directory
-- [ ] Extract builder subclasses
-- [ ] Update main exports
+### Sprint 6: FluentCheck Refactor ⚠️ NOT RECOMMENDED
+- [x] ~~Create `src/fluent/` directory~~ **Skipped** - circular dependency issues
+- [x] ~~Extract builder subclasses~~ **Skipped** - breaks fluent API pattern
+- [x] Analysis complete: keeping as single file is the best approach
 
 ### Sprint 7: Style & Documentation (ongoing)
 - [ ] Standardize private field naming
 - [ ] Update ESLint configuration
 - [ ] Add missing JSDoc documentation
-- [ ] Complete TODO items
+- [ ] Complete remaining TODO items (4 remaining)
 
 ---
 
@@ -535,17 +579,16 @@ Add/update ESLint rules to enforce standards:
 | `Explorer.ts` | 640 | `as Rec` | Medium |
 | `Sampler.ts` | 172 | `as FluentPick<A>[]` | Low |
 
-### B. `any` Type Usages (26+ occurrences)
+### B. `any` Type Usages (12 remaining - reduced from 26+)
 
-| File | Lines | Context |
-|------|-------|---------|
-| `FluentProperty.ts` | 13 | Type parameter constraint |
-| `FluentCheck.ts` | 56 | Parent type parameter |
-| `templates.ts` | 70 | Return type constraint |
-| `NoArbitrary.ts` | 16-28 | Internal implementation (8 uses) |
-| `ArbitraryTuple.ts` | 29-30, 9 | Array building, class generic |
-| `util.ts` | 82 | stringify function |
-| `index.ts` | 21, 107 | Helper functions |
+| File | Lines | Context | Status |
+|------|-------|---------|--------|
+| `src/arbitraries/types.ts` | 3 | `original?: any` in FluentPick | ⏳ Pending |
+| `src/arbitraries/util.ts` | 95 | `stringify(object: any)` | ⏳ Pending |
+| `src/arbitraries/ArbitraryTuple.ts` | 29-30 | `const value: any = []` | ⏳ Pending |
+| `src/strategies/Explorer.ts` | 771 | Type guard `(n: any)` | ⏳ Pending |
+| `src/strategies/FlatExplorer.ts` | 55, 62, 69-72 | Quantifier handler params | ⏳ Pending (5) |
+| `src/arbitraries/NoArbitrary.ts` | 21, 26 | `map(_: (a: any) => any)` | ⏳ Low priority |
 
 ### C. Style Inconsistencies
 
@@ -572,11 +615,11 @@ Add/update ESLint rules to enforce standards:
 
 ### E. Architectural Concerns
 
-| Issue | File | Lines | Severity |
-|-------|------|-------|----------|
-| God class | `statistics.ts` | 1232 | High |
-| God class | `Explorer.ts` | 903 | High |
-| God class | `FluentCheck.ts` | 734 | Medium |
-| God class | `FluentStrategyFactory.ts` | 485 | Medium |
-| Coupling | runCheck ↔ Explorer | Multiple | Medium |
-| Dead code | notebook*.ts | 65 | Low |
+| Issue | File | Lines | Severity | Status |
+|-------|------|-------|----------|--------|
+| ~~God class~~ | ~~`statistics.ts`~~ | ~~1245~~ | ~~High~~ | ✅ Modularized to `src/statistics/` |
+| ~~God class~~ | ~~`Explorer.ts`~~ | ~~954~~ | ~~High~~ | ✅ Modularized to `src/strategies/explorer/` |
+| God class | `FluentCheck.ts` | 733 | Medium | ⚠️ Not recommended (circular deps) |
+| God class | `FluentStrategyFactory.ts` | 568 | Medium | ⏳ Pending |
+| Coupling | runCheck ↔ Explorer | Multiple | Medium | ⏳ Pending |
+| ~~Dead code~~ | ~~notebook*.ts~~ | ~~65~~ | ~~Low~~ | ✅ Removed |
