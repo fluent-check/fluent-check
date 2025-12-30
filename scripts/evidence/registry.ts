@@ -143,5 +143,12 @@ export const registry: Record<string, StudyConfig> = {
     py: 'analysis/shrinking_strategies_comparison.py',
     category: 'apparatus',
     description: 'Compares different shrinking strategies'
+  },
+  'ci-calibration': {
+    id: 'ci-calibration',
+    ts: 'scripts/evidence/ci-calibration.study.ts',
+    py: 'analysis/ci_calibration.py',
+    category: 'apparatus',
+    description: 'Tests credible interval calibration for size estimation'
   }
 }

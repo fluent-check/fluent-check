@@ -38,6 +38,7 @@ FluentCheck's evidence suite validates both confidence-based termination and the
 16. **Caching Trade-off**: Does caching reduce detection of "any-value" bugs?
 17. **Streaming Statistics Accuracy**: Is the Bayesian confidence calculation calibrated?
 18. **Sample Budget Distribution**: Does `NestedLoopExplorer` cause sample size collapse?
+19. **[Credible Interval Calibration](ci-calibration.md)**: Are size estimation credible intervals properly calibrated?
 
 All data is reproducible with deterministic seeds. Raw data available in [`raw/`](raw/).
 
