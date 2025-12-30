@@ -11,10 +11,7 @@ Hypotheses:
 - B3: Efficiency: When true size is 0, we terminate reasonably fast.
 """
 
-import matplotlib.pyplot as plt
-import pandas as pd
 from base import AnalysisBase
-from viz import save_figure
 
 class EarlyTerminationAnalysis(AnalysisBase):
     def __init__(self):

@@ -11,7 +11,6 @@ Hypotheses:
 
 import matplotlib.pyplot as plt
 import numpy as np
-import pandas as pd
 from base import AnalysisBase
 from viz import save_figure
 from scipy import stats
@@ -45,8 +44,7 @@ class AdversarialPatternsAnalysis(AnalysisBase):
         print(f"{'Pattern':<20} {'Coverage':<10} {'95% CI':<20}")
         self.print_divider()
         
-        all_passed = True
-        
+        scenario_passes = {}
         for scenario in self.df['scenario'].unique():
             data = self.df[self.df['scenario'] == scenario]
             coverage = data['true_in_ci'].mean()
@@ -56,11 +54,15 @@ class AdversarialPatternsAnalysis(AnalysisBase):
             print(f"{scenario:<20} {coverage:>7.1%}   [{ci[0]:.1%}, {ci[1]:.1%}]")
             
             # Check if 90% is within CI (or close enough)
-            if not (ci[0] <= 0.90 <= ci[1]) and not (0.85 <= coverage <= 0.95):
-                all_passed = False
+            passed = (ci[0] <= 0.90 <= ci[1]) or (0.85 <= coverage <= 0.95)
+            scenario_passes[scenario] = passed
 
-        self.c1_pass = all_passed # Simplified check for now
-        self.c2_pass = all_passed
+        # C1: Clustered acceptance (clustered_10pct)
+        # C2: Patterned rejection (others: modulo, primes, block_hole)
+        # Note: block_hole is technically clustered rejection, but fits the 'pattern' theme.
+        # We'll assume 'clustered' in name maps to C1.
+        self.c1_pass = all(v for k, v in scenario_passes.items() if 'clustered' in k)
+        self.c2_pass = all(v for k, v in scenario_passes.items() if 'clustered' not in k)
 
     def _wilson_ci(self, p: float, n: int, confidence: float = 0.95) -> tuple:
         if n == 0: return (0, 1)
@@ -91,7 +93,8 @@ class AdversarialPatternsAnalysis(AnalysisBase):
 
     def _print_conclusion(self) -> None:
         self.print_section("CONCLUSION")
-        print(f"Overall Calibration: {'PASS' if self.c1_pass else 'FAIL'}")
+        print(f"C1 (Clustered acceptance): {'PASS' if self.c1_pass else 'FAIL'}")
+        print(f"C2 (Patterned rejection):  {'PASS' if self.c2_pass else 'FAIL'}")
 
 def main():
     analysis = AdversarialPatternsAnalysis()

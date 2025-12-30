@@ -10,7 +10,6 @@ Hypotheses:
 """
 
 import matplotlib.pyplot as plt
-import pandas as pd
 from base import AnalysisBase
 from viz import save_figure
 

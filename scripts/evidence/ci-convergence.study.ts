@@ -101,44 +101,8 @@ async function runCIConvergenceStudy(): Promise<void> {
   const passRates = [0.01, 0.05, 0.1, 0.25, 0.5, 0.75, 0.9, 0.99]
   const params: CIConvergenceParams[] = passRates.map(p => ({ passRate: p }))
 
-  const runner = new ExperimentRunner<CIConvergenceParams, CIConvergenceResult>({
-    name: 'CI Convergence Dynamics Study',
-    outputPath: path.join(process.cwd(), 'docs/evidence/raw/ci-convergence.csv'),
-    csvHeader: [
-      'trial_id', 'seed', 'pass_rate', 'sample_count', 'true_size', 
-      'estimated_size', 'ci_lower', 'ci_upper', 'ci_width', 'true_in_ci', 
-      'relative_error'
-    ],
-    trialsPerConfig: getSampleSize(100, 20),
-    // We handle row writing manually because runTrial returns multiple rows
-    resultToRow: (r: CIConvergenceResult) => [
-      r.trialId, r.seed, r.passRate, r.sampleCount, r.trueSize,
-      r.estimatedSize, r.ciLower.toFixed(2), r.ciUpper.toFixed(2), 
-      r.ciWidth.toFixed(2), r.trueInCI, r.relativeError.toFixed(6)
-    ]
-  })
-
-  // Override the default run method slightly because our runTrial returns arrays
-  // Or we can just flatten the logic.
-  // The ExperimentRunner expects runTrial to return TResult.
-  // We can change TResult to be an array, but resultToRow expects TResult.
-  // Let's manually run it using the same pattern but adapting to the array return.
-  
-  // Actually, ExperimentRunner is generic. If TResult is an array, resultToRow should handle an array.
-  // But CSVWriter.writeRow takes an array of primitives. 
-  // Let's modify the usage. ExperimentRunner is simple enough to just use its components or adapt.
-  // However, looking at ExperimentRunner.run:
-  // writer.writeRow(this.config.resultToRow(result))
-  // It expects one row per trial.
-  
-  // So I should define TResult as CIConvergenceResult[] and resultToRow ... wait, that won't work with writeRow.
-  // I will write a custom runner loop here since it's slightly different (multi-row per trial).
-  
-    console.log(`
-  
-  
-  
-  === CI Convergence Dynamics Study ===`)
+  console.log(`
+=== CI Convergence Dynamics Study ===`)
   
     
   
