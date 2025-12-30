@@ -6,7 +6,6 @@ Analyzes the boundary shrinking study results, which correctly model
 the property-testing shrinking problem.
 """
 
-import pandas as pd
 import numpy as np
 from pathlib import Path
 import sys
