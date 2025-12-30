@@ -107,7 +107,7 @@ async function runSampleBudgetStudy(): Promise<void> {
     }
   }
 
-  const runner = new ExperimentRunner<SampleBudgetParams, BudgetResult[]>({
+  const runner = new ExperimentRunner<SampleBudgetParams, BudgetResult>({
     name: 'Sample Budget Distribution Study',
     outputPath: path.join(process.cwd(), 'docs/evidence/raw/sample-budget.csv'),
     csvHeader: [
@@ -115,7 +115,17 @@ async function runSampleBudgetStudy(): Promise<void> {
       'quantifier_index', 'unique_values', 'expected_unique', 'detection_rate'
     ],
     trialsPerConfig: getSampleSize(50, 10),
-    resultToRow: (_r: BudgetResult[]) => [], // Not used
+    resultToRow: (r: BudgetResult) => [
+      r.trialId,
+      r.seed,
+      r.depth,
+      r.explorer,
+      r.totalTests,
+      r.quantifierIndex,
+      r.uniqueValues,
+      r.expectedUnique,
+      r.detectionRate
+    ],
     preRunInfo: () => {
       console.log('Hypothesis: FlatExplorer maintains effective sample size N independent of depth.\n')
       console.log(`Total tests budget: ${totalTests}`)
@@ -124,47 +134,7 @@ async function runSampleBudgetStudy(): Promise<void> {
     }
   })
 
-  // Custom execution for multiple rows per trial
-  console.log(`\n=== ${runner.config.name} ===`)
-  if (runner.config.preRunInfo) runner.config.preRunInfo()
-  
-  const writer = new CSVWriter(runner.config.outputPath)
-  writer.writeHeader(runner.config.csvHeader)
-  
-  const trialsPerConfig = runner.config.trialsPerConfig
-  const totalTrials = parameters.length * trialsPerConfig
-  console.log(`Trials per configuration: ${trialsPerConfig}`)
-  console.log(`Total trials: ${totalTrials}\n`)
-  
-  const progress = new ProgressReporter(totalTrials, 'SampleBudget')
-  
-  let trialId = 0
-  for (const params of parameters) {
-    for (let i = 0; i < trialsPerConfig; i++) {
-      const results = runTrial(params, trialId, i)
-      for (const res of results) {
-        writer.writeRow([
-          res.trialId,
-          res.seed,
-          res.depth,
-          res.explorer,
-          res.totalTests,
-          res.quantifierIndex,
-          res.uniqueValues,
-          res.expectedUnique,
-          res.detectionRate
-        ])
-      }
-      progress.update()
-      trialId++
-    }
-  }
-  
-  progress.finish()
-  await writer.close()
-  
-  console.log(`\n✓ ${runner.config.name} complete`)
-  console.log(`  Output: ${runner.config.outputPath}`)
+  await runner.runSeries(parameters, (p, id, idx) => runTrial(p, id, idx))
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {

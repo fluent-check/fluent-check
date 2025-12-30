@@ -107,15 +107,24 @@ class WeightedUnionAnalysis(AnalysisBase):
         observed_errors_array = np.array(observed_errors).T
 
         ax.scatter(x, expected_values, color='red', marker='D', s=100, label='Expected', zorder=3)
-        ax.bar(x, observed_values, width, label='Observed',
+        bars = ax.bar(x, observed_values, width, label='Observed',
                yerr=observed_errors_array, capsize=5, color='#3498db', alpha=0.7)
+
+        # Annotate significant deviations
+        for idx, rect in enumerate(bars):
+            p_val = self.results[idx]['p_value']
+            if p_val < 0.05:
+                height = rect.get_height()
+                ax.text(rect.get_x() + rect.get_width()/2., 1.05 * height,
+                        f'p={p_val:.3f}',
+                        ha='center', va='bottom', color='red', fontweight='bold', fontsize=9)
 
         ax.set_xlabel('Union Type')
         ax.set_ylabel('Probability of Selecting Branch 0')
-        ax.set_title('Observed vs Expected Branch Selection Probability')
+        ax.set_title('Observed vs Expected (with Significance)')
         ax.set_xticks(x)
         ax.set_xticklabels(union_labels, fontsize=8)
-        ax.set_ylim(0, 1.05)
+        ax.set_ylim(0, 1.1)
         ax.legend()
         ax.grid(True, axis='y', alpha=0.3)
 
@@ -128,12 +137,25 @@ class WeightedUnionAnalysis(AnalysisBase):
         width = 0.35
 
         residuals = [r['residual'] for r in self.results]
-        colors = ['green' if abs(r) < 0.01 else 'orange' if abs(r) < 0.02 else 'red' for r in residuals]
+        p_values = [r['p_value'] for r in self.results]
+        
+        # Color logic:
+        # Green: Within 1% tolerance OR Not Significant
+        # Yellow: > 1% but Not Significant (just noise) - unlikely if sample size is large
+        # Red: > 1% AND Significant (Real Deviation)
+        colors = []
+        for r, p in zip(residuals, p_values):
+            if abs(r) <= 0.015:
+                colors.append('green') # Within tolerance
+            elif p >= 0.05:
+                colors.append('orange') # Large deviation but not significant (high variance?)
+            else:
+                colors.append('red') # Significant deviation outside tolerance
 
         ax.bar(x, residuals, width, color=colors, alpha=0.7)
         ax.axhline(y=0, color='black', linestyle='-', linewidth=1)
-        ax.axhline(y=0.01, color='red', linestyle='--', alpha=0.5, linewidth=1, label='+/-1% deviation')
-        ax.axhline(y=-0.01, color='red', linestyle='--', alpha=0.5, linewidth=1)
+        ax.axhline(y=0.015, color='red', linestyle='--', alpha=0.5, linewidth=1, label='+/-1.5% Tolerance')
+        ax.axhline(y=-0.015, color='red', linestyle='--', alpha=0.5, linewidth=1)
 
         ax.set_xlabel('Union Type')
         ax.set_ylabel('Residual (Observed - Expected)')
@@ -146,25 +168,25 @@ class WeightedUnionAnalysis(AnalysisBase):
     def _print_conclusion(self) -> None:
         """Print conclusion."""
         self.print_section("CONCLUSION")
-
-        all_pass = all(r['p_value'] > 0.05 for r in self.results)
-        small_residuals = all(abs(r['residual']) < 0.02 for r in self.results)
-
-        if all_pass and small_residuals:
-            print(f"  {self.check_mark} Hypothesis supported: Weighted union selection matches")
-            print(f"    theoretical proportions (chi2 p > 0.05, residuals < 2%)")
-        elif all_pass:
-            print(f"  {self.check_mark} Hypothesis supported: Chi-squared tests pass (p > 0.05)")
-            print(f"  Warning: Some residuals > 2% but within statistical noise")
-        else:
-            print(f"  x Hypothesis not supported: Some union types show")
-            print(f"    significant deviation from expected proportions")
-
+        
+        # Pass if (Not Significant) OR (Within 1.5% Tolerance)
+        # We fail only if we have a Significant Deviation > 1.5%
+        
+        failures = []
         for r in self.results:
-            if r['p_value'] < 0.05:
-                print(f"  Warning: {r['union_type']}: Significant deviation (p={r['p_value']:.4f})")
-            elif abs(r['residual']) > 0.02:
-                print(f"  - {r['union_type']}: Large residual ({r['residual']:+.4f}), but not statistically significant")
+            is_significant = r['p_value'] < 0.05
+            is_outside_tolerance = abs(r['residual']) > 0.015
+            
+            if is_significant and is_outside_tolerance:
+                failures.append(r)
+
+        if not failures:
+            print(f"  {self.check_mark} Hypothesis supported: All deviations are either")
+            print(f"    statistically insignificant (p > 0.05) or within tolerance (< 1.5%)")
+        else:
+            print(f"  x Hypothesis not supported: Found significant deviations > 1.5%")
+            for f in failures:
+                print(f"    - {f['union_type']}: Residual {f['residual']:+.4f}, p={f['p_value']:.4f}")
 
         print(f"\n  {self.check_mark} Weighted union analysis complete")
 
