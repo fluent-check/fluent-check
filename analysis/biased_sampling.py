@@ -206,18 +206,29 @@ class BiasedSamplingAnalysis(AnalysisBase):
         """Print conclusion with scientific rigor."""
         self.print_section("SCIENTIFIC CONCLUSION")
 
-        boundary_bugs_significant = any(
-            r['p_value'] < 0.05
-            for r in self.results
+        boundary_results = [
+            r for r in self.results
             if r['bug_type'] in ['boundary_min', 'boundary_max']
-        )
+        ]
 
-        if boundary_bugs_significant:
+        # Check for meaningful improvement: significant p-value AND non-negligible effect size
+        supported_results = [
+            r for r in boundary_results
+            if r['p_value'] < 0.05 and abs(r['cohens_h']) > 0.2
+        ]
+
+        if len(supported_results) == len(boundary_results):
             print(f"  {self.check_mark} We reject the null hypothesis H_0 for boundary bugs.")
-            print("    Statistically significant evidence that biased sampling improves detection of edge-case bugs.")
+            print("    Statistically significant evidence (p < 0.05) with meaningful effect size (h > 0.2)")
+            print("    confirms biased sampling improves detection of edge-case bugs.")
+        elif len(supported_results) > 0:
+            print(f"  {self.check_mark} We reject the null hypothesis H_0 for some boundary bugs.")
+            print("    Statistically significant evidence of improvement found in specific boundary cases:")
+            for r in supported_results:
+                print(f"      - {r['bug_type'].replace('_', ' ').title()}: p={r['p_value']:.4f}, h={r['cohens_h']:.3f}")
         else:
             print(f"  ✗ We fail to reject the null hypothesis H_0.")
-            print("    No significant difference in detection rates was observed between biased and random sampling.")
+            print("    No significant difference with meaningful effect size was observed between biased and random sampling.")
 
         print(f"\n  {self.check_mark} Biased sampling analysis complete")
 

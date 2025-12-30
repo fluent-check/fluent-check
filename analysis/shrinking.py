@@ -313,6 +313,10 @@ class ShrinkingAnalysis(AnalysisBase):
         from scipy.stats import chi2_contingency
         chi2, p_val, dof, ex = chi2_contingency(contingency)
         
+        # Check expected frequencies assumption (all should be >= 5)
+        if np.any(ex < 5):
+            print("  Note: Some expected frequencies are < 5. Chi-squared results may be unreliable.")
+            
         if p_val < 0.05:
             print(f"  {self.check_mark} We reject the null hypothesis H_0 (p={p_val:.4e}).")
             print("    Statistically significant evidence that scenario complexity affects shrinking effectiveness.")

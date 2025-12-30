@@ -105,14 +105,14 @@ class ShrinkingFairnessAnalysis(AnalysisBase):
 
         ax1 = axes[0]
         sns.boxplot(x='position', y='final_value', data=self.pos_df, ax=ax1, 
-                    palette=palette, order=order, hue='position', legend=False)
+                    palette=palette, order=order)
         ax1.set_xlabel('Quantifier Position')
         ax1.set_ylabel('Final Value')
         ax1.set_title('Distribution of Final Values by Position')
 
         ax2 = axes[1]
         sns.barplot(x='position', y='shrink_amount', data=self.pos_df, ax=ax2, 
-                    palette=palette, order=order, hue='position', legend=False)
+                    palette=palette, order=order)
         ax2.set_xlabel('Quantifier Position')
         ax2.set_ylabel('Average Shrink Amount')
         ax2.set_title('Average Shrink Amount by Position')
