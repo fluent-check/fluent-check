@@ -1,5 +1,8 @@
 export type FluentPick<V> = {
   value: V
+  // Note: `any` is intentional here. The original field stores the pre-transformation value
+  // which may be of a different type than V (e.g., in MappedArbitrary). Using `unknown`
+  // would require significant refactoring across canGenerate/shrink implementations.
   original?: any
   /**
    * Optional pre-map value used to preserve base picks through mapped arbitraries.

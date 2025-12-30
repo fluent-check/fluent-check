@@ -1,8 +1,11 @@
 import type {Arbitrary, FluentPick} from '../arbitraries/index.js'
 import {FluentRandomGenerator} from '../arbitraries/index.js'
 
-const uniqueWithBias = <A>(arbitrary: Arbitrary<A>, count: number, generator: () => number) =>
-  arbitrary.sampleUniqueWithBias(count, generator)
+const uniqueWithBias = <A>(
+  arbitrary: Arbitrary<A>,
+  count: number,
+  generator: () => number
+): FluentPick<A>[] => arbitrary.sampleUniqueWithBias(count, generator)
 
 const resolveGenerator = (config: SamplerConfig = {}): (() => number) => {
   if (config.generator !== undefined) return config.generator

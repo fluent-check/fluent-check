@@ -2,7 +2,7 @@
 
 This document outlines a systematic approach to address accumulated technical debt in the fluent-check codebase following recent refactorings and feature additions.
 
-**Last Updated:** 2025-12-29
+**Last Updated:** 2025-12-30
 
 ---
 
@@ -10,18 +10,23 @@ This document outlines a systematic approach to address accumulated technical de
 
 | Category | Issues Found | Priority Items | Status |
 |----------|-------------|----------------|--------|
-| Unsafe Type Casts | 21 `as` assertions, ~12 `any` usages | 5 high-risk | Partially addressed |
+| Unsafe Type Casts | 21 `as` assertions, ~~12~~ 7 `any` usages | 5 high-risk | ✅ 5 `any` fixed, 2 documented |
 | Unused/Dead Code | ~~3 notebook files~~, 4 TODO items | ~~3 files to remove~~ | ✅ Notebooks removed |
 | Style Inconsistencies | 11 categories identified | 3 high priority | Unchanged |
-| Redundant Code | 6 major duplication patterns | 3 consolidation opportunities | Unchanged |
+| Redundant Code | 6 major duplication patterns | ~~3 consolidation opportunities~~ | ✅ 2 consolidated, 1 rejected |
 | Architectural Issues | ~~4 god classes~~, coupling issues | ~~3 major refactors~~ | ✅ 2 modularized, 1 analyzed, 1 deferred |
-| Type System Issues | Loose typing, missing annotations | 8 fixes needed | Unchanged |
+| Type System Issues | Loose typing, missing annotations | ~~8 fixes needed~~ | ✅ Return types added |
 
 ### Phase 4 Summary
 - **4.1 statistics.ts** ✅ Modularized to `src/statistics/` (13 files)
 - **4.2 Explorer.ts** ✅ Modularized to `src/strategies/explorer/` (9 files)
 - **4.3 FluentCheck.ts** ⚠️ Not recommended (circular dependency issues)
 - **4.4 arbitraries/** ⏸️ Deferred (low value vs high effort)
+
+### Phase 3 Summary
+- **3.1 Size calculation** ✅ Consolidated via `combineArbitrarySizes()` in `util.ts`
+- **3.2 Hash/Equals** ⛔ Rejected (not truly duplicated - semantic differences)
+- **3.3 Shrink bounds** ✅ Consolidated via `shrinkBounds()` in `util.ts`
 
 ---
 
@@ -74,20 +79,20 @@ Address the fundamental flaws identified by the statistical apparatus studies.
 
 **Status:** ✅ All notebook files have been removed from the codebase.
 
-### 1.2 Replace `any` with `unknown`
+### 1.2 Replace `any` with `unknown` ✅ PARTIALLY COMPLETED
 
 **Priority:** High | **Effort:** Low | **Risk:** Low
 
-**Current `any` usages (12 remaining):**
+**Current `any` usages (7 remaining, reduced from 12):**
 
 | File | Line | Current | Status |
 |------|------|---------|--------|
-| `src/arbitraries/types.ts` | 3 | `original?: any` | ⏳ Pending |
-| `src/arbitraries/util.ts` | 95 | `stringify(object: any)` | ⏳ Pending |
-| `src/arbitraries/ArbitraryTuple.ts` | 29-30 | `const value: any = []` | ⏳ Pending |
-| `src/strategies/Explorer.ts` | 771 | `(n: any): n is QuantifierNode` | ⏳ Pending |
-| `src/strategies/FlatExplorer.ts` | 55, 62, 69-72 | Various `any` params | ⏳ Pending (5 usages) |
-| `src/arbitraries/NoArbitrary.ts` | 21, 26 | `map(_: (a: any) => any)` | ⏳ Pending (low priority - internal)
+| `src/arbitraries/types.ts` | 7 | `original?: any` | ⚠️ Documented - changing requires refactoring canGenerate/shrink across all Arbitraries |
+| `src/arbitraries/util.ts` | 118 | `stringify(object: any)` | ✅ Fixed → `stringify(object: unknown): string` |
+| `src/arbitraries/ArbitraryTuple.ts` | 19-20 | `const value: any = []` | ✅ Fixed → `unknown[]` with cast at return |
+| `src/strategies/Explorer.ts` | 771 | `(n: any): n is QuantifierNode` | ⏳ Pending (type guard) |
+| `src/strategies/FlatExplorer.ts` | 52-71 | Various `any` params | ✅ Fixed → proper types from explorer module |
+| `src/arbitraries/NoArbitrary.ts` | 21, 26 | `map(_: (a: any) => any)` | ⏳ Kept (semantically intentional - bottom type) |
 
 ### 1.3 Standardize Private Field Naming
 
@@ -151,125 +156,92 @@ Add JSDoc comments explaining why type assertions are necessary:
 | `src/arbitraries/ArbitraryRecord.ts` | 100, 126 | `as Record<string, unknown>` | Add record unwrapping rationale |
 | `src/FluentProperty.ts` | 118, 144, 149, 153 | Multiple | Add fluent builder context |
 
-### 2.3 Add Missing Return Type Annotations
+### 2.3 Add Missing Return Type Annotations ✅ COMPLETED
 
 **Priority:** Low | **Effort:** Low | **Risk:** None
 
-| File | Function | Line |
-|------|----------|------|
-| `src/check/runCheck.ts` | `buildPropertyFunction` | 389 |
-| `src/strategies/Sampler.ts` | `uniqueWithBias` | 4-5 |
+| File | Function | Line | Status |
+|------|----------|------|--------|
+| `src/check/runCheck.ts` | `buildPropertyFunction` | 389 | ✅ Already had return type |
+| `src/strategies/Sampler.ts` | `uniqueWithBias` | 4-8 | ✅ Fixed → `FluentPick<A>[]` |
 
 ---
 
 ## Phase 3: Code Consolidation
 
-### 3.1 Extract Size Calculation Utility
+### 3.1 Extract Size Calculation Utility ✅ COMPLETED
 
 **Priority:** High | **Effort:** Medium | **Risk:** Low
 
-Create shared utility for size calculation logic duplicated in 3 files:
+**Status:** ✅ Implemented `combineArbitrarySizes()` in `src/arbitraries/util.ts`.
 
-**Create `src/arbitraries/sizeUtils.ts`:**
-
-```typescript
-import { ArbitrarySize, exactSize, estimatedSize } from './types.js'
-import { Arbitrary } from './Arbitrary.js'
-
-export function calculateProductSize(arbitraries: Arbitrary<unknown>[]): ArbitrarySize {
-  let value = 1
-  let isEstimated = false
-
-  for (const arb of arbitraries) {
-    const size = arb.size()
-    if (size.type === 'estimated') isEstimated = true
-    value *= size.value
-  }
-
-  return isEstimated ? estimatedSize(value, [value, value]) : exactSize(value)
-}
-
-export function calculateSumSize(arbitraries: Arbitrary<unknown>[]): ArbitrarySize {
-  let value = 0
-  let isEstimated = false
-
-  for (const arb of arbitraries) {
-    const size = arb.size()
-    if (size.type === 'estimated') isEstimated = true
-    value += size.value
-  }
-
-  return isEstimated ? estimatedSize(value, [value, value]) : exactSize(value)
-}
-```
-
-**Files to update:**
-- `src/arbitraries/ArbitraryTuple.ts` (lines 14-25)
-- `src/arbitraries/ArbitraryRecord.ts` (lines 33-46)
-- `src/arbitraries/ArbitraryComposite.ts` (lines 28-39)
-
-### 3.2 Extract Hash/Equals Factory Functions
-
-**Priority:** Medium | **Effort:** Medium | **Risk:** Low
-
-Create `src/arbitraries/hashEqualsUtils.ts`:
+**Implementation:** Single function with semantic parameter instead of two separate functions:
 
 ```typescript
-export function createArrayHashCode<T>(
-  elementHash: HashFunction
-): HashFunction {
-  return (value: unknown): number => {
-    if (!Array.isArray(value)) return 0
-    let hash = FNV_OFFSET_BASIS
-    hash = mix(hash, value.length)
-    for (const elem of value) {
-      hash = mix(hash, elementHash(elem))
-    }
-    return hash
-  }
-}
-
-export function createArrayEquals<T>(
-  elementEquals: EqualsFunction
-): EqualsFunction {
-  return (a: unknown, b: unknown): boolean => {
-    if (!Array.isArray(a) || !Array.isArray(b)) return false
-    if (a.length !== b.length) return false
-    return a.every((elem, i) => elementEquals(elem, b[i]))
-  }
-}
+export function combineArbitrarySizes(
+  arbitraries: Iterable<{size(): ArbitrarySize}>,
+  operation: 'product' | 'sum'
+): ArbitrarySize
 ```
 
-**Files to update (22 methods across):**
-- `src/arbitraries/ArbitraryArray.ts` (lines 60-82)
-- `src/arbitraries/ArbitraryTuple.ts` (lines 76-106)
-- `src/arbitraries/ArbitraryRecord.ts` (lines 142-181)
-- `src/arbitraries/ArbitrarySet.ts` (lines 70-106)
+**Files updated:**
+- `src/arbitraries/ArbitraryTuple.ts` - now 1 line: `combineArbitrarySizes(this.arbitraries, 'product')`
+- `src/arbitraries/ArbitraryRecord.ts` - now 2 lines (handles empty case separately)
+- `src/arbitraries/ArbitraryComposite.ts` - now 1 line: `combineArbitrarySizes(this.arbitraries, 'sum')`
+- `src/arbitraries/ArbitraryWeighted.ts` - now 2 lines (extracts arbitraries from entries)
 
-### 3.3 Extract Collection Shrink Logic
+**Lines saved:** ~40 lines of duplicated size calculation logic.
 
-**Priority:** Low | **Effort:** Low | **Risk:** Low
+### 3.2 Extract Hash/Equals Factory Functions ⛔ REJECTED
 
-Create shared shrink logic for `ArbitraryArray` and `ArbitrarySet`:
+**Priority:** ~~Medium~~ None | **Effort:** Medium | **Risk:** Medium
+
+**Status:** ⛔ Not implemented - rejected after detailed analysis.
+
+**Analysis findings:**
+After examining all four implementations, they are **not truly duplicated**:
+
+| Arbitrary | Hash Strategy | Equals Strategy | Key Differences |
+|-----------|--------------|-----------------|-----------------|
+| Array | FNV mix with length prefix | Element-by-element comparison | Uses single `elementHash` function |
+| Tuple | FNV mix, nullable elements | Nullable element handling | Array of hash functions, skips undefined |
+| Record | FNV mix + key name hashing | Property-by-property | Includes key count and key names in hash |
+| Set | **XOR-based** (order-independent) | Direct comparison (pre-sorted) | Completely different algorithm |
+
+**Reasons for rejection:**
+1. **Set uses XOR** instead of FNV mixing for order-independence - fundamentally different algorithm
+2. **Record includes key metadata** (key count, key names) for structural differentiation
+3. **Tuple handles nullable elements** with special undefined checks
+4. **Attempting to abstract would require complex conditional logic** that obscures the semantic intent
+5. **Debug/maintenance cost** outweighs the small code reduction
+
+**Recommendation:** Keep implementations specialized. The pattern is similar, but the implementations must remain tailored to each collection type's semantics.
+
+### 3.3 Extract Collection Shrink Logic ✅ COMPLETED
+
+**Priority:** ~~Low~~ High | **Effort:** Low | **Risk:** Low
+
+**Status:** ✅ Implemented `shrinkBounds()` in `src/arbitraries/util.ts`.
+
+**Implementation:** Returns computed bounds instead of constructing arbitraries:
 
 ```typescript
-// src/arbitraries/collectionUtils.ts
-export function shrinkCollection<T>(
-  min: number,
-  current: T[],
-  factory: (min: number, max: number) => Arbitrary<T[]>
-): Arbitrary<T[]> {
-  if (min === current.length) return fc.empty()
-
-  const middle = Math.floor((min + current.length) / 2)
-  const end = current.length - 1
-
-  return fc.union(
-    factory(min, middle),
-    factory(middle + 1, end)
-  )
-}
+export function shrinkBounds(
+  currentLength: number,
+  min: number
+): [number, number, number, number] | null
 ```
+
+Returns `[lowerMin, lowerMax, upperMin, upperMax]` or `null` if at minimum.
+
+**Files updated:**
+- `src/arbitraries/ArbitraryArray.ts` - shrink method now 4 lines
+- `src/arbitraries/ArbitrarySet.ts` - shrink method now 4 lines
+
+**Design decision:** Returns bounds tuple instead of constructed arbitraries because:
+1. Avoids coupling to `fc.union`/`fc.empty` (which would create circular imports)
+2. Callers retain control over factory function (`fc.array` vs `fc.set`)
+3. More flexible for future collection types
 
 ---
 
@@ -605,13 +577,13 @@ Add/update ESLint rules to enforce standards:
 
 ### D. Redundant Code Patterns
 
-| Pattern | Files | Lines Affected |
-|---------|-------|----------------|
-| Size calculation | 3 files | ~30 lines each |
-| Hash/equals | 22 methods | ~500 LOC total |
-| Collection shrink | 2 files | ~15 lines each |
-| Noop reporters | 2 classes | ~20 lines |
-| Outcome types | 2 hierarchies | ~100 lines |
+| Pattern | Files | Lines Affected | Status |
+|---------|-------|----------------|--------|
+| Size calculation | ~~3 files~~ 4 files | ~~~30 lines each~~ | ✅ Consolidated to `combineArbitrarySizes()` |
+| Hash/equals | 22 methods | ~500 LOC total | ⛔ Rejected - not truly duplicated |
+| Collection shrink | 2 files | ~~~15 lines each~~ | ✅ Consolidated to `shrinkBounds()` |
+| Noop reporters | 2 classes | ~20 lines | N/A - already minimal, different interfaces |
+| Outcome types | 2 hierarchies | ~100 lines | N/A - deliberately separate (different concerns) |
 
 ### E. Architectural Concerns
 

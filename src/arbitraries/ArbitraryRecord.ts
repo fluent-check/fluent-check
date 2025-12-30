@@ -1,7 +1,7 @@
-import {type ArbitrarySize, type FluentPick} from './types.js'
+import {type FluentPick} from './types.js'
 import type {HashFunction, EqualsFunction} from './Arbitrary.js'
 import {Arbitrary} from './internal.js'
-import {exactSize, estimatedSize, FNV_OFFSET_BASIS, mix, stringToHash} from './util.js'
+import {exactSize, combineArbitrarySizes, FNV_OFFSET_BASIS, mix, stringToHash} from './util.js'
 import * as fc from './index.js'
 import {assertSchemaValid} from '../util/assertions.js'
 
@@ -30,20 +30,9 @@ export class ArbitraryRecord<S extends RecordSchema> extends Arbitrary<UnwrapSch
     return this.#schema[key]
   }
 
-  override size(): ArbitrarySize {
+  override size() {
     if (this.#keys.length === 0) return exactSize(1)
-
-    let value = 1
-    let isEstimated = false
-
-    for (const key of this.#keys) {
-      const arbitrary = this.getArbitrary(key)
-      const size = arbitrary.size()
-      if (size.type === 'estimated') isEstimated = true
-      value *= size.value
-    }
-
-    return isEstimated ? estimatedSize(value, [value, value]) : exactSize(value)
+    return combineArbitrarySizes(this.#keys.map(k => this.getArbitrary(k)), 'product')
   }
 
   override pick(generator: () => number): FluentPick<UnwrapSchema<S>> | undefined {

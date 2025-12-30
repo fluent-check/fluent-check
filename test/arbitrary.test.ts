@@ -326,6 +326,30 @@ describe('Arbitrary tests', () => {
           assertEstimatedSize(size)
         })
 
+        it('tuple propagates credible intervals correctly (product)', () => {
+          // fc.integer(0, 10).filter(n => n > 5) has ~5 values with uncertainty
+          // fc.boolean() has exactly 2 values
+          // Product should multiply: value * 2, with interval bounds also multiplied
+          const filtered = fc.integer(0, 10).filter(n => n > 5)
+          const filteredSize = filtered.size()
+          expect(filteredSize.type).to.equal('estimated')
+          if (filteredSize.type !== 'estimated') throw new Error('Expected estimated')
+
+          const tupleSize = fc.tuple(filtered, fc.boolean()).size()
+          expect(tupleSize.type).to.equal('estimated')
+          if (tupleSize.type !== 'estimated') throw new Error('Expected estimated')
+
+          // The tuple's interval should NOT be degenerate [value, value]
+          const [lower, upper] = tupleSize.credibleInterval
+          expect(lower).to.be.at.most(tupleSize.value)
+          expect(upper).to.be.at.least(tupleSize.value)
+          // And it should have actual width (not degenerate)
+          expect(upper - lower).to.be.greaterThan(0)
+          // Interval should be 2x the filtered arbitrary's interval
+          expect(lower).to.equal(filteredSize.credibleInterval[0] * 2)
+          expect(upper).to.equal(filteredSize.credibleInterval[1] * 2)
+        })
+
         it('union of exact arbitraries returns ExactSize', () => {
           const size = fc.union(fc.integer(0, 5), fc.integer(10, 15)).size()
           assertExactSize(size, 12) // 6 + 6
@@ -335,6 +359,35 @@ describe('Arbitrary tests', () => {
         it('union containing filtered arbitrary returns EstimatedSize', () => {
           const size = fc.union(fc.integer(0, 10).filter(n => n > 5), fc.integer(-1, 0)).size()
           assertEstimatedSize(size)
+        })
+
+        it('union propagates credible intervals correctly (sum)', () => {
+          // fc.integer(0, 10).filter(n => n > 5) has ~5 values with uncertainty
+          // fc.integer(-1, 0) has exactly 2 values
+          // Sum should add: value + 2, with interval bounds also added
+          const filtered = fc.integer(0, 10).filter(n => n > 5)
+          const filteredSize = filtered.size()
+          expect(filteredSize.type).to.equal('estimated')
+          if (filteredSize.type !== 'estimated') throw new Error('Expected estimated')
+
+          const exact = fc.integer(-1, 0)
+          const exactSize = exact.size()
+          expect(exactSize.type).to.equal('exact')
+          expect(exactSize.value).to.equal(2)
+
+          const unionSize = fc.union(filtered, exact).size()
+          expect(unionSize.type).to.equal('estimated')
+          if (unionSize.type !== 'estimated') throw new Error('Expected estimated')
+
+          // The union's interval should NOT be degenerate [value, value]
+          const [lower, upper] = unionSize.credibleInterval
+          expect(lower).to.be.at.most(unionSize.value)
+          expect(upper).to.be.at.least(unionSize.value)
+          // And it should have actual width (not degenerate)
+          expect(upper - lower).to.be.greaterThan(0)
+          // Interval should be filtered interval + 2
+          expect(lower).to.equal(filteredSize.credibleInterval[0] + 2)
+          expect(upper).to.equal(filteredSize.credibleInterval[1] + 2)
         })
 
         it('array of exact arbitrary returns ExactSize', () => {
