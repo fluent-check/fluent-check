@@ -112,6 +112,12 @@ STRATEGY_COLORS = {
     'delta-debugging': '#2ca02c'        # Green
 }
 
+# Caching trade-off colors
+CACHING_COLORS = {
+    True: '#2ca02c',   # Green (Cached)
+    False: '#ff7f0e'   # Orange (Fresh)
+}
+
 # Detection method colors (for detection.py)
 DETECTION_METHOD_STYLES = {
     'fixed_50': {'color': '#c6dbef', 'linestyle': '-', 'linewidth': 2},

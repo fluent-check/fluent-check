@@ -126,8 +126,8 @@ class DetectionAnalysis(AnalysisBase):
     def _print_summary_table(self) -> None:
         """Print detection rate results table."""
         self.print_section("DETECTION RATE RESULTS")
-        print(f"{ 'Method':<18} {'Rate':<8} {'Expected':<10} {'95% CI':<20} "
-              f"{ 'Mean Tests':<12} {'Median':<10} {'N':<6}")
+        print(f"{'Method':<18} {'Rate':<8} {'Expected':<10} {'95% CI':<20} "
+              f"{'Mean Tests':<12} {'Median':<10} {'N':<6}")
         self.print_divider(width=100)
 
         for _, row in self.results_df.iterrows():

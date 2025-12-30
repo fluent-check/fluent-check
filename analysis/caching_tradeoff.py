@@ -19,6 +19,7 @@ import seaborn as sns
 
 from base import AnalysisBase
 from viz import save_figure
+from constants import CACHING_COLORS
 
 
 class CachingTradeoffAnalysis(AnalysisBase):
@@ -56,11 +57,8 @@ class CachingTradeoffAnalysis(AnalysisBase):
         """Create caching trade-off visualization."""
         fig, axes = plt.subplots(1, 2, figsize=(14, 6))
 
-        # Consistent color mapping
-        palette = {True: '#2ca02c', False: '#ff7f0e'} # True=Cached (Green), False=Fresh (Orange)
-
-        self._create_detection_chart(axes[0], palette)
-        self._create_time_chart(axes[1], palette)
+        self._create_detection_chart(axes[0], CACHING_COLORS)
+        self._create_time_chart(axes[1], CACHING_COLORS)
 
         save_figure(fig, self.get_output_path("caching-tradeoff.png"))
 
