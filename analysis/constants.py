@@ -50,9 +50,9 @@ SHRINKING_SCENARIO_ORDER = [
 SHRINKING_SCENARIO_LABELS = {
     'threshold_gt_100': 'x > 100\n(min: 101)',
     'modular_10000': 'x % 10000 = 0\n(min: 10000)',
-    'square_gt_50000': 'x² > 50000\n(min: 224)',
-    'range_1000_10000': '1000 ≤ x ≤ 10000\n(min: 1000)',
-    'composite_gt100_mod7': 'x > 100 ∧ x % 7 = 0\n(min: 105)'
+    'square_gt_50000': r'$x^2 > 50000$'+'\n(min: 224)',
+    'range_1000_10000': r'$1000 \leq x \leq 10000$'+'\n(min: 1000)',
+    'composite_gt100_mod7': r'$x > 100 \wedge x \% 7 = 0$'+'\n(min: 105)'
 }
 
 # Bug type labels (used in biased_sampling.py)
@@ -103,6 +103,19 @@ ARBITRARY_COLORS = {
     'exact': '#2ecc71',
     'non_injective': '#e74c3c',
     'filtered': '#f39c12'
+}
+
+# Strategy colors (for shrinking strategies comparison)
+STRATEGY_COLORS = {
+    'sequential-exhaustive': '#7f7f7f', # Gray
+    'round-robin': '#1f77b4',           # Blue
+    'delta-debugging': '#2ca02c'        # Green
+}
+
+# Caching trade-off colors
+CACHING_COLORS = {
+    True: '#2ca02c',   # Green (Cached)
+    False: '#ff7f0e'   # Orange (Fresh)
 }
 
 # Detection method colors (for detection.py)

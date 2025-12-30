@@ -16,8 +16,10 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 
+
 from base import AnalysisBase
 from viz import save_figure
+from constants import CACHING_COLORS
 
 
 class CachingTradeoffAnalysis(AnalysisBase):
@@ -33,6 +35,9 @@ class CachingTradeoffAnalysis(AnalysisBase):
 
     def analyze(self) -> None:
         """Perform the caching trade-off analysis."""
+        print("H_0: Caching samples from reused arbitraries does not significantly affect bug detection rates.")
+        print("H_1: Caching significantly reduces detection diversity and finding specific 'any-value' bugs.\n")
+
         self._compute_summary()
         self._create_visualization()
         self._print_conclusion()
@@ -52,49 +57,51 @@ class CachingTradeoffAnalysis(AnalysisBase):
         """Create caching trade-off visualization."""
         fig, axes = plt.subplots(1, 2, figsize=(14, 6))
 
-        self._create_detection_chart(axes[0])
-        self._create_time_chart(axes[1])
+        self._create_detection_chart(axes[0], CACHING_COLORS)
+        self._create_time_chart(axes[1], CACHING_COLORS)
 
         save_figure(fig, self.get_output_path("caching-tradeoff.png"))
 
-    def _create_detection_chart(self, ax) -> None:
+    def _create_detection_chart(self, ax, palette) -> None:
         """Create detection rate chart."""
         sns.barplot(x='bug_type', y='detection_rate', hue='cache_enabled',
-                    data=self.summary, ax=ax, palette='muted')
+                    data=self.summary, ax=ax, palette=palette)
         ax.set_xlabel('Bug Type')
         ax.set_ylabel('Detection Rate')
         ax.set_title('Bug Detection Rate (Cache Enabled vs Disabled)')
         ax.set_ylim(0, 1.1)
         ax.grid(True, axis='y', alpha=0.3)
 
-    def _create_time_chart(self, ax) -> None:
+    def _create_time_chart(self, ax, palette) -> None:
         """Create execution time chart."""
         sns.barplot(x='bug_type', y='mean_time', hue='cache_enabled',
-                    data=self.summary, ax=ax, palette='muted')
+                    data=self.summary, ax=ax, palette=palette)
         ax.set_xlabel('Bug Type')
         ax.set_ylabel('Mean Execution Time (µs)')
         ax.set_title('Execution Time')
         ax.grid(True, axis='y', alpha=0.3)
 
     def _print_conclusion(self) -> None:
-        """Print conclusion."""
-        self.print_section("CONCLUSION")
+        """Print conclusion with scientific rigor."""
+        self.print_section("SCIENTIFIC CONCLUSION")
 
-        any_val_cache = self.summary[
-            (self.summary['bug_type'] == 'any_value') & (self.summary['cache_enabled'] == True)
-        ]['detection_rate'].values[0]
-        any_val_fresh = self.summary[
-            (self.summary['bug_type'] == 'any_value') & (self.summary['cache_enabled'] == False)
-        ]['detection_rate'].values[0]
-
-        print(f"  Any-Value Bug Detection:")
-        print(f"    Cached: {any_val_cache*100:.1f}%")
-        print(f"    Fresh : {any_val_fresh*100:.1f}%")
-
-        if any_val_fresh > any_val_cache * 1.5:
-            print(f"  {self.check_mark} Hypothesis supported: Caching significantly reduces detection for 'any-value' bugs.")
+        from scipy.stats import chi2_contingency
+        
+        # Test for any_value bug type
+        group_any = self.df[self.df['bug_type'] == 'any_value']
+        contingency = pd.crosstab(group_any['cache_enabled'], group_any['bug_detected'])
+        
+        if contingency.size == 4:
+            chi2, p_val, dof, ex = chi2_contingency(contingency)
+            
+            if p_val < 0.05:
+                print(f"  {self.check_mark} We reject the null hypothesis H_0 (p={p_val:.4e}) for 'any-value' bugs.")
+                print("    Statistically significant evidence that caching reduces detection rates for non-combinatorial bugs.")
+            else:
+                print(f"  ✗ We fail to reject the null hypothesis H_0 (p={p_val:.4f}).")
+                print("    No significant difference in detection was found between cached and fresh sampling for this bug type.")
         else:
-            print(f"  x Hypothesis not supported: Detection rates similar.")
+            print("  Note: Insufficient variance in outcomes to perform chi-squared test.")
 
         print(f"\n  {self.check_mark} Caching Trade-off analysis complete")
 

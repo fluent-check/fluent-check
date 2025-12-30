@@ -41,10 +41,11 @@ interface WeightedUnionParams {
  */
 function runTrial(
   params: WeightedUnionParams,
-  trialId: number
+  trialId: number,
+  indexInConfig: number
 ): WeightedUnionResult {
   const { name, arb0, arb1, samplesPerTrial } = params
-  const seed = getSeed(trialId)
+  const seed = getSeed(indexInConfig) // Use index in config for consistent seed
   const timer = new HighResTimer()
   const generator = mulberry32(seed)
 
@@ -151,7 +152,7 @@ async function runWeightedUnionStudy(): Promise<void> {
     }
   })
 
-  await runner.run(parameters, runTrial)
+  await runner.run(parameters, (p, id, idx) => runTrial(p, id, idx))
 }
 
 // CLI entrypoint

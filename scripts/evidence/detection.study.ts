@@ -39,10 +39,11 @@ interface DetectionParams {
  */
 function runTrial(
   params: DetectionParams,
-  trialId: number
+  trialId: number,
+  indexInConfig: number
 ): DetectionResult {
   const { type, value, bugFailureRate } = params
-  const seed = getSeed(trialId)
+  const seed = getSeed(indexInConfig) // Use index in config for consistent seed
   const timer = new HighResTimer()
 
   const failAt = Math.floor(1 / bugFailureRate)
@@ -162,7 +163,7 @@ async function runDetectionStudy(): Promise<void> {
     }
   })
 
-  await runner.run(parameters, runTrial)
+  await runner.run(parameters, (p, id, idx) => runTrial(p, id, idx))
 }
 
 // Run if executed directly

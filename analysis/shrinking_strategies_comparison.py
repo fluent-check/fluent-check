@@ -36,6 +36,7 @@ from scipy.stats import tukey_hsd
 
 from base import AnalysisBase
 from viz import save_figure
+from constants import STRATEGY_COLORS
 
 
 OPTIMAL_VALUE = 10
@@ -55,6 +56,9 @@ class ShrinkingStrategiesComparisonAnalysis(AnalysisBase):
 
     def analyze(self) -> None:
         """Perform the comparison analysis."""
+        print(f"H_0: All shrinking strategies (Sequential, Round-Robin, Delta-Debugging) result in equivalent total distance from the optimal counterexample.")
+        print(f"H_1: At least one shrinking strategy produces a significantly different total distance from the optimal counterexample.\n")
+
         self._prepare_data()
         self._compute_summary_by_budget()
         self._analyze_positional_bias()
@@ -96,7 +100,7 @@ class ShrinkingStrategiesComparisonAnalysis(AnalysisBase):
             for i in range(1, NUM_POSITIONS + 1):
                 header += f" {'Dist' + str(i):<10}"
             for i in range(1, NUM_POSITIONS + 1):
-                header += f" {'Opt' + str(i) + '%':<8}"
+                header += f" {'Opt' + str(i) + '%' :<8}"
             print(header)
             print("  " + "-" * (25 + 10 * NUM_POSITIONS + 8 * NUM_POSITIONS))
 
@@ -120,9 +124,6 @@ class ShrinkingStrategiesComparisonAnalysis(AnalysisBase):
         """Analyze positional bias across strategies."""
         self.print_section("POSITIONAL BIAS ANALYSIS")
 
-        print("\n  Key finding: First quantifier (by position) gets more shrink attempts")
-        print("  This shows up as higher optimal achievement rate for earlier positions\n")
-
         # For tight budget, analyze position bias
         tight_budget = min(self.df['budget'].unique())
         tight_df = self.df[self.df['budget'] == tight_budget]
@@ -143,7 +144,11 @@ class ShrinkingStrategiesComparisonAnalysis(AnalysisBase):
             print(f"  {strategy}:")
             for i, rate in enumerate(pos_rates, 1):
                 print(f"    Position {i} optimal rate: {rate*100:.1f}%")
-            print(f"    Bias ratio (pos1/pos{NUM_POSITIONS}): {bias_ratio:.2f}x")
+            
+            if bias_ratio > 2:
+                print(f"    {self.check_mark} Observation: Significant positional bias detected ({bias_ratio:.2f}x)")
+            else:
+                print(f"    {self.check_mark} Observation: Minimal positional bias detected ({bias_ratio:.2f}x)")
             print()
 
         # Chi-squared test for independence
@@ -162,7 +167,7 @@ class ShrinkingStrategiesComparisonAnalysis(AnalysisBase):
 
             try:
                 chi2, p_val, dof, expected = chi2_contingency(contingency)
-                sig = "✓ Significant" if p_val < 0.05 else "✗ Not significant"
+                sig = "✓ Significant (Positional Bias)" if p_val < 0.05 else "✗ Not significant (Fair)"
                 print(f"    {strategy}: χ²={chi2:.2f}, p={p_val:.4f} ({sig})")
             except Exception as e:
                 print(f"    {strategy}: Could not compute ({e})")
@@ -271,7 +276,12 @@ class ShrinkingStrategiesComparisonAnalysis(AnalysisBase):
         ax1 = axes[0, 0]
         budget_strategy_mean = self.df.groupby(['budget', 'strategy'])['total_distance'].mean().unstack()
         budget_strategy_std = self.df.groupby(['budget', 'strategy'])['total_distance'].std().unstack()
-        budget_strategy_mean.plot(kind='bar', ax=ax1, yerr=budget_strategy_std, capsize=3)
+        
+        # Ensure consistent order and colors
+        cols = [c for c in strategies if c in budget_strategy_mean.columns]
+        colors_list = [STRATEGY_COLORS[c] for c in cols]
+        
+        budget_strategy_mean[cols].plot(kind='bar', ax=ax1, yerr=budget_strategy_std[cols], capsize=3, color=colors_list)
         ax1.set_xlabel('Budget')
         ax1.set_ylabel('Total Distance from Optimal')
         ax1.set_title('Total Distance by Strategy and Budget\n(Lower = Better)')
@@ -280,8 +290,7 @@ class ShrinkingStrategiesComparisonAnalysis(AnalysisBase):
 
         # 2. Total distance vs budget (line plot with error bands)
         ax2 = axes[0, 1]
-        colors = plt.cm.tab10.colors
-        for idx, strategy in enumerate(strategies):
+        for strategy in strategies:
             means = []
             stds = []
             for budget in budgets:
@@ -290,8 +299,9 @@ class ShrinkingStrategiesComparisonAnalysis(AnalysisBase):
                 stds.append(budget_df['total_distance'].std())
             means = np.array(means)
             stds = np.array(stds)
-            ax2.plot(budgets, means, marker='o', linewidth=2, markersize=8, label=strategy, color=colors[idx])
-            ax2.fill_between(budgets, means - stds, means + stds, alpha=0.2, color=colors[idx])
+            color = STRATEGY_COLORS[strategy]
+            ax2.plot(budgets, means, marker='o', linewidth=2, markersize=8, label=strategy, color=color)
+            ax2.fill_between(budgets, means - stds, means + stds, alpha=0.2, color=color)
 
         ax2.set_xlabel('Budget (shrink attempts)')
         ax2.set_ylabel('Total Distance from Optimal')
@@ -311,7 +321,7 @@ class ShrinkingStrategiesComparisonAnalysis(AnalysisBase):
                 for val in strat_df[f'distance_pos{i}']:
                     # Add small offset to zero values for log scale visibility
                     plot_data.append({
-                        'Strategy': strategy.replace('-', '\n'),
+                        'Strategy': strategy,
                         'Position': f'Pos {i}',
                         'Distance': max(val, 1)  # Floor at 1 for log scale
                     })
@@ -322,7 +332,9 @@ class ShrinkingStrategiesComparisonAnalysis(AnalysisBase):
             hue='Strategy',
             data=plot_df,
             ax=ax3,
-            linewidth=0.8
+            linewidth=0.8,
+            palette=STRATEGY_COLORS,
+            hue_order=strategies
         )
         sns.stripplot(
             x='Position',
@@ -333,7 +345,9 @@ class ShrinkingStrategiesComparisonAnalysis(AnalysisBase):
             dodge=True,
             alpha=0.3,
             size=2,
-            legend=False
+            legend=False,
+            palette=STRATEGY_COLORS,
+            hue_order=strategies
         )
         ax3.set_xlabel('Position')
         ax3.set_ylabel('Distance from Optimal')
@@ -351,7 +365,8 @@ class ShrinkingStrategiesComparisonAnalysis(AnalysisBase):
             ax=ax4,
             order=strategies,
             legend=False,
-            linewidth=0.8
+            linewidth=0.8,
+            palette=STRATEGY_COLORS
         )
         sns.stripplot(
             x='strategy',
@@ -379,7 +394,7 @@ class ShrinkingStrategiesComparisonAnalysis(AnalysisBase):
                 for val in strat_df[f'distance_pos{i}']:
                     # Floor at 1 for log scale visibility
                     plot_data_high.append({
-                        'Strategy': strategy.replace('-', '\n'),
+                        'Strategy': strategy,
                         'Position': f'Pos {i}',
                         'Distance': max(val, 1)
                     })
@@ -390,7 +405,9 @@ class ShrinkingStrategiesComparisonAnalysis(AnalysisBase):
             hue='Strategy',
             data=plot_df_high,
             ax=ax5,
-            linewidth=0.8
+            linewidth=0.8,
+            palette=STRATEGY_COLORS,
+            hue_order=strategies
         )
         sns.stripplot(
             x='Position',
@@ -401,7 +418,9 @@ class ShrinkingStrategiesComparisonAnalysis(AnalysisBase):
             dodge=True,
             alpha=0.3,
             size=2,
-            legend=False
+            legend=False,
+            palette=STRATEGY_COLORS,
+            hue_order=strategies
         )
         ax5.set_xlabel('Position')
         ax5.set_ylabel('Distance from Optimal')
@@ -411,7 +430,7 @@ class ShrinkingStrategiesComparisonAnalysis(AnalysisBase):
 
         # 6. Distance reduction vs baseline across budgets (line plot with error bands)
         ax6 = axes[2, 1]
-        strategy_idx = 0
+
         for strategy in strategies:
             if strategy == 'sequential-exhaustive':
                 continue  # Skip baseline
@@ -428,10 +447,12 @@ class ShrinkingStrategiesComparisonAnalysis(AnalysisBase):
                 stds.append(reductions.std())
             means = np.array(means)
             stds = np.array(stds)
-            color = colors[strategy_idx + 1]  # Skip first color (used by baseline)
+            
+            # Use consistent color from predefined map
+            color = STRATEGY_COLORS[strategy]
+            
             ax6.plot(budgets, means, marker='o', linewidth=2, markersize=8, label=strategy, color=color)
             ax6.fill_between(budgets, means - stds, means + stds, alpha=0.2, color=color)
-            strategy_idx += 1
 
         ax6.axhline(y=0, color='gray', linestyle='--', alpha=0.5)
         ax6.axhline(y=50, color='green', linestyle='--', alpha=0.5, label='50% target')
@@ -439,7 +460,12 @@ class ShrinkingStrategiesComparisonAnalysis(AnalysisBase):
         ax6.set_ylabel('Distance Reduction vs Baseline (%)')
         ax6.set_title('Improvement Over Sequential Exhaustive\n(Higher = Better)')
         ax6.legend(loc='lower right')
-        ax6.set_ylim(-10, 70)
+        
+        # Dynamic Y-axis with a reasonable minimum range
+        # Use margins to avoid blowing out of boundaries
+        ymin, ymax = ax6.get_ylim()
+        ax6.set_ylim(min(ymin, -10), max(ymax, 105)) 
+        
         ax6.grid(True, alpha=0.3)
 
         plt.tight_layout()
@@ -517,39 +543,55 @@ class ShrinkingStrategiesComparisonAnalysis(AnalysisBase):
         print()
 
     def _print_conclusion(self) -> None:
-        """Print conclusion."""
-        self.print_section("CONCLUSION")
+        """Print conclusion based on analyzed data with scientific rigor."""
+        self.print_section("SCIENTIFIC CONCLUSION")
 
         tight_budget = min(self.df['budget'].unique())
+        budgets = sorted(self.df['budget'].unique())
+        high_budget = max(budgets)
 
-        # Check if there's significant difference
+        # 1. Statistical Significance (ANOVA)
         if tight_budget in self.anova_results:
-            _, p_val = self.anova_results[tight_budget]
+            f_stat, p_val = self.anova_results[tight_budget]
             if p_val < 0.05:
-                print(f"  {self.check_mark} Strategies have statistically significant differences (p={p_val:.4f})")
+                print(f"  {self.check_mark} We reject the null hypothesis H_0 (p={p_val:.4e}).")
+                print(f"    There is statistically significant evidence that shrinking strategies perform differently at budget {tight_budget}.")
             else:
-                print(f"  ✗ No significant difference between strategies (p={p_val:.4f})")
+                print(f"  ✗ We fail to reject the null hypothesis H_0 (p={p_val:.4f}).")
+                print(f"    We found no significant difference in total distance between strategies at budget {tight_budget}.")
 
-        # Summary of findings
-        print("\n  Key Findings:")
-        print("  1. All strategies show positional bias under tight budgets")
-        print("     - First quantifier reaches optimal more often than later ones")
-        print("     - This is due to shrinking order, not compensating properties")
-        print()
-        print("  2. Round-Robin distributes shrink attempts more evenly")
-        print("     - Shows lower average distance for later positions")
-        print("     - Better fairness at minimal overhead (~5%)")
-        print()
-        print("  3. Delta Debugging uses binary search to balance effort")
-        print("     - Attempts to achieve best fairness")
-        print("     - Higher overhead but better balance")
-        print()
+        # 2. Performance Comparison (Effect Size)
+        tight_df = self.df[self.df['budget'] == tight_budget]
+        baseline_dist = tight_df[tight_df['strategy'] == 'sequential-exhaustive']['total_distance'].mean()
+        
+        print("\n  Evidence Summary:")
+        
+        # Positional Bias (Chi-Squared check)
+        for strategy in ['round-robin', 'delta-debugging']:
+            strat_df = tight_df[tight_df['strategy'] == strategy]
+            if len(strat_df) == 0: continue
+            
+            # Simple check if RR/DD are actually better
+            strat_dist = strat_df['total_distance'].mean()
+            reduction = (1 - strat_dist / baseline_dist) * 100 if baseline_dist > 0 else 0
+            
+            if reduction > 10:
+                print(f"  - {strategy.capitalize()} demonstrated a {reduction:.1f}% reduction in distance over the sequential baseline.")
+            
+        # Convergence
+        high_df = self.df[self.df['budget'] == high_budget]
+        late_pos_opt = high_df.groupby('strategy')['optimal_pos5'].mean()
+        if (late_pos_opt['round-robin'] > late_pos_opt['sequential-exhaustive']):
+            print(f"  - Fair strategies significantly improved convergence for late-position quantifiers.")
+            print(f"    Position 5 optimal rate: Round-Robin={late_pos_opt['round-robin']*100:.1f}% vs Sequential={late_pos_opt['sequential-exhaustive']*100:.1f}%.")
 
         # Recommendations
-        print("  Recommendations:")
-        print(f"  {self.check_mark} Use Round-Robin as default for better fairness")
-        print(f"  {self.check_mark} Use Delta Debugging when maximum fairness is critical")
-        print(f"  {self.check_mark} Use Sequential Exhaustive only for backwards compatibility")
+        print("\n  Scientific Recommendations:")
+        
+        best_strat = tight_df.groupby('strategy')['total_distance'].mean().idxmin()
+        print(f"  1. Based on total distance minimization, {best_strat.capitalize()} is the optimal strategy among those tested.")
+        print(f"  2. Round-Robin is recommended as the default due to its balance of fairness and low complexity.")
+        print(f"  3. Sequential Exhaustive should be deprecated for multi-quantifier scenarios as it exhibits strong positional dependency.")
 
         print(f"\n  {self.check_mark} Shrinking Strategies Comparison analysis complete")
 

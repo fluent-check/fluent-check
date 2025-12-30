@@ -588,9 +588,9 @@ npm run evidence:apparatus
 
 **Individual Studies**:
 ```bash
-npm run evidence:biased-sampling
-npm run evidence:weighted-union
-npm run evidence:corner-case-coverage
+npm run evidence:study biased-sampling
+npm run evidence:study weighted-union
+# ... and so on
 ```
 
 ### 7. Biased Sampling Impact Study
@@ -1266,9 +1266,9 @@ Microsecond precision via `process.hrtime.bigint()`.
 
 ```bash
 # Verify deterministic results
-QUICK_MODE=1 npm run evidence:generate
+npm run evidence:quick
 cp docs/evidence/raw/calibration.csv /tmp/run1.csv
-QUICK_MODE=1 npm run evidence:generate
+npm run evidence:quick
 diff /tmp/run1.csv docs/evidence/raw/calibration.csv  # No differences
 ```
 

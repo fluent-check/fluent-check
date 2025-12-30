@@ -5,7 +5,7 @@ import {
   AbstractExplorer,
   type BoundTestCase,
   type Explorer
-} from './Explorer.js'
+} from './explorer/index.js'
 import type {ExecutableQuantifier} from '../ExecutableScenario.js'
 import type {Sampler} from './Sampler.js'
 

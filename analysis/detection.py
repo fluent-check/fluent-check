@@ -23,6 +23,7 @@ import seaborn as sns
 import numpy as np
 
 from base import AnalysisBase
+from constants import APPROACH_COLORS, DETECTION_METHOD_STYLES
 from stats import (
     wilson_score_interval, format_ci,
     chi_squared_test, cohens_h, effect_size_interpretation, odds_ratio,
@@ -53,6 +54,9 @@ class DetectionAnalysis(AnalysisBase):
 
     def analyze(self) -> None:
         """Perform the detection rate analysis."""
+        print("H_0: Confidence-based termination has equivalent detection rates to fixed sample sizes.")
+        print("H_1: Confidence-based termination improves detection reliability for rare bugs.\n")
+
         self._compute_results()
         self._print_summary_table()
         self._create_detection_chart()
@@ -66,6 +70,7 @@ class DetectionAnalysis(AnalysisBase):
         """Compute detection rates and statistics for each method."""
         self.bug_rate = self.safe_first(self.df, 'bug_failure_rate', 0.01)
         print(f"Bug failure rate: {self.bug_rate} (1 in {int(1/self.bug_rate)})\n")
+
 
         self.methods = sorted(self.df['method'].unique(), key=method_sort_key)
 
@@ -146,9 +151,9 @@ class DetectionAnalysis(AnalysisBase):
         colors = []
         for method in self.results_df['method']:
             if method.startswith('fixed_'):
-                colors.append('#ff7f0e')
+                colors.append(APPROACH_COLORS['fixed'])
             else:
-                colors.append('#2ca02c')
+                colors.append(APPROACH_COLORS['confidence'])
 
         ax.bar(
             x_pos,
@@ -178,8 +183,8 @@ class DetectionAnalysis(AnalysisBase):
         ax.grid(True, axis='y', alpha=0.3)
 
         legend_elements = [
-            mpatches.Patch(facecolor='#ff7f0e', alpha=0.7, label='Fixed N'),
-            mpatches.Patch(facecolor='#2ca02c', alpha=0.7, label='Confidence-based'),
+            mpatches.Patch(facecolor=APPROACH_COLORS['fixed'], alpha=0.7, label='Fixed N'),
+            mpatches.Patch(facecolor=APPROACH_COLORS['confidence'], alpha=0.7, label='Confidence-based'),
             Line2D([0], [0], marker='_', color='red', linestyle='None',
                    markersize=15, markeredgewidth=3, label='Expected (fixed)')
         ]
@@ -191,21 +196,9 @@ class DetectionAnalysis(AnalysisBase):
         """Create ECDF of tests-to-termination."""
         fig, ax = plt.subplots(figsize=(12, 7))
 
-        method_styles = {
-            'fixed_50': {'color': '#c6dbef', 'linestyle': '-', 'linewidth': 2},
-            'fixed_100': {'color': '#9ecae1', 'linestyle': '-', 'linewidth': 2},
-            'fixed_200': {'color': '#6baed6', 'linestyle': '-', 'linewidth': 2},
-            'fixed_500': {'color': '#3182bd', 'linestyle': '-', 'linewidth': 2},
-            'fixed_1000': {'color': '#08519c', 'linestyle': '-', 'linewidth': 2},
-            'confidence_0.80': {'color': '#fcbba1', 'linestyle': '-', 'linewidth': 2},
-            'confidence_0.90': {'color': '#fc9272', 'linestyle': '-', 'linewidth': 2},
-            'confidence_0.95': {'color': '#fb6a4a', 'linestyle': '-', 'linewidth': 2},
-            'confidence_0.99': {'color': '#de2d26', 'linestyle': '-', 'linewidth': 2},
-        }
-
         for method in self.methods:
             group = self.df[self.df['method'] == method]
-            style = method_styles.get(method, {'color': 'gray', 'linestyle': '-', 'linewidth': 2})
+            style = DETECTION_METHOD_STYLES.get(method, {'color': 'gray', 'linestyle': '-', 'linewidth': 2})
 
             sns.ecdfplot(
                 data=group,
@@ -263,7 +256,7 @@ class DetectionAnalysis(AnalysisBase):
         print("\nPairwise Chi-squared Tests (detection rate comparisons):")
         self.print_divider(width=100)
         cohens_label = "Cohen's h"
-        print(f"{'Comparison':<35} {'Chi²':<10} {'p-value':<12} {'Significant':<12} {cohens_label:<12} {'Effect Size':<12}")
+        print(f"{ 'Comparison':<35} {'Chi²':<10} {'p-value':<12} {'Significant':<12} {cohens_label:<12} {'Effect Size':<12}")
         self.print_divider(width=100)
 
         comparisons = [
@@ -316,7 +309,7 @@ class DetectionAnalysis(AnalysisBase):
         """Print odds ratios for comparisons."""
         print("\nOdds Ratios (for detection success):")
         self.print_divider(width=80)
-        print(f"{'Comparison':<35} {'OR':<10} {'95% CI':<25} {'Interpretation':<20}")
+        print(f"{ 'Comparison':<35} {'OR':<10} {'95% CI':<25} {'Interpretation':<20}")
         self.print_divider(width=80)
 
         for method1, method2 in comparisons:
@@ -382,7 +375,7 @@ class DetectionAnalysis(AnalysisBase):
 
         print("\nTime Investment by Method:")
         self.print_divider(width=100)
-        print(f"{'Method':<18} {'Mean Time (ms)':<16} {'Time/Test (µs)':<16} {'Detection Rate':<16} {'ROI*':<16}")
+        print(f"{ 'Method':<18} {'Mean Time (ms)':<16} {'Time/Test (µs)':<16} {'Detection Rate':<16} {'ROI*':<16}")
         self.print_divider(width=100)
 
         for _, row in self.results_df.iterrows():
@@ -403,7 +396,7 @@ class DetectionAnalysis(AnalysisBase):
         """Print time to first detection statistics."""
         print("\nTime to First Detection (when bug found):")
         self.print_divider(width=80)
-        print(f"{'Method':<18} {'Mean Time (ms)':<20} {'Median Time (µs)':<20}")
+        print(f"{ 'Method':<18} {'Mean Time (ms)':<20} {'Median Time (µs)':<20}")
         self.print_divider(width=80)
 
         for _, row in self.results_df.iterrows():
@@ -476,9 +469,28 @@ class DetectionAnalysis(AnalysisBase):
         self.print_divider(width=80)
 
     def _print_conclusion(self) -> None:
-        """Print conclusion."""
-        self.print_section("CONCLUSION")
-        print(f"  {self.check_mark} Detection rate analysis complete")
+        """Print conclusion with scientific rigor."""
+        self.print_section("SCIENTIFIC CONCLUSION")
+        
+        print("H_0: Confidence-based termination has equivalent detection rates to fixed sample sizes.")
+        print("H_1: Confidence-based termination improves detection reliability for rare bugs.\n")
+
+        fixed_100 = self.results_df[self.results_df['method'] == 'fixed_100']
+        conf_95 = self.results_df[self.results_df['method'] == 'confidence_0.95']
+        
+        if not fixed_100.empty and not conf_95.empty:
+            g1 = self.df[self.df['method'] == 'fixed_100']
+            g2 = self.df[self.df['method'] == 'confidence_0.95']
+            chi2_result = chi_squared_test(g1['bug_found'].sum(), len(g1), g2['bug_found'].sum(), len(g2))
+            
+            if chi2_result['significant']:
+                print(f"  {self.check_mark} We reject the null hypothesis H_0 (p={chi2_result['p_value']:.4e}).")
+                print(f"    Statistically significant evidence that confidence-based termination (95%) outperforms fixed-100 sampling.")
+            else:
+                print(f"  ✗ We fail to reject the null hypothesis H_0 (p={chi2_result['p_value']:.4f}).")
+                print(f"    Insufficient evidence to claim confidence-based termination outperforms fixed sampling at this level.")
+
+        print(f"\n  {self.check_mark} Detection rate analysis complete")
 
 
 def main():

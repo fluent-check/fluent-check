@@ -1,4 +1,4 @@
-import type {ArbitrarySize, FluentPick, XOR} from './types.js'
+import type {ArbitrarySize, FluentPick, ShrinkIterator, ShrinkIteratorOptions, XOR} from './types.js'
 import {ChainedArbitrary, FilteredArbitrary, MappedArbitrary, NoArbitrary} from './internal.js'
 import {stringify, stringToHash} from './util.js'
 
@@ -217,6 +217,54 @@ export abstract class Arbitrary<A> {
    */
   shrink<B extends A>(_initial: FluentPick<B>): Arbitrary<A> {
     return NoArbitrary
+  }
+
+  /**
+   * Returns a lazy iterator for generating shrink candidates with feedback support.
+   *
+   * Unlike `shrink()` which returns an Arbitrary that is sampled eagerly,
+   * `shrinkIterator()` generates candidates on-demand and uses feedback from
+   * `acceptSmaller()`/`rejectSmaller()` to guide the search efficiently.
+   *
+   * For numeric types, this enables binary search shrinking: O(log N) convergence
+   * instead of random sampling.
+   *
+   * Default implementation wraps `shrink()` for backward compatibility.
+   * Subclasses should override for efficient implementations (e.g., binary search).
+   *
+   * @param initial - The pick to shrink from
+   * @param options - Options including an optional RNG for deterministic sampling
+   * @returns A ShrinkIterator that yields shrink candidates lazily
+   */
+  shrinkIterator<B extends A>(initial: FluentPick<B>, options: ShrinkIteratorOptions): ShrinkIterator<A> {
+    const shrinkArb = this.shrink(initial)
+    const generator = options.generator
+    let exhausted = false
+
+    return {
+      next: (): IteratorResult<FluentPick<A>> => {
+        if (exhausted) {
+          return {done: true, value: undefined}
+        }
+        const candidate = shrinkArb.pick(generator)
+        if (candidate === undefined) {
+          exhausted = true
+          return {done: true, value: undefined}
+        }
+        return {done: false, value: candidate}
+      },
+      acceptSmaller: () => {
+        // Default: no-op (random sampling doesn't use feedback)
+        // Subclasses with binary search should narrow the search space
+      },
+      rejectSmaller: () => {
+        // Default: no-op (random sampling doesn't use feedback)
+        // Subclasses with binary search should adjust the search space
+      },
+      [Symbol.iterator](): ShrinkIterator<A> {
+        return this
+      }
+    }
   }
 
   /**

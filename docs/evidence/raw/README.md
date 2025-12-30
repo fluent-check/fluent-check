@@ -18,10 +18,10 @@ This directory contains raw experimental data from confidence-based termination 
 
 ```bash
 # Quick mode (~5 seconds)
-QUICK_MODE=1 npm run evidence:generate
+npm run evidence:quick
 
 # Full mode (~15-30 seconds)
-npm run evidence:generate
+npm run evidence
 ```
 
 **Reproducibility**: All experiments use deterministic seeds (`seed = trial_id * 7919`), ensuring identical results on every run.
@@ -289,9 +289,9 @@ P(find witness) = 1 - (1 - d)^n
 
 ```bash
 # Run twice and compare
-QUICK_MODE=1 npm run evidence:generate
+npm run evidence:quick
 cp docs/evidence/raw/calibration.csv /tmp/run1.csv
-QUICK_MODE=1 npm run evidence:generate
+npm run evidence:quick
 diff /tmp/run1.csv docs/evidence/raw/calibration.csv
 # Output: (no differences - deterministic)
 ```
@@ -308,8 +308,8 @@ Where 7919 is a prime number ensuring good distribution across trial IDs.
 
 ## Audit Trail
 
-- **Generated**: `npm run evidence:generate`
-- **Quick Mode**: `QUICK_MODE=1` (50-150 trials per configuration)
+- **Generated**: `npm run evidence`
+- **Quick Mode**: `npm run evidence:quick` (50-150 trials per configuration)
 - **Full Mode**: Standard (200-500 trials per configuration)
 - **Timing**: Microsecond precision (`process.hrtime.bigint()`)
 - **Version Control**: CSV files committed for reproducibility

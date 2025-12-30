@@ -217,7 +217,7 @@ async function runShrinkingStrategiesComparisonStudy(): Promise<void> {
     }
   })
 
-  await runner.run(parameters, runTrial)
+  await runner.run(parameters, (p, id, idx) => runTrial(p, id))
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {

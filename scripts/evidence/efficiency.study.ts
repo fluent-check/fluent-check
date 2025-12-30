@@ -45,10 +45,11 @@ interface EfficiencyParams {
  */
 function runTrial(
   params: EfficiencyParams,
-  trialId: number
+  trialId: number,
+  indexInConfig: number
 ): EfficiencyResult {
   const { propertyType, failureRate, targetConfidence, passRateThreshold } = params
-  const seed = getSeed(trialId)
+  const seed = getSeed(indexInConfig) // Use index in config for consistent seed
   const timer = new HighResTimer()
 
   // Compute fail frequency from failure rate
@@ -145,7 +146,7 @@ async function runEfficiencyStudy(): Promise<void> {
     }
   })
 
-  await runner.run(parameters, runTrial)
+  await runner.run(parameters, (p, id, idx) => runTrial(p, id, idx))
 }
 
 // Run if executed directly

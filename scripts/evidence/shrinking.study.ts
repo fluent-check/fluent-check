@@ -41,7 +41,7 @@ interface ShrinkingResult {
 interface ShrinkingParams {
   name: string
   description: string
-  runner: (trialId: number, sampleSize: number) => ShrinkingResult
+  runner: (trialId: number, sampleSize: number, indexInConfig: number) => ShrinkingResult
   sampleSize: number
 }
 
@@ -49,8 +49,8 @@ interface ShrinkingParams {
  * Scenario 1: Threshold predicate (x > 100)
  * Minimal witness: 101
  */
-function runThresholdTrial(trialId: number, sampleSize: number): ShrinkingResult {
-  const seed = getSeed(trialId)
+function runThresholdTrial(trialId: number, sampleSize: number, indexInConfig: number): ShrinkingResult {
+  const seed = getSeed(indexInConfig)
   const timer = new HighResTimer()
   const expectedMinimal = 101
 
@@ -90,8 +90,8 @@ function runThresholdTrial(trialId: number, sampleSize: number): ShrinkingResult
  * Scenario 2: Modular predicate (x % 10000 === 0)
  * Minimal witness: 10000
  */
-function runModularTrial(trialId: number, sampleSize: number): ShrinkingResult {
-  const seed = getSeed(trialId)
+function runModularTrial(trialId: number, sampleSize: number, indexInConfig: number): ShrinkingResult {
+  const seed = getSeed(indexInConfig)
   const timer = new HighResTimer()
   const expectedMinimal = 10000
 
@@ -131,8 +131,8 @@ function runModularTrial(trialId: number, sampleSize: number): ShrinkingResult {
  * Scenario 3: Square root predicate (x * x > 50000)
  * Minimal witness: 224 (since 223² = 49729, 224² = 50176)
  */
-function runSquareRootTrial(trialId: number, sampleSize: number): ShrinkingResult {
-  const seed = getSeed(trialId)
+function runSquareRootTrial(trialId: number, sampleSize: number, indexInConfig: number): ShrinkingResult {
+  const seed = getSeed(indexInConfig)
   const timer = new HighResTimer()
   const expectedMinimal = 224 // ceil(sqrt(50000)) = ceil(223.6) = 224
 
@@ -172,8 +172,8 @@ function runSquareRootTrial(trialId: number, sampleSize: number): ShrinkingResul
  * Scenario 4: Range predicate (1000 <= x <= 10000)
  * Minimal witness: 1000
  */
-function runRangeTrial(trialId: number, sampleSize: number): ShrinkingResult {
-  const seed = getSeed(trialId)
+function runRangeTrial(trialId: number, sampleSize: number, indexInConfig: number): ShrinkingResult {
+  const seed = getSeed(indexInConfig)
   const timer = new HighResTimer()
   const expectedMinimal = 1000
 
@@ -213,8 +213,8 @@ function runRangeTrial(trialId: number, sampleSize: number): ShrinkingResult {
  * Scenario 5: Composite predicate (x > 100 AND x % 7 === 0)
  * Minimal witness: 105 (first multiple of 7 greater than 100)
  */
-function runCompositeTrial(trialId: number, sampleSize: number): ShrinkingResult {
-  const seed = getSeed(trialId)
+function runCompositeTrial(trialId: number, sampleSize: number, indexInConfig: number): ShrinkingResult {
+  const seed = getSeed(indexInConfig)
   const timer = new HighResTimer()
   const expectedMinimal = 105 // 15 * 7 = 105
 
@@ -255,9 +255,10 @@ function runCompositeTrial(trialId: number, sampleSize: number): ShrinkingResult
  */
 function runTrial(
   params: ShrinkingParams,
-  trialId: number
+  trialId: number,
+  indexInConfig: number
 ): ShrinkingResult {
-  return params.runner(trialId, params.sampleSize)
+  return params.runner(trialId, params.sampleSize, indexInConfig)
 }
 
 /**
@@ -309,7 +310,7 @@ async function runShrinkingStudy(): Promise<void> {
     }
   })
 
-  await runner.run(parameters, runTrial)
+  await runner.run(parameters, (p, id, idx) => runTrial(p, id, idx))
 }
 
 // Run if executed directly

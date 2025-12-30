@@ -79,6 +79,10 @@ export class ArbitraryInteger extends Arbitrary<number> {
     return (a: unknown, b: unknown): boolean => a === b
   }
 
+  override isShrunken(candidate: FluentPick<number>, current: FluentPick<number>): boolean {
+    return Math.abs(candidate.value) < Math.abs(current.value)
+  }
+
   override toString(depth = 0) {
     return ' '.repeat(2 * depth) + `Integer Arbitrary: min = ${this.min} max = ${this.max}`
   }

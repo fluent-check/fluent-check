@@ -47,10 +47,11 @@ interface CalibrationParams {
  */
 function runTrial(
   params: CalibrationParams,
-  trialId: number
+  trialId: number,
+  indexInConfig: number
 ): CalibrationResult {
   const { truePassRate, threshold, targetConfidence } = params
-  const seed = getSeed(trialId)
+  const seed = getSeed(indexInConfig) // Use index in config for consistent seed
   const timer = new HighResTimer()
 
   // Create a property with known pass rate
@@ -175,7 +176,7 @@ async function runCalibrationStudy(): Promise<void> {
     }
   })
 
-  await runner.run(parameters, runTrial)
+  await runner.run(parameters, (p, id, idx) => runTrial(p, id, idx))
 }
 
 // Run if executed directly

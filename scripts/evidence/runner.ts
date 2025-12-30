@@ -209,7 +209,7 @@ export class ExperimentRunner<TParams, TResult> {
    */
   async run(
     parameterSets: TParams[], 
-    runTrial: (params: TParams, trialId: number) => TResult
+    runTrial: (params: TParams, trialId: number, indexInConfig: number) => TResult
   ): Promise<void> {
     console.log(`\n=== ${this.config.name} ===`)
     
@@ -230,7 +230,7 @@ export class ExperimentRunner<TParams, TResult> {
 
     for (const params of parameterSets) {
       for (let i = 0; i < this.config.trialsPerConfig; i++) {
-        const result = runTrial(params, trialId)
+        const result = runTrial(params, trialId, i)
         writer.writeRow(this.config.resultToRow(result))
         progress.update()
         trialId++

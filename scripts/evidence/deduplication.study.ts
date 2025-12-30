@@ -104,10 +104,11 @@ function sampleWithoutDedup<T>(
  */
 function runTrial(
   params: DeduplicationParams,
-  trialId: number
+  trialId: number,
+  indexInConfig: number
 ): DeduplicationResult {
   const { arbitraryType, samplerType, requestedCount } = params
-  const seed = getSeed(trialId)
+  const seed = getSeed(indexInConfig) // Use index in config for consistent seed
   const rng = mulberry32(seed)
   const timer = new HighResTimer()
 
@@ -208,7 +209,7 @@ async function runDeduplicationStudy(): Promise<void> {
     }
   })
 
-  await runner.run(parameters, runTrial)
+  await runner.run(parameters, (p, id, idx) => runTrial(p, id, idx))
 }
 
 // CLI entrypoint

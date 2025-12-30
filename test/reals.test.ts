@@ -1,10 +1,10 @@
 import * as fc from '../src/index'
 import {it} from 'mocha'
-import {assertSatisfiableWithExample} from './test-utils.js'
+import {assertSatisfiableWithExample, seededScenario} from './test-utils.js'
 
 describe('Real-valued tests', () => {
   it('finds that there is a real larger than any number in a range and shrinks it', () => {
-    const result = fc.scenario()
+    const result = seededScenario()
       .exists('a', fc.real())
       .forall('b', fc.real(-100, 100))
       .then(({a, b}) => a > b)

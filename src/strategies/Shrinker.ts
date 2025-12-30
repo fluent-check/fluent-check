@@ -191,14 +191,17 @@ export class PerArbitraryShrinker<Rec extends {}> implements Shrinker<Rec> {
   }
 
   #strategy: ShrinkRoundStrategy
+  #batchSize: number
 
   /**
    * Creates a PerArbitraryShrinker with a configurable shrinking strategy.
    *
    * @param strategy - The shrinking strategy to use (defaults to SequentialExhaustiveStrategy for backward compatibility)
+   * @param batchSize - Number of candidates to test per quantifier per round (default: 100)
    */
-  constructor(strategy?: ShrinkRoundStrategy) {
+  constructor(strategy?: ShrinkRoundStrategy, batchSize = 100) {
     this.#strategy = strategy ?? new SequentialExhaustiveStrategy()
+    this.#batchSize = batchSize
   }
 
   shrink(
@@ -246,7 +249,7 @@ export class PerArbitraryShrinker<Rec extends {}> implements Shrinker<Rec> {
       const remaining = budget.maxAttempts - attempts
       if (remaining <= 0) return false
 
-      const candidates = quantifier.shrink(pick, sampler, Math.min(remaining, 100))
+      const candidates = quantifier.shrink(pick, sampler, Math.min(remaining, this.#batchSize))
 
       for (const candidate of candidates) {
         if (attempts >= budget.maxAttempts) break
@@ -332,8 +335,8 @@ export class NoOpShrinker<Rec extends {}> implements Shrinker<Rec> {
 /**
  * Creates a default PerArbitraryShrinker instance.
  */
-export function createPerArbitraryShrinker<Rec extends {}>(): Shrinker<Rec> {
-  return new PerArbitraryShrinker<Rec>()
+export function createPerArbitraryShrinker<Rec extends {}>(batchSize?: number): Shrinker<Rec> {
+  return new PerArbitraryShrinker<Rec>(undefined, batchSize)
 }
 
 /**

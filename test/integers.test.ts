@@ -1,6 +1,6 @@
 import * as fc from '../src/index'
 import {it} from 'mocha'
-import {smallInt, assertSatisfiableWithExample, assertExistentialWitness} from './test-utils.js'
+import {smallInt, assertSatisfiableWithExample, assertExistentialWitness, seededScenario} from './test-utils.js'
 
 describe('Integer tests', () => {
   it('finds there is a number in the -10, 10 range, which is neutral under addition for all integers.', () => {
@@ -13,7 +13,7 @@ describe('Integer tests', () => {
   })
 
   it('finds that there is an integer larger than any number in a range and shrinks it', () => {
-    const result = fc.scenario()
+    const result = seededScenario()
       .exists('a', fc.integer())
       .forall('b', fc.integer(-100, 100))
       .then(({a, b}) => a > b)

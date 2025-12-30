@@ -6,11 +6,12 @@ This document provides empirical evidence comparing different shrinking strategi
 
 ## Executive Summary
 
-**Key Finding**: Shrinking efficiency depends on two orthogonal factors:
+**Key Finding**: Shrinking efficiency depends on *three* orthogonal factors:
 1. **Shrinking Strategy** (which quantifier to try next): Round-Robin > Delta-Debugging > Sequential Exhaustive
 2. **Shrink Candidate Generation** (how to sample from shrink space): Weighted (80/20) > Union > Random
+3. **Batch Size** (how many candidates to try before yielding): Batch Size 1 (fairness) > Batch Size 100 (depth) for independent properties
 
-**Best Configuration**: Round-Robin strategy + Weighted shrink candidate generation achieves **62.5% distance reduction** vs baseline with all positions converging more fairly.
+**Best Configuration**: Round-Robin strategy + Weighted shrink candidate generation + **Batch Size 1** achieves **~60% distance reduction** vs baseline with all positions converging more fairly.
 
 ## Methodology
 
@@ -70,25 +71,25 @@ forall(a, b, c, d, e: int(0, 10_000_000)).then(a < 10 || b < 10 || c < 10 || d <
 
 | Strategy | Dist1 | Dist2 | Dist3 | Dist4 | Dist5 | Opt1% | Total Distance | Reduction |
 |----------|-------|-------|-------|-------|-------|-------|----------------|-----------|
-| Sequential Exhaustive | 0 | 4.8M | 5.0M | 4.7M | 5.3M | 94% | 19.8M | baseline |
-| Round-Robin | 0 | 1.8M | 1.9M | 2.0M | 1.7M | 75% | 7.4M | **62.5%** |
-| Delta-Debugging | 0 | 2.2M | 1.8M | 2.1M | 1.9M | 79% | 8.0M | **59.7%** |
+| Sequential Exhaustive | 0 | 4.9M | 4.9M | 5.0M | 4.5M | 99% | 19.3M | baseline |
+| Round-Robin | 2 | 121K | 1.4M | 2.0M | 4.7M | 38% | 8.2M | **57.4%** |
+| Delta-Debugging | 2 | 63K | 1.2M | 1.8M | 4.5M | 37% | 7.6M | **60.7%** |
 
 #### Budget = 500 attempts (Medium)
 
 | Strategy | Dist1 | Dist2 | Dist3 | Dist4 | Dist5 | Opt1% | Opt2% | Total Distance |
 |----------|-------|-------|-------|-------|-------|-------|-------|----------------|
-| Sequential Exhaustive | 0 | 70K | 4.7M | 4.9M | 5.1M | 100% | 0% | 14.7M |
-| Round-Robin | 0 | 50K | 1.5M | 1.8M | 1.8M | 100% | 0% | 5.1M |
-| Delta-Debugging | 0 | 36K | 1.8M | 2.1M | 2.1M | 100% | 0% | 6.0M |
+| Sequential Exhaustive | 0 | 94K | 4.8M | 5.2M | 4.7M | 100% | 0.7% | 14.8M |
+| Round-Robin | 0 | 0 | 14K | 81K | 889K | 96% | 87% | 984K |
+| Delta-Debugging | 0 | 8K | 66K | 189K | 1.5M | 95% | 83% | 1.7M |
 
 #### Budget = 2000 attempts (High)
 
 | Strategy | Dist1 | Dist2 | Dist3 | Dist4 | Dist5 | Opt1% | Opt2% | Opt3% |
 |----------|-------|-------|-------|-------|-------|-------|-------|-------|
-| Sequential Exhaustive | 0 | 0 | 332K | 4.7M | 4.8M | 100% | 99% | 0.7% |
-| Round-Robin | 0 | 0 | 118K | 1.8M | 1.7M | 100% | **100%** | 0.7% |
-| Delta-Debugging | 0 | 0 | 143K | 1.8M | 1.6M | 100% | **100%** | **1.3%** |
+| Sequential Exhaustive | 0 | 0 | 329K | 4.9M | 4.9M | 100% | 100% | 0% |
+| Round-Robin | 0 | 0 | 0 | 2 | 169 | 94% | **89%** | 73% |
+| Delta-Debugging | 0 | 0 | 0 | 2 | 6 | 96% | **91%** | 75% |
 
 ### Statistical Analysis
 
@@ -192,7 +193,12 @@ override shrink(initial: FluentPick<number>): Arbitrary<number> {
 - Fair strategies distribute budget more evenly but don't eliminate bias
 - Higher budgets allow more positions to converge
 
-### 4. Logarithmic Budget Requirements
+### 4. Batch Size Tuning is Critical for Fairness
+- Default batch size (100) causes budget exhaustion on early quantifiers
+- **Batch Size 1** forces Round-Robin and Delta-Debugging to yield control immediately
+- This simple change reduced late-position distances from ~4.7M to ~169 (at budget 2000)
+
+### 5. Logarithmic Budget Requirements
 - Shrinking from 10M to 10 requires ~23 binary search steps per quantifier
 - With 5 quantifiers: ~115 successful shrink steps minimum
 - Budget of 100 barely shrinks Position 1; Budget of 2000 shrinks Positions 1-3

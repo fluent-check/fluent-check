@@ -78,10 +78,11 @@ class CustomArrayArbitrary<A> extends Arbitrary<A[]> {
 
 function runTrial(
   params: LengthDistributionParams,
-  trialId: number
+  trialId: number,
+  indexInConfig: number
 ): LengthDistributionResult {
   const { distType, bugConfig } = params
-  const seed = getSeed(trialId)
+  const seed = getSeed(indexInConfig) // Use index in config for consistent seed
   const generator = mulberry32(seed)
   const timer = new HighResTimer()
 
@@ -152,7 +153,7 @@ async function runLengthDistributionStudy(): Promise<void> {
     }
   })
 
-  await runner.run(parameters, runTrial)
+  await runner.run(parameters, (p, id, idx) => runTrial(p, id, idx))
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {

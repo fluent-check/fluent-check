@@ -1,4 +1,5 @@
 import {FluentRandomGenerator} from '../arbitraries/index.js'
+import {mulberry32} from '../arbitraries/util.js'
 import {FluentStrategy, type FluentConfig} from './FluentStrategy.js'
 import type {StrategyBindings} from './FluentStrategyTypes.js'
 import {RandomSampler, BiasedSampler, CachedSampler, DedupingSampler, type Sampler} from './Sampler.js'
@@ -41,8 +42,15 @@ export class FluentStrategyFactory<Rec extends StrategyBindings = StrategyBindin
   /**
    * RNG configuration for deterministic generation
    */
-  private rngBuilder: (seed: number) => () => number = (_: number) => Math.random
-  private rngSeed: number = Math.floor(Math.random() * 0x100000000)
+  private _rngBuilder: (seed: number) => () => number = mulberry32
+  private rngSeed = 0xCAFEBABE
+
+  /**
+   * Gets the current random number generator builder.
+   */
+  public get rngBuilder(): (seed: number) => () => number {
+    return this._rngBuilder
+  }
 
   /**
    * Explorer factory function for creating explorers.
@@ -83,7 +91,7 @@ export class FluentStrategyFactory<Rec extends StrategyBindings = StrategyBindin
    * @param seed - Optional seed value (random if not provided)
    */
   withRandomGenerator(builder: (seed: number) => () => number, seed?: number) {
-    this.rngBuilder = builder
+    this._rngBuilder = builder
     if (seed !== undefined) {
       this.rngSeed = seed
     }
@@ -194,8 +202,13 @@ export class FluentStrategyFactory<Rec extends StrategyBindings = StrategyBindin
   #updateShrinkerFactory() {
     // This should only be called when shrinking is enabled
     const strategyInstance = this.#createStrategyInstance(this.shrinkingStrategy)
+    
+    // For Round-Robin and Delta-Debugging, use a small batch size (1) to ensure fairness.
+    // For Sequential, use a large batch size (100) to ensure thorough search.
+    const batchSize = this.shrinkingStrategy === 'sequential-exhaustive' ? 100 : 1
+    
     this.shrinkerFactory = <R extends StrategyBindings>() =>
-      new PerArbitraryShrinker<R>(strategyInstance)
+      new PerArbitraryShrinker<R>(strategyInstance, batchSize)
   }
 
   #createStrategyInstance(strategy: ShrinkingStrategy) {
@@ -453,7 +466,7 @@ export class FluentStrategyFactory<Rec extends StrategyBindings = StrategyBindin
    * Builds the random generator based on configuration.
    */
   private buildRandomGenerator(): FluentRandomGenerator {
-    return new FluentRandomGenerator(this.rngBuilder, this.rngSeed)
+    return new FluentRandomGenerator(this._rngBuilder, this.rngSeed)
   }
 
   /**
@@ -525,7 +538,7 @@ export class FluentStrategyFactory<Rec extends StrategyBindings = StrategyBindin
     cloned.samplerConfig = {...this.samplerConfig}
     cloned.enableShrinking = this.enableShrinking
     cloned.shrinkingStrategy = this.shrinkingStrategy
-    cloned.rngBuilder = this.rngBuilder
+    cloned._rngBuilder = this._rngBuilder
     cloned.rngSeed = this.rngSeed
     cloned.explorerFactory = this.explorerFactory
     cloned.shrinkerFactory = this.shrinkerFactory

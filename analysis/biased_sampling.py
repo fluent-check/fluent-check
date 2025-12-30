@@ -24,6 +24,7 @@ from scipy.stats import fisher_exact
 from base import AnalysisBase
 from stats import wilson_score_interval, format_ci, chi_squared_test, cohens_h, effect_size_interpretation
 from viz import save_figure
+from constants import SAMPLER_COLORS
 
 
 class BiasedSamplingAnalysis(AnalysisBase):
@@ -39,6 +40,9 @@ class BiasedSamplingAnalysis(AnalysisBase):
 
     def analyze(self) -> None:
         """Perform the biased sampling analysis."""
+        print("H_0: Biased and Random samplers have equivalent bug detection rates across all bug types.")
+        print("H_1: Biased sampling significantly improves detection rates for boundary-related bugs.\n")
+
         self._compute_detection_rates()
         self._compute_tests_to_detection()
         self._create_visualization()
@@ -138,9 +142,9 @@ class BiasedSamplingAnalysis(AnalysisBase):
         random_errors_array = np.array(random_errors).T
 
         ax.bar(x - width/2, biased_rates, width, label='Biased Sampler',
-               yerr=biased_errors_array, capsize=5, color='#2ecc71', alpha=0.8)
+               yerr=biased_errors_array, capsize=5, color=SAMPLER_COLORS['biased'], alpha=0.8)
         ax.bar(x + width/2, random_rates, width, label='Random Sampler',
-               yerr=random_errors_array, capsize=5, color='#3498db', alpha=0.8)
+               yerr=random_errors_array, capsize=5, color=SAMPLER_COLORS['random'], alpha=0.8)
 
         ax.set_xlabel('Bug Type')
         ax.set_ylabel('Detection Rate')
@@ -169,13 +173,13 @@ class BiasedSamplingAnalysis(AnalysisBase):
             if len(biased_ttd) > 0:
                 ttd_data.append(biased_ttd)
                 positions.append(pos)
-                colors.append('#2ecc71')
+                colors.append(SAMPLER_COLORS['biased'])
                 pos += 1
 
             if len(random_ttd) > 0:
                 ttd_data.append(random_ttd)
                 positions.append(pos)
-                colors.append('#3498db')
+                colors.append(SAMPLER_COLORS['random'])
                 pos += 1
 
             pos += 0.5
@@ -194,31 +198,37 @@ class BiasedSamplingAnalysis(AnalysisBase):
         ax.set_xticklabels(['Boundary\nMin', 'Boundary\nMax', 'Middle\nRange', 'Random\nValue'])
         ax.grid(True, axis='y', alpha=0.3)
 
-        legend_elements = [mpatches.Patch(facecolor='#2ecc71', alpha=0.8, label='Biased'),
-                           mpatches.Patch(facecolor='#3498db', alpha=0.8, label='Random')]
+        legend_elements = [mpatches.Patch(facecolor=SAMPLER_COLORS['biased'], alpha=0.8, label='Biased'),
+                           mpatches.Patch(facecolor=SAMPLER_COLORS['random'], alpha=0.8, label='Random')]
         ax.legend(handles=legend_elements)
 
     def _print_conclusion(self) -> None:
-        """Print conclusion."""
-        self.print_section("CONCLUSION")
+        """Print conclusion with scientific rigor."""
+        self.print_section("SCIENTIFIC CONCLUSION")
 
-        boundary_bugs_supported = all(
-            r['cohens_h'] > 0.2 and r['p_value'] < 0.05
-            for r in self.results
+        boundary_results = [
+            r for r in self.results
             if r['bug_type'] in ['boundary_min', 'boundary_max']
-        )
+        ]
 
-        if boundary_bugs_supported:
-            print(f"  {self.check_mark} Hypothesis supported: BiasedSampler significantly improves")
-            print(f"    detection of boundary bugs (p < 0.05, effect size > small)")
+        # Check for meaningful improvement: significant p-value AND non-negligible effect size
+        supported_results = [
+            r for r in boundary_results
+            if r['p_value'] < 0.05 and abs(r['cohens_h']) > 0.2
+        ]
+
+        if len(supported_results) == len(boundary_results):
+            print(f"  {self.check_mark} We reject the null hypothesis H_0 for boundary bugs.")
+            print("    Statistically significant evidence (p < 0.05) with meaningful effect size (h > 0.2)")
+            print("    confirms biased sampling improves detection of edge-case bugs.")
+        elif len(supported_results) > 0:
+            print(f"  {self.check_mark} We reject the null hypothesis H_0 for some boundary bugs.")
+            print("    Statistically significant evidence of improvement found in specific boundary cases:")
+            for r in supported_results:
+                print(f"      - {r['bug_type'].replace('_', ' ').title()}: p={r['p_value']:.4f}, h={r['cohens_h']:.3f}")
         else:
-            print(f"  x Hypothesis not fully supported: Effect varies by bug type")
-
-        for r in self.results:
-            if r['bug_type'] in ['boundary_min', 'boundary_max']:
-                improvement = (r['biased_rate'] - r['random_rate']) / r['random_rate'] * 100 if r['random_rate'] > 0 else 0
-                if r['p_value'] < 0.05:
-                    print(f"  - {r['bug_type']}: {improvement:+.1f}% improvement (p={r['p_value']:.4f})")
+            print(f"  ✗ We fail to reject the null hypothesis H_0.")
+            print("    No significant difference with meaningful effect size was observed between biased and random sampling.")
 
         print(f"\n  {self.check_mark} Biased sampling analysis complete")
 

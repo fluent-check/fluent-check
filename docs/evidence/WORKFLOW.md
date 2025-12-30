@@ -19,8 +19,9 @@ npm run evidence:quick
 ```
 
 - ⏱️ **Time**: ~5 seconds
-- 📊 **Trials**: reduced per study (`QUICK_MODE=1`, varies by study)
+- 📊 **Trials**: reduced per study (via `--quick`)
 - 🎯 **Use for**: Testing, iteration, CI/CD
+- ℹ️ **Includes**: Core confidence studies only
 
 ### Full Mode (Publication)
 
@@ -29,8 +30,32 @@ npm run evidence
 ```
 
 - ⏱️ **Time**: ~15-30 seconds  
-- 📊 **Trials**: full per study (varies by study)
+- 📊 **Trials**: full per study
 - 🎯 **Use for**: Final evidence, documentation
+- ℹ️ **Includes**: Core confidence studies only
+
+### Run All Studies (Core + Apparatus)
+
+```bash
+npm run evidence:all
+```
+
+Runs the complete suite of statistical validation studies.
+
+## Run Specific Studies
+
+You can run studies individually or by category:
+
+```bash
+# Run all "Apparatus" studies (biased sampling, corner cases, etc.)
+npm run evidence:apparatus
+
+# Run a specific study (e.g., calibration)
+npm run evidence:study calibration
+
+# Run a specific study in quick mode
+npm run evidence:study calibration --quick
+```
 
 ## What Gets Generated
 
@@ -39,81 +64,29 @@ npm run evidence
 - `calibration.csv` - Confidence calibration data
 - `detection.csv` - Bug detection rate data
 - `efficiency.csv` - Property complexity adaptation data
-- `exists.csv` - Existential witness detection data
-- `shrinking.csv` - Shrinking effectiveness data
-- `double_negation.csv` - Double-negation equivalence data
-- `composition.csv` - Composition complexity data (paired with `double_negation.csv`)
+- ...and many others
 
 ### Visualizations (`docs/evidence/figures/`)
 
 - `calibration.png` - Calibration curve
 - `detection_rates.png` - Detection rate comparison
-- `detection_ecdf.png` - Tests-to-termination cumulative distribution
 - `efficiency_boxplot.png` - Efficiency comparison
-- `exists_detection_rates.png` - Witness detection rates by scenario
-- `exists_vs_sample_size.png` - Detection rate vs sample size
-- `exists_tests_to_witness.png` - Tests-to-witness distribution
-- `shrinking_minimal_rate.png` - Rate of reaching minimal witness
-- `shrinking_effort.png` - Shrinking effort vs progress
-- `shrinking_time_breakdown.png` - Exploration vs shrinking time
-- `shrinking_witness_quality.png` - Witness quality distribution
-- `double_neg_detection_rates.png` - Exists vs double-negation detection rates
-- `double_neg_composition.png` - Composition complexity comparison
-- `double_neg_shrinking.png` - Shrinking comparison
+- ...and many others
 
 ### Report
 
 - `docs/evidence/README.md` - Main evidence report with embedded figures
 
-## Individual Steps
-
-If you need to run steps separately:
-
-### 1. Generate Data Only
-
-```bash
-npm run evidence:generate
-```
-
-Runs TypeScript experiments, outputs CSV files.
-
-### 2. Analyze Data Only
-
-```bash
-npm run evidence:analyze
-```
-
-Reads CSV files, generates PNG visualizations.
-
 ## Behind the Scenes
 
-### TypeScript → CSV
+The unified executor (`scripts/evidence/execute.ts`) handles both data generation and analysis for each study sequentially.
 
 ```
-npm run evidence:generate
-  → npx tsx scripts/evidence/calibration.study.ts
-  → npx tsx scripts/evidence/detection.study.ts  
-  → npx tsx scripts/evidence/efficiency.study.ts
-  → npx tsx scripts/evidence/exists.study.ts
-  → npx tsx scripts/evidence/shrinking.study.ts
-  → npx tsx scripts/evidence/double-negation.study.ts
-  → Writes docs/evidence/raw/*.csv
-```
-
-### Python → PNG
-
-```
-npm run evidence:analyze
-  → ./scripts/evidence/run-analysis.sh
-    → Activates analysis/.venv automatically
-    → python analysis/calibration.py
-    → python analysis/detection.py
-    → python analysis/efficiency.py
-    → python analysis/exists.py
-    → python analysis/shrinking.py
-    → python analysis/double_negation.py
-    → Writes docs/evidence/figures/*.png
-    → Deactivates venv
+npm run evidence
+  → npx tsx scripts/evidence/execute.ts --core
+    → For each study (e.g., calibration):
+      1. Runs TypeScript: npx tsx scripts/evidence/calibration.study.ts
+      2. Runs Python: analysis/.venv/bin/python analysis/calibration.py
 ```
 
 ## Reproducibility
@@ -145,13 +118,6 @@ rm -rf analysis/.venv
 npm run evidence:setup
 ```
 
-### Issue: Missing CSV files
-
-**Solution**: Generate data first:
-```bash
-npm run evidence:generate
-```
-
 ### Issue: TypeScript errors
 
 **Solution**: Rebuild project:
@@ -174,47 +140,3 @@ For automated testing, use quick mode:
     name: evidence
     path: docs/evidence/
 ```
-
-## Advanced Usage
-
-### Custom Sample Sizes
-
-Edit environment variable in scripts:
-```bash
-QUICK_MODE=1 npm run evidence:generate
-```
-
-### Modify Studies
-
-Edit scripts in `scripts/evidence/`:
-- `calibration.study.ts` - Calibration parameters
-- `detection.study.ts` - Bug failure rates
-- `efficiency.study.ts` - Property types
-- `exists.study.ts` - Existential witness detection scenarios
-- `shrinking.study.ts` - Shrinking effectiveness experiments
-- `double-negation.study.ts` - Double-negation equivalence and composition metrics
-
-### Modify Analysis
-
-Edit scripts in `analysis/`:
-- `calibration.py` - Calibration plot styling
-- `detection.py` - Detection rate visualization
-- `efficiency.py` - Efficiency plot styling
-- `exists.py` - Existential witness plots
-- `shrinking.py` - Shrinking plots
-- `double_negation.py` - Double-negation plots
-- `util.py` - Shared plotting utilities
-
-## Next Steps
-
-After generating evidence:
-
-1. **Review figures**: Open `docs/evidence/figures/*.png`
-2. **Check data**: Inspect `docs/evidence/raw/*.csv`
-3. **Update report**: Fill in actual numbers in `docs/evidence/README.md`
-4. **Commit results**: `git add docs/evidence/ && git commit -m "chore: update evidence"`
-
-## Performance Notes
-
-**Quick Mode** (~5 seconds) and **Full Mode** (~15-30 seconds) run the same set of studies.
-Trial counts are reduced in quick mode via `QUICK_MODE=1`; see the study scripts in `scripts/evidence/` for exact parameters.

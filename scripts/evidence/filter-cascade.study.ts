@@ -85,10 +85,11 @@ function countDistinct(arb: fc.Arbitrary<number>, maxSamples: number = 100000): 
  */
 function runTrial(
   params: FilterCascadeParams,
-  trialId: number
+  trialId: number,
+  indexInConfig: number
 ): FilterCascadeResult {
   const { chainDepth, filterPassRate, useLegacy } = params
-  const seed = getSeed(trialId)
+  const seed = getSeed(indexInConfig) // Use index in config for consistent seed
   const timer = new HighResTimer()
 
   // Build filter cascade: start with base arbitrary, add filters
@@ -235,7 +236,7 @@ async function runFilterCascadeStudy(): Promise<void> {
     }
   })
 
-  await runner.run(parameters, runTrial)
+  await runner.run(parameters, (p, id, idx) => runTrial(p, id, idx))
 }
 
 // CLI entrypoint
