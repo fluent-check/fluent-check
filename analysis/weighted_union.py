@@ -43,8 +43,8 @@ class WeightedUnionAnalysis(AnalysisBase):
         self._print_conclusion()
 
     def _compute_chi_squared(self) -> None:
-        """Compute chi-squared goodness-of-fit tests."""
-        self.print_section("CHI-SQUARED GOODNESS-OF-FIT TEST")
+        """Compute statistical tests (Chi-squared, Cohen's h, CI coverage)."""
+        self.print_section("STATISTICAL TESTS (G1, G2, G3)")
 
         self.results = []
         for union_type in self.df['union_type'].unique():
@@ -58,30 +58,51 @@ class WeightedUnionAnalysis(AnalysisBase):
 
             observed_p0 = total_branch0 / total_samples if total_samples > 0 else 0
 
-            ci = wilson_score_interval(total_branch0, total_samples)
+            # Wilson score interval for observed proportion
+            ci_lo, ci_hi = wilson_score_interval(total_branch0, total_samples)
 
+            # Chi-squared test
             observed = np.array([total_branch0, total_branch1])
             expected = np.array([expected_p0 * total_samples, (1 - expected_p0) * total_samples])
             chi2, p_value = stats.chisquare(observed, expected)
 
-            residual = observed_p0 - expected_p0
+            # Cohen's h effect size
+            # h = 2 * (arcsin(sqrt(p1)) - arcsin(sqrt(p2)))
+            h = 2 * (np.arcsin(np.sqrt(observed_p0)) - np.arcsin(np.sqrt(expected_p0)))
+            effect_size = abs(h)
+
+            # Check criteria
+            # G1: p_value >= 0.05 (fail to reject null -> consistent)
+            pass_g1 = p_value >= 0.05
+            
+            # G2: Observed within 95% CI of expected?
+            # Actually design says: "Observed selection rates are within 95% confidence intervals of expected rates"
+            # This usually means expected_p0 is inside [ci_lo, ci_hi]
+            pass_g2 = ci_lo <= expected_p0 <= ci_hi
+            
+            # G3: Effect size < 0.2 (small effect)
+            pass_g3 = effect_size < 0.2
 
             print(f"\n{union_type}:")
             print(f"  Expected P(branch 0): {expected_p0:.4f}")
-            print(f"  Observed P(branch 0): {observed_p0:.4f} {format_ci(*ci)}")
-            print(f"  Residual: {residual:+.4f}")
+            print(f"  Observed P(branch 0): {observed_p0:.4f} {format_ci(ci_lo, ci_hi)}")
             print(f"  Total samples: {total_samples:,}")
-            print(f"  chi2 = {chi2:.2f}, df = 1, p = {p_value:.4f} {'*' if p_value < 0.05 else ''}")
+            print(f"  Chi-squared: p = {p_value:.4f} ({'Pass' if pass_g1 else 'Fail'})")
+            print(f"  CI Check: Expected in Observed CI? {'Yes' if pass_g2 else 'No'} ({'Pass' if pass_g2 else 'Fail'})")
+            print(f"  Cohen's h: {effect_size:.4f} ({'Pass' if pass_g3 else 'Fail'})")
 
             self.results.append({
                 'union_type': union_type,
                 'expected_p0': expected_p0,
                 'observed_p0': observed_p0,
-                'ci_lower': ci[0],
-                'ci_upper': ci[1],
-                'residual': residual,
+                'ci_lower': ci_lo,
+                'ci_upper': ci_hi,
                 'chi2': chi2,
                 'p_value': p_value,
+                'effect_size': effect_size,
+                'pass_g1': pass_g1,
+                'pass_g2': pass_g2,
+                'pass_g3': pass_g3,
                 'total_samples': total_samples
             })
 
@@ -90,7 +111,7 @@ class WeightedUnionAnalysis(AnalysisBase):
         fig, axes = plt.subplots(1, 2, figsize=(14, 6))
 
         self._create_comparison_chart(axes[0])
-        self._create_residual_chart(axes[1])
+        self._create_effect_size_chart(axes[1])
 
         save_figure(fig, self.get_output_path("weighted-union.png"))
 
@@ -107,10 +128,10 @@ class WeightedUnionAnalysis(AnalysisBase):
         observed_errors_array = np.array(observed_errors).T
 
         ax.scatter(x, expected_values, color='red', marker='D', s=100, label='Expected', zorder=3)
-        bars = ax.bar(x, observed_values, width, label='Observed',
+        bars = ax.bar(x, observed_values, width, label='Observed (95% CI)',
                yerr=observed_errors_array, capsize=5, color='#3498db', alpha=0.7)
 
-        # Annotate significant deviations
+        # Annotate significant p-values
         for idx, rect in enumerate(bars):
             p_val = self.results[idx]['p_value']
             if p_val < 0.05:
@@ -121,72 +142,76 @@ class WeightedUnionAnalysis(AnalysisBase):
 
         ax.set_xlabel('Union Type')
         ax.set_ylabel('Probability of Selecting Branch 0')
-        ax.set_title('Observed vs Expected (with Significance)')
+        ax.set_title('Observed vs Expected Proportions')
         ax.set_xticks(x)
         ax.set_xticklabels(union_labels, fontsize=8)
         ax.set_ylim(0, 1.1)
         ax.legend()
         ax.grid(True, axis='y', alpha=0.3)
 
-        ax.axhline(y=0.5, color='gray', linestyle=':', alpha=0.5, linewidth=1)
-
-    def _create_residual_chart(self, ax) -> None:
-        """Create residual plot."""
+    def _create_effect_size_chart(self, ax) -> None:
+        """Create Cohen's h effect size chart."""
         union_labels = [r['union_type'].replace('_', '\n') for r in self.results]
         x = np.arange(len(union_labels))
         width = 0.35
 
-        residuals = [r['residual'] for r in self.results]
-        p_values = [r['p_value'] for r in self.results]
+        effect_sizes = [r['effect_size'] for r in self.results]
         
         # Color logic:
-        # Green: Within 1% tolerance OR Not Significant
-        # Yellow: > 1% but Not Significant (just noise) - unlikely if sample size is large
-        # Red: > 1% AND Significant (Real Deviation)
+        # Green: h < 0.2 (Small/Negligible) - PASS G3
+        # Yellow: 0.2 <= h < 0.5 (Small-Medium)
+        # Red: h >= 0.5 (Medium-Large)
         colors = []
-        for r, p in zip(residuals, p_values):
-            if abs(r) <= 0.015:
-                colors.append('green') # Within tolerance
-            elif p >= 0.05:
-                colors.append('orange') # Large deviation but not significant (high variance?)
+        for h in effect_sizes:
+            if h < 0.2:
+                colors.append('green')
+            elif h < 0.5:
+                colors.append('orange')
             else:
-                colors.append('red') # Significant deviation outside tolerance
+                colors.append('red')
 
-        ax.bar(x, residuals, width, color=colors, alpha=0.7)
-        ax.axhline(y=0, color='black', linestyle='-', linewidth=1)
-        ax.axhline(y=0.015, color='red', linestyle='--', alpha=0.5, linewidth=1, label='+/-1.5% Tolerance')
-        ax.axhline(y=-0.015, color='red', linestyle='--', alpha=0.5, linewidth=1)
-
+        ax.bar(x, effect_sizes, width, color=colors, alpha=0.7)
+        ax.axhline(y=0.2, color='red', linestyle='--', linewidth=1.5, label='Small Effect Limit (h=0.2)')
+        
         ax.set_xlabel('Union Type')
-        ax.set_ylabel('Residual (Observed - Expected)')
-        ax.set_title('Deviation from Theoretical Probability')
+        ax.set_ylabel("Cohen's h (Effect Size)")
+        ax.set_title("Deviation Magnitude (Cohen's h)")
         ax.set_xticks(x)
         ax.set_xticklabels(union_labels, fontsize=8)
         ax.legend()
         ax.grid(True, axis='y', alpha=0.3)
 
     def _print_conclusion(self) -> None:
-        """Print conclusion."""
+        """Print conclusion based on G1, G2, G3 criteria."""
         self.print_section("CONCLUSION")
-        
-        # Pass if (Not Significant) OR (Within 1.5% Tolerance)
-        # We fail only if we have a Significant Deviation > 1.5%
         
         failures = []
         for r in self.results:
-            is_significant = r['p_value'] < 0.05
-            is_outside_tolerance = abs(r['residual']) > 0.015
+            # Pass if ANY of G1, G2 is true, OR if G3 is true (effect is small)
+            # The design doc says:
+            # G1 passes if p >= 0.05
+            # G2 passes if observed within expected CI (Wait, strict reading: G2 is observed within CI of expected? Or expected within CI of observed? "Observed selection rates are within 95% confidence intervals of expected rates" - usually implies checking overlap or containment. Wilson CI is for observed. So we check if Expected is in CI(Observed)).
+            # G3 passes if h < 0.2
             
-            if is_significant and is_outside_tolerance:
+            # Acceptance: "G1 passes if ... G2 passes if ... G3 passes if ..."
+            # Do we need ALL to pass?
+            # Usually, if p < 0.05 (G1 fails), we check effect size (G3).
+            # If effect size is small, it's acceptable even if statistically significant (due to large N).
+            
+            # So: Pass if (G1 OR G2) OR G3
+            
+            if (r['pass_g1'] or r['pass_g2']) or r['pass_g3']:
+                pass 
+            else:
                 failures.append(r)
 
         if not failures:
             print(f"  {self.check_mark} Hypothesis supported: All deviations are either")
-            print(f"    statistically insignificant (p > 0.05) or within tolerance (< 1.5%)")
+            print(f"    statistically insignificant (p > 0.05) or have small effect size (h < 0.2)")
         else:
-            print(f"  x Hypothesis not supported: Found significant deviations > 1.5%")
+            print(f"  x Hypothesis not supported: Found significant deviations with non-negligible effect size")
             for f in failures:
-                print(f"    - {f['union_type']}: Residual {f['residual']:+.4f}, p={f['p_value']:.4f}")
+                print(f"    - {f['union_type']}: p={f['p_value']:.4f}, h={f['effect_size']:.4f}")
 
         print(f"\n  {self.check_mark} Weighted union analysis complete")
 

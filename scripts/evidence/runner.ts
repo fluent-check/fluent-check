@@ -491,7 +491,7 @@ function normalQuantile(p: number): number {
  * Calculate Cohen's h effect size for two proportions.
  * h = 2 * (arcsin(sqrt(p1)) - arcsin(sqrt(p2)))
  */
-function cohensH(p1: number, p2: number): number {
+export function cohensH(p1: number, p2: number): number {
   return 2 * (Math.asin(Math.sqrt(p1)) - Math.asin(Math.sqrt(p2)))
 }
 

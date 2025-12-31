@@ -68,12 +68,56 @@ The previously reported degradation was likely due to calculating "true size" as
 
 The study confirms that `warmup=200` (used in main studies) is more than sufficient for calibration, as convergence is effectively reached by `warmup=10-20` for chained filters.
 
+## Study G: Weighted Union Selection
+
+**Question**: Does `fc.union` (ArbitraryComposite) select branches with probability proportional to their size?
+
+**Background**:
+When creating a union of arbitraries (e.g., `fc.union(small, large)`), the selection probability should ideally match the relative sizes of the branches to ensure uniform sampling over the combined space.
+- If size(A)=10 and size(B)=100, P(A) should be 10/110 ≈ 0.09.
+
+**Hypotheses**:
+- G1: Selection frequencies match expected probabilities (Chi-squared p ≥ 0.05).
+- G2: Observed rates are within 95% CI of expected rates.
+- G3: Effect size (Cohen's h) is small (< 0.2) even if statistically significant.
+
+**Method**:
+1. **Scenarios**:
+   - Exact sizes: 11 vs 2, 100 vs 10, 50 vs 50, 1 vs 99.
+   - Filtered sizes (estimated): 50% vs 50% exact, 30% vs 70% filtered.
+2. **Measurement**:
+   - Run 100 trials x 10,000 samples (1M samples total).
+   - Count selections for each branch.
+   - Compute Chi-squared, Wilson CI, and Cohen's h.
+
+**Results**:
+
+| Scenario | Expected P(0) | Observed P(0) | p-value | Cohen's h | Result |
+|----------|---------------|---------------|---------|-----------|--------|
+| Exact 11 vs 2 | 0.8462 | 0.8466 | 0.2312 | 0.0012 | PASS (G1) |
+| Exact 100 vs 10 | 0.9091 | 0.9093 | 0.4019 | 0.0008 | PASS (G1) |
+| Exact 50 vs 50 | 0.5000 | 0.5000 | 0.9617 | 0.0000 | PASS (G1) |
+| Exact 1 vs 99 | 0.0100 | 0.0100 | 0.7250 | 0.0004 | PASS (G1) |
+| Filtered (50%) | 0.5098 | 0.4994 | 0.0000 | 0.0207 | PASS (G3) |
+| Filtered (30/70)| 0.3178 | 0.3280 | 0.0000 | 0.0218 | PASS (G3) |
+
+**Key Findings**:
+1. **Exact unions are perfectly calibrated**: When sizes are known exactly, `fc.union` samples with correct proportions (p > 0.05).
+2. **Filtered unions show small deviations**: When sizes are estimated (via filtering), there is a statistically significant deviation (p < 0.05) due to estimation error.
+3. **Effect size is negligible**: The deviations in filtered scenarios have Cohen's h ≈ 0.02, which is an order of magnitude below the "small effect" threshold (0.2). This confirms that size estimation is sufficiently accurate for practical weighted sampling.
+
+**Visualization**:
+
+![Weighted Union Probability](figures/weighted-union.png)
+
 ## Reproduction
 
 ```bash
 # Generate data
 npm run evidence:study ci-calibration-advanced
+npm run evidence:study weighted-union
 
 # Run analysis
 npm run evidence:analyze ci-calibration-advanced
+npm run evidence:analyze weighted-union
 ```

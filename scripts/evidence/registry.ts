@@ -65,7 +65,7 @@ export const registry: Record<string, StudyConfig> = {
     ts: 'scripts/evidence/weighted-union.study.ts',
     py: 'analysis/weighted_union.py',
     tags: ['apparatus', 'combinators', 'union'],
-    description: 'Tests probability distribution of unions'
+    description: 'Study G: Tests probability distribution of unions (Weighted Selection)'
   },
   'corner-case-coverage': {
     id: 'corner-case-coverage',
