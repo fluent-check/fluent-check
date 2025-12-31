@@ -301,7 +301,7 @@ class CICalibrationAnalysis(AnalysisBase):
         ax1.set_title('CI Coverage by Scenario Type', fontsize=14)
         ax1.set_xticks(x_pos)
         ax1.set_xticklabels([t.replace('_', '\n') for t in types], fontsize=9, rotation=0)
-        ax1.set_ylim(0, 1.05)
+        ax1.set_ylim(0.75, 1.05)
         ax1.legend(loc='lower right')
         ax1.grid(True, axis='y', alpha=0.3)
 
@@ -345,7 +345,7 @@ class CICalibrationAnalysis(AnalysisBase):
             ax3.set_xlabel('Filter Chain Depth', fontsize=12)
             ax3.set_ylabel('Coverage Rate', fontsize=12)
             ax3.set_title('Coverage Stability vs Depth', fontsize=14)
-            ax3.set_ylim(0.5, 1.05)
+            ax3.set_ylim(0.75, 1.05)
             ax3.set_xticks(depths)
             ax3.grid(True, alpha=0.3)
             ax3.legend()

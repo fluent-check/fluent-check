@@ -128,7 +128,7 @@ export function runTrial(
 
 async function runAdvancedStudy(): Promise<void> {
   const depths = [1, 2, 3, 5, 10]
-  const warmups = [200, 500, 1000]
+  const warmups = [10, 20, 50, 100, 200]
   const passRates = [0.3, 0.7]
 
   const scenarios: AdvancedCICalibrationParams[] = []

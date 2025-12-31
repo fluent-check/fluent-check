@@ -84,7 +84,10 @@ class AdvancedCICalibrationAnalysis(AnalysisBase):
             depths = stats['depth']
             means = stats['mean']
             err = [self._wilson_ci(m, int(c)) for m, c in zip(means, stats['count'])]
-            yerr = [[m - e[0] for m, e in zip(means, err)], [e[1] - m for m, e in zip(means, err)]]
+            
+            yerr_lower = [max(0, m - e[0]) for m, e in zip(means, err)]
+            yerr_upper = [max(0, e[1] - m) for m, e in zip(means, err)]
+            yerr = [yerr_lower, yerr_upper]
             
             ax1.errorbar(depths, means, yerr=yerr, label=f'Warmup={warmup}', fmt='o-', capsize=4)
 
@@ -92,7 +95,7 @@ class AdvancedCICalibrationAnalysis(AnalysisBase):
         ax1.set_xlabel('Filter Chain Depth')
         ax1.set_ylabel('Coverage Rate')
         ax1.set_title('Coverage vs Depth and Warmup')
-        ax1.set_ylim(0.4, 1.05)
+        ax1.set_ylim(0.75, 1.05)
         ax1.legend()
         ax1.grid(True, alpha=0.3)
 
@@ -109,7 +112,7 @@ class AdvancedCICalibrationAnalysis(AnalysisBase):
         ax2.set_xlabel('Warmup Samples')
         ax2.set_ylabel('Coverage Rate')
         ax2.set_title('Impact of Warmup on Convergence')
-        ax2.set_ylim(0.4, 1.05)
+        ax2.set_ylim(0.75, 1.05)
         ax2.legend()
         ax2.grid(True, alpha=0.3)
 
