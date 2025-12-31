@@ -56,6 +56,7 @@ class CICalibrationAnalysis(AnalysisBase):
         self._compute_coverage_by_type()
         self._test_hypotheses()
         self._analyze_interval_width()
+        self._analyze_filter_chain_degradation()
         self._create_visualization()
         self._print_conclusion()
 
@@ -82,6 +83,37 @@ class CICalibrationAnalysis(AnalysisBase):
 
         self.df['scenario_type'] = self.df['scenario'].apply(get_type)
         self.scenario_types = self.df['scenario_type'].unique()
+
+    def _analyze_filter_chain_degradation(self) -> None:
+        """Analyze how coverage changes with filter chain depth."""
+        self.print_section("FILTER CHAIN DEGRADATION")
+        
+        # Extract depth from scenario name
+        chain_data = self.df[self.df['scenario_type'] == 'filter_chain'].copy()
+        if len(chain_data) == 0:
+            print("No filter chain data available.")
+            return
+
+        chain_data['depth'] = chain_data['scenario'].str.extract(r'depth(\d+)').astype(int)
+        
+        print(f"{'Depth':<10} {'Coverage':<10} {'N':<8} {'95% CI':<20}")
+        self.print_divider()
+
+        self.chain_stats = {}
+
+        for depth in sorted(chain_data['depth'].unique()):
+            data = chain_data[chain_data['depth'] == depth]
+            n = len(data)
+            coverage = data['true_in_ci'].mean()
+            ci = self._wilson_ci(coverage, n)
+
+            print(f"{depth:<10} {coverage:>7.1%}   {n:<8} [{ci[0]:.1%}, {ci[1]:.1%}]")
+            
+            self.chain_stats[depth] = {
+                'coverage': coverage,
+                'ci': ci,
+                'n': n
+            }
 
     def _compute_coverage_by_scenario(self) -> None:
         """Compute coverage rate for each scenario."""
@@ -234,10 +266,15 @@ class CICalibrationAnalysis(AnalysisBase):
 
     def _create_visualization(self) -> None:
         """Create visualization of CI calibration results."""
-        fig, axes = plt.subplots(1, 2, figsize=(14, 6))
+        fig = plt.figure(figsize=(18, 6))
+        
+        # Grid layout: 1 row, 3 columns
+        gs = fig.add_gridspec(1, 3)
+        ax1 = fig.add_subplot(gs[0, 0])
+        ax2 = fig.add_subplot(gs[0, 1])
+        ax3 = fig.add_subplot(gs[0, 2])
 
         # Left: Coverage by scenario type
-        ax1 = axes[0]
         types = sorted(self.type_coverage.keys())
         coverages = [self.type_coverage[t]['coverage'] for t in types]
         ci_lowers = [self.type_coverage[t]['ci'][0] for t in types]
@@ -247,9 +284,13 @@ class CICalibrationAnalysis(AnalysisBase):
         colors = ['#2ecc71' if c >= 0.85 else '#e74c3c' for c in coverages]
 
         ax1.bar(x_pos, coverages, color=colors, alpha=0.7, edgecolor='black')
+        
+        # Calculate error bars and ensure they are non-negative
+        yerr_lower = np.maximum(0, np.array(coverages) - np.array(ci_lowers))
+        yerr_upper = np.maximum(0, np.array(ci_uppers) - np.array(coverages))
+        
         ax1.errorbar(x_pos, coverages,
-                     yerr=[np.array(coverages) - np.array(ci_lowers),
-                           np.array(ci_uppers) - np.array(coverages)],
+                     yerr=[yerr_lower, yerr_upper],
                      fmt='none', color='black', capsize=5)
 
         ax1.axhline(y=0.90, color='blue', linestyle='--', alpha=0.7, label='Target (90%)')
@@ -264,21 +305,54 @@ class CICalibrationAnalysis(AnalysisBase):
         ax1.legend(loc='lower right')
         ax1.grid(True, axis='y', alpha=0.3)
 
-        # Right: Relative error vs coverage
-        ax2 = axes[1]
-
+        # Middle: Relative error vs coverage
         for stype in self.scenario_types:
             data = self.df[self.df['scenario_type'] == stype]
-            ax2.scatter(data['relative_error'], data['true_in_ci'].astype(int),
+            # Downsample if too many points for scatter plot performance/clarity
+            if len(data) > 2000:
+                data = data.sample(2000, random_state=42)
+            
+            ax2.scatter(data['relative_error'], data['true_in_ci'].astype(int) + np.random.normal(0, 0.02, len(data)),
                         alpha=0.3, s=10, label=stype)
 
         ax2.set_xlabel('Relative Error (|estimated - true| / true)', fontsize=12)
-        ax2.set_ylabel('True Size in CI (0=No, 1=Yes)', fontsize=12)
+        ax2.set_ylabel('True Size in CI (Jittered)', fontsize=12)
         ax2.set_title('Coverage vs Estimation Error', fontsize=14)
-        ax2.set_xlim(-0.1, 2.0)
+        
+        # Auto-scale x-axis based on data, but keep 0 as lower bound
+        max_error = self.df['relative_error'].max()
+        if max_error > 0:
+            ax2.set_xlim(-0.02 * max_error, max_error * 1.05)
+        else:
+            ax2.set_xlim(-0.1, 1.0)
+            
+        ax2.set_yticks([0, 1])
+        ax2.set_yticklabels(['No', 'Yes'])
         ax2.legend(loc='center right', fontsize=8)
         ax2.grid(True, alpha=0.3)
+        
+        # Right: Filter Chain Depth vs Coverage
+        if hasattr(self, 'chain_stats') and self.chain_stats:
+            depths = sorted(self.chain_stats.keys())
+            chain_cov = [self.chain_stats[d]['coverage'] for d in depths]
+            chain_lower = [self.chain_stats[d]['ci'][0] for d in depths]
+            chain_upper = [self.chain_stats[d]['ci'][1] for d in depths]
+            
+            ax3.plot(depths, chain_cov, 'o-', color='#3498db', linewidth=2, label='Coverage')
+            ax3.fill_between(depths, chain_lower, chain_upper, color='#3498db', alpha=0.2, label='95% CI')
+            
+            ax3.axhline(y=0.90, color='red', linestyle='--', label='Target (90%)')
+            ax3.set_xlabel('Filter Chain Depth', fontsize=12)
+            ax3.set_ylabel('Coverage Rate', fontsize=12)
+            ax3.set_title('Coverage Stability vs Depth', fontsize=14)
+            ax3.set_ylim(0.5, 1.05)
+            ax3.set_xticks(depths)
+            ax3.grid(True, alpha=0.3)
+            ax3.legend()
+        else:
+            ax3.text(0.5, 0.5, 'No Filter Chain Data', ha='center', va='center')
 
+        plt.tight_layout()
         save_figure(fig, self.get_output_path("ci-calibration.png"))
 
     def _print_conclusion(self) -> None:

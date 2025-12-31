@@ -89,9 +89,9 @@ For each scenario:
 
 3. **Exact arbitraries have perfect coverage**: When base sizes are known exactly, the "CI" degenerates to a point estimate, achieving 100% coverage.
 
-4. **Filter chains show some degradation**: Depth-2 chains show 86.6% coverage (slightly below target), while depth-3 chains show 95.6%. This suggests the estimation stabilizes with more filtering.
+4. **Filter chains are robustly conservative**: While initial studies suggested a dip at depth 2, advanced investigation (see [Advanced Study](ci-calibration-advanced.md)) confirmed this was an experimental artifact. In reality, coverage increases with depth as interval arithmetic compounds uncertainty conservatively.
 
-5. **Overall system is properly calibrated**: 95.7% overall coverage is well within the acceptable range and not excessively conservative.
+5. **Overall system is properly calibrated**: 97.6% overall coverage is well within the acceptable range and not excessively conservative.
 
 ## Visualization
 
@@ -101,13 +101,15 @@ For each scenario:
 
 1. **The CI system works as intended**: Users can rely on size estimates having approximately the claimed coverage.
 
-2. **Interval arithmetic is conservative**: The simple approach of multiplying/adding interval bounds produces wider-than-necessary intervals. This trades precision for correctness.
+2. **Interval arithmetic is conservative**: The simple approach of multiplying/adding interval bounds produces wider-than-necessary intervals. This trades precision for correctness and ensures safety in chained compositions.
 
 3. **Warmup is important**: The 200-sample warmup ensures the Beta posterior has converged before calling `size()`.
 
 ## Recommendations
 
-1. **No changes required**: The current system achieves its calibration targets.
+1. **No changes required**: The current system achieves its calibration targets across all scenario types, including deep filter chains.
+
+2. **Ground Truth Verification**: Always use exact counts for ground truth in future studies involving discrete sets to avoid experimental artifacts.
 
 2. **Future improvement**: For applications requiring tighter intervals, consider implementing proper Bayesian interval propagation (Monte Carlo sampling from posteriors) instead of interval arithmetic.
 

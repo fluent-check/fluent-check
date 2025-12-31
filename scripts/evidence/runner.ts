@@ -4,6 +4,9 @@
 
 import fs from 'fs'
 import path from 'path'
+import { fork, ChildProcess } from 'child_process'
+import { fileURLToPath, pathToFileURL } from 'url'
+import jstat from 'jstat'
 
 /**
  * Mulberry32 PRNG for deterministic random number generation
@@ -193,6 +196,125 @@ export interface ExperimentConfig<TParams, TResult> {
   resultToRow: (result: TResult) => (string | number | boolean | undefined)[]
   /** Optional function to print experiment info before starting */
   preRunInfo?: () => void
+  /** Optional configuration for parallel execution */
+  parallel?: {
+    /** Absolute path to the module containing the run function */
+    modulePath: string
+    /** Name of the exported function to call */
+    functionName: string
+  }
+}
+
+/**
+ * Run tasks in parallel using child processes
+ */
+export async function runParallel<TResult>(
+  tasks: { args: any[], taskId: number }[],
+  modulePath: string,
+  functionName: string,
+  progress?: ProgressReporter
+): Promise<TResult[]> {
+  const threadCount = process.env.THREADS ? parseInt(process.env.THREADS, 10) : 1
+  
+  if (threadCount <= 1) {
+    throw new Error('runParallel called with threads <= 1')
+  }
+
+  console.log(`Running in parallel with ${threadCount} child processes...`)
+
+  const __filename = fileURLToPath(import.meta.url)
+  const __dirname = path.dirname(__filename)
+  const workerPath = path.join(__dirname, 'worker.ts')
+  
+  const results: Map<number, TResult> = new Map()
+  
+  // Create workers
+  const workers: ChildProcess[] = []
+  const taskQueue = [...tasks]
+  let pendingTasks = tasks.length
+  
+  return new Promise((resolve, reject) => {
+    let errorOccurred = false
+
+    const cleanup = () => {
+      workers.forEach(w => w.kill())
+    }
+
+    const processQueue = (workerIndex: number) => {
+      if (errorOccurred) return
+      
+      if (taskQueue.length === 0) {
+        if (pendingTasks === 0) {
+           // All done
+           cleanup()
+           // Sort results by taskId to maintain order
+           const sortedResults = tasks.map(t => {
+             const res = results.get(t.taskId)
+             if (res === undefined) {
+               console.error(`Task ${t.taskId} is missing result!`)
+             }
+             return res!
+           })
+           resolve(sortedResults)
+        }
+        return
+      }
+
+      const task = taskQueue.shift()!
+      const worker = workers[workerIndex]
+      
+      worker.send({
+        type: 'run',
+        payload: {
+          modulePath,
+          functionName,
+          args: task.args
+        },
+        taskId: task.taskId
+      })
+    }
+
+    for (let i = 0; i < threadCount; i++) {
+      const worker = fork(workerPath, [], {
+        execArgv: process.execArgv,
+        env: process.env,
+        stdio: ['inherit', 'inherit', 'inherit', 'ipc']
+      })
+      
+      worker.on('message', (msg: any) => {
+        if (msg.type === 'result') {
+          results.set(msg.taskId, msg.result)
+          pendingTasks--
+          if (progress) progress.update()
+          processQueue(i)
+        } else if (msg.type === 'error') {
+          errorOccurred = true
+          console.error(`Worker error on task ${msg.taskId}:`, msg.error)
+          cleanup()
+          reject(msg.error)
+        }
+      })
+
+      worker.on('error', (err) => {
+        errorOccurred = true
+        console.error('Child process error:', err)
+        cleanup()
+        reject(err)
+      })
+
+      worker.on('exit', (code) => {
+        if (code !== 0 && !errorOccurred) {
+          errorOccurred = true
+          cleanup()
+          reject(new Error(`Child process exited with code ${code}`))
+        }
+      })
+
+      workers.push(worker)
+      // Start processing
+      processQueue(i)
+    }
+  })
 }
 
 /**
@@ -228,12 +350,40 @@ export class ExperimentRunner<TParams, TResult> {
     const progress = new ProgressReporter(totalTrials, this.config.name)
     let trialId = 0
 
-    for (const params of parameterSets) {
-      for (let i = 0; i < this.config.trialsPerConfig; i++) {
-        const result = runTrial(params, trialId, i)
+    // Check if parallel execution is enabled and requested
+    const threadCount = process.env.THREADS ? parseInt(process.env.THREADS, 10) : 1
+    if (this.config.parallel && threadCount > 1) {
+      const tasks: { args: any[], taskId: number }[] = []
+      
+      for (const params of parameterSets) {
+        for (let i = 0; i < this.config.trialsPerConfig; i++) {
+          tasks.push({
+            args: [params, trialId, i],
+            taskId: trialId
+          })
+          trialId++
+        }
+      }
+
+      const results = await runParallel<TResult>(
+        tasks,
+        this.config.parallel.modulePath,
+        this.config.parallel.functionName,
+        progress
+      )
+
+      for (const result of results) {
         writer.writeRow(this.config.resultToRow(result))
-        progress.update()
-        trialId++
+      }
+    } else {
+      // Sequential execution
+      for (const params of parameterSets) {
+        for (let i = 0; i < this.config.trialsPerConfig; i++) {
+          const result = runTrial(params, trialId, i)
+          writer.writeRow(this.config.resultToRow(result))
+          progress.update()
+          trialId++
+        }
       }
     }
 
@@ -287,4 +437,131 @@ export class ExperimentRunner<TParams, TResult> {
     console.log(`\n✓ ${this.config.name} complete`)
     console.log(`  Output: ${this.config.outputPath}`)
   }
+}
+
+// =============================================================================
+// POWER ANALYSIS UTILITIES
+// =============================================================================
+
+/**
+ * Statistical power analysis for proportion-based studies.
+ *
+ * These utilities help determine sample sizes needed to detect
+ * deviations from a target proportion (e.g., 90% coverage) with
+ * specified statistical power.
+ */
+
+/**
+ * Parameters for power analysis
+ */
+export interface PowerAnalysisParams {
+  /** Target proportion (e.g., 0.90 for 90% coverage) */
+  targetProportion: number
+  /** Minimum deviation to detect (e.g., 0.05 for 5% deviation) */
+  minDetectableDeviation: number
+  /** Significance level (default: 0.05 for 95% confidence) */
+  alpha?: number
+  /** Desired statistical power (default: 0.95) */
+  power?: number
+}
+
+/**
+ * Result of power analysis
+ */
+export interface PowerAnalysisResult {
+  /** Required sample size per configuration */
+  requiredSampleSize: number
+  /** The parameters used */
+  params: Required<PowerAnalysisParams>
+  /** Expected Wilson CI half-width at this sample size */
+  expectedCIHalfWidth: number
+  /** Actual detectable deviation at this sample size */
+  actualDetectableDeviation: number
+}
+
+/**
+ * Standard normal quantile function (inverse CDF).
+ * Wrapper around jstat.normal.inv for standard normal (mean=0, std=1).
+ */
+function normalQuantile(p: number): number {
+  return jstat.normal.inv(p, 0, 1)
+}
+
+/**
+ * Calculate Cohen's h effect size for two proportions.
+ * h = 2 * (arcsin(sqrt(p1)) - arcsin(sqrt(p2)))
+ */
+function cohensH(p1: number, p2: number): number {
+  return 2 * (Math.asin(Math.sqrt(p1)) - Math.asin(Math.sqrt(p2)))
+}
+
+/**
+ * Calculate required sample size to detect a deviation from target proportion.
+ *
+ * Uses the formula for one-sample proportion test based on Cohen's h effect size.
+ *
+ * @example
+ * ```ts
+ * // To detect 5% deviation from 90% with 95% power:
+ * const result = calculateRequiredSampleSize({
+ *   targetProportion: 0.90,
+ *   minDetectableDeviation: 0.05,
+ *   power: 0.95
+ * })
+ * console.log(result.requiredSampleSize) // 564
+ * ```
+ */
+export function calculateRequiredSampleSize(params: PowerAnalysisParams): PowerAnalysisResult {
+  const {
+    targetProportion,
+    minDetectableDeviation,
+    alpha = 0.05,
+    power = 0.95
+  } = params
+
+  // Z-scores for two-sided test
+  const zAlpha = normalQuantile(1 - alpha / 2)
+  const zBeta = normalQuantile(power)
+
+  // Effect size (Cohen's h)
+  const p1 = targetProportion - minDetectableDeviation
+  const h = Math.abs(cohensH(targetProportion, p1))
+
+  // Sample size formula: n = ((z_alpha + z_beta) / h)^2
+  const n = Math.ceil(Math.pow((zAlpha + zBeta) / h, 2))
+
+  // Calculate expected CI half-width at this sample size
+  const z = normalQuantile(1 - alpha / 2)
+  const p = targetProportion
+  const denominator = 1 + z * z / n
+  const margin = z * Math.sqrt(p * (1 - p) / n + z * z / (4 * n * n)) / denominator
+  const expectedCIHalfWidth = margin
+
+  // Calculate actual detectable deviation at this sample size
+  const actualH = (zAlpha + zBeta) / Math.sqrt(n)
+  const actualP1 = Math.pow(Math.sin(Math.asin(Math.sqrt(targetProportion)) - actualH / 2), 2)
+  const actualDetectableDeviation = Math.abs(targetProportion - actualP1)
+
+  return {
+    requiredSampleSize: n,
+    params: { targetProportion, minDetectableDeviation, alpha, power },
+    expectedCIHalfWidth,
+    actualDetectableDeviation
+  }
+}
+
+/**
+ * Print power analysis summary to console
+ */
+export function printPowerAnalysis(result: PowerAnalysisResult): void {
+  const { params, requiredSampleSize, expectedCIHalfWidth, actualDetectableDeviation } = result
+
+  console.log('Power Analysis:')
+  console.log(`  Target proportion: ${(params.targetProportion * 100).toFixed(0)}%`)
+  console.log(`  Min detectable deviation: ±${(params.minDetectableDeviation * 100).toFixed(1)}%`)
+  console.log(`  Significance level (α): ${params.alpha}`)
+  console.log(`  Statistical power: ${(params.power * 100).toFixed(0)}%`)
+  console.log(`  Required sample size: ${requiredSampleSize} per configuration`)
+  console.log(`  Expected 95% CI half-width: ±${(expectedCIHalfWidth * 100).toFixed(2)}%`)
+  console.log(`  Actual detectable deviation: ±${(actualDetectableDeviation * 100).toFixed(2)}%`)
 }
