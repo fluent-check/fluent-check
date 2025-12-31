@@ -17,14 +17,12 @@ E3: CI width increases after shrinking due to cold start
 E4: Coverage improves with additional warmup samples post-shrink
 """
 
-import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-from pathlib import Path
-from scipy import stats as scipy_stats
 
 from base import AnalysisBase
 from constants import OUTPUT_DIR, RAW_DATA_DIR
+from stats import wilson_score_interval
 
 
 class ShrinkingCICalibrationAnalysis(AnalysisBase):
@@ -80,17 +78,6 @@ class ShrinkingCICalibrationAnalysis(AnalysisBase):
             rate_change = f"{parent_rate*100:.1f}% -> {shrunk_rate*100:.1f}%"
             print(f"{scenario:<30} | {len(sdf):>7} | {parent_size:>12} | {shrunk_size:>12} | {rate_change:>16}")
 
-    def _compute_wilson_ci(self, successes: int, n: int, confidence: float = 0.95) -> tuple:
-        """Compute Wilson score confidence interval for a proportion."""
-        if n == 0:
-            return (0.0, 1.0)
-        z = scipy_stats.norm.ppf(1 - (1 - confidence) / 2)
-        p_hat = successes / n
-        denom = 1 + z**2 / n
-        center = (p_hat + z**2 / (2*n)) / denom
-        margin = z * np.sqrt((p_hat * (1 - p_hat) + z**2 / (4*n)) / n) / denom
-        return (max(0, center - margin), min(1, center + margin))
-
     def _analyze_parent_calibration(self) -> None:
         """Verify parent arbitraries are well-calibrated (baseline check)."""
         self.print_section("PARENT CALIBRATION (BASELINE)")
@@ -98,7 +85,7 @@ class ShrinkingCICalibrationAnalysis(AnalysisBase):
         parent_coverage = self.df['parent_true_in_ci'].mean()
         n = len(self.df)
         successes = int(parent_coverage * n)
-        wilson_low, wilson_high = self._compute_wilson_ci(successes, n)
+        wilson_low, wilson_high = wilson_score_interval(successes, n)
 
         print(f"Parent Coverage: {parent_coverage:.1%} (95% CI: [{wilson_low:.1%}, {wilson_high:.1%}])")
         print(f"Expected: ~90% (target credible level)")
@@ -131,8 +118,7 @@ class ShrinkingCICalibrationAnalysis(AnalysisBase):
             # Check coverage at default warmup (warmup0)
             coverage = sdf['warmup0_true_in_ci'].mean()
             n = len(sdf)
-            successes = int(coverage * n)
-            wilson_low, wilson_high = self._compute_wilson_ci(successes, n)
+            wilson_low, wilson_high = wilson_score_interval(int(coverage * n), n)
 
             status = "PASS" if coverage >= 0.85 else "FAIL"
             if coverage < 0.90:
@@ -168,8 +154,7 @@ class ShrinkingCICalibrationAnalysis(AnalysisBase):
 
             coverage = sdf['warmup0_true_in_ci'].mean()
             n = len(sdf)
-            successes = int(coverage * n)
-            wilson_low, wilson_high = self._compute_wilson_ci(successes, n)
+            wilson_low, wilson_high = wilson_score_interval(int(coverage * n), n)
 
             status = "PASS" if coverage >= 0.85 else "FAIL"
             if coverage < 0.85:
@@ -246,8 +231,7 @@ class ShrinkingCICalibrationAnalysis(AnalysisBase):
             coverage = self.df[col].mean()
             coverages.append(coverage)
             n = len(self.df)
-            successes = int(coverage * n)
-            wilson_low, wilson_high = self._compute_wilson_ci(successes, n)
+            wilson_low, wilson_high = wilson_score_interval(int(coverage * n), n)
             print(f"{total_samples:>15} | {total_samples:>14} | {coverage:>10.1%} | [{wilson_low:.1%}, {wilson_high:.1%}]")
 
         print()

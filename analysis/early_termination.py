@@ -27,11 +27,10 @@ Power Analysis:
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-from pathlib import Path
-from scipy import stats as scipy_stats
 
 from base import AnalysisBase
 from constants import OUTPUT_DIR, RAW_DATA_DIR
+from stats import wilson_score_interval
 
 # Power analysis parameters (must match early-termination.study.ts)
 POWER_ANALYSIS = {
@@ -160,19 +159,7 @@ class EarlyTerminationAnalysis(AnalysisBase):
         precision = 1.0 - false_term_rate
 
         # Wilson score CI for false termination rate
-        n = total_term
-        k = false_term_count
-        z = scipy_stats.norm.ppf(1 - POWER_ANALYSIS['alpha'] / 2)
-        p_hat = k / n if n > 0 else 0
-
-        if n > 0:
-            denom = 1 + z**2/n
-            center = (p_hat + z**2/(2*n)) / denom
-            margin = z * np.sqrt((p_hat*(1-p_hat) + z**2/(4*n))/n) / denom
-            wilson_low = max(0, center - margin)
-            wilson_high = min(1, center + margin)
-        else:
-            wilson_low, wilson_high = 0, 1
+        wilson_low, wilson_high = wilson_score_interval(false_term_count, total_term)
 
         print(f"CI-Based Terminations: {total_term}")
         print(f"False Terminations (true size >= 1): {false_term_count}")
@@ -222,12 +209,7 @@ class EarlyTerminationAnalysis(AnalysisBase):
 
             # Wilson CI for this scenario
             if total_in_scenario > 0:
-                p = false_in_scenario / total_in_scenario
-                denom = 1 + z**2/total_in_scenario
-                center = (p + z**2/(2*total_in_scenario)) / denom
-                margin = z * np.sqrt((p*(1-p) + z**2/(4*total_in_scenario))/total_in_scenario) / denom
-                ci_low = max(0, center - margin)
-                ci_high = min(1, center + margin)
+                ci_low, ci_high = wilson_score_interval(false_in_scenario, total_in_scenario)
                 ci_str = f"[{ci_low:.1%}, {ci_high:.1%}]"
             else:
                 ci_str = "N/A"
@@ -343,9 +325,9 @@ class EarlyTerminationAnalysis(AnalysisBase):
         x = np.arange(len(scenarios))
         width = 0.25
 
-        bars1 = ax1.bar(x - width, term_rates, width, label='Any Termination', alpha=0.7, color='steelblue')
-        bars2 = ax1.bar(x, ci_term_rates, width, label='CI-Based Termination', alpha=0.7, color='darkorange')
-        bars3 = ax1.bar(x + width, false_term_rates, width, label='False Termination', alpha=0.7, color='crimson')
+        ax1.bar(x - width, term_rates, width, label='Any Termination', alpha=0.7, color='steelblue')
+        ax1.bar(x, ci_term_rates, width, label='CI-Based Termination', alpha=0.7, color='darkorange')
+        ax1.bar(x + width, false_term_rates, width, label='False Termination', alpha=0.7, color='crimson')
 
         # Add sample size annotations
         for i, (n, ci_n) in enumerate(zip(sample_sizes, ci_term_counts)):

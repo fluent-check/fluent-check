@@ -14,7 +14,6 @@
  */
 
 import * as fc from '../../src/index.js'
-import { FilteredArbitrary } from '../../src/arbitraries/FilteredArbitrary.js'
 import { ExperimentRunner, calculateRequiredSampleSize, printPowerAnalysis, getSeed, mulberry32 } from './runner.js'
 
 // -----------------------------------------------------------------------------

@@ -8,11 +8,11 @@ Investigates impact of depth, warmup, and pass rate on coverage.
 
 import matplotlib.pyplot as plt
 import numpy as np
-import pandas as pd
 from scipy import stats
 
 from base import AnalysisBase
 from viz import save_figure
+from stats import wilson_score_interval
 
 
 class AdvancedCICalibrationAnalysis(AnalysisBase):
@@ -39,21 +39,13 @@ class AdvancedCICalibrationAnalysis(AnalysisBase):
         self._analyze_by_pass_rate()
         self._create_visualization()
 
-    def _wilson_ci(self, p: float, n: int, confidence: float = 0.95) -> tuple:
-        if n == 0: return (0, 1)
-        z = stats.norm.ppf(1 - (1 - confidence) / 2)
-        denominator = 1 + z**2 / n
-        center = (p + z**2 / (2*n)) / denominator
-        margin = z * np.sqrt((p * (1 - p) + z**2 / (4*n)) / n) / denominator
-        return (max(0, center - margin), min(1, center + margin))
-
     def _analyze_by_depth(self) -> None:
         self.print_section("COVERAGE BY DEPTH")
         depth_stats = self.df.groupby('depth')['true_in_ci'].agg(['mean', 'count']).reset_index()
         print(f"{'Depth':<10} {'Coverage':<10} {'N':<8} {'95% CI':<20}")
         self.print_divider()
         for _, row in depth_stats.iterrows():
-            ci = self._wilson_ci(row['mean'], int(row['count']))
+            ci = wilson_score_interval(int(row['mean'] * row['count']), int(row['count']))
             print(f"{int(row['depth']):<10} {row['mean']:>7.1%}   {int(row['count']):<8} [{ci[0]:.1%}, {ci[1]:.1%}]")
 
     def _analyze_by_warmup(self) -> None:
@@ -62,7 +54,7 @@ class AdvancedCICalibrationAnalysis(AnalysisBase):
         print(f"{'Warmup':<10} {'Coverage':<10} {'N':<8} {'95% CI':<20}")
         self.print_divider()
         for _, row in warmup_stats.iterrows():
-            ci = self._wilson_ci(row['mean'], int(row['count']))
+            ci = wilson_score_interval(int(row['mean'] * row['count']), int(row['count']))
             print(f"{int(row['warmup']):<10} {row['mean']:>7.1%}   {int(row['count']):<8} [{ci[0]:.1%}, {ci[1]:.1%}]")
 
     def _analyze_by_pass_rate(self) -> None:
@@ -71,7 +63,7 @@ class AdvancedCICalibrationAnalysis(AnalysisBase):
         print(f"{'Pass Rate':<10} {'Coverage':<10} {'N':<8} {'95% CI':<20}")
         self.print_divider()
         for _, row in rate_stats.iterrows():
-            ci = self._wilson_ci(row['mean'], int(row['count']))
+            ci = wilson_score_interval(int(row['mean'] * row['count']), int(row['count']))
             print(f"{row['pass_rate']:<10.2f} {row['mean']:>7.1%}   {int(row['count']):<8} [{ci[0]:.1%}, {ci[1]:.1%}]")
 
     def _create_visualization(self) -> None:
@@ -83,7 +75,7 @@ class AdvancedCICalibrationAnalysis(AnalysisBase):
             stats = data.groupby('depth')['true_in_ci'].agg(['mean', 'count']).reset_index()
             depths = stats['depth']
             means = stats['mean']
-            err = [self._wilson_ci(m, int(c)) for m, c in zip(means, stats['count'])]
+            err = [wilson_score_interval(int(m * c), int(c)) for m, c in zip(means, stats['count'])]
             
             yerr_lower = [max(0, m - e[0]) for m, e in zip(means, err)]
             yerr_upper = [max(0, e[1] - m) for m, e in zip(means, err)]

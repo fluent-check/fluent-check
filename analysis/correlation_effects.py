@@ -17,10 +17,10 @@ Generates:
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy import stats
-import pandas as pd
 
 from base import AnalysisBase
-from viz import save_figure, COLORS
+from viz import save_figure
+from stats import wilson_score_interval
 
 
 class CorrelationEffectsAnalysis(AnalysisBase):
@@ -66,7 +66,7 @@ class CorrelationEffectsAnalysis(AnalysisBase):
         for (scenario, pass_rate), group in grouped:
             n = len(group)
             coverage = group['covered'].mean()
-            ci = self._wilson_ci(coverage, n)
+            ci = wilson_score_interval(int(coverage * n), n)
             
             key = (scenario, pass_rate)
             print(f"{scenario:<25} {pass_rate:<10} {coverage:>7.1%}   {n:<8} [{ci[0]:.1%}, {ci[1]:.1%}]")
@@ -76,18 +76,6 @@ class CorrelationEffectsAnalysis(AnalysisBase):
                 'n': n,
                 'ci': ci
             }
-
-    def _wilson_ci(self, p: float, n: int, confidence: float = 0.95) -> tuple:
-        """Compute Wilson score confidence interval for a proportion."""
-        if n == 0:
-            return (0, 1)
-
-        z = stats.norm.ppf(1 - (1 - confidence) / 2)
-        denominator = 1 + z**2 / n
-        center = (p + z**2 / (2*n)) / denominator
-        margin = z * np.sqrt((p * (1 - p) + z**2 / (4*n)) / n) / denominator
-
-        return (max(0, center - margin), min(1, center + margin))
 
     def _test_hypotheses(self) -> None:
         """Test the hypotheses."""
@@ -142,7 +130,7 @@ class CorrelationEffectsAnalysis(AnalysisBase):
             data = self.df[self.df['scenario'] == sc]
             cov = data['covered'].mean()
             n = len(data)
-            ci = self._wilson_ci(cov, n)
+            ci = wilson_score_interval(int(cov * n), n)
             means.append(cov)
             errors_lower.append(cov - ci[0])
             errors_upper.append(ci[1] - cov)

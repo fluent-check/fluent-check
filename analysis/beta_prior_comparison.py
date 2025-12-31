@@ -16,7 +16,6 @@ Hypotheses:
 
 import matplotlib.pyplot as plt
 import numpy as np
-import pandas as pd
 from base import AnalysisBase
 from viz import save_figure
 from stats import wilson_score_interval

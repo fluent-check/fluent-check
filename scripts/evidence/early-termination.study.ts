@@ -62,7 +62,6 @@
 import * as fc from '../../src/index.js'
 import {BetaDistribution} from '../../src/statistics.js'
 import {
-  ExperimentRunner,
   getSeed,
   getSampleSize,
   mulberry32,
@@ -143,7 +142,7 @@ function getTrialsForScenario(
  * Base trials per config - used when termination rate is high enough.
  * For scenarios with low termination rates, we use getTrialsForScenario.
  */
-const BASE_TRIALS = getSampleSize(
+export const BASE_TRIALS = getSampleSize(
   Math.max(powerResult.requiredSampleSize, 1000),
   100
 )
@@ -294,10 +293,6 @@ export function runEarlyTerminationTrial(
   for (let i = 0; i < maxSamples; i++) {
     // Get size info BEFORE pick to track termination condition
     const sizeInfoBefore = arb.size()
-    let ciUpperBefore = effectiveBaseSize
-    if (sizeInfoBefore.type === 'estimated') {
-      ciUpperBefore = sizeInfoBefore.credibleInterval[1]
-    }
 
     const pick = arb.pick(generator)
 

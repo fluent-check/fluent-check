@@ -5,7 +5,7 @@
 import fs from 'fs'
 import path from 'path'
 import { fork, ChildProcess } from 'child_process'
-import { fileURLToPath, pathToFileURL } from 'url'
+import { fileURLToPath } from 'url'
 import jstat from 'jstat'
 
 /**

@@ -18,10 +18,10 @@ Generates:
 
 import matplotlib.pyplot as plt
 import numpy as np
-from scipy import stats
 
 from base import AnalysisBase
 from viz import save_figure
+from stats import wilson_score_interval
 
 
 class CICalibrationAnalysis(AnalysisBase):
@@ -105,7 +105,7 @@ class CICalibrationAnalysis(AnalysisBase):
             data = chain_data[chain_data['depth'] == depth]
             n = len(data)
             coverage = data['true_in_ci'].mean()
-            ci = self._wilson_ci(coverage, n)
+            ci = wilson_score_interval(int(coverage * n), n)
 
             print(f"{depth:<10} {coverage:>7.1%}   {n:<8} [{ci[0]:.1%}, {ci[1]:.1%}]")
             
@@ -129,7 +129,7 @@ class CICalibrationAnalysis(AnalysisBase):
             coverage = data['true_in_ci'].mean()
 
             # Wilson score confidence interval
-            ci = self._wilson_ci(coverage, n)
+            ci = wilson_score_interval(int(coverage * n), n)
 
             print(f"{scenario:<30} {coverage:>7.1%}   {n:<8} [{ci[0]:.1%}, {ci[1]:.1%}]")
 
@@ -153,7 +153,7 @@ class CICalibrationAnalysis(AnalysisBase):
             coverage = data['true_in_ci'].mean()
 
             # Wilson score confidence interval
-            ci = self._wilson_ci(coverage, n)
+            ci = wilson_score_interval(int(coverage * n), n)
 
             print(f"{stype:<20} {coverage:>7.1%}   {n:<8} [{ci[0]:.1%}, {ci[1]:.1%}]")
 
@@ -162,18 +162,6 @@ class CICalibrationAnalysis(AnalysisBase):
                 'n': n,
                 'ci': ci
             }
-
-    def _wilson_ci(self, p: float, n: int, confidence: float = 0.95) -> tuple:
-        """Compute Wilson score confidence interval for a proportion."""
-        if n == 0:
-            return (0, 1)
-
-        z = stats.norm.ppf(1 - (1 - confidence) / 2)
-        denominator = 1 + z**2 / n
-        center = (p + z**2 / (2*n)) / denominator
-        margin = z * np.sqrt((p * (1 - p) + z**2 / (4*n)) / n) / denominator
-
-        return (max(0, center - margin), min(1, center + margin))
 
     def _test_hypotheses(self) -> None:
         """Test the four hypotheses."""
@@ -184,7 +172,7 @@ class CICalibrationAnalysis(AnalysisBase):
         if len(filter_data) > 0:
             h1_coverage = filter_data['true_in_ci'].mean()
             h1_n = len(filter_data)
-            h1_ci = self._wilson_ci(h1_coverage, h1_n)
+            h1_ci = wilson_score_interval(int(h1_coverage * h1_n), h1_n)
             h1_pass = abs(h1_coverage - self.TARGET_COVERAGE) <= self.TOLERANCE
 
             print(f"\nH1 (Filter CI Calibration):")
@@ -201,7 +189,7 @@ class CICalibrationAnalysis(AnalysisBase):
         if len(product_data) > 0:
             h2_coverage = product_data['true_in_ci'].mean()
             h2_n = len(product_data)
-            h2_ci = self._wilson_ci(h2_coverage, h2_n)
+            h2_ci = wilson_score_interval(int(h2_coverage * h2_n), h2_n)
             # One-sided test: coverage ≥ 90%
             h2_pass = h2_ci[0] >= self.TARGET_COVERAGE - self.TOLERANCE  # Lower bound check
 
@@ -219,7 +207,7 @@ class CICalibrationAnalysis(AnalysisBase):
         if len(sum_data) > 0:
             h3_coverage = sum_data['true_in_ci'].mean()
             h3_n = len(sum_data)
-            h3_ci = self._wilson_ci(h3_coverage, h3_n)
+            h3_ci = wilson_score_interval(int(h3_coverage * h3_n), h3_n)
             h3_pass = h3_ci[0] >= self.TARGET_COVERAGE - self.TOLERANCE
 
             print(f"\nH3 (Sum CI Calibration):")
@@ -234,7 +222,7 @@ class CICalibrationAnalysis(AnalysisBase):
         # H4: CIs are not excessively conservative (≤99%)
         overall_coverage = self.df['true_in_ci'].mean()
         overall_n = len(self.df)
-        overall_ci = self._wilson_ci(overall_coverage, overall_n)
+        overall_ci = wilson_score_interval(int(overall_coverage * overall_n), overall_n)
         h4_pass = overall_coverage <= 0.99
 
         print(f"\nH4 (Not Excessively Conservative):")

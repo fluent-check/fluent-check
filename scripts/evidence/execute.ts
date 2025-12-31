@@ -6,6 +6,7 @@ import { registry, StudyConfig } from './registry.js'
 
 const ARGS = process.argv.slice(2)
 const QUICK_MODE = ARGS.includes('--quick') || process.env.QUICK_MODE === '1'
+const ANALYSIS_ONLY = ARGS.includes('--analysis-only')
 const THREADS_ARG = ARGS.find(a => a.startsWith('--threads='))
 const THREADS = THREADS_ARG ? parseInt(THREADS_ARG.split('=')[1], 10) : 1
 const VENV_PYTHON = path.join(process.cwd(), 'analysis/.venv/bin/python')
@@ -17,6 +18,7 @@ Usage: npx tsx scripts/evidence/execute.ts [options] [studies]
 Options:
   --quick           Run in quick mode (reduced sample sizes)
   --threads=N       Run with N threads (default: 1)
+  --analysis-only   Skip data generation and only run analysis
   --all             Run ALL studies
   --list-studies    List all available studies
   --list-tags       List all available tags
@@ -148,8 +150,12 @@ async function main() {
     console.log(`------------------------------------------------------------`)
 
     // 1. Generate Data (TypeScript)
-    console.log(`> Generating data...`)
-    runCommand('npx', ['tsx', study.ts], env)
+    if (!ANALYSIS_ONLY) {
+      console.log(`> Generating data...`)
+      runCommand('npx', ['tsx', study.ts], env)
+    } else {
+      console.log(`> Skipping data generation (--analysis-only)`)
+    }
 
     // 2. Analyze Data (Python)
     if (study.py) {
