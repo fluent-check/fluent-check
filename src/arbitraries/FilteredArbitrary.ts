@@ -6,10 +6,16 @@ import {estimatedSize, lowerCredibleInterval, upperCredibleInterval} from './uti
 
 export class FilteredArbitrary<A> extends WrappedArbitrary<A> {
   sizeEstimation: BetaDistribution
+  static WARM_START_SCALE = 0
 
-  constructor(override readonly baseArbitrary: Arbitrary<A>, public readonly f: (a: A) => boolean) {
+  constructor(
+    override readonly baseArbitrary: Arbitrary<A>,
+    public readonly f: (a: A) => boolean,
+    initialAlpha = 2,
+    initialBeta = 1
+  ) {
     super(baseArbitrary)
-    this.sizeEstimation = new BetaDistribution(2, 1) // use 1,1 for .mean instead of .mode in point estimation
+    this.sizeEstimation = new BetaDistribution(initialAlpha, initialBeta) // use 1,1 for .mean instead of .mode in point estimation
 
     // Warm-up with a deterministic seed to prime the estimator
     // This prevents the "Cold Start" problem where size() is called before any sampling
@@ -75,7 +81,11 @@ export class FilteredArbitrary<A> extends WrappedArbitrary<A> {
     const corners = shrunkBase.cornerCases()
     if (corners.length > 0 && !corners.some(c => this.f(c.value))) return NoArbitrary
 
-    return shrunkBase.filter(v => this.f(v))
+    const scale = FilteredArbitrary.WARM_START_SCALE
+    const newAlpha = scale > 0 ? this.sizeEstimation.alpha * scale : 2
+    const newBeta = scale > 0 ? this.sizeEstimation.beta * scale : 1
+
+    return new FilteredArbitrary(shrunkBase, v => this.f(v), newAlpha, newBeta)
   }
 
   override canGenerate(pick: FluentPick<A>) {

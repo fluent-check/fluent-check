@@ -110,14 +110,54 @@ When creating a union of arbitraries (e.g., `fc.union(small, large)`), the selec
 
 ![Weighted Union Probability](figures/weighted-union.png)
 
+## Study I: Warm Start Shrinking
+
+**Question**: Should we transfer the learned size estimation (posterior) from a parent arbitrary to its child during shrinking to improve precision?
+
+**Hypothesis**:
+- "Warm Start" (initializing child posterior with parent's alpha/beta) will reduce CI width without sacrificing coverage.
+- Tested scales: 0 (Cold Start/Current), 0.5 (Half transfer), 1.0 (Full transfer).
+
+**Scenarios**:
+1. **Scaled** (Pass rate constant): `even` numbers. Parent 50% pass, Child 50% pass.
+2. **Subset** (Pass rate changes): `x < 50`. Parent 50% pass (0..100), Child 100% pass (0..24).
+
+**Results**:
+
+| Scenario | Scale | Coverage | Median Width | Relative Error | Result |
+|----------|-------|----------|--------------|----------------|--------|
+| Scaled   | 0.0   | 100.0%   | 19.00        | 24.0%          | Calibrated |
+| Scaled   | 0.5   | 100.0%   | 10.00        | 4.9%           | ✅ Improved |
+| Scaled   | 1.0   | 99.2%    | 8.00         | 5.6%           | ✅ Improved |
+| Subset   | 0.0   | 100.0%   | 6.00         | 0.0%           | Calibrated |
+| Subset   | 0.5   | 0.0%     | 6.00         | 41.0%          | ❌ CATASTROPHIC |
+| Subset   | 1.0   | 0.0%     | 5.00         | 44.3%          | ❌ CATASTROPHIC |
+
+**Analysis**:
+- **Warm Start fails catastrophically** when shrinking changes the pass rate. In the `subset` scenario, the parent learned "50% pass rate" with high confidence. The child (now restricted to the valid region) has a 100% pass rate. The transferred posterior makes the child **confidently wrong** (estimating 50% size), leading to 0% coverage.
+- **Cold Start is robust**: By resetting the posterior (Scale 0), the child quickly relearns the new pass rate (100%), maintaining perfect calibration.
+- **Efficiency Tradeoff**: While Warm Start improved precision by ~50% in the constant-pass-rate scenario, the risk of massive miscalibration in other cases is unacceptable.
+
+**Conclusion**:
+**Do NOT implement Warm Start shrinking.** The current Cold Start approach (Scale 0) is the correct design choice for robustness. The "memory" of the parent arbitrary is harmful when the shrinking process biases the sample space (which it fundamentally does).
+
+**Visualization**:
+
+![Warm Start Shrinking Results](figures/warm-start-shrinking.png)
+
+**Future Work: Spatial Warm Start**
+The failure of naive warm start suggests that transferring the *global* pass rate is insufficient because shrinking fundamentally changes the local distribution (e.g., zooming into a 100% passing region). A potential future direction is to use spatial statistics collected during the parent's sampling phase (e.g., Interquartile Range (IQR) of passing values, kNN density estimation) to construct a spatially-aware prior. If the shrunk region falls within a high-density cluster of passing values, the prior could be optimistically adjusted, whereas if it falls in a sparse region, it could remain conservative.
+
 ## Reproduction
 
 ```bash
 # Generate data
 npm run evidence:study ci-calibration-advanced
 npm run evidence:study weighted-union
+npm run evidence:study warm-start-shrinking
 
 # Run analysis
 npm run evidence:analyze ci-calibration-advanced
 npm run evidence:analyze weighted-union
+npm run evidence:analyze warm-start-shrinking
 ```

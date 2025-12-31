@@ -207,11 +207,11 @@ export const registry: Record<string, StudyConfig> = {
     tags: ['apparatus', 'statistics', 'correlation'],
     description: 'Tests impact of correlation on interval arithmetic calibration'
   },
-  'ci-calibration-advanced': {
-    id: 'ci-calibration-advanced',
-    ts: 'scripts/evidence/ci-calibration-advanced.study.ts',
-    py: 'analysis/ci_calibration_advanced.py',
-    tags: ['apparatus', 'statistics', 'confidence', 'calibration', 'advanced'],
-    description: 'Deep dive into filter chain calibration degradation'
-  }
+  'warm-start-shrinking': {
+    id: 'warm-start-shrinking',
+    ts: 'scripts/evidence/warm-start-shrinking.study.ts',
+    py: 'analysis/warm_start_shrinking.py',
+    tags: ['apparatus', 'shrinking', 'warm-start', 'optimization'],
+    description: 'Study I: Tests impact of warm-start posterior transfer during shrinking'
+  },
 }
