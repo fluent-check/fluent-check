@@ -1,16 +1,17 @@
 /**
  * Study C: Adversarial Filter Patterns
  *
- * Does calibration hold for clustered/patterned data?
+ * Does CI calibration hold for non-uniform, structured filter patterns?
  *
  * Hypotheses:
- * C1: Clustered acceptance (every Nth value passes) maintains calibration
- * C2: Patterned rejection (modular arithmetic) maintains calibration
+ * C1: Clustered acceptance maintains coverage ≥90%
+ * C2: Modular patterns maintain coverage ≥90%
+ * C3: Magnitude-dependent patterns maintain coverage ≥90%
+ * C4: Bit-pattern patterns maintain coverage ≥90%
+ * C5: Hash-based deterministic patterns maintain coverage ≥90%
  *
- * Scenarios:
- * - Clustered: (x % 100) < 10 (10% pass rate, but grouped)
- * - Patterned: isPrime(x) (Structured, diminishing density)
- * - Modulo: (x % 7) === 0 (Regular interval)
+ * All filters are deterministic and have computable ground truth.
+ * This fixes the non-deterministic Math.random() and expensive isPrime() from previous version.
  */
 
 import * as fc from '../../src/index.js'
@@ -36,11 +37,14 @@ interface AdversarialParams {
   getTrueSize: (baseSize: number) => number
 }
 
-// Simple primality test
-function isPrime(num: number): boolean {
-  for(let i = 2, s = Math.sqrt(num); i <= s; i++)
-    if(num % i === 0) return false; 
-  return num > 1;
+// Count number of 1-bits in binary representation (population count)
+function popcount(n: number): number {
+  let count = 0
+  while (n) {
+    count += n & 1
+    n >>>= 1
+  }
+  return count
 }
 
 function runTrial(
@@ -91,39 +95,52 @@ function runTrial(
 }
 
 async function runAdversarialStudy(): Promise<void> {
-  const baseSize = 10000
-  
   const scenarios: AdversarialParams[] = [
+    // C1: Clustered Acceptance (10% pass rate, all in first 10% of range)
     {
       scenario: 'clustered_10pct',
-      baseSize,
-      predicate: (x: number) => (x % 100) < 10,
-      getTrueSize: (bs: number) => Math.floor(bs / 10) // 10% exactly
+      baseSize: 1000,
+      predicate: (x: number) => x < 100,
+      getTrueSize: () => 100 // Exactly 100 values (0-99)
     },
+
+    // C2: Modular Pattern (~50% pass rate, even numbers)
     {
-      scenario: 'modulo_7',
-      baseSize,
-      predicate: (x: number) => (x % 7) === 0,
-      getTrueSize: (bs: number) => Math.ceil(bs / 7) 
+      scenario: 'modulo_even',
+      baseSize: 1000,
+      predicate: (x: number) => x % 2 === 0,
+      getTrueSize: () => 500 // Exactly 500 even numbers (0, 2, 4, ..., 998)
     },
+
+    // C3: Magnitude-Dependent (biased pass rate)
     {
-      scenario: 'primes',
-      baseSize: 1000, // Smaller base for primes to avoid slow counting
-      predicate: isPrime,
+      scenario: 'magnitude_dependent',
+      baseSize: 1000,
+      predicate: (x: number) => x < 100 || (x >= 500 && x < 550),
+      getTrueSize: () => 150 // 100 + 50 = 150 values
+    },
+
+    // C4: Bit-Pattern Dependent (~50% pass rate)
+    {
+      scenario: 'bit_pattern_even',
+      baseSize: 1024, // Power of 2 for clean analysis
+      predicate: (x: number) => popcount(x) % 2 === 0,
+      getTrueSize: () => 512 // Exactly half (balanced binary function)
+    },
+
+    // C5: Hash-Based Pseudo-Random (30% pass rate, deterministic)
+    {
+      scenario: 'hash_30pct',
+      baseSize: 1000,
+      predicate: (x: number) => ((x * 2654435761) >>> 0) % 100 < 30,
       getTrueSize: (bs: number) => {
-        // Count primes up to bs-1
+        // Compute exact count via exhaustive enumeration (one-time)
         let count = 0
         for (let i = 0; i < bs; i++) {
-          if (isPrime(i)) count++
+          if (((i * 2654435761) >>> 0) % 100 < 30) count++
         }
         return count
       }
-    },
-    {
-      scenario: 'block_hole', // Middle 50% is missing
-      baseSize,
-      predicate: (x: number) => x < baseSize * 0.25 || x >= baseSize * 0.75,
-      getTrueSize: (bs: number) => Math.ceil(bs * 0.5)
     }
   ]
 

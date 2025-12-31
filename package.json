@@ -30,6 +30,7 @@
     "evidence:apparatus": "npx tsx scripts/evidence/execute.ts --apparatus",
     "evidence:apparatus:quick": "npx tsx scripts/evidence/execute.ts --apparatus --quick",
     "evidence:all": "npx tsx scripts/evidence/execute.ts --all",
+    "evidence:analyze": "npx tsx scripts/evidence/execute.ts --all --analysis-only",
     "evidence:study": "npx tsx scripts/evidence/execute.ts"
   },
   "keywords": [

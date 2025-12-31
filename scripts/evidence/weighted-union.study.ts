@@ -14,7 +14,7 @@
  */
 
 import * as fc from '../../src/index.js'
-import { ExperimentRunner, getSeed, getSampleSize, mulberry32, HighResTimer } from './runner.js'
+import { ExperimentRunner, getSeed, getSampleSize, mulberry32, HighResTimer, calculateRequiredSampleSize, printPowerAnalysis } from './runner.js'
 import path from 'path'
 
 interface WeightedUnionResult {
@@ -134,8 +134,22 @@ async function runWeightedUnionStudy(): Promise<void> {
     }
   ]
 
-  const samplesPerTrial = 10000  // Enough for stable frequency estimates
-  
+  // Power Analysis
+  // For Chi-squared test validity, we need expected count >= 5 in smallest category
+  // Worst case: 1 vs 99 (1%)
+  // n * 0.01 >= 5 => n >= 500
+  // For detecting 20% relative error (e.g. 1.0% vs 1.2%) with 80% power:
+  // n approx 20,000
+  // Design doc recommends n=10,000 for adequate power
+  const samplesPerTrial = 10000
+
+  const powerAnalysis = calculateRequiredSampleSize({
+    targetProportion: 0.50, // Worst case for variance
+    minDetectableDeviation: 0.02, // Detect 2% absolute deviation
+    power: 0.80,
+    alpha: 0.05
+  })
+
   const parameters: WeightedUnionParams[] = unionScenarios.map(s => ({
     name: s.name,
     arb0: s.arb0,
@@ -144,7 +158,7 @@ async function runWeightedUnionStudy(): Promise<void> {
   }))
 
   const runner = new ExperimentRunner<WeightedUnionParams, WeightedUnionResult>({
-    name: 'Weighted Union Probability Study',
+    name: 'Study G: Weighted Union Selection (Revised)',
     outputPath: path.join(process.cwd(), 'docs/evidence/raw/weighted-union.csv'),
     csvHeader: [
       'trial_id', 'seed', 'union_type', 'branch_sizes', 'branch0_count',
@@ -156,9 +170,13 @@ async function runWeightedUnionStudy(): Promise<void> {
       r.branch1Count, r.samplesPerTrial, r.expectedP0.toFixed(6), r.elapsedMicros
     ],
     preRunInfo: () => {
-      console.log('Hypothesis: ArbitraryComposite samples each branch proportionally to its size\n')
-      console.log(`Samples per trial: ${samplesPerTrial}`)
-      console.log('Union scenarios (homogeneous integer types):')
+      console.log('Hypothesis: ArbitraryComposite samples each branch proportionally to its size')
+      console.log('Revised methodology: Chi-squared goodness-of-fit + Cohen\'s h effect size\n')
+      
+      printPowerAnalysis(powerAnalysis)
+      console.log(`Selected sample size: ${samplesPerTrial} (based on design doc recommendation)`)
+      
+      console.log('\nUnion scenarios (homogeneous integer types):')
       for (const scenario of unionScenarios) {
         const size0 = scenario.arb0.size().value
         const size1 = scenario.arb1.size().value
